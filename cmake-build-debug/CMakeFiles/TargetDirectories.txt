@@ -1,3 +1,0 @@
-C:/programacion/lox-vm/cmake-build-debug/CMakeFiles/c.dir
-C:/programacion/lox-vm/cmake-build-debug/CMakeFiles/edit_cache.dir
-C:/programacion/lox-vm/cmake-build-debug/CMakeFiles/rebuild_cache.dir
