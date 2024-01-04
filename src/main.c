@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "src/shared.h"
-#include "src/chunk/chunk.h"
-#include "src/chunk/chunk_disassembler.h"
-#include "src/vm/vm.h"
-#include "src/compiler/compiler.h"
+#include "shared.h"
+#include "chunk/chunk.h"
+#include "chunk/chunk_disassembler.h"
+#include "vm/vm.h"
+#include "compiler/compiler.h"
 
 void debug_simple_calculation();
 void prod();
@@ -98,8 +98,6 @@ void debug_simple_calculation() {
 
 void prod() {
     start_vm();
-
-
 
     stop_vm();
 }

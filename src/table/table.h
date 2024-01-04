@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../shared.h"
-#include "../types/strings/string_object.h"
+#include "shared.h"
+#include "types/strings/string_object.h"
 
 struct hash_table_entry {
     struct string_object * key;
