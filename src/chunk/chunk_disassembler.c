@@ -30,6 +30,11 @@ int disassemble_chunk_instruction(const struct chunk * chunk, const int offset) 
         case OP_TRUE: return simple_instruction("TRUE", offset);
         case OP_NIL: return simple_instruction("NIL", offset);
         case OP_NOT: return simple_instruction("NOT", offset);
+        case OP_POP: return simple_instruction("POP", offset);
+        case OP_PRINT: return simple_instruction("PRINT", offset);
+        case OP_DEFINE_GLOBAL: return simple_instruction("DEFINE_GLOBAL", offset);
+        case OP_GET_GLOBAL: return simple_instruction("GET_GLOBAL", offset);
+        case OP_SET_GLOBAL: return simple_instruction("SET_GLOBAL", offset);
         default:
             printf("Unknown opcode %d\n", instruction);
             return offset + 1;

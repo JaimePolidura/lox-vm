@@ -12,8 +12,9 @@ struct vm {
     uint8_t * pc; // Actual instruction
     lox_value_t stack[STACK_MAX];
     lox_value_t * esp; // Top of the stack
-    struct object * heap; // Linkedlist of heap allocated objects
+    struct object * heap; // Linked list of heap allocated objects
     struct string_pool string_pool;
+    struct hash_table global_variables;
 };
 
 typedef enum {

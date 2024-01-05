@@ -29,7 +29,7 @@ void write_chunk(struct chunk * chunk_to_write, uint8_t byte, int line) {
 void free_chunk(struct chunk * chunk_to_free) {
     free(chunk_to_free->code);
     free(chunk_to_free->lines);
-    free(&chunk_to_free->constants);
+    free(chunk_to_free->constants.values);
 }
 
 void init_chunk(struct chunk * chunk) {

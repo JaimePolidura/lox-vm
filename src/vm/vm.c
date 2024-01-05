@@ -8,11 +8,14 @@ static double pop_and_check_number();
 static bool check_boolean();
 static interpret_result run();
 static void print_stack();
-static void runtime_errpr(char * format, ...);
+static void runtime_error(char * format, ...);
 static lox_value_t values_equal(lox_value_t a, lox_value_t b);
 static inline lox_value_t peek(int index_from_top);
 static inline void adition();
 static void add_heap_object(struct object * object);
+static void define_global();
+static void read_global();
+static void set_global();
 
 interpret_result interpret_vm(struct chunk * chunk) {
     current_vm.chunk = chunk;
@@ -22,7 +25,6 @@ interpret_result interpret_vm(struct chunk * chunk) {
     return run();
 }
 
-static interpret_result run() {
 #define READ_BYTE() (*current_vm.pc++)
 #define READ_CONSTANT() (current_vm.chunk->constants.values[READ_BYTE()])
 #define BINARY_OP(op) \
@@ -39,6 +41,7 @@ static interpret_result run() {
         push_stack_vm(FROM_BOOL(a op b)); \
     }while(false);
 
+static interpret_result run() {
     for(;;) {
 #ifdef  DEBUG_TRACE_EXECUTION
         disassemble_chunk_instruction(current_vm.chunk, current_vm.stack - current_vm.esp);
@@ -49,31 +52,27 @@ static interpret_result run() {
             case OP_CONSTANT: push_stack_vm(READ_CONSTANT()); break;
             case OP_NEGATE: push_stack_vm(FROM_NUMBER(-pop_and_check_number())); break;
             case OP_ADD: adition(); break;
-            case OP_SUB:
-                BINARY_OP(-) break;
-            case OP_MUL:
-                BINARY_OP(*) break;
-            case OP_DIV:
-                BINARY_OP(/) break;
-            case OP_GREATER:
-                COMPARATION_OP(>) break;
-            case OP_LESS:
-                COMPARATION_OP(<) break;
+            case OP_SUB: BINARY_OP(-) break;
+            case OP_MUL: BINARY_OP(*) break;
+            case OP_DIV: BINARY_OP(/) break;
+            case OP_GREATER: COMPARATION_OP(>) break;
+            case OP_LESS: COMPARATION_OP(<) break;
             case OP_FALSE: push_stack_vm(FROM_BOOL(false)); break;
             case OP_TRUE: push_stack_vm(FROM_BOOL(true)); break;
             case OP_NIL: push_stack_vm(FROM_NIL()); break;
             case OP_NOT: push_stack_vm(FROM_BOOL(!check_boolean())); break;
             case OP_EQUAL: push_stack_vm(values_equal(pop_stack_vm(), pop_stack_vm())); break;
+            case OP_PRINT: print_value(pop_stack_vm()); printf("\n"); break;
+            case OP_POP: pop_stack_vm(); break;
+            case OP_DEFINE_GLOBAL: define_global(); break;
+            case OP_GET_GLOBAL: read_global(); break;
+            case OP_SET_GLOBAL: set_global(); break;
             case OP_EOF: return INTERPRET_OK;
             default:
                 perror("Unhandled bytecode op\n");
                 return INTERPRET_RUNTIME_ERROR;
         }
     }
-
-#undef READ_CONSTANT
-#undef BINARY_OP
-#undef READ_BYTE
 }
 
 static inline void adition() {
@@ -86,10 +85,10 @@ static inline void adition() {
     lox_value_t a_value = pop_stack_vm();
     char * a_chars = cast_to_string(a_value);
     char * b_chars = cast_to_string(b_value);
-    int a_length = strlen(a_chars);
-    int b_length = strlen(b_chars);
+    size_t a_length = strlen(a_chars);
+    size_t b_length = strlen(b_chars);
 
-    int new_length = a_length + b_length; //Include \0
+    size_t new_length = a_length + b_length; //Include \0
     char * concatenated = ALLOCATE(char, new_length + 1);
     memcpy(concatenated, a_chars, a_length);
     memcpy(concatenated + a_length, b_chars, b_length);
@@ -105,8 +104,33 @@ static inline void adition() {
     push_stack_vm(FROM_OBJECT(add_string(concatenated, new_length)));
 }
 
+static void define_global() {
+    struct string_object * name = TO_STRING(READ_CONSTANT());
+    put_hash_table(&current_vm.global_variables, name, peek(0));
+    pop_stack_vm();
+}
+
+static void read_global() {
+    struct string_object * variable_name = TO_STRING(READ_CONSTANT());
+    lox_value_t variable_value;
+    if(!get_hash_table(&current_vm.global_variables, variable_name, &variable_value)) {
+        runtime_error("Undefined variable %s.", variable_name->chars);
+    }
+
+    push_stack_vm(variable_value);
+}
+
+static void set_global() {
+    struct string_object * variable_name = TO_STRING(READ_CONSTANT());
+    if(!contains_hash_table(&current_vm.global_variables, variable_name)){
+        runtime_error("Cannot assign value to undeclared variable %s", variable_name->chars);
+    }
+
+    put_hash_table(&current_vm.global_variables, variable_name, peek(0));
+}
+
 static inline lox_value_t peek(int index_from_top) {
-    return *(current_vm.esp - index_from_top);
+    return *(current_vm.esp - 1 - index_from_top);
 }
 
 static double pop_and_check_number() {
@@ -114,8 +138,8 @@ static double pop_and_check_number() {
     if(IS_NUMBER(value)) {
         return TO_NUMBER(value);
     } else {
-        runtime_errpr("Operand must be a number.");
-        exit(1);
+        runtime_error("Operand must be a number.");
+        return -1; //Unreachable
     }
 }
 
@@ -124,8 +148,7 @@ static bool check_boolean() {
     if(IS_BOOL(value)) {
         return TO_BOOL(value);
     } else {
-        runtime_errpr("Operand must be a boolean.");
-        exit(1);
+        runtime_error("Operand must be a boolean.");
     }
 }
 
@@ -140,7 +163,7 @@ static lox_value_t values_equal(lox_value_t a, lox_value_t b) {
         case VAL_BOOL: return FROM_BOOL(a.as.boolean == b.as.boolean);
         case VAL_OBJ: return FROM_BOOL(TO_STRING(a)->chars == TO_STRING(b)->chars);
         default:
-            runtime_errpr("Operator '==' not supported for that type");
+            runtime_error("Operator '==' not supported for that type");
             return FROM_BOOL(false); //Unreachable, runtime_error executes exit()
     }
 }
@@ -159,12 +182,13 @@ void start_vm() {
     current_vm.esp = current_vm.stack; //Reset stack
     current_vm.heap = NULL;
     init_string_pool(&current_vm.string_pool);
+    init_hash_table(&current_vm.global_variables);
 }
 
 void stop_vm() {
 }
 
-static void runtime_errpr(char * format, ...) {
+static void runtime_error(char * format, ...) {
     va_list args;
     va_start(args, format);
     vfprintf(stderr, format, args);
@@ -174,6 +198,7 @@ static void runtime_errpr(char * format, ...) {
     size_t instruction = ((uint8_t *) current_vm.esp) - current_vm.chunk->code - 1;
     int line = current_vm.chunk->lines[instruction];
     fprintf(stderr, "[line %d] in script\n", line);
+    exit(1);
 }
 
 static void print_stack() {

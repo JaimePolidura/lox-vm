@@ -27,7 +27,7 @@ typedef enum {
     PREC_PRIMARY
 } precedence_t;
 
-typedef void(* parse_fn_t)(struct compiler *);
+typedef void(* parse_fn_t)(struct compiler *, bool);
 
 struct parse_rule {
     parse_fn_t prefix;
@@ -44,14 +44,26 @@ static void emit_bytecodes(struct compiler * compiler, uint8_t bytecodeA, uint8_
 static void emit_constant(struct compiler * compiler, lox_value_t value);
 static struct compiler * alloc_compiler();
 static void expression(struct compiler * compiler);
-static void number(struct compiler * compiler);
-static void grouping(struct compiler * compiler);
-static void unary(struct compiler * compiler);
+static void number(struct compiler * compiler, bool can_assign);
+static void grouping(struct compiler * compiler, bool can_assign);
+static void unary(struct compiler * compiler, bool can_assign);
 static void parse_precedence(struct compiler * compiler, precedence_t precedence);
-static struct parse_rule* get_rule(tokenType_t type);
-static void binary(struct compiler * compiler);
-static void literal(struct compiler * compiler);
-static void string(struct compiler * compiler);
+static struct parse_rule * get_rule(tokenType_t type);
+static void binary(struct compiler * compiler, bool can_assign);
+static void literal(struct compiler * compiler, bool can_assign);
+static void string(struct compiler * compiler, bool can_assign);
+static bool match(struct compiler * compiler, tokenType_t type);
+static bool check(struct compiler * compiler, tokenType_t type);
+static void declaration(struct compiler * compiler);
+static void statement(struct compiler * compiler);
+static void print_statement(struct compiler * compiler);
+static void expression_statement(struct compiler * compiler);
+static void variable_declaration(struct compiler * compiler);
+static uint8_t parse_variable(struct compiler * compiler, char * error_message);
+static uint8_t identifier_constant(struct compiler * compiler, struct token identifier_token);
+static void define_global_variable(struct compiler * compiler, uint8_t global_constant_offset);
+static void variable(struct compiler * compiler, bool can_assign);
+static void named_variable(struct compiler * compiler, struct token previous, bool can_assign);
 
 struct parse_rule rules[] = {
     [TOKEN_LEFT_PAREN] = {grouping, NULL, PREC_NONE},
@@ -73,7 +85,7 @@ struct parse_rule rules[] = {
     [TOKEN_GREATER_EQUAL] = {NULL, binary, PREC_COMPARISON},
     [TOKEN_LESS] = {NULL, binary, PREC_COMPARISON},
     [TOKEN_LESS_EQUAL] = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_IDENTIFIER] = {NULL, NULL, PREC_NONE},
+    [TOKEN_IDENTIFIER] = {variable, NULL, PREC_NONE},
     [TOKEN_STRING] = {string, NULL, PREC_NONE},
     [TOKEN_NUMBER] = {number, NULL, PREC_NONE},
     [TOKEN_AND] = {NULL, NULL, PREC_NONE},
@@ -100,10 +112,10 @@ bool compile(char * source_code, struct chunk * output_chunk) {
     struct compiler * compiler = alloc_compiler();
 
     advance(compiler);
-    expression(compiler);
-    consume(compiler, TOKEN_EOF, "Expected EOF");
 
-    emit_bytecode(compiler, OP_RETURN);
+    while(!match(compiler, TOKEN_EOF)){
+        declaration(compiler);
+    }
 
     bool is_success = !compiler->parser.has_error;
     free(compiler);
@@ -111,7 +123,62 @@ bool compile(char * source_code, struct chunk * output_chunk) {
     return is_success;
 }
 
-static void binary(struct compiler * compiler) {
+static void declaration(struct compiler * compiler) {
+    if(match(compiler, TOKEN_VAR)){
+        variable_declaration(compiler);
+    } else {
+        statement(compiler);
+    }
+}
+
+static void variable_declaration(struct compiler * compiler) {
+    uint8_t constant_offset = parse_variable(compiler, "Expected variable name.");
+
+    if(match(compiler, TOKEN_EQUAL)){
+        expression(compiler);
+    } else {
+        emit_bytecode(compiler, OP_NIL);
+    }
+
+    consume(compiler, TOKEN_SEMICOLON, "Expected ';' after variable declaration.");
+
+    define_global_variable(compiler, constant_offset);
+}
+
+static void statement(struct compiler * compiler) {
+    if(match(compiler, TOKEN_PRINT)){
+        print_statement(compiler);
+    } else {
+        expression_statement(compiler);
+    }
+}
+
+static void expression_statement(struct compiler * compiler) {
+    expression(compiler);
+    consume(compiler, TOKEN_SEMICOLON, "Expected ';' after print.");
+}
+
+static void print_statement(struct compiler * compiler) {
+    expression(compiler);
+    consume(compiler, TOKEN_SEMICOLON, "Expected ';' after print.");
+    emit_bytecode(compiler, OP_PRINT);
+}
+
+static void variable(struct compiler * compiler, bool can_assign) {
+    named_variable(compiler, compiler->parser.previous, can_assign);
+}
+
+static void named_variable(struct compiler * compiler, struct token previous, bool can_assign) {
+    uint8_t constant_offset = identifier_constant(compiler, previous);
+    if(can_assign && match(compiler, TOKEN_EQUAL)){
+        expression(compiler);
+        emit_bytecode(compiler, OP_SET_GLOBAL);
+    } else {
+        emit_bytecodes(compiler, OP_GET_GLOBAL, constant_offset);
+    }
+}
+
+static void binary(struct compiler * compiler, bool can_assign) {
     tokenType_t token_type = compiler->parser.previous.type;
 
     struct parse_rule * rule = get_rule(token_type);
@@ -135,7 +202,7 @@ static struct parse_rule* get_rule(tokenType_t type) {
     return &rules[type];
 }
 
-static void string(struct compiler * compiler) {
+static void string(struct compiler * compiler, bool can_assign) {
     const char * string_ptr = compiler->parser.previous.start + 1;
     int string_length = compiler->parser.previous.length - 2;
 
@@ -144,12 +211,12 @@ static void string(struct compiler * compiler) {
     emit_constant(compiler, FROM_OBJECT(add_result.string_object));
 }
 
-static void grouping(struct compiler * compiler) {
+static void grouping(struct compiler * compiler, bool can_assign) {
     expression(compiler);
     consume(compiler, TOKEN_RIGHT_PAREN, "Expected ')'");
 }
 
-static void literal(struct compiler * compiler) {
+static void literal(struct compiler * compiler, bool can_assign) {
     switch (compiler->parser.previous.type) {
         case TOKEN_FALSE: emit_bytecode(compiler, OP_FALSE); break;
         case TOKEN_TRUE: emit_bytecode(compiler, OP_TRUE); break;
@@ -157,7 +224,7 @@ static void literal(struct compiler * compiler) {
     }
 }
 
-static void unary(struct compiler * compiler) {
+static void unary(struct compiler * compiler, bool can_assign) {
     tokenType_t token_type = compiler->parser.previous.type;
     parse_precedence(compiler, PREC_UNARY);
 
@@ -179,16 +246,21 @@ static void parse_precedence(struct compiler * compiler, precedence_t precedence
     if(parse_prefix_fn == NULL) {
         report_error(compiler, compiler->parser.previous, "Expect expression");
     }
-    parse_prefix_fn(compiler);
+    bool canAssign = precedence <= PREC_ASSIGNMENT;
+    parse_prefix_fn(compiler, canAssign);
 
     while(precedence <= get_rule(compiler->parser.current.type)->precedence) {
         advance(compiler);
         parse_fn_t parse_infix_fn = get_rule(compiler->parser.previous.type)->prefix;
-        parse_infix_fn(compiler);
+        parse_infix_fn(compiler, canAssign);
+    }
+
+    if(canAssign && match(compiler, TOKEN_EQUAL)){
+        report_error(compiler, compiler->parser.previous, "Invalid assigment target.");
     }
 }
 
-static void number(struct compiler * compiler) {
+static void number(struct compiler * compiler, bool can_assign) {
     double value = strtod(compiler->parser.previous.start, NULL);
     emit_constant(compiler, FROM_NUMBER(value));
 }
@@ -252,4 +324,35 @@ static struct compiler * alloc_compiler() {
     init_parser(&compiler->parser);
     init_chunk(&compiler->chunk);
     return compiler;
+}
+
+static bool match(struct compiler * compiler, tokenType_t type) {
+    if(!check(compiler, type)){
+        return false;
+    }
+    advance(compiler);
+    return true;
+}
+
+static bool check(struct compiler * compiler, tokenType_t type) {
+    return compiler->parser.current.type == type;
+}
+
+static uint8_t parse_variable(struct compiler * compiler, char * error_message) {
+    consume(compiler, TOKEN_IDENTIFIER, error_message);
+    return identifier_constant(compiler, compiler->parser.previous);
+}
+
+static uint8_t identifier_constant(struct compiler * compiler, struct token identifier_token) {
+    const char * variable_name = identifier_token.start;
+    int variable_name_length = identifier_token.length;
+
+    struct string_pool_add_result result_add = add_string_pool(&compiler->chunk.compiled_string_pool,
+                                                               variable_name, variable_name_length);
+
+    return add_constant_to_chunk(&compiler->chunk, FROM_OBJECT(result_add.string_object));
+}
+
+static void define_global_variable(struct compiler * compiler, uint8_t global_constant_offset) {
+    emit_bytecodes(compiler, OP_DEFINE_GLOBAL, global_constant_offset);
 }
