@@ -78,10 +78,11 @@ bool put_hash_table(struct hash_table * table, struct string_object * key, lox_v
     }
 
     struct hash_table_entry * entry = find_entry(table->entries, table->capacity, key);
+    bool is_new_key = entry->key == NULL;
+
     entry->key = key;
     entry->value = value;
 
-    bool is_new_key = entry->key == NULL;
     bool is_tombstone = entry->key == NULL && IS_BOOL(entry->value) && entry->value.as.boolean;
 
     if (is_new_key && !is_tombstone) {
@@ -130,7 +131,7 @@ static struct hash_table_entry * find_entry_by_hash(struct hash_table_entry * en
             first_tombstone_found = entry;
             continue;
         }
-        if (entry->key->hash == key_hash) {
+        if (entry->key != NULL && entry->key->hash == key_hash) {
             return entry;
         }
         if(entry->key == NULL && first_tombstone_found != NULL){

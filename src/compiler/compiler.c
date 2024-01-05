@@ -9,21 +9,21 @@ struct parser {
 struct compiler {
     struct scanner scanner;
     struct parser parser;
-    struct chunk chunk;
+    struct chunk * chunk;
 };
 
 //Lowest to highest
 typedef enum {
     PREC_NONE,
-    PREC_ASSIGNMENT, // =
-    PREC_OR, // or
-    PREC_AND, // and
-    PREC_EQUALITY, // == !=
-    PREC_COMPARISON, // < > <= >=
-    PREC_TERM, // + -
-    PREC_FACTOR, // * /
-    PREC_UNARY, // ! -
-    PREC_CALL, // . ()
+    PREC_ASSIGNMENT,  // =
+    PREC_OR,          // or
+    PREC_AND,         // and
+    PREC_EQUALITY,    // == !=
+    PREC_COMPARISON,  // < > <= >=
+    PREC_TERM,        // + -
+    PREC_FACTOR,      // * /
+    PREC_UNARY,       // ! -
+    PREC_CALL,        // . ()
     PREC_PRIMARY
 } precedence_t;
 
@@ -38,11 +38,11 @@ struct parse_rule {
 static void report_error(struct compiler * compiler, struct token token, const char * message);
 static void advance(struct compiler * compiler);
 static void init_parser(struct parser * parser);
+static struct compiler * alloc_compiler(char * source_code);
 static void consume(struct compiler * compiler, tokenType_t expected_token_type, const char * error_message);
 static void emit_bytecode(struct compiler * compiler, uint8_t bytecode);
 static void emit_bytecodes(struct compiler * compiler, uint8_t bytecodeA, uint8_t bytecodeB);
 static void emit_constant(struct compiler * compiler, lox_value_t value);
-static struct compiler * alloc_compiler();
 static void expression(struct compiler * compiler);
 static void number(struct compiler * compiler, bool can_assign);
 static void grouping(struct compiler * compiler, bool can_assign);
@@ -108,8 +108,8 @@ struct parse_rule rules[] = {
     [TOKEN_EOF] = {NULL, NULL, PREC_NONE},
     };
 
-bool compile(char * source_code, struct chunk * output_chunk) {
-    struct compiler * compiler = alloc_compiler();
+struct compilation_result compile(char * source_code) {
+    struct compiler * compiler = alloc_compiler(source_code);
 
     advance(compiler);
 
@@ -120,7 +120,10 @@ bool compile(char * source_code, struct chunk * output_chunk) {
     bool is_success = !compiler->parser.has_error;
     free(compiler);
 
-    return is_success;
+    return (struct compilation_result){
+        .success = is_success,
+        .chunk = compiler->chunk
+    };
 }
 
 static void declaration(struct compiler * compiler) {
@@ -172,29 +175,9 @@ static void named_variable(struct compiler * compiler, struct token previous, bo
     uint8_t constant_offset = identifier_constant(compiler, previous);
     if(can_assign && match(compiler, TOKEN_EQUAL)){
         expression(compiler);
-        emit_bytecode(compiler, OP_SET_GLOBAL);
+        emit_bytecodes(compiler, OP_SET_GLOBAL, constant_offset);
     } else {
         emit_bytecodes(compiler, OP_GET_GLOBAL, constant_offset);
-    }
-}
-
-static void binary(struct compiler * compiler, bool can_assign) {
-    tokenType_t token_type = compiler->parser.previous.type;
-
-    struct parse_rule * rule = get_rule(token_type);
-    parse_precedence(compiler, rule->precedence + 1);
-
-    switch (token_type) {
-        case TOKEN_PLUS: emit_bytecode(compiler, OP_ADD); break;
-        case TOKEN_MINUS: emit_bytecode(compiler, OP_SUB); break;
-        case TOKEN_STAR: emit_bytecode(compiler, OP_MUL); break;
-        case TOKEN_SLASH: emit_bytecode(compiler, OP_DIV); break;
-        case TOKEN_BANG_EQUAL: emit_bytecodes(compiler, OP_EQUAL, OP_NOT); break;
-        case TOKEN_EQUAL_EQUAL: emit_bytecode(compiler, OP_EQUAL); break;
-        case TOKEN_GREATER: emit_bytecode(compiler, OP_GREATER); break;
-        case TOKEN_GREATER_EQUAL: emit_bytecodes(compiler, OP_LESS, OP_NOT); break;
-        case TOKEN_LESS: emit_bytecode(compiler, OP_LESS); break;
-        case TOKEN_LESS_EQUAL: emit_bytecodes(compiler, OP_GREATER, OP_NOT); break;
     }
 }
 
@@ -206,7 +189,7 @@ static void string(struct compiler * compiler, bool can_assign) {
     const char * string_ptr = compiler->parser.previous.start + 1;
     int string_length = compiler->parser.previous.length - 2;
 
-    struct string_pool_add_result add_result = add_string_pool(&compiler->chunk.compiled_string_pool, string_ptr,
+    struct string_pool_add_result add_result = add_string_pool(&compiler->chunk->compiled_string_pool, string_ptr,
             string_length);
     emit_constant(compiler, FROM_OBJECT(add_result.string_object));
 }
@@ -251,7 +234,7 @@ static void parse_precedence(struct compiler * compiler, precedence_t precedence
 
     while(precedence <= get_rule(compiler->parser.current.type)->precedence) {
         advance(compiler);
-        parse_fn_t parse_infix_fn = get_rule(compiler->parser.previous.type)->prefix;
+        parse_fn_t parse_infix_fn = get_rule(compiler->parser.previous.type)->infix;
         parse_infix_fn(compiler, canAssign);
     }
 
@@ -260,6 +243,27 @@ static void parse_precedence(struct compiler * compiler, precedence_t precedence
     }
 }
 
+static void binary(struct compiler * compiler, bool can_assign) {
+    tokenType_t token_type = compiler->parser.previous.type;
+
+    struct parse_rule * rule = get_rule(token_type);
+    parse_precedence(compiler, rule->precedence + 1);
+
+    switch (token_type) {
+        case TOKEN_PLUS: emit_bytecode(compiler, OP_ADD); break;
+        case TOKEN_MINUS: emit_bytecode(compiler, OP_SUB); break;
+        case TOKEN_STAR: emit_bytecode(compiler, OP_MUL); break;
+        case TOKEN_SLASH: emit_bytecode(compiler, OP_DIV); break;
+        case TOKEN_BANG_EQUAL: emit_bytecodes(compiler, OP_EQUAL, OP_NOT); break;
+        case TOKEN_EQUAL_EQUAL: emit_bytecode(compiler, OP_EQUAL); break;
+        case TOKEN_GREATER: emit_bytecode(compiler, OP_GREATER); break;
+        case TOKEN_GREATER_EQUAL: emit_bytecodes(compiler, OP_LESS, OP_NOT); break;
+        case TOKEN_LESS: emit_bytecode(compiler, OP_LESS); break;
+        case TOKEN_LESS_EQUAL: emit_bytecodes(compiler, OP_GREATER, OP_NOT); break;
+    }
+}
+
+
 static void number(struct compiler * compiler, bool can_assign) {
     double value = strtod(compiler->parser.previous.start, NULL);
     emit_constant(compiler, FROM_NUMBER(value));
@@ -267,9 +271,9 @@ static void number(struct compiler * compiler, bool can_assign) {
 
 static void emit_constant(struct compiler * compiler, lox_value_t value) {
     //TODO Perform contant overflow
-    int constant_offset = add_constant_to_chunk(&compiler->chunk, value);
-    write_chunk(&compiler->chunk, OP_CONSTANT, compiler->parser.previous.line);
-    write_chunk(&compiler->chunk, constant_offset, compiler->parser.previous.line);
+    int constant_offset = add_constant_to_chunk(compiler->chunk, value);
+    write_chunk(compiler->chunk, OP_CONSTANT, compiler->parser.previous.line);
+    write_chunk(compiler->chunk, constant_offset, compiler->parser.previous.line);
 }
 
 static void advance(struct compiler * compiler) {
@@ -284,12 +288,12 @@ static void advance(struct compiler * compiler) {
 }
 
 static void emit_bytecodes(struct compiler * compiler, uint8_t bytecodeA, uint8_t bytecodeB) {
-    write_chunk(&compiler->chunk, bytecodeA, compiler->parser.previous.line);
-    write_chunk(&compiler->chunk, bytecodeB, compiler->parser.previous.line);
+    write_chunk(compiler->chunk, bytecodeA, compiler->parser.previous.line);
+    write_chunk(compiler->chunk, bytecodeB, compiler->parser.previous.line);
 }
 
 static void emit_bytecode(struct compiler * compiler, uint8_t bytecode) {
-    write_chunk(&compiler->chunk, bytecode, compiler->parser.previous.line);
+    write_chunk(compiler->chunk, bytecode, compiler->parser.previous.line);
 }
 
 static void consume(struct compiler * compiler, tokenType_t expected_token_type, const char * error_message) {
@@ -318,11 +322,12 @@ static void init_parser(struct parser * parser) {
     parser->has_error = false;
 }
 
-static struct compiler * alloc_compiler() {
+static struct compiler * alloc_compiler(char * source_code) {
     struct compiler * compiler = malloc(sizeof(struct compiler));
-    init_scanner(&compiler->scanner);
+    init_scanner(&compiler->scanner, source_code);
     init_parser(&compiler->parser);
-    init_chunk(&compiler->chunk);
+    compiler->chunk = alloc_chunk();
+
     return compiler;
 }
 
@@ -347,10 +352,10 @@ static uint8_t identifier_constant(struct compiler * compiler, struct token iden
     const char * variable_name = identifier_token.start;
     int variable_name_length = identifier_token.length;
 
-    struct string_pool_add_result result_add = add_string_pool(&compiler->chunk.compiled_string_pool,
+    struct string_pool_add_result result_add = add_string_pool(&compiler->chunk->compiled_string_pool,
                                                                variable_name, variable_name_length);
 
-    return add_constant_to_chunk(&compiler->chunk, FROM_OBJECT(result_add.string_object));
+    return add_constant_to_chunk(compiler->chunk, FROM_OBJECT(result_add.string_object));
 }
 
 static void define_global_variable(struct compiler * compiler, uint8_t global_constant_offset) {

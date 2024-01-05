@@ -6,4 +6,9 @@
 #include "../bytecode.h"
 #include "../types/strings/string_object.h"
 
-bool compile(char * source_code, struct chunk * output_chunk);
+struct compilation_result {
+    struct chunk * chunk;
+    bool success;
+};
+
+struct compilation_result compile(char * source_code);

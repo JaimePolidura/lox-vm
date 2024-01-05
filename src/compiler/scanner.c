@@ -170,7 +170,7 @@ static bool is_alpha(char character) {
 }
 
 static struct token string(struct scanner* scanner) {
-    while (peek(scanner) != '"' && at_the_end(scanner)) {
+    while (peek(scanner) != '"' && !at_the_end(scanner)) {
         if(peek(scanner) == '\n') {
             scanner->line++;
         }
@@ -225,9 +225,9 @@ static bool at_the_end(struct scanner * scanner) {
     return *scanner->current == '\0';
 }
 
-struct scanner * alloc_scanner() {
+struct scanner * alloc_scanner(char * source_code) {
     struct scanner * scanner = malloc(sizeof(struct scanner));
-    init_scanner(scanner);
+    init_scanner(scanner, source_code);
 
     return scanner;
 }
@@ -236,8 +236,8 @@ static bool is_digit(char character) {
     return character >= '0' && character <= '9';
 }
 
-void init_scanner(struct scanner * scanner) {
-    scanner->current = NULL;
-    scanner->start = NULL;
+void init_scanner(struct scanner * scanner, char * source_code) {
+    scanner->current = source_code;
+    scanner->start = source_code;
     scanner->line = 0;
 }

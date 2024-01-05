@@ -33,14 +33,13 @@ void run_file(char * path) {
 }
 
 interpret_result interpret_source_code(char * source_code) {
-    struct chunk * chunk = alloc_chunk();
-    bool compilation_success = compile(source_code, chunk);
+    struct compilation_result compilation_result = compile(source_code);
 
-    if(!compilation_success){
+    if(!compilation_result.success){
         return INTERPRET_COMPILE_ERROR;
     }
 
-    return interpret_vm(chunk);
+    return interpret_vm(compilation_result.chunk);
 }
 
 char * read_file_source_code(char * path) {
