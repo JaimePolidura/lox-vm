@@ -39,10 +39,10 @@ struct token next_token_scanner(struct scanner * scanner) {
     }
 
     switch (character) {
-        case '(': return create_token(scanner, TOKEN_LEFT_PAREN);
-        case ')': return create_token(scanner, TOKEN_RIGHT_PAREN);
-        case '{': return create_token(scanner, TOKEN_LEFT_BRACE);
-        case '}': return create_token(scanner, TOKEN_RIGHT_BRACE);
+        case '(': return create_token(scanner, TOKEN_OPEN_PAREN);
+        case ')': return create_token(scanner, TOKEN_CLOSE_PAREN);
+        case '{': return create_token(scanner, TOKEN_OPEN_BRACE);
+        case '}': return create_token(scanner, TOKEN_CLOSE_BRACE);
         case ';': return create_token(scanner, TOKEN_SEMICOLON);
         case ',': return create_token(scanner, TOKEN_COMMA);
         case '.': return create_token(scanner, TOKEN_DOT);

@@ -16,6 +16,8 @@ static void add_heap_object(struct object * object);
 static void define_global();
 static void read_global();
 static void set_global();
+static void set_local();
+static void get_local();
 
 interpret_result interpret_vm(struct chunk * chunk) {
     current_vm.chunk = chunk;
@@ -67,6 +69,8 @@ static interpret_result run() {
             case OP_DEFINE_GLOBAL: define_global(); break;
             case OP_GET_GLOBAL: read_global(); break;
             case OP_SET_GLOBAL: set_global(); break;
+            case OP_GET_LOCAL: get_local(); break;
+            case OP_SET_LOCAL: set_local(); break;
             case OP_EOF: return INTERPRET_OK;
             default:
                 perror("Unhandled bytecode op\n");
@@ -127,6 +131,16 @@ static void set_global() {
     }
 
     put_hash_table(&current_vm.global_variables, variable_name, peek(0));
+}
+
+static void set_local() {
+    uint8_t slot = READ_BYTE();
+    current_vm.stack[slot] = peek(0);
+}
+
+static void get_local() {
+    uint8_t slot = READ_BYTE();
+    push_stack_vm(current_vm.stack[slot]);
 }
 
 static inline lox_value_t peek(int index_from_top) {

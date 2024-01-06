@@ -4,6 +4,7 @@
 
 static int constant_instruction(const char * name, const struct chunk * chunk, int offset);
 static int simple_instruction(const char * name, int offset);
+static int byte_instruction(const char * name, struct chunk * chunk, int offset);
 
 void disassemble_chunk(const struct chunk * chunk, char * name) {
     printf("== %s ==\n", name);
@@ -35,6 +36,8 @@ int disassemble_chunk_instruction(const struct chunk * chunk, const int offset) 
         case OP_DEFINE_GLOBAL: return simple_instruction("DEFINE_GLOBAL", offset);
         case OP_GET_GLOBAL: return simple_instruction("GET_GLOBAL", offset);
         case OP_SET_GLOBAL: return simple_instruction("SET_GLOBAL", offset);
+        case OP_SET_LOCAL: return byte_instruction("SET_LOCAL", chunk, offset);
+        case OP_GET_LOCAL: return byte_instruction("GET_LOCAL", chunk, offset);
         default:
             printf("Unknown opcode %d\n", instruction);
             return offset + 1;
@@ -44,6 +47,12 @@ int disassemble_chunk_instruction(const struct chunk * chunk, const int offset) 
 static int simple_instruction(const char * name, const int offset) {
     printf("%s\n", name);
     return offset + 1;
+}
+
+static int byte_instruction(const char * name, struct chunk * chunk, int offset) {
+    uint8_t slot = chunk->code[offset + 1];
+    printf("%-16s %4d\n", name, slot);
+    return offset + 2;
 }
 
 static int constant_instruction(const char * name, const struct chunk * chunk, int offset) {

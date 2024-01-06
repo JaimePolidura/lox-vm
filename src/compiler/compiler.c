@@ -6,10 +6,18 @@ struct parser {
     bool has_error;
 };
 
+struct local {
+    struct token name;
+    int depth;
+};
+
 struct compiler {
     struct scanner scanner;
     struct parser parser;
     struct chunk * chunk;
+    struct local locals[UINT8_MAX];
+    int local_count;
+    int local_depth;
 };
 
 //Lowest to highest
@@ -59,17 +67,23 @@ static void statement(struct compiler * compiler);
 static void print_statement(struct compiler * compiler);
 static void expression_statement(struct compiler * compiler);
 static void variable_declaration(struct compiler * compiler);
-static uint8_t parse_variable(struct compiler * compiler, char * error_message);
-static uint8_t identifier_constant(struct compiler * compiler, struct token identifier_token);
+static uint8_t add_identifier_constant(struct compiler * compiler, struct token identifier_token);
 static void define_global_variable(struct compiler * compiler, uint8_t global_constant_offset);
 static void variable(struct compiler * compiler, bool can_assign);
 static void named_variable(struct compiler * compiler, struct token previous, bool can_assign);
+static void begin_scope(struct compiler * compiler);
+static void end_scope(struct compiler * compiler);
+static void block(struct compiler * compiler);
+static void add_local_variable(struct compiler * compiler, struct token new_variable_name);
+static bool identifiers_equal(struct token * a, struct token * b);
+static int resolve_local_variable(struct compiler * compiler, struct token * name);
+static void variable_expression_declaration(struct compiler * compiler);
 
 struct parse_rule rules[] = {
-    [TOKEN_LEFT_PAREN] = {grouping, NULL, PREC_NONE},
-    [TOKEN_RIGHT_PAREN] = {NULL, NULL, PREC_NONE},
-    [TOKEN_LEFT_BRACE] = {NULL, NULL, PREC_NONE},
-    [TOKEN_RIGHT_BRACE] = {NULL, NULL, PREC_NONE},
+    [TOKEN_OPEN_PAREN] = {grouping, NULL, PREC_NONE},
+    [TOKEN_CLOSE_PAREN] = {NULL, NULL, PREC_NONE},
+    [TOKEN_OPEN_BRACE] = {NULL, NULL, PREC_NONE},
+    [TOKEN_CLOSE_BRACE] = {NULL, NULL, PREC_NONE},
     [TOKEN_COMMA] = {NULL, NULL, PREC_NONE},
     [TOKEN_DOT] = {NULL, NULL, PREC_NONE},
     [TOKEN_MINUS] = {unary, binary, PREC_TERM},
@@ -135,25 +149,46 @@ static void declaration(struct compiler * compiler) {
 }
 
 static void variable_declaration(struct compiler * compiler) {
-    uint8_t constant_offset = parse_variable(compiler, "Expected variable name.");
+    consume(compiler, TOKEN_IDENTIFIER, "Expected variable name.");
 
+    if(compiler->local_depth > 0) { // Local scope
+        add_local_variable(compiler, compiler->parser.previous);
+        variable_expression_declaration(compiler);
+    } else { //Global scope
+        int variable_identifier_constant = add_identifier_constant(compiler, compiler->parser.previous);
+        variable_expression_declaration(compiler);
+        define_global_variable(compiler, variable_identifier_constant);
+    }
+
+    consume(compiler, TOKEN_SEMICOLON, "Expected ';' after variable declaration.");
+}
+
+static void variable_expression_declaration(struct compiler * compiler) {
     if(match(compiler, TOKEN_EQUAL)){
         expression(compiler);
     } else {
         emit_bytecode(compiler, OP_NIL);
     }
-
-    consume(compiler, TOKEN_SEMICOLON, "Expected ';' after variable declaration.");
-
-    define_global_variable(compiler, constant_offset);
 }
 
 static void statement(struct compiler * compiler) {
-    if(match(compiler, TOKEN_PRINT)){
+    if(match(compiler, TOKEN_PRINT)) {
         print_statement(compiler);
+    } else if (match(compiler, TOKEN_OPEN_BRACE)) {
+        begin_scope(compiler);
+        block(compiler);
+        end_scope(compiler);
     } else {
         expression_statement(compiler);
     }
+}
+
+static void block(struct compiler * compiler) {
+    while(!check(compiler, TOKEN_CLOSE_BRACE) && !check(compiler, TOKEN_EOF)){
+        declaration(compiler);
+    }
+
+    consume(compiler, TOKEN_CLOSE_BRACE, "Expected '}' after block.");
 }
 
 static void expression_statement(struct compiler * compiler) {
@@ -172,12 +207,19 @@ static void variable(struct compiler * compiler, bool can_assign) {
 }
 
 static void named_variable(struct compiler * compiler, struct token previous, bool can_assign) {
-    uint8_t constant_offset = identifier_constant(compiler, previous);
+    int variable_identifier = resolve_local_variable(compiler, &previous);
+    bool is_local = variable_identifier != -1;
+    uint8_t get_op = is_local ? OP_GET_LOCAL : OP_GET_GLOBAL;
+    uint8_t set_op = is_local ? OP_SET_LOCAL : OP_SET_GLOBAL;
+    if(!is_local){ //If is global, variable_identifier will contain constant offset, if not it will contain the local index
+        variable_identifier = add_identifier_constant(compiler, previous);
+    }
+
     if(can_assign && match(compiler, TOKEN_EQUAL)){
         expression(compiler);
-        emit_bytecodes(compiler, OP_SET_GLOBAL, constant_offset);
+        emit_bytecodes(compiler, set_op, (uint8_t) variable_identifier);
     } else {
-        emit_bytecodes(compiler, OP_GET_GLOBAL, constant_offset);
+        emit_bytecodes(compiler, get_op, (uint8_t) variable_identifier);
     }
 }
 
@@ -196,7 +238,7 @@ static void string(struct compiler * compiler, bool can_assign) {
 
 static void grouping(struct compiler * compiler, bool can_assign) {
     expression(compiler);
-    consume(compiler, TOKEN_RIGHT_PAREN, "Expected ')'");
+    consume(compiler, TOKEN_CLOSE_PAREN, "Expected ')'");
 }
 
 static void literal(struct compiler * compiler, bool can_assign) {
@@ -327,6 +369,8 @@ static struct compiler * alloc_compiler(char * source_code) {
     init_scanner(&compiler->scanner, source_code);
     init_parser(&compiler->parser);
     compiler->chunk = alloc_chunk();
+    compiler->local_count = 0;
+    compiler->local_depth = 0;
 
     return compiler;
 }
@@ -343,12 +387,40 @@ static bool check(struct compiler * compiler, tokenType_t type) {
     return compiler->parser.current.type == type;
 }
 
-static uint8_t parse_variable(struct compiler * compiler, char * error_message) {
-    consume(compiler, TOKEN_IDENTIFIER, error_message);
-    return identifier_constant(compiler, compiler->parser.previous);
+static int resolve_local_variable(struct compiler * compiler, struct token * name) {
+    for(int i = compiler->local_count - 1; i >= 0; i--){
+        struct local * local = &compiler->locals[i];
+        if(identifiers_equal(&local->name, name)){
+            return i;
+        }
+    }
+
+    return -1;
 }
 
-static uint8_t identifier_constant(struct compiler * compiler, struct token identifier_token) {
+static void add_local_variable(struct compiler * compiler, struct token new_variable_name) {
+    if(compiler->local_depth == 0){
+        return; //We are in a global scope
+    }
+
+    for(int i = compiler->local_count - 1; i >= 0; i--){
+        struct local * local = &compiler->locals[i];
+        if(identifiers_equal(&local->name, &new_variable_name)){
+            report_error(compiler, new_variable_name, "variable already defined");
+        }
+    }
+
+    struct local * local = &compiler->locals[compiler->local_count++];
+    local->depth = compiler->local_depth;
+    local->name = new_variable_name;
+}
+
+static bool identifiers_equal(struct token * a, struct token * b) {
+    if (a->length != b->length) return false;
+    return memcmp(a->start, b->start, a->length) == 0;
+}
+
+static uint8_t add_identifier_constant(struct compiler * compiler, struct token identifier_token) {
     const char * variable_name = identifier_token.start;
     int variable_name_length = identifier_token.length;
 
@@ -359,5 +431,20 @@ static uint8_t identifier_constant(struct compiler * compiler, struct token iden
 }
 
 static void define_global_variable(struct compiler * compiler, uint8_t global_constant_offset) {
-    emit_bytecodes(compiler, OP_DEFINE_GLOBAL, global_constant_offset);
+    if(compiler->local_depth == 0) { // Global scope
+        emit_bytecodes(compiler, OP_DEFINE_GLOBAL, global_constant_offset);
+    }
+}
+
+static void begin_scope(struct compiler * compiler) {
+    compiler->local_depth++;
+}
+
+static void end_scope(struct compiler * compiler) {
+    compiler->local_depth--;
+
+    while(compiler->local_count > 0 && compiler->locals[compiler->local_count - 1].depth > compiler->local_depth){
+        emit_bytecode(compiler, OP_POP);
+        compiler->local_count--;
+    }
 }
