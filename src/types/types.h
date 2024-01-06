@@ -28,6 +28,8 @@ typedef struct {
   } as;
 } lox_value_t;
 
+bool cast_to_boolean(lox_value_t value);
+
 #define FROM_OBJECT(value) ((lox_value_t){VAL_OBJ, {.object = (struct object*) value}})
 #define FROM_NUMBER(value) ((lox_value_t){VAL_NUMBER, {.number = value}})
 #define FROM_BOOL(value) ((lox_value_t){VAL_BOOL, {.boolean = value}})

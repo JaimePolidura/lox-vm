@@ -78,6 +78,9 @@ static void add_local_variable(struct compiler * compiler, struct token new_vari
 static bool identifiers_equal(struct token * a, struct token * b);
 static int resolve_local_variable(struct compiler * compiler, struct token * name);
 static void variable_expression_declaration(struct compiler * compiler);
+static void if_statement(struct compiler * compiler);
+static int emit_jump(struct compiler * compiler, op_code jump_opcode);
+static void patch_jump(struct compiler * compiler, int jump_op_index);
 
 struct parse_rule rules[] = {
     [TOKEN_OPEN_PAREN] = {grouping, NULL, PREC_NONE},
@@ -177,9 +180,47 @@ static void statement(struct compiler * compiler) {
         begin_scope(compiler);
         block(compiler);
         end_scope(compiler);
+    } else if(match(compiler, TOKEN_IF)) {
+        if_statement(compiler);
     } else {
         expression_statement(compiler);
     }
+}
+
+static void if_statement(struct compiler * compiler) {
+    consume(compiler, TOKEN_OPEN_PAREN, "Expect '(' after if.");
+    expression(compiler);
+    consume(compiler, TOKEN_CLOSE_PAREN, "Expect ')' after condition.");
+
+    int then_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
+    emit_bytecode(compiler, OP_POP); //We clear the expression result of the if statement
+
+    statement(compiler);
+    patch_jump(compiler, then_jump);
+    emit_bytecode(compiler, OP_POP);
+
+    int else_jump = emit_jump(compiler, OP_JUMP);
+
+    if(match(compiler, TOKEN_ELSE)){
+        statement(compiler);
+    }
+
+    patch_jump(compiler, else_jump);
+}
+
+static int emit_jump(struct compiler * compiler, op_code jump_opcode) {
+    emit_bytecode(compiler, jump_opcode);
+    emit_bytecode(compiler, 0x00);
+    emit_bytecode(compiler, 0x00);
+
+    return compiler->chunk->in_use - 2;
+}
+
+static void patch_jump(struct compiler * compiler, int jump_op_index) {
+    int jump = compiler->chunk->in_use - jump_op_index - 2;
+
+    compiler->chunk->code[jump_op_index] = (jump >> 8) & 0xff;
+    compiler->chunk->code[jump_op_index + 1] = jump & 0xff;
 }
 
 static void block(struct compiler * compiler) {

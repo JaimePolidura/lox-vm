@@ -18,6 +18,8 @@ static void read_global();
 static void set_global();
 static void set_local();
 static void get_local();
+static void jump_if_false();
+static void jump();
 
 interpret_result interpret_vm(struct chunk * chunk) {
     current_vm.chunk = chunk;
@@ -28,6 +30,8 @@ interpret_result interpret_vm(struct chunk * chunk) {
 }
 
 #define READ_BYTE() (*current_vm.pc++)
+#define READ_U16() \
+    (current_vm.pc += 2, (uint16_t)((current_vm.pc[-2] << 8) | current_vm.pc[-1]))
 #define READ_CONSTANT() (current_vm.chunk->constants.values[READ_BYTE()])
 #define BINARY_OP(op) \
     do { \
@@ -70,6 +74,8 @@ static interpret_result run() {
             case OP_GET_GLOBAL: read_global(); break;
             case OP_SET_GLOBAL: set_global(); break;
             case OP_GET_LOCAL: get_local(); break;
+            case OP_JUMP_IF_FALSE: jump_if_false(); break;
+            case OP_JUMP: jump(); break;
             case OP_SET_LOCAL: set_local(); break;
             case OP_EOF: return INTERPRET_OK;
             default:
@@ -141,6 +147,17 @@ static void set_local() {
 static void get_local() {
     uint8_t slot = READ_BYTE();
     push_stack_vm(current_vm.stack[slot]);
+}
+
+static void jump() {
+    current_vm.pc += READ_U16();
+}
+
+static void jump_if_false() {
+    if(!cast_to_boolean(READ_CONSTANT())){
+        int total_opcodes_to_jump_if_false = READ_U16();
+        current_vm.pc += total_opcodes_to_jump_if_false;
+    }
 }
 
 static inline lox_value_t peek(int index_from_top) {
