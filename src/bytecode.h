@@ -27,5 +27,6 @@ typedef enum {
     OP_NOT,
     OP_JUMP_IF_FALSE,
     OP_JUMP,
+    OP_LOOP,
 } op_code;
 

@@ -20,6 +20,7 @@ static void set_local();
 static void get_local();
 static void jump_if_false();
 static void jump();
+static void loop();
 
 interpret_result interpret_vm(struct chunk * chunk) {
     current_vm.chunk = chunk;
@@ -77,6 +78,7 @@ static interpret_result run() {
             case OP_JUMP_IF_FALSE: jump_if_false(); break;
             case OP_JUMP: jump(); break;
             case OP_SET_LOCAL: set_local(); break;
+            case OP_LOOP: loop(); break;
             case OP_EOF: return INTERPRET_OK;
             default:
                 perror("Unhandled bytecode op\n");
@@ -158,6 +160,10 @@ static void jump_if_false() {
         int total_opcodes_to_jump_if_false = READ_U16();
         current_vm.pc += total_opcodes_to_jump_if_false;
     }
+}
+
+static void loop() {
+    current_vm.pc -= READ_U16();
 }
 
 static inline lox_value_t peek(int index_from_top) {

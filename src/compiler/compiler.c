@@ -81,6 +81,14 @@ static void variable_expression_declaration(struct compiler * compiler);
 static void if_statement(struct compiler * compiler);
 static int emit_jump(struct compiler * compiler, op_code jump_opcode);
 static void patch_jump(struct compiler * compiler, int jump_op_index);
+static void and(struct compiler * compiler, bool can_assign);
+static void or(struct compiler * compiler, bool can_assign);
+static void while_statement(struct compiler * compiler);
+static void emit_loop(struct compiler * compiler, int loop_start_index);
+static void for_loop(struct compiler * compiler);
+static void for_loop_initializer(struct compiler * compiler);
+static int for_loop_condition(struct compiler * compiler);
+static void for_loop_increment(struct compiler * compiler, int loop_start_index);
 
 struct parse_rule rules[] = {
     [TOKEN_OPEN_PAREN] = {grouping, NULL, PREC_NONE},
@@ -105,7 +113,7 @@ struct parse_rule rules[] = {
     [TOKEN_IDENTIFIER] = {variable, NULL, PREC_NONE},
     [TOKEN_STRING] = {string, NULL, PREC_NONE},
     [TOKEN_NUMBER] = {number, NULL, PREC_NONE},
-    [TOKEN_AND] = {NULL, NULL, PREC_NONE},
+    [TOKEN_AND] = {NULL, and, PREC_NONE},
     [TOKEN_CLASS] = {NULL, NULL, PREC_NONE},
     [TOKEN_ELSE] = {NULL, NULL, PREC_NONE},
     [TOKEN_FALSE] = {literal, NULL, PREC_NONE},
@@ -113,7 +121,7 @@ struct parse_rule rules[] = {
     [TOKEN_FUN] = {NULL, NULL, PREC_NONE},
     [TOKEN_IF] = {NULL, NULL, PREC_NONE},
     [TOKEN_NIL] = {literal, NULL, PREC_NONE},
-    [TOKEN_OR] = {NULL, NULL, PREC_NONE},
+    [TOKEN_OR] = {NULL, or, PREC_NONE},
     [TOKEN_PRINT] = {NULL, NULL, PREC_NONE},
     [TOKEN_RETURN] = {NULL, NULL, PREC_NONE},
     [TOKEN_SUPER] = {NULL, NULL, PREC_NONE},
@@ -180,7 +188,11 @@ static void statement(struct compiler * compiler) {
         begin_scope(compiler);
         block(compiler);
         end_scope(compiler);
-    } else if(match(compiler, TOKEN_IF)) {
+    } else if(match(compiler, TOKEN_FOR)){
+        for_loop(compiler);
+    } else if (match(compiler, TOKEN_WHILE)) {
+        while_statement(compiler);
+    } else if (match(compiler, TOKEN_IF)) {
         if_statement(compiler);
     } else {
         expression_statement(compiler);
@@ -223,6 +235,26 @@ static void patch_jump(struct compiler * compiler, int jump_op_index) {
     compiler->chunk->code[jump_op_index + 1] = jump & 0xff;
 }
 
+static void and(struct compiler * compiler, bool can_assign) {
+    int end_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
+    emit_bytecode(compiler, OP_POP);
+
+    parse_precedence(compiler, PREC_AND);
+
+    patch_jump(compiler, end_jump);
+}
+
+static void or(struct compiler * compiler, bool can_assign) {
+    int else_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
+    int then_jump = emit_jump(compiler, OP_JUMP);
+
+    patch_jump(compiler, else_jump);
+    emit_bytecode(compiler, OP_POP);
+
+    parse_precedence(compiler, PREC_OR);
+    patch_jump(compiler, then_jump);
+}
+
 static void block(struct compiler * compiler) {
     while(!check(compiler, TOKEN_CLOSE_BRACE) && !check(compiler, TOKEN_EOF)){
         declaration(compiler);
@@ -234,6 +266,95 @@ static void block(struct compiler * compiler) {
 static void expression_statement(struct compiler * compiler) {
     expression(compiler);
     consume(compiler, TOKEN_SEMICOLON, "Expected ';' after print.");
+}
+
+static void while_statement(struct compiler * compiler) {
+    int loop_start_index = compiler->chunk->in_use;
+
+    consume(compiler, TOKEN_OPEN_PAREN, "Expect '(' after while declaration.");
+    expression(compiler);
+    consume(compiler, TOKEN_OPEN_PAREN, "Expect '{' after while declaration.");
+
+    int exit_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
+    emit_bytecode(compiler, OP_POP);
+
+    statement(compiler);
+
+    emit_loop(compiler, loop_start_index);
+
+    patch_jump(compiler, exit_jump);
+    emit_bytecode(compiler, OP_POP);
+}
+
+static void for_loop(struct compiler * compiler) {
+    begin_scope(compiler);
+
+    consume(compiler, TOKEN_OPEN_PAREN, "Expect '(' after for.");
+    for_loop_initializer(compiler);
+
+    int loop_start_index = compiler->chunk->in_use;
+
+    int loop_jump_if_false_index = for_loop_condition(compiler);
+
+    consume(compiler, TOKEN_SEMICOLON, "Expect ';' in for.");
+
+    consume(compiler, TOKEN_SEMICOLON, "Expect ';' in for.");
+    consume(compiler, TOKEN_OPEN_PAREN, "Expect ')' after for.");
+
+    emit_loop(compiler, loop_start_index);
+
+    if(loop_jump_if_false_index != -1) { //Has condition
+        patch_jump(compiler, loop_jump_if_false_index);
+        emit_bytecode(compiler, OP_POP); //Condition
+    }
+
+    end_scope(compiler);
+}
+
+static void for_loop_initializer(struct compiler * compiler) {
+    if(match(compiler, TOKEN_SEMICOLON)){
+        //No initializer
+    } else if(match(compiler, TOKEN_VAR)){
+        variable_declaration(compiler);
+    } else {
+        expression_statement(compiler);
+    }
+}
+
+static int for_loop_condition(struct compiler * compiler) {
+    int exit_jump_index = -1;
+
+    if(!match(compiler, TOKEN_SEMICOLON)){
+        expression(compiler);
+        consume(compiler, TOKEN_SEMICOLON, "Expect ';' after loop condition");
+        exit_jump_index = emit_jump(compiler, OP_JUMP_IF_FALSE);
+        emit_bytecode(compiler, OP_POP);
+    }
+
+    return exit_jump_index;
+}
+
+static void for_loop_increment(struct compiler * compiler, int loop_start_index) {
+    if(!match(compiler, TOKEN_CLOSE_PAREN)) { //Has increment
+        int jump_to_loop_body_index = emit_jump(compiler, OP_JUMP);
+        int increment_op_start_index = compiler->chunk->in_use;
+        expression(compiler);
+        emit_bytecode(compiler, OP_POP);
+
+        consume(compiler, TOKEN_CLOSE_PAREN, "Expect ')' after for loop");
+
+        emit_loop(compiler, loop_start_index);
+        patch_jump(compiler, jump_to_loop_body_index);
+    }
+}
+
+static void emit_loop(struct compiler * compiler, int loop_start_index) {
+    emit_bytecode(compiler, OP_LOOP);
+
+    int n_opcodes_to_jump = compiler->chunk->in_use - loop_start_index + 2; // +2 to get rid of op_loop two operands
+
+    emit_bytecode(compiler, (n_opcodes_to_jump >> 8) & 0xff);
+    emit_bytecode(compiler, n_opcodes_to_jump & 0xff);
 }
 
 static void print_statement(struct compiler * compiler) {
