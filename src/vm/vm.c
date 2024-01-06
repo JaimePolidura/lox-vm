@@ -23,7 +23,7 @@ interpret_result interpret_vm(struct chunk * chunk) {
     current_vm.chunk = chunk;
     current_vm.pc = chunk->code;
     add_all_pool(&current_vm.string_pool, &chunk->compiled_string_pool);
-    
+
     return run();
 }
 

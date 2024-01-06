@@ -131,11 +131,10 @@ struct compilation_result compile(char * source_code) {
         declaration(compiler);
     }
 
-    bool is_success = !compiler->parser.has_error;
-    free(compiler);
+    write_chunk(compiler->chunk, OP_EOF, 0);
 
     return (struct compilation_result){
-        .success = is_success,
+        .success = !compiler->parser.has_error,
         .chunk = compiler->chunk
     };
 }

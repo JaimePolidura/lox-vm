@@ -31,7 +31,7 @@
 #define ASSERT_TRUE(a) \
     do{ \
         n_assertions++; \
-        if(!a) { \
+        if(!(a)) { \
             fprintf(stderr, "[%s] Invalid true assert at number %i\n", test_name, n_assertions); \
             exit(65); \
         } \
