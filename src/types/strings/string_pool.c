@@ -23,8 +23,7 @@ static struct string_pool_add_result add_string_pool_private_with_options(struct
             string_ptr = new_string_ptr;
         }
 
-        struct string_object * string = malloc(sizeof(struct string_object));
-        string->object.type = OBJ_STRING;
+        struct string_object * string = ALLOCATE_OBJ(struct string_object, OBJ_STRING);
         string->hash = string_hash;
         string->chars = string_ptr;
         string->length = length;

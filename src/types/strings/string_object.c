@@ -1,6 +1,5 @@
 #include "string_object.h"
 
-
 char * cast_to_string(lox_value_t value) {
     switch(value.type) {
         case VAL_BOOL: return value.as.boolean ? "true" : "false";

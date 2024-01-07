@@ -5,8 +5,10 @@
 #include "scanner.h"
 #include "../bytecode.h"
 #include "../types/strings/string_object.h"
+#include "types/function.h"
 
 struct compilation_result {
+    struct function_object * function_object;
     struct chunk * chunk;
     bool success;
 };

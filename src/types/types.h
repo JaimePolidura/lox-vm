@@ -12,6 +12,7 @@ typedef enum {
 
 typedef enum {
     OBJ_STRING,
+    OBJ_FUNCTION,
 } object_type_t;
 
 struct object {
@@ -30,6 +31,8 @@ typedef struct {
 
 bool cast_to_boolean(lox_value_t value);
 
+struct object * allocate_object(size_t size, object_type_t type);
+
 #define FROM_OBJECT(value) ((lox_value_t){VAL_OBJ, {.object = (struct object*) value}})
 #define FROM_NUMBER(value) ((lox_value_t){VAL_NUMBER, {.number = value}})
 #define FROM_BOOL(value) ((lox_value_t){VAL_BOOL, {.boolean = value}})
@@ -44,4 +47,6 @@ bool cast_to_boolean(lox_value_t value);
 #define IS_NUMBER(value) ((value).type == VAL_NUMBER)
 #define IS_OBJECT(value) ((value).type == VAL_OBJ)
 
+
 #define OBJECT_TYPE(value) (TO_OBJECT(value)->type)
+#define ALLOCATE_OBJ(type, object_type) (type *) allocate_object(sizeof(type), object_type)

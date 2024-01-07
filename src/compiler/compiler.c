@@ -14,7 +14,10 @@ struct local {
 struct compiler {
     struct scanner scanner;
     struct parser parser;
-    struct chunk * chunk;
+
+    struct function_object * function;
+    function_type_t function_type;
+
     struct local locals[UINT8_MAX];
     int local_count;
     int local_depth;
@@ -46,7 +49,9 @@ struct parse_rule {
 static void report_error(struct compiler * compiler, struct token token, const char * message);
 static void advance(struct compiler * compiler);
 static void init_parser(struct parser * parser);
-static struct compiler * alloc_compiler(char * source_code);
+static struct compiler * alloc_compiler(char * source_code, function_type_t function_type);
+static struct function_object * alloc_function_compiler();
+static struct function_object * end_compiler(struct compiler * compiler);
 static void consume(struct compiler * compiler, tokenType_t expected_token_type, const char * error_message);
 static void emit_bytecode(struct compiler * compiler, uint8_t bytecode);
 static void emit_bytecodes(struct compiler * compiler, uint8_t bytecodeA, uint8_t bytecodeB);
@@ -88,7 +93,8 @@ static void emit_loop(struct compiler * compiler, int loop_start_index);
 static void for_loop(struct compiler * compiler);
 static void for_loop_initializer(struct compiler * compiler);
 static int for_loop_condition(struct compiler * compiler);
-static void for_loop_increment(struct compiler * compiler, int loop_start_index);
+static int for_loop_increment(struct compiler * compiler, int loop_start_index);
+static struct chunk * current_chunk(struct compiler * compiler);
 
 struct parse_rule rules[] = {
     [TOKEN_OPEN_PAREN] = {grouping, NULL, PREC_NONE},
@@ -134,7 +140,7 @@ struct parse_rule rules[] = {
     };
 
 struct compilation_result compile(char * source_code) {
-    struct compiler * compiler = alloc_compiler(source_code);
+    struct compiler * compiler = alloc_compiler(source_code, TYPE_SCRIPT);
 
     advance(compiler);
 
@@ -142,11 +148,12 @@ struct compilation_result compile(char * source_code) {
         declaration(compiler);
     }
 
-    write_chunk(compiler->chunk, OP_EOF, 0);
+    write_chunk(current_chunk(compiler), OP_EOF, 0);
 
     return (struct compilation_result){
+        .function_object = end_compiler(compiler),
         .success = !compiler->parser.has_error,
-        .chunk = compiler->chunk
+        .chunk = current_chunk(compiler)
     };
 }
 
@@ -225,14 +232,14 @@ static int emit_jump(struct compiler * compiler, op_code jump_opcode) {
     emit_bytecode(compiler, 0x00);
     emit_bytecode(compiler, 0x00);
 
-    return compiler->chunk->in_use - 2;
+    return current_chunk(compiler)->in_use - 2;
 }
 
 static void patch_jump(struct compiler * compiler, int jump_op_index) {
-    int jump = compiler->chunk->in_use - jump_op_index - 2;
+    int jump = current_chunk(compiler)->in_use - jump_op_index - 2;
 
-    compiler->chunk->code[jump_op_index] = (jump >> 8) & 0xff;
-    compiler->chunk->code[jump_op_index + 1] = jump & 0xff;
+    current_chunk(compiler)->code[jump_op_index] = (jump >> 8) & 0xff;
+    current_chunk(compiler)->code[jump_op_index + 1] = jump & 0xff;
 }
 
 static void and(struct compiler * compiler, bool can_assign) {
@@ -269,7 +276,7 @@ static void expression_statement(struct compiler * compiler) {
 }
 
 static void while_statement(struct compiler * compiler) {
-    int loop_start_index = compiler->chunk->in_use;
+    int loop_start_index = current_chunk(compiler)->in_use;
 
     consume(compiler, TOKEN_OPEN_PAREN, "Expect '(' after while declaration.");
     expression(compiler);
@@ -292,14 +299,13 @@ static void for_loop(struct compiler * compiler) {
     consume(compiler, TOKEN_OPEN_PAREN, "Expect '(' after for.");
     for_loop_initializer(compiler);
 
-    int loop_start_index = compiler->chunk->in_use;
+    int loop_start_index = current_chunk(compiler)->in_use;
 
     int loop_jump_if_false_index = for_loop_condition(compiler);
 
-    consume(compiler, TOKEN_SEMICOLON, "Expect ';' in for.");
+    loop_start_index = for_loop_increment(compiler, loop_start_index);
 
-    consume(compiler, TOKEN_SEMICOLON, "Expect ';' in for.");
-    consume(compiler, TOKEN_OPEN_PAREN, "Expect ')' after for.");
+    statement(compiler);
 
     emit_loop(compiler, loop_start_index);
 
@@ -334,10 +340,9 @@ static int for_loop_condition(struct compiler * compiler) {
     return exit_jump_index;
 }
 
-static void for_loop_increment(struct compiler * compiler, int loop_start_index) {
+static int for_loop_increment(struct compiler * compiler, int loop_start_index) {
     if(!match(compiler, TOKEN_CLOSE_PAREN)) { //Has increment
         int jump_to_loop_body_index = emit_jump(compiler, OP_JUMP);
-        int increment_op_start_index = compiler->chunk->in_use;
         expression(compiler);
         emit_bytecode(compiler, OP_POP);
 
@@ -346,12 +351,14 @@ static void for_loop_increment(struct compiler * compiler, int loop_start_index)
         emit_loop(compiler, loop_start_index);
         patch_jump(compiler, jump_to_loop_body_index);
     }
+
+    return -1;
 }
 
 static void emit_loop(struct compiler * compiler, int loop_start_index) {
     emit_bytecode(compiler, OP_LOOP);
 
-    int n_opcodes_to_jump = compiler->chunk->in_use - loop_start_index + 2; // +2 to get rid of op_loop two operands
+    int n_opcodes_to_jump = current_chunk(compiler)->in_use - loop_start_index + 2; // +2 to get rid of op_loop two operands
 
     emit_bytecode(compiler, (n_opcodes_to_jump >> 8) & 0xff);
     emit_bytecode(compiler, n_opcodes_to_jump & 0xff);
@@ -392,7 +399,7 @@ static void string(struct compiler * compiler, bool can_assign) {
     const char * string_ptr = compiler->parser.previous.start + 1;
     int string_length = compiler->parser.previous.length - 2;
 
-    struct string_pool_add_result add_result = add_string_pool(&compiler->chunk->compiled_string_pool, string_ptr,
+    struct string_pool_add_result add_result = add_string_pool(&current_chunk(compiler)->compiled_string_pool, string_ptr,
             string_length);
     emit_constant(compiler, FROM_OBJECT(add_result.string_object));
 }
@@ -474,9 +481,9 @@ static void number(struct compiler * compiler, bool can_assign) {
 
 static void emit_constant(struct compiler * compiler, lox_value_t value) {
     //TODO Perform contant overflow
-    int constant_offset = add_constant_to_chunk(compiler->chunk, value);
-    write_chunk(compiler->chunk, OP_CONSTANT, compiler->parser.previous.line);
-    write_chunk(compiler->chunk, constant_offset, compiler->parser.previous.line);
+    int constant_offset = add_constant_to_chunk(current_chunk(compiler), value);
+    write_chunk(current_chunk(compiler), OP_CONSTANT, compiler->parser.previous.line);
+    write_chunk(current_chunk(compiler), constant_offset, compiler->parser.previous.line);
 }
 
 static void advance(struct compiler * compiler) {
@@ -491,12 +498,12 @@ static void advance(struct compiler * compiler) {
 }
 
 static void emit_bytecodes(struct compiler * compiler, uint8_t bytecodeA, uint8_t bytecodeB) {
-    write_chunk(compiler->chunk, bytecodeA, compiler->parser.previous.line);
-    write_chunk(compiler->chunk, bytecodeB, compiler->parser.previous.line);
+    write_chunk(current_chunk(compiler), bytecodeA, compiler->parser.previous.line);
+    write_chunk(current_chunk(compiler), bytecodeB, compiler->parser.previous.line);
 }
 
 static void emit_bytecode(struct compiler * compiler, uint8_t bytecode) {
-    write_chunk(compiler->chunk, bytecode, compiler->parser.previous.line);
+    write_chunk(current_chunk(compiler), bytecode, compiler->parser.previous.line);
 }
 
 static void consume(struct compiler * compiler, tokenType_t expected_token_type, const char * error_message) {
@@ -525,15 +532,27 @@ static void init_parser(struct parser * parser) {
     parser->has_error = false;
 }
 
-static struct compiler * alloc_compiler(char * source_code) {
+static struct compiler * alloc_compiler(char * source_code, function_type_t function_type) {
     struct compiler * compiler = malloc(sizeof(struct compiler));
     init_scanner(&compiler->scanner, source_code);
     init_parser(&compiler->parser);
-    compiler->chunk = alloc_chunk();
+    compiler->function = NULL;
+    compiler->function_type = function_type;
     compiler->local_count = 0;
     compiler->local_depth = 0;
+    compiler->function = alloc_function_compiler();
+
+    struct local * local = &compiler->locals[compiler->local_count++];
+    local->name.length = 0;
+    local->name.start = "";
+    local->depth = 0;
 
     return compiler;
+}
+
+static struct function_object * end_compiler(struct compiler * compiler) {
+    emit_bytecode(compiler, OP_RETURN);
+    return compiler->function;
 }
 
 static bool match(struct compiler * compiler, tokenType_t type) {
@@ -585,10 +604,10 @@ static uint8_t add_identifier_constant(struct compiler * compiler, struct token 
     const char * variable_name = identifier_token.start;
     int variable_name_length = identifier_token.length;
 
-    struct string_pool_add_result result_add = add_string_pool(&compiler->chunk->compiled_string_pool,
+    struct string_pool_add_result result_add = add_string_pool(&current_chunk(compiler)->compiled_string_pool,
                                                                variable_name, variable_name_length);
 
-    return add_constant_to_chunk(compiler->chunk, FROM_OBJECT(result_add.string_object));
+    return add_constant_to_chunk(current_chunk(compiler), FROM_OBJECT(result_add.string_object));
 }
 
 static void define_global_variable(struct compiler * compiler, uint8_t global_constant_offset) {
@@ -608,4 +627,8 @@ static void end_scope(struct compiler * compiler) {
         emit_bytecode(compiler, OP_POP);
         compiler->local_count--;
     }
+}
+
+static struct chunk * current_chunk(struct compiler * compiler) {
+    return compiler->function.chunk;
 }
