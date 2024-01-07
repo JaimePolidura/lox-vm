@@ -13,6 +13,7 @@ typedef enum {
 typedef enum {
     OBJ_STRING,
     OBJ_FUNCTION,
+    OBJ_NATIVE
 } object_type_t;
 
 struct object {
@@ -46,7 +47,6 @@ struct object * allocate_object(size_t size, object_type_t type);
 #define IS_NIL(value) ((value).type == VAL_NIL)
 #define IS_NUMBER(value) ((value).type == VAL_NUMBER)
 #define IS_OBJECT(value) ((value).type == VAL_OBJ)
-
 
 #define OBJECT_TYPE(value) (TO_OBJECT(value)->type)
 #define ALLOCATE_OBJ(type, object_type) (type *) allocate_object(sizeof(type), object_type)

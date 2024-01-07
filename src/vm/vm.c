@@ -175,6 +175,13 @@ static void call() {
         case OBJ_FUNCTION:
             call_function(TO_FUNCTION(callee), n_args);
             break;
+        case OBJ_NATIVE:
+            native_fn native_function = TO_NATIVE(callee)->native_fn;
+            lox_value_t result = native_function(n_args, current_vm.esp - n_args);
+            current_vm.esp -= n_args + 1;
+            push_stack_vm(result);
+
+            break;
         default:
             runtime_error("Cannot call");
     }
@@ -282,6 +289,8 @@ void start_vm() {
     current_vm.heap = NULL;
     init_string_pool(&current_vm.string_pool);
     init_hash_table(&current_vm.global_variables);
+
+    define_native("clock", clock_native);
 }
 
 void stop_vm() {
@@ -346,4 +355,11 @@ static void add_heap_object(struct object * object) {
 
 static inline struct call_frame * get_current_frame() {
     return &current_vm.frames[current_vm.frames_in_use - 1];
+}
+
+void define_native(char * function_name, native_fn native_function) {
+    struct string_object * function_name_obj = copy_chars_to_string_object(function_name, strlen(function_name));
+    struct native_object * native_object = alloc_native_object(native_function);
+
+    put_hash_table(&current_vm.global_variables, function_name_obj, FROM_OBJECT(native_object));
 }
