@@ -20,6 +20,9 @@ static void get_local();
 static void jump_if_false();
 static void jump();
 static void loop();
+static void call();
+static void call_function(struct function_object * function, int n_args);
+static void print_frame_stack_trace();
 
 interpret_result interpret_vm(struct compilation_result compilation_result) {
     if(!compilation_result.success){
@@ -27,11 +30,7 @@ interpret_result interpret_vm(struct compilation_result compilation_result) {
     }
 
     push_stack_vm(FROM_OBJECT(compilation_result.function_object));
-
-    struct call_frame * current_frame = &current_vm.frames[current_vm.frames_in_use++];
-    current_frame->function = compilation_result.function_object;
-    current_frame->pc = compilation_result.function_object->chunk.code;
-    current_frame->slots = current_vm.stack;
+    call_function(compilation_result.function_object, 0);
 
     return run();
 }
@@ -55,16 +54,16 @@ interpret_result interpret_vm(struct compilation_result compilation_result) {
     }while(false);
 
 static interpret_result run() {
-    struct call_frame * actual_frame = get_current_frame();
+    struct call_frame * current_frame = get_current_frame();
 
     for(;;) {
 #ifdef  DEBUG_TRACE_EXECUTION
-        disassembleInstruction(&actual_frame->function->chunk, (int)(frame->pc - frame->function->chunk->code));
+        disassembleInstruction(&current_frame->function->chunk, (int)(frame->pc - frame->function->chunk->code));
         print_stack();
 #endif
-        switch (READ_BYTE(actual_frame)) {
+        switch (READ_BYTE(current_frame)) {
             case OP_RETURN: print_value(pop_stack_vm()); break;
-            case OP_CONSTANT: push_stack_vm(READ_CONSTANT(actual_frame)); break;
+            case OP_CONSTANT: push_stack_vm(READ_CONSTANT(current_frame)); break;
             case OP_NEGATE: push_stack_vm(FROM_NUMBER(-pop_and_check_number())); break;
             case OP_ADD: adition(); break;
             case OP_SUB: BINARY_OP(-) break;
@@ -87,6 +86,7 @@ static interpret_result run() {
             case OP_JUMP: jump(); break;
             case OP_SET_LOCAL: set_local(); break;
             case OP_LOOP: loop(); break;
+            case OP_CALL: call(); current_frame = get_current_frame(); break;
             case OP_EOF: return INTERPRET_OK;
             default:
                 perror("Unhandled bytecode op\n");
@@ -159,6 +159,39 @@ static void get_local() {
     struct call_frame * current_frame = get_current_frame();
     uint8_t slot = READ_BYTE(current_frame);
     push_stack_vm(current_frame->slots[slot]);
+}
+
+static void call() {
+    struct call_frame * current_frame = get_current_frame();
+    int n_args = READ_BYTE(current_frame);
+
+    lox_value_t callee = peek(n_args);
+    if(!IS_OBJECT(callee)){
+        runtime_error("Cannot call");
+    }
+
+    switch (TO_OBJECT(callee)->type) {
+        case OBJ_FUNCTION:
+            call_function(TO_FUNCTION(callee), n_args);
+            break;
+        default:
+            runtime_error("Cannot call");
+    }
+}
+
+static void call_function(struct function_object * function, int n_args) {
+    if(n_args != function->arity){
+        runtime_error("Cannot call %s with %i args. Required %i nº args", function->name->chars, n_args, function->arity);
+    }
+    if(current_vm.frames_in_use >= FRAME_MAX){
+        runtime_error("Stack overflow. Max allowed frames: %i", FRAME_MAX);
+    }
+
+    struct call_frame * new_function_frame = &current_vm.frames[current_vm.frames_in_use++];
+
+    new_function_frame->function = function;
+    new_function_frame->pc = function->chunk.code;
+    new_function_frame->slots = current_vm.esp - n_args - 1;
 }
 
 static void jump() {
@@ -252,7 +285,25 @@ static void runtime_error(char * format, ...) {
     size_t instruction = ((uint8_t *) current_frame->pc) - current_frame->function->chunk.code - 1;
     int line = current_frame->function->chunk.lines[instruction];
     fprintf(stderr, "[line %d] in script\n", line);
+    print_frame_stack_trace();
+
     exit(1);
+}
+
+static void print_frame_stack_trace() {
+    for (int i = current_vm.frames_in_use - 1; i >= 0; i--) {
+        struct call_frame * frame = &current_vm.frames[i];
+        struct function_object * function = frame->function;
+
+        size_t instruction = frame->pc - function->chunk.code - 1;
+        fprintf(stderr, "[line %d] in ",
+                function->chunk.lines[instruction]);
+        if (function->name == NULL) {
+            fprintf(stderr, "script\n");
+        } else {
+            fprintf(stderr, "%s()\n", function->name->chars);
+        }
+    }
 }
 
 static void print_stack() {

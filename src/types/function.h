@@ -6,7 +6,7 @@
 
 struct function_object {
     struct object object;
-    int arity;
+    int arity; //Number of arguments
     struct chunk chunk;
     struct string_object * name;
 };
@@ -20,3 +20,4 @@ struct function_object * alloc_function();
 
 #define IS_FUNCTION(value) is_object_type(value, OBJ_FUNCTION)
 #define FROM_FUNCTION(value) ((struct function_object*) FROM_OBJECT(value))
+#define TO_FUNCTION(value) (struct function_object *) (value.as.object)

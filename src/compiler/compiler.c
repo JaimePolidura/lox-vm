@@ -12,12 +12,11 @@ struct local {
 };
 
 struct compiler {
+    struct compiler * parent; // Used for functions
     struct scanner scanner;
     struct parser parser;
-
     struct function_object * function;
     function_type_t function_type;
-
     struct local locals[UINT8_MAX];
     int local_count;
     int local_depth;
@@ -42,14 +41,15 @@ typedef void(* parse_fn_t)(struct compiler *, bool);
 
 struct parse_rule {
     parse_fn_t prefix;
-    parse_fn_t infix;
+    parse_fn_t suffix;
     precedence_t precedence;
 };
 
 static void report_error(struct compiler * compiler, struct token token, const char * message);
 static void advance(struct compiler * compiler);
 static void init_parser(struct parser * parser);
-static struct compiler * alloc_compiler(char * source_code, function_type_t function_type);
+static struct compiler * alloc_compiler(function_type_t function_type);
+static void init_compiler(struct compiler * compiler, function_type_t function_type, struct compiler * parent_compiler);
 static struct function_object * alloc_function_compiler();
 static struct function_object * end_compiler(struct compiler * compiler);
 static void consume(struct compiler * compiler, tokenType_t expected_token_type, const char * error_message);
@@ -72,7 +72,7 @@ static void statement(struct compiler * compiler);
 static void print_statement(struct compiler * compiler);
 static void expression_statement(struct compiler * compiler);
 static void variable_declaration(struct compiler * compiler);
-static uint8_t add_identifier_constant(struct compiler * compiler, struct token identifier_token);
+static uint8_t add_string_constant(struct compiler * compiler, struct token string_token);
 static void define_global_variable(struct compiler * compiler, uint8_t global_constant_offset);
 static void variable(struct compiler * compiler, bool can_assign);
 static void named_variable(struct compiler * compiler, struct token previous, bool can_assign);
@@ -80,6 +80,7 @@ static void begin_scope(struct compiler * compiler);
 static void end_scope(struct compiler * compiler);
 static void block(struct compiler * compiler);
 static void add_local_variable(struct compiler * compiler, struct token new_variable_name);
+static bool is_variable_already_defined(struct compiler * compiler, struct token new_variable_name);
 static bool identifiers_equal(struct token * a, struct token * b);
 static int resolve_local_variable(struct compiler * compiler, struct token * name);
 static void variable_expression_declaration(struct compiler * compiler);
@@ -95,9 +96,14 @@ static void for_loop_initializer(struct compiler * compiler);
 static int for_loop_condition(struct compiler * compiler);
 static int for_loop_increment(struct compiler * compiler, int loop_start_index);
 static struct chunk * current_chunk(struct compiler * compiler);
+static void function_declaration(struct compiler * compiler);
+static void function(struct compiler * compiler, function_type_t function_type);
+static void function_parameters(struct compiler * function_compiler);
+static void function_call(struct compiler * compiler, bool can_assign);
+static int function_call_number_arguments(struct compiler * compiler);
 
 struct parse_rule rules[] = {
-    [TOKEN_OPEN_PAREN] = {grouping, NULL, PREC_NONE},
+    [TOKEN_OPEN_PAREN] = {grouping, function_call, PREC_CALL},
     [TOKEN_CLOSE_PAREN] = {NULL, NULL, PREC_NONE},
     [TOKEN_OPEN_BRACE] = {NULL, NULL, PREC_NONE},
     [TOKEN_CLOSE_BRACE] = {NULL, NULL, PREC_NONE},
@@ -140,7 +146,8 @@ struct parse_rule rules[] = {
     };
 
 struct compilation_result compile(char * source_code) {
-    struct compiler * compiler = alloc_compiler(source_code, TYPE_SCRIPT);
+    struct compiler * compiler = alloc_compiler(TYPE_SCRIPT);
+    init_scanner(&compiler->scanner, source_code);
 
     advance(compiler);
 
@@ -158,8 +165,10 @@ struct compilation_result compile(char * source_code) {
 }
 
 static void declaration(struct compiler * compiler) {
-    if(match(compiler, TOKEN_VAR)){
+    if(match(compiler, TOKEN_VAR)) {
         variable_declaration(compiler);
+    } else if(match(compiler, TOKEN_FUN)) {
+        function_declaration(compiler);
     } else {
         statement(compiler);
     }
@@ -172,7 +181,7 @@ static void variable_declaration(struct compiler * compiler) {
         add_local_variable(compiler, compiler->parser.previous);
         variable_expression_declaration(compiler);
     } else { //Global scope
-        int variable_identifier_constant = add_identifier_constant(compiler, compiler->parser.previous);
+        int variable_identifier_constant = add_string_constant(compiler, compiler->parser.previous);
         variable_expression_declaration(compiler);
         define_global_variable(compiler, variable_identifier_constant);
     }
@@ -186,6 +195,59 @@ static void variable_expression_declaration(struct compiler * compiler) {
     } else {
         emit_bytecode(compiler, OP_NIL);
     }
+}
+
+static void function_declaration(struct compiler * compiler) {
+    int function_name_constant_offset = add_string_constant(compiler, compiler->parser.current);
+    function(compiler, TYPE_FUNCTION);
+    define_global_variable(compiler, function_name_constant_offset);
+}
+
+static void function(struct compiler * compiler, function_type_t function_type) {
+    struct compiler function_compiler;
+    init_compiler(&function_compiler, TYPE_FUNCTION, compiler);
+    begin_scope(&function_compiler);
+
+    consume(&function_compiler, TOKEN_OPEN_PAREN, "Expect '(' after function name.");
+    function_parameters(&function_compiler);
+    consume(&function_compiler, TOKEN_CLOSE_PAREN, "Expect ')' before function body.");
+    consume(&function_compiler, TOKEN_OPEN_BRACE, "Expect '{' after function parenthesis.");
+
+    block(&function_compiler);
+
+    struct function_object * function = end_compiler(&function_compiler);
+    int function_constant_offset = add_constant_to_chunk(current_chunk(compiler), FROM_OBJECT(function));
+    emit_bytecodes(compiler, OP_CONSTANT, function_constant_offset);
+}
+
+static void function_parameters(struct compiler * function_compiler) {
+    if(!match(function_compiler, TOKEN_CLOSE_PAREN)){
+        do {
+            function_compiler->function->arity++;
+            consume(function_compiler, TOKEN_IDENTIFIER, "Expect variable name in function arguments.");
+            add_local_variable(function_compiler, function_compiler->parser.previous);
+        } while (match(function_compiler, TOKEN_COMMA));
+    }
+}
+
+static void function_call(struct compiler * compiler, bool can_assign) {
+    int n_args = function_call_number_arguments(compiler);
+    emit_bytecodes(compiler, OP_CALL, n_args);
+}
+
+static int function_call_number_arguments(struct compiler * compiler) {
+    int n_args = 0;
+
+    if(!match(compiler, TOKEN_CLOSE_PAREN)){
+        do{
+            expression(compiler);
+            n_args++;
+        } while (match(compiler, TOKEN_COMMA));
+    }
+
+    consume(compiler, TOKEN_CLOSE_PAREN, "Expect ')' after function call");
+
+    return n_args;
 }
 
 static void statement(struct compiler * compiler) {
@@ -380,7 +442,7 @@ static void named_variable(struct compiler * compiler, struct token previous, bo
     uint8_t get_op = is_local ? OP_GET_LOCAL : OP_GET_GLOBAL;
     uint8_t set_op = is_local ? OP_SET_LOCAL : OP_SET_GLOBAL;
     if(!is_local){ //If is global, variable_identifier will contain constant offset, if not it will contain the local index
-        variable_identifier = add_identifier_constant(compiler, previous);
+        variable_identifier = add_string_constant(compiler, previous);
     }
 
     if(can_assign && match(compiler, TOKEN_EQUAL)){
@@ -444,8 +506,8 @@ static void parse_precedence(struct compiler * compiler, precedence_t precedence
 
     while(precedence <= get_rule(compiler->parser.current.type)->precedence) {
         advance(compiler);
-        parse_fn_t parse_infix_fn = get_rule(compiler->parser.previous.type)->infix;
-        parse_infix_fn(compiler, canAssign);
+        parse_fn_t parse_suffix_fn = get_rule(compiler->parser.previous.type)->suffix;
+        parse_suffix_fn(compiler, canAssign);
     }
 
     if(canAssign && match(compiler, TOKEN_EQUAL)){
@@ -472,7 +534,6 @@ static void binary(struct compiler * compiler, bool can_assign) {
         case TOKEN_LESS_EQUAL: emit_bytecodes(compiler, OP_GREATER, OP_NOT); break;
     }
 }
-
 
 static void number(struct compiler * compiler, bool can_assign) {
     double value = strtod(compiler->parser.previous.start, NULL);
@@ -532,22 +593,30 @@ static void init_parser(struct parser * parser) {
     parser->has_error = false;
 }
 
-static struct compiler * alloc_compiler(char * source_code, function_type_t function_type) {
+static struct compiler * alloc_compiler(function_type_t function_type) {
     struct compiler * compiler = malloc(sizeof(struct compiler));
-    init_scanner(&compiler->scanner, source_code);
+    init_compiler(compiler, function_type, NULL); //Parent compiler null, this function will be the first one to be called
+    return compiler;
+}
+
+static void init_compiler(struct compiler * compiler, function_type_t function_type, struct compiler * parent_compiler) {
     init_parser(&compiler->parser);
     compiler->function = NULL;
+    compiler->parent = parent_compiler;
     compiler->function_type = function_type;
     compiler->local_count = 0;
     compiler->local_depth = 0;
     compiler->function = alloc_function_compiler();
 
+    if(function_type != TYPE_SCRIPT) {
+        compiler->function->name = copy_chars_to_string_object(parent_compiler->parser.previous.start,
+                                                               parent_compiler->parser.previous.length);
+    }
+
     struct local * local = &compiler->locals[compiler->local_count++];
     local->name.length = 0;
     local->name.start = "";
     local->depth = 0;
-
-    return compiler;
 }
 
 static struct function_object * end_compiler(struct compiler * compiler) {
@@ -583,11 +652,8 @@ static void add_local_variable(struct compiler * compiler, struct token new_vari
         return; //We are in a global scope
     }
 
-    for(int i = compiler->local_count - 1; i >= 0; i--){
-        struct local * local = &compiler->locals[i];
-        if(identifiers_equal(&local->name, &new_variable_name)){
-            report_error(compiler, new_variable_name, "variable already defined");
-        }
+    if(is_variable_already_defined(compiler, new_variable_name)){
+        report_error(compiler, new_variable_name, "variable already defined");
     }
 
     struct local * local = &compiler->locals[compiler->local_count++];
@@ -595,14 +661,25 @@ static void add_local_variable(struct compiler * compiler, struct token new_vari
     local->name = new_variable_name;
 }
 
+static bool is_variable_already_defined(struct compiler * compiler, struct token new_variable_name) {
+    for(int i = compiler->local_count - 1; i >= 0; i--){
+        struct local * local = &compiler->locals[i];
+        if(identifiers_equal(&local->name, &new_variable_name)){
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static bool identifiers_equal(struct token * a, struct token * b) {
     if (a->length != b->length) return false;
     return memcmp(a->start, b->start, a->length) == 0;
 }
 
-static uint8_t add_identifier_constant(struct compiler * compiler, struct token identifier_token) {
-    const char * variable_name = identifier_token.start;
-    int variable_name_length = identifier_token.length;
+static uint8_t add_string_constant(struct compiler * compiler, struct token string_token) {
+    const char * variable_name = string_token.start;
+    int variable_name_length = string_token.length;
 
     struct string_pool_add_result result_add = add_string_pool(&current_chunk(compiler)->compiled_string_pool,
                                                                variable_name, variable_name_length);

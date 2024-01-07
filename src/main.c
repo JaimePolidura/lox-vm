@@ -39,7 +39,7 @@ interpret_result interpret_source_code(char * source_code) {
         return INTERPRET_COMPILE_ERROR;
     }
 
-    return interpret_vm(compilation_result.chunk);
+    return interpret_vm(compilation_result);
 }
 
 char * read_file_source_code(char * path) {
@@ -70,33 +70,4 @@ char * read_file_source_code(char * path) {
     fclose(file);
 
     return source_code_buffer;
-}
-
-void debug_simple_calculation() {
-    start_vm();
-    struct chunk * chunk = alloc_chunk();
-
-    // -((1.2 + 3.4) / 5.6)
-    write_chunk(chunk, OP_CONSTANT, 1);
-    write_chunk(chunk, add_constant_to_chunk(chunk, FROM_NUMBER(1.2)), 1);
-    write_chunk(chunk, OP_CONSTANT, 1);
-    write_chunk(chunk, add_constant_to_chunk(chunk, FROM_NUMBER(3.4)), 1);
-    write_chunk(chunk, OP_ADD, 1);
-    write_chunk(chunk, OP_CONSTANT, 1);
-    write_chunk(chunk, add_constant_to_chunk(chunk, FROM_NUMBER(5.6)), 1);
-    write_chunk(chunk, OP_DIV, 1);
-    write_chunk(chunk, OP_NEGATE, 1);
-    write_chunk(chunk, OP_RETURN, 1);
-    write_chunk(chunk, OP_EOF, 1); //Expect -0.81
-
-    interpret_vm(chunk);
-
-    stop_vm();
-    free_chunk(chunk);
-}
-
-void prod() {
-    start_vm();
-
-    stop_vm();
 }
