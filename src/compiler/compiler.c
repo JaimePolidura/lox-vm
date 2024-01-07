@@ -630,5 +630,5 @@ static void end_scope(struct compiler * compiler) {
 }
 
 static struct chunk * current_chunk(struct compiler * compiler) {
-    return compiler->function.chunk;
+    return &compiler->function->chunk;
 }

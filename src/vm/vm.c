@@ -1,7 +1,5 @@
 #include "vm.h"
 
-#include "../chunk/chunk_disassembler.h"
-
 struct vm current_vm;
 
 static double pop_and_check_number();
@@ -12,6 +10,7 @@ static void runtime_error(char * format, ...);
 static lox_value_t values_equal(lox_value_t a, lox_value_t b);
 static inline lox_value_t peek(int index_from_top);
 static inline void adition();
+static inline struct call_frame * get_current_frame();
 static void add_heap_object(struct object * object);
 static void define_global();
 static void read_global();
@@ -22,18 +21,25 @@ static void jump_if_false();
 static void jump();
 static void loop();
 
-interpret_result interpret_vm(struct chunk * chunk) {
-    current_vm.chunk = chunk;
-    current_vm.pc = chunk->code;
-    add_all_pool(&current_vm.string_pool, &chunk->compiled_string_pool);
+interpret_result interpret_vm(struct compilation_result compilation_result) {
+    if(!compilation_result.success){
+        return INTERPRET_COMPILE_ERROR;
+    }
+
+    push_stack_vm(FROM_OBJECT(compilation_result.function_object));
+
+    struct call_frame * current_frame = &current_vm.frames[current_vm.frames_in_use++];
+    current_frame->function = compilation_result.function_object;
+    current_frame->pc = compilation_result.function_object->chunk.code;
+    current_frame->slots = current_vm.stack;
 
     return run();
 }
 
-#define READ_BYTE() (*current_vm.pc++)
-#define READ_U16() \
-    (current_vm.pc += 2, (uint16_t)((current_vm.pc[-2] << 8) | current_vm.pc[-1]))
-#define READ_CONSTANT() (current_vm.chunk->constants.values[READ_BYTE()])
+#define READ_BYTE(frame) (*frame->pc++)
+#define READ_U16(frame) \
+    (frame->pc += 2, (uint16_t)((frame->pc[-2] << 8) | frame->pc[-1]))
+#define READ_CONSTANT(frame) (frame->function->chunk.constants.values[READ_BYTE(frame)])
 #define BINARY_OP(op) \
     do { \
         double b = pop_and_check_number(); \
@@ -49,14 +55,16 @@ interpret_result interpret_vm(struct chunk * chunk) {
     }while(false);
 
 static interpret_result run() {
+    struct call_frame * actual_frame = get_current_frame();
+
     for(;;) {
 #ifdef  DEBUG_TRACE_EXECUTION
-        disassemble_chunk_instruction(current_vm.chunk, current_vm.stack - current_vm.esp);
+        disassembleInstruction(&actual_frame->function->chunk, (int)(frame->pc - frame->function->chunk->code));
         print_stack();
 #endif
-        switch (READ_BYTE()) {
+        switch (READ_BYTE(actual_frame)) {
             case OP_RETURN: print_value(pop_stack_vm()); break;
-            case OP_CONSTANT: push_stack_vm(READ_CONSTANT()); break;
+            case OP_CONSTANT: push_stack_vm(READ_CONSTANT(actual_frame)); break;
             case OP_NEGATE: push_stack_vm(FROM_NUMBER(-pop_and_check_number())); break;
             case OP_ADD: adition(); break;
             case OP_SUB: BINARY_OP(-) break;
@@ -117,13 +125,13 @@ static inline void adition() {
 }
 
 static void define_global() {
-    struct string_object * name = TO_STRING(READ_CONSTANT());
+    struct string_object * name = TO_STRING(READ_CONSTANT(get_current_frame()));
     put_hash_table(&current_vm.global_variables, name, peek(0));
     pop_stack_vm();
 }
 
 static void read_global() {
-    struct string_object * variable_name = TO_STRING(READ_CONSTANT());
+    struct string_object * variable_name = TO_STRING(READ_CONSTANT(get_current_frame()));
     lox_value_t variable_value;
     if(!get_hash_table(&current_vm.global_variables, variable_name, &variable_value)) {
         runtime_error("Undefined variable %s.", variable_name->chars);
@@ -133,7 +141,7 @@ static void read_global() {
 }
 
 static void set_global() {
-    struct string_object * variable_name = TO_STRING(READ_CONSTANT());
+    struct string_object * variable_name = TO_STRING(READ_CONSTANT(get_current_frame()));
     if(!contains_hash_table(&current_vm.global_variables, variable_name)){
         runtime_error("Cannot assign value to undeclared variable %s", variable_name->chars);
     }
@@ -142,28 +150,33 @@ static void set_global() {
 }
 
 static void set_local() {
-    uint8_t slot = READ_BYTE();
-    current_vm.stack[slot] = peek(0);
+    struct call_frame * current_frame = get_current_frame();
+    uint8_t slot = READ_BYTE(current_frame);
+    current_frame->slots[slot] = peek(0);
 }
 
 static void get_local() {
-    uint8_t slot = READ_BYTE();
-    push_stack_vm(current_vm.stack[slot]);
+    struct call_frame * current_frame = get_current_frame();
+    uint8_t slot = READ_BYTE(current_frame);
+    push_stack_vm(current_frame->slots[slot]);
 }
 
 static void jump() {
-    current_vm.pc += READ_U16();
+    struct call_frame * current_frame = get_current_frame();
+    current_frame->pc += READ_U16(get_current_frame());
 }
 
 static void jump_if_false() {
-    if(!cast_to_boolean(READ_CONSTANT())){
-        int total_opcodes_to_jump_if_false = READ_U16();
-        current_vm.pc += total_opcodes_to_jump_if_false;
+    struct call_frame * current_frame = get_current_frame();
+    if(!cast_to_boolean(READ_CONSTANT(current_frame))){
+        int total_opcodes_to_jump_if_false = READ_U16(current_frame);
+        current_frame->pc += total_opcodes_to_jump_if_false;
     }
 }
 
 static void loop() {
-    current_vm.pc -= READ_U16();
+    struct call_frame * current_frame = get_current_frame();
+    current_frame->pc -= READ_U16(current_frame);
 }
 
 static inline lox_value_t peek(int index_from_top) {
@@ -217,6 +230,8 @@ lox_value_t pop_stack_vm() {
 
 void start_vm() {
     current_vm.esp = current_vm.stack; //Reset stack
+    current_vm.frames_in_use = 0;
+
     current_vm.heap = NULL;
     init_string_pool(&current_vm.string_pool);
     init_hash_table(&current_vm.global_variables);
@@ -232,8 +247,10 @@ static void runtime_error(char * format, ...) {
     va_end(args);
     fputs("\n", stderr);
 
-    size_t instruction = ((uint8_t *) current_vm.esp) - current_vm.chunk->code - 1;
-    int line = current_vm.chunk->lines[instruction];
+    struct call_frame * current_frame = get_current_frame();
+
+    size_t instruction = ((uint8_t *) current_frame->pc) - current_frame->function->chunk.code - 1;
+    int line = current_frame->function->chunk.lines[instruction];
     fprintf(stderr, "[line %d] in script\n", line);
     exit(1);
 }
@@ -260,4 +277,8 @@ struct string_object * add_string(char * string_ptr, int length) {
 static void add_heap_object(struct object * object) {
     object->next = current_vm.heap;
     current_vm.heap = object;
+}
+
+static inline struct call_frame * get_current_frame() {
+    return &current_vm.frames[current_vm.frames_in_use - 1];
 }

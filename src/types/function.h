@@ -7,7 +7,7 @@
 struct function_object {
     struct object object;
     int arity;
-    struct chunk * chunk;
+    struct chunk chunk;
     struct string_object * name;
 };
 

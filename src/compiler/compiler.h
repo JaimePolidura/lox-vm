@@ -1,11 +1,12 @@
 #pragma once
 
-#include "../shared.h"
-#include "../vm/vm.h"
+#include "shared.h"
 #include "scanner.h"
-#include "../bytecode.h"
-#include "../types/strings/string_object.h"
+#include "bytecode.h"
+#include "types/strings/string_object.h"
 #include "types/function.h"
+#include "chunk/chunk_disassembler.h"
+#include "compiler/compiler.h"
 
 struct compilation_result {
     struct function_object * function_object;
