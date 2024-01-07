@@ -101,6 +101,8 @@ static void function(struct compiler * compiler, function_type_t function_type);
 static void function_parameters(struct compiler * function_compiler);
 static void function_call(struct compiler * compiler, bool can_assign);
 static int function_call_number_arguments(struct compiler * compiler);
+static void return_statement(struct compiler * compiler);
+static void emit_empty_return(struct compiler * compiler);
 
 struct parse_rule rules[] = {
     [TOKEN_OPEN_PAREN] = {grouping, function_call, PREC_CALL},
@@ -198,7 +200,8 @@ static void variable_expression_declaration(struct compiler * compiler) {
 }
 
 static void function_declaration(struct compiler * compiler) {
-    int function_name_constant_offset = add_string_constant(compiler, compiler->parser.current);
+    consume(compiler, TOKEN_IDENTIFIER, "Expected function name after fun keyword.");
+    int function_name_constant_offset = add_string_constant(compiler, compiler->parser.previous);
     function(compiler, TYPE_FUNCTION);
     define_global_variable(compiler, function_name_constant_offset);
 }
@@ -263,8 +266,24 @@ static void statement(struct compiler * compiler) {
         while_statement(compiler);
     } else if (match(compiler, TOKEN_IF)) {
         if_statement(compiler);
+    } else if (match(compiler, TOKEN_RETURN)) {
+        return_statement(compiler);
     } else {
         expression_statement(compiler);
+    }
+}
+
+static void return_statement(struct compiler * compiler) {
+    if(compiler->function_type == TYPE_SCRIPT){
+        report_error(compiler, compiler->parser.previous, "Can't return from top level code");
+    }
+
+    if(match(compiler, TOKEN_SEMICOLON)){
+        emit_empty_return(compiler);
+    } else {
+        expression(compiler);
+        consume(compiler, TOKEN_SEMICOLON, "Expect ';' after return statement");
+        emit_bytecode(compiler, OP_RETURN);
     }
 }
 
@@ -620,7 +639,7 @@ static void init_compiler(struct compiler * compiler, function_type_t function_t
 }
 
 static struct function_object * end_compiler(struct compiler * compiler) {
-    emit_bytecode(compiler, OP_RETURN);
+    emit_empty_return(compiler);
     return compiler->function;
 }
 
@@ -708,4 +727,8 @@ static void end_scope(struct compiler * compiler) {
 
 static struct chunk * current_chunk(struct compiler * compiler) {
     return &compiler->function->chunk;
+}
+
+static void emit_empty_return(struct compiler * compiler) {
+    emit_bytecodes(compiler, OP_NIL, OP_RETURN);
 }

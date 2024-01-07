@@ -14,7 +14,7 @@
 struct call_frame {
     struct function_object * function;
     uint8_t * pc; //Actual instruction
-    lox_value_t * slots;
+    lox_value_t * slots; //Used for local variables. It points to the stack
 };
 
 struct vm {

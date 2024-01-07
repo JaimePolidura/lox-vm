@@ -21,6 +21,7 @@ static void jump_if_false();
 static void jump();
 static void loop();
 static void call();
+static void return_function(struct call_frame * function_to_return_frame);
 static void call_function(struct function_object * function, int n_args);
 static void print_frame_stack_trace();
 
@@ -62,7 +63,7 @@ static interpret_result run() {
         print_stack();
 #endif
         switch (READ_BYTE(current_frame)) {
-            case OP_RETURN: print_value(pop_stack_vm()); break;
+            case OP_RETURN: return_function(current_frame);
             case OP_CONSTANT: push_stack_vm(READ_CONSTANT(current_frame)); break;
             case OP_NEGATE: push_stack_vm(FROM_NUMBER(-pop_and_check_number())); break;
             case OP_ADD: adition(); break;
@@ -192,6 +193,19 @@ static void call_function(struct function_object * function, int n_args) {
     new_function_frame->function = function;
     new_function_frame->pc = function->chunk.code;
     new_function_frame->slots = current_vm.esp - n_args - 1;
+}
+
+static void return_function(struct call_frame * function_to_return_frame) {
+    lox_value_t value = pop_stack_vm();
+
+    if(current_vm.frames_in_use <= 1) {
+        pop_stack_vm();
+        return;
+    }
+
+    current_vm.esp = function_to_return_frame->slots;
+
+    push_stack_vm(value);
 }
 
 static void jump() {
