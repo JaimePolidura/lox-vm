@@ -13,8 +13,8 @@ struct local {
 
 struct compiler {
     struct compiler * parent; // Used for functions
-    struct scanner scanner;
-    struct parser parser;
+    struct scanner * scanner;
+    struct parser * parser;
     struct function_object * function;
     function_type_t function_type;
     struct local locals[UINT8_MAX];
@@ -47,7 +47,6 @@ struct parse_rule {
 
 static void report_error(struct compiler * compiler, struct token token, const char * message);
 static void advance(struct compiler * compiler);
-static void init_parser(struct parser * parser);
 static struct compiler * alloc_compiler(function_type_t function_type);
 static void init_compiler(struct compiler * compiler, function_type_t function_type, struct compiler * parent_compiler);
 static struct function_object * alloc_function_compiler();
@@ -144,12 +143,11 @@ struct parse_rule rules[] = {
     [TOKEN_VAR] = {NULL, NULL, PREC_NONE},
     [TOKEN_WHILE] = {NULL, NULL, PREC_NONE},
     [TOKEN_ERROR] = {NULL, NULL, PREC_NONE},
-    [TOKEN_EOF] = {NULL, NULL, PREC_NONE},
-    };
+    [TOKEN_EOF] = {NULL, NULL, PREC_NONE},};
 
 struct compilation_result compile(char * source_code) {
-    struct compiler * compiler = alloc_compiler(TYPE_SCRIPT);
-    init_scanner(&compiler->scanner, source_code);
+    struct compiler * compiler = alloc_compiler(TYPE_MAIN_SCOPE);
+    init_scanner(compiler->scanner, source_code);
 
     advance(compiler);
 
@@ -161,7 +159,7 @@ struct compilation_result compile(char * source_code) {
 
     return (struct compilation_result){
         .function_object = end_compiler(compiler),
-        .success = !compiler->parser.has_error,
+        .success = !compiler->parser->has_error,
         .chunk = current_chunk(compiler)
     };
 }
@@ -169,8 +167,10 @@ struct compilation_result compile(char * source_code) {
 static void declaration(struct compiler * compiler) {
     if(match(compiler, TOKEN_VAR)) {
         variable_declaration(compiler);
-    } else if(match(compiler, TOKEN_FUN)) {
+    } else if(match(compiler, TOKEN_FUN) && compiler->function_type == TYPE_MAIN_SCOPE) {
         function_declaration(compiler);
+    } else if(match(compiler, TOKEN_FUN) && compiler->function_type == TYPE_FUNCTION_SCOPE){
+        report_error(compiler, compiler->parser->current, "Nested functions are not allowed");
     } else {
         statement(compiler);
     }
@@ -180,10 +180,10 @@ static void variable_declaration(struct compiler * compiler) {
     consume(compiler, TOKEN_IDENTIFIER, "Expected variable name.");
 
     if(compiler->local_depth > 0) { // Local scope
-        add_local_variable(compiler, compiler->parser.previous);
+        add_local_variable(compiler, compiler->parser->previous);
         variable_expression_declaration(compiler);
     } else { //Global scope
-        int variable_identifier_constant = add_string_constant(compiler, compiler->parser.previous);
+        int variable_identifier_constant = add_string_constant(compiler, compiler->parser->previous);
         variable_expression_declaration(compiler);
         define_global_variable(compiler, variable_identifier_constant);
     }
@@ -201,14 +201,14 @@ static void variable_expression_declaration(struct compiler * compiler) {
 
 static void function_declaration(struct compiler * compiler) {
     consume(compiler, TOKEN_IDENTIFIER, "Expected function name after fun keyword.");
-    int function_name_constant_offset = add_string_constant(compiler, compiler->parser.previous);
-    function(compiler, TYPE_FUNCTION);
+    int function_name_constant_offset = add_string_constant(compiler, compiler->parser->previous);
+    function(compiler, TYPE_FUNCTION_SCOPE);
     define_global_variable(compiler, function_name_constant_offset);
 }
 
 static void function(struct compiler * compiler, function_type_t function_type) {
     struct compiler function_compiler;
-    init_compiler(&function_compiler, TYPE_FUNCTION, compiler);
+    init_compiler(&function_compiler, TYPE_FUNCTION_SCOPE, compiler);
     begin_scope(&function_compiler);
 
     consume(&function_compiler, TOKEN_OPEN_PAREN, "Expect '(' after function name.");
@@ -219,7 +219,7 @@ static void function(struct compiler * compiler, function_type_t function_type) 
     block(&function_compiler);
 
     struct function_object * function = end_compiler(&function_compiler);
-    int function_constant_offset = add_constant_to_chunk(current_chunk(compiler), FROM_OBJECT(function));
+    int function_constant_offset = add_constant_to_chunk(current_chunk(compiler), FROM_RAW_TO_OBJECT(function));
     emit_bytecodes(compiler, OP_CONSTANT, function_constant_offset);
 }
 
@@ -228,7 +228,7 @@ static void function_parameters(struct compiler * function_compiler) {
         do {
             function_compiler->function->arity++;
             consume(function_compiler, TOKEN_IDENTIFIER, "Expect variable name in function arguments.");
-            add_local_variable(function_compiler, function_compiler->parser.previous);
+            add_local_variable(function_compiler, function_compiler->parser->previous);
         } while (match(function_compiler, TOKEN_COMMA));
     }
 }
@@ -274,8 +274,8 @@ static void statement(struct compiler * compiler) {
 }
 
 static void return_statement(struct compiler * compiler) {
-    if(compiler->function_type == TYPE_SCRIPT){
-        report_error(compiler, compiler->parser.previous, "Can't return from top level code");
+    if(compiler->function_type == TYPE_MAIN_SCOPE){
+        report_error(compiler, compiler->parser->previous, "Can't return from top level code");
     }
 
     if(match(compiler, TOKEN_SEMICOLON)){
@@ -452,7 +452,7 @@ static void print_statement(struct compiler * compiler) {
 }
 
 static void variable(struct compiler * compiler, bool can_assign) {
-    named_variable(compiler, compiler->parser.previous, can_assign);
+    named_variable(compiler, compiler->parser->previous, can_assign);
 }
 
 static void named_variable(struct compiler * compiler, struct token previous, bool can_assign) {
@@ -477,12 +477,12 @@ static struct parse_rule* get_rule(tokenType_t type) {
 }
 
 static void string(struct compiler * compiler, bool can_assign) {
-    const char * string_ptr = compiler->parser.previous.start + 1;
-    int string_length = compiler->parser.previous.length - 2;
+    const char * string_ptr = compiler->parser->previous.start + 1;
+    int string_length = compiler->parser->previous.length - 2;
 
     struct string_pool_add_result add_result = add_string_pool(&current_chunk(compiler)->compiled_string_pool, string_ptr,
             string_length);
-    emit_constant(compiler, FROM_OBJECT(add_result.string_object));
+    emit_constant(compiler, FROM_RAW_TO_OBJECT(add_result.string_object));
 }
 
 static void grouping(struct compiler * compiler, bool can_assign) {
@@ -491,7 +491,7 @@ static void grouping(struct compiler * compiler, bool can_assign) {
 }
 
 static void literal(struct compiler * compiler, bool can_assign) {
-    switch (compiler->parser.previous.type) {
+    switch (compiler->parser->previous.type) {
         case TOKEN_FALSE: emit_bytecode(compiler, OP_FALSE); break;
         case TOKEN_TRUE: emit_bytecode(compiler, OP_TRUE); break;
         case TOKEN_NIL: emit_bytecode(compiler, OP_NIL); break;;
@@ -499,7 +499,7 @@ static void literal(struct compiler * compiler, bool can_assign) {
 }
 
 static void unary(struct compiler * compiler, bool can_assign) {
-    tokenType_t token_type = compiler->parser.previous.type;
+    tokenType_t token_type = compiler->parser->previous.type;
     parse_precedence(compiler, PREC_UNARY);
 
     if(token_type == TOKEN_MINUS) {
@@ -516,26 +516,26 @@ static void expression(struct compiler * compiler) {
 
 static void parse_precedence(struct compiler * compiler, precedence_t precedence) {
     advance(compiler);
-    parse_fn_t parse_prefix_fn = get_rule(compiler->parser.previous.type)->prefix;
+    parse_fn_t parse_prefix_fn = get_rule(compiler->parser->previous.type)->prefix;
     if(parse_prefix_fn == NULL) {
-        report_error(compiler, compiler->parser.previous, "Expect expression");
+        report_error(compiler, compiler->parser->previous, "Expect expression");
     }
     bool canAssign = precedence <= PREC_ASSIGNMENT;
     parse_prefix_fn(compiler, canAssign);
 
-    while(precedence <= get_rule(compiler->parser.current.type)->precedence) {
+    while(precedence <= get_rule(compiler->parser->current.type)->precedence) {
         advance(compiler);
-        parse_fn_t parse_suffix_fn = get_rule(compiler->parser.previous.type)->suffix;
+        parse_fn_t parse_suffix_fn = get_rule(compiler->parser->previous.type)->suffix;
         parse_suffix_fn(compiler, canAssign);
     }
 
     if(canAssign && match(compiler, TOKEN_EQUAL)){
-        report_error(compiler, compiler->parser.previous, "Invalid assigment target.");
+        report_error(compiler, compiler->parser->previous, "Invalid assigment target.");
     }
 }
 
 static void binary(struct compiler * compiler, bool can_assign) {
-    tokenType_t token_type = compiler->parser.previous.type;
+    tokenType_t token_type = compiler->parser->previous.type;
 
     struct parse_rule * rule = get_rule(token_type);
     parse_precedence(compiler, rule->precedence + 1);
@@ -555,22 +555,22 @@ static void binary(struct compiler * compiler, bool can_assign) {
 }
 
 static void number(struct compiler * compiler, bool can_assign) {
-    double value = strtod(compiler->parser.previous.start, NULL);
-    emit_constant(compiler, FROM_NUMBER(value));
+    double value = strtod(compiler->parser->previous.start, NULL);
+    emit_constant(compiler, FROM_RAW_TO_NUMBER(value));
 }
 
 static void emit_constant(struct compiler * compiler, lox_value_t value) {
     //TODO Perform contant overflow
     int constant_offset = add_constant_to_chunk(current_chunk(compiler), value);
-    write_chunk(current_chunk(compiler), OP_CONSTANT, compiler->parser.previous.line);
-    write_chunk(current_chunk(compiler), constant_offset, compiler->parser.previous.line);
+    write_chunk(current_chunk(compiler), OP_CONSTANT, compiler->parser->previous.line);
+    write_chunk(current_chunk(compiler), constant_offset, compiler->parser->previous.line);
 }
 
 static void advance(struct compiler * compiler) {
-    compiler->parser.previous = compiler->parser.current;
+    compiler->parser->previous = compiler->parser->current;
 
-    struct token token = next_token_scanner(&compiler->scanner);
-    compiler->parser.current = token;
+    struct token token = next_token_scanner(compiler->scanner);
+    compiler->parser->current = token;
 
     if(token.type == TOKEN_ERROR) {
         report_error(compiler, token, "");
@@ -578,21 +578,21 @@ static void advance(struct compiler * compiler) {
 }
 
 static void emit_bytecodes(struct compiler * compiler, uint8_t bytecodeA, uint8_t bytecodeB) {
-    write_chunk(current_chunk(compiler), bytecodeA, compiler->parser.previous.line);
-    write_chunk(current_chunk(compiler), bytecodeB, compiler->parser.previous.line);
+    write_chunk(current_chunk(compiler), bytecodeA, compiler->parser->previous.line);
+    write_chunk(current_chunk(compiler), bytecodeB, compiler->parser->previous.line);
 }
 
 static void emit_bytecode(struct compiler * compiler, uint8_t bytecode) {
-    write_chunk(current_chunk(compiler), bytecode, compiler->parser.previous.line);
+    write_chunk(current_chunk(compiler), bytecode, compiler->parser->previous.line);
 }
 
 static void consume(struct compiler * compiler, tokenType_t expected_token_type, const char * error_message) {
-    if(compiler->parser.current.type == expected_token_type) {
+    if(compiler->parser->current.type == expected_token_type) {
         advance(compiler);
         return;
     }
 
-    report_error(compiler, compiler->parser.current, error_message);
+    report_error(compiler, compiler->parser->current, error_message);
 }
 
 static void report_error(struct compiler * compiler, struct token token, const char * message) {
@@ -605,21 +605,24 @@ static void report_error(struct compiler * compiler, struct token token, const c
         fprintf(stderr, " at '%.*s'", token.length, token.start);
     }
     fprintf(stderr, ": %s\n", message);
-    compiler->parser.has_error = true;
-}
-
-static void init_parser(struct parser * parser) {
-    parser->has_error = false;
+    compiler->parser->has_error = true;
 }
 
 static struct compiler * alloc_compiler(function_type_t function_type) {
     struct compiler * compiler = malloc(sizeof(struct compiler));
     init_compiler(compiler, function_type, NULL); //Parent compiler null, this function will be the first one to be called
+    compiler->scanner = malloc(sizeof(struct scanner));
+    compiler->parser = malloc(sizeof(struct parser));
+
     return compiler;
 }
 
 static void init_compiler(struct compiler * compiler, function_type_t function_type, struct compiler * parent_compiler) {
-    init_parser(&compiler->parser);
+    if(parent_compiler != NULL){
+        compiler->scanner = parent_compiler->scanner;
+        compiler->parser = parent_compiler->parser;
+    }
+
     compiler->function = NULL;
     compiler->parent = parent_compiler;
     compiler->function_type = function_type;
@@ -627,9 +630,9 @@ static void init_compiler(struct compiler * compiler, function_type_t function_t
     compiler->local_depth = 0;
     compiler->function = alloc_function_compiler();
 
-    if(function_type != TYPE_SCRIPT) {
-        compiler->function->name = copy_chars_to_string_object(parent_compiler->parser.previous.start,
-                                                               parent_compiler->parser.previous.length);
+    if(function_type != TYPE_MAIN_SCOPE) {
+        compiler->function->name = copy_chars_to_string_object(parent_compiler->parser->previous.start,
+                                                               parent_compiler->parser->previous.length);
     }
 
     struct local * local = &compiler->locals[compiler->local_count++];
@@ -652,7 +655,7 @@ static bool match(struct compiler * compiler, tokenType_t type) {
 }
 
 static bool check(struct compiler * compiler, tokenType_t type) {
-    return compiler->parser.current.type == type;
+    return compiler->parser->current.type == type;
 }
 
 static int resolve_local_variable(struct compiler * compiler, struct token * name) {
@@ -703,7 +706,7 @@ static uint8_t add_string_constant(struct compiler * compiler, struct token stri
     struct string_pool_add_result result_add = add_string_pool(&current_chunk(compiler)->compiled_string_pool,
                                                                variable_name, variable_name_length);
 
-    return add_constant_to_chunk(current_chunk(compiler), FROM_OBJECT(result_add.string_object));
+    return add_constant_to_chunk(current_chunk(compiler), FROM_RAW_TO_OBJECT(result_add.string_object));
 }
 
 static void define_global_variable(struct compiler * compiler, uint8_t global_constant_offset) {
@@ -731,4 +734,13 @@ static struct chunk * current_chunk(struct compiler * compiler) {
 
 static void emit_empty_return(struct compiler * compiler) {
     emit_bytecodes(compiler, OP_NIL, OP_RETURN);
+}
+
+static struct function_object * alloc_function_compiler() {
+    struct function_object * function_object_ptr = malloc(sizeof(struct function_object));
+    function_object_ptr->arity = 0;
+    function_object_ptr->name = NULL;
+    init_chunk(&function_object_ptr->chunk);
+
+    return function_object_ptr;
 }

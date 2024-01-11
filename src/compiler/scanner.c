@@ -74,28 +74,24 @@ static bool match(struct scanner * scanner, char expected) {
 
 static void skip_white_space(struct scanner * scanner) {
     for(;;) {
-        if(at_the_end(scanner)) {
-            return;
-        }
-
         switch (peek(scanner)) {
             case ' ':
             case '\t':
             case '\r':
+                advance(scanner);
                 break;
             case '\n':
                 scanner->line++;
+                advance(scanner);
                 break;
             case '/':
                 if(peek_next(scanner) == '/') {
-                    scanner->line++;
+                    while(peek_next(scanner) != '\n' && !at_the_end(scanner)) advance(scanner);
                     break;
                 }
             default:
                 return;
         }
-
-        advance(scanner);
     }
 }
 
@@ -122,7 +118,7 @@ static tokenType_t identifier_type(struct scanner * scanner) {
         case 'w': return check_keyword(scanner, 1, 4, "hile", TOKEN_WHILE);
         case 'f':
             if(scanner->current - scanner->start > 1) {
-                switch (*(scanner->current + 1)) {
+                switch (scanner->start[1]) {
                     case 'a': return check_keyword(scanner, 2, 3, "lse", TOKEN_FALSE);
                     case 'o': return check_keyword(scanner, 2, 1, "r", TOKEN_FOR);
                     case 'u': return check_keyword(scanner, 2, 1, "n", TOKEN_FUN);
@@ -130,7 +126,7 @@ static tokenType_t identifier_type(struct scanner * scanner) {
             }
         case 't':
             if(scanner->current - scanner->start > 1) {
-                switch (*(scanner->current + 1)) {
+                switch (scanner->start[1]) {
                     case 'h': return check_keyword(scanner, 2, 2, "is", TOKEN_THIS);
                     case 'r': return check_keyword(scanner, 2, 2, "ue", TOKEN_TRUE);
                 }

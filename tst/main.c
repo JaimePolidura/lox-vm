@@ -4,8 +4,10 @@
 #include "vm_test.h"
 
 int main() {
-    simple_vm_test_with_scope_variables_outer();
+    simple_compiler_test_with_functions_outer();
 
+//    simple_vm_test_with_scope_variables_outer();
+//
 //    hash_table_put_contains_remove_get_test_outer();
 //    hash_table_add_all_test_outer();
 //    hash_table_multiple_put_test_outer();

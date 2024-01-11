@@ -4,6 +4,12 @@
 #include "../src/compiler/compiler.h"
 #include "../src/chunk/chunk_disassembler.h"
 
+TEST(simple_compiler_test_with_functions) {
+    struct compilation_result result = compile("fun hola(a, b) {\n return a + b;\n }\n");
+    struct chunk * chunk = result.chunk;
+    ASSERT_TRUE(result.success);
+}
+
 TEST(simple_compiler_test_with_scope_variables) {
     struct compilation_result result = compile("var edad = 10;\n{\nvar nombre = \"jaime\";\nnombre = 1;\nprint nombre;}");
     struct chunk * chunk = result.chunk;

@@ -30,7 +30,7 @@ interpret_result interpret_vm(struct compilation_result compilation_result) {
         return INTERPRET_COMPILE_ERROR;
     }
 
-    push_stack_vm(FROM_OBJECT(compilation_result.function_object));
+    push_stack_vm(FROM_RAW_TO_OBJECT(compilation_result.function_object));
     call_function(compilation_result.function_object, 0);
 
     return run();
@@ -44,14 +44,14 @@ interpret_result interpret_vm(struct compilation_result compilation_result) {
     do { \
         double b = pop_and_check_number(); \
         double a = pop_and_check_number(); \
-        push_stack_vm(FROM_NUMBER(a op b)); \
+        push_stack_vm(FROM_RAW_TO_NUMBER(a op b)); \
     }while(false);
 
 #define COMPARATION_OP(op) \
     do { \
         double b = pop_and_check_number(); \
         double a = pop_and_check_number(); \
-        push_stack_vm(FROM_BOOL(a op b)); \
+        push_stack_vm(FROM_RAW_TO_BOOL(a op b)); \
     }while(false);
 
 static interpret_result run() {
@@ -65,17 +65,17 @@ static interpret_result run() {
         switch (READ_BYTE(current_frame)) {
             case OP_RETURN: return_function(current_frame);
             case OP_CONSTANT: push_stack_vm(READ_CONSTANT(current_frame)); break;
-            case OP_NEGATE: push_stack_vm(FROM_NUMBER(-pop_and_check_number())); break;
+            case OP_NEGATE: push_stack_vm(FROM_RAW_TO_NUMBER(-pop_and_check_number())); break;
             case OP_ADD: adition(); break;
             case OP_SUB: BINARY_OP(-) break;
             case OP_MUL: BINARY_OP(*) break;
             case OP_DIV: BINARY_OP(/) break;
             case OP_GREATER: COMPARATION_OP(>) break;
             case OP_LESS: COMPARATION_OP(<) break;
-            case OP_FALSE: push_stack_vm(FROM_BOOL(false)); break;
-            case OP_TRUE: push_stack_vm(FROM_BOOL(true)); break;
-            case OP_NIL: push_stack_vm(FROM_NIL()); break;
-            case OP_NOT: push_stack_vm(FROM_BOOL(!check_boolean())); break;
+            case OP_FALSE: push_stack_vm(FROM_RAW_TO_BOOL(false)); break;
+            case OP_TRUE: push_stack_vm(FROM_RAW_TO_BOOL(true)); break;
+            case OP_NIL: push_stack_vm(NIL_VALUE()); break;
+            case OP_NOT: push_stack_vm(FROM_RAW_TO_BOOL(!check_boolean())); break;
             case OP_EQUAL: push_stack_vm(values_equal(pop_stack_vm(), pop_stack_vm())); break;
             case OP_PRINT: print_value(pop_stack_vm()); printf("\n"); break;
             case OP_POP: pop_stack_vm(); break;
@@ -98,7 +98,7 @@ static interpret_result run() {
 
 static inline void adition() {
     if(IS_NUMBER(peek(0)) + IS_NUMBER(peek(1))) {
-        push_stack_vm(FROM_NUMBER(TO_NUMBER(pop_stack_vm()) + TO_NUMBER(pop_stack_vm())));
+        push_stack_vm(FROM_RAW_TO_NUMBER(TO_NUMBER_RAW(pop_stack_vm()) + TO_NUMBER_RAW(pop_stack_vm())));
         return;
     }
 
@@ -122,7 +122,7 @@ static inline void adition() {
         free(b_chars);
     }
 
-    push_stack_vm(FROM_OBJECT(add_string(concatenated, new_length)));
+    push_stack_vm(FROM_RAW_TO_OBJECT(add_string(concatenated, new_length)));
 }
 
 static void define_global() {
@@ -171,7 +171,7 @@ static void call() {
         runtime_error("Cannot call");
     }
 
-    switch (TO_OBJECT(callee)->type) {
+    switch (TO_OBJECT_RAW(callee)->type) {
         case OBJ_FUNCTION:
             call_function(TO_FUNCTION(callee), n_args);
             break;
@@ -240,7 +240,7 @@ static inline lox_value_t peek(int index_from_top) {
 static double pop_and_check_number() {
     lox_value_t value = pop_stack_vm();
     if(IS_NUMBER(value)) {
-        return TO_NUMBER(value);
+        return TO_NUMBER_RAW(value);
     } else {
         runtime_error("Operand must be a number.");
         return -1; //Unreachable
@@ -250,7 +250,7 @@ static double pop_and_check_number() {
 static bool check_boolean() {
     lox_value_t value = pop_stack_vm();
     if(IS_BOOL(value)) {
-        return TO_BOOL(value);
+        return TO_BOOL_RAW(value);
     } else {
         runtime_error("Operand must be a boolean.");
     }
@@ -258,17 +258,17 @@ static bool check_boolean() {
 
 static lox_value_t values_equal(lox_value_t a, lox_value_t b) {
     if(a.type != b.type) {
-        return FROM_BOOL(false);
+        return FROM_RAW_TO_BOOL(false);
     }
 
     switch (a.type) {
-        case VAL_NIL: return FROM_BOOL(true);
-        case VAL_NUMBER: return FROM_BOOL(a.as.number == b.as.number);
-        case VAL_BOOL: return FROM_BOOL(a.as.boolean == b.as.boolean);
-        case VAL_OBJ: return FROM_BOOL(TO_STRING(a)->chars == TO_STRING(b)->chars);
+        case VAL_NIL: return FROM_RAW_TO_BOOL(true);
+        case VAL_NUMBER: return FROM_RAW_TO_BOOL(a.as.number == b.as.number);
+        case VAL_BOOL: return FROM_RAW_TO_BOOL(a.as.boolean == b.as.boolean);
+        case VAL_OBJ: return FROM_RAW_TO_BOOL(TO_STRING(a)->chars == TO_STRING(b)->chars);
         default:
             runtime_error("Operator '==' not supported for that type");
-            return FROM_BOOL(false); //Unreachable, runtime_error executes exit()
+            return FROM_RAW_TO_BOOL(false); //Unreachable, runtime_error executes exit()
     }
 }
 
@@ -361,5 +361,5 @@ void define_native(char * function_name, native_fn native_function) {
     struct string_object * function_name_obj = copy_chars_to_string_object(function_name, strlen(function_name));
     struct native_object * native_object = alloc_native_object(native_function);
 
-    put_hash_table(&current_vm.global_variables, function_name_obj, FROM_OBJECT(native_object));
+    put_hash_table(&current_vm.global_variables, function_name_obj, FROM_RAW_TO_OBJECT(native_object));
 }

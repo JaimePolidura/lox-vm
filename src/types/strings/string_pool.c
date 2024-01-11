@@ -28,7 +28,7 @@ static struct string_pool_add_result add_string_pool_private_with_options(struct
         string->chars = string_ptr;
         string->length = length;
 
-        put_hash_table(&pool->strings, string, FROM_NIL());
+        put_hash_table(&pool->strings, string, NIL_VALUE());
 
         return (struct string_pool_add_result){
                 .string_object = string,

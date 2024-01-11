@@ -67,7 +67,7 @@ bool remove_hash_table(struct hash_table * table, struct string_object * key) {
     }
 
     entry->key = NULL;
-    entry->value = FROM_BOOL(true); //Tombstone, marked as deleted
+    entry->value = FROM_RAW_TO_BOOL(true); //Tombstone, marked as deleted
 
     return true;
 }
