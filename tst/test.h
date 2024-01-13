@@ -19,14 +19,18 @@
         } \
     }while(false); \
 
-#define ASSERT_STRING_EQ(a, b) \
-    do { \
+#define ASSERT_BYTECODE_SEQ(actual, ...) \
+    do {                                 \
         n_assertions++; \
-        if(strcmp(a, b) != 0) { \
-            fprintf(stderr, "[%s] Invalid string equals assert number %i while comparing %s and %s\n", test_name, n_assertions, a, b); \
-            exit(65); \
+        uint8_t bytecode_expected[] = {__VA_ARGS__}; \
+        size_t n_bytecode_expected = sizeof(bytecode_expected); \
+        for(int i = 0; i < n_bytecode_expected; i++){ \
+            if(actual[i] != bytecode_expected[i]) { \
+                fprintf(stderr, "[%s] Invalid bytecode equals assert number %i while comparing bytecode at index %i Expected %i actual %i\n", test_name, n_assertions, i, bytecode_expected[i], actual[i]); \
+                exit(65); \
+            } \
         } \
-    }while(false);
+    }while(false); \
 
 #define ASSERT_TRUE(a) \
     do{ \

@@ -19,5 +19,5 @@ typedef enum {
 struct function_object * alloc_function();
 
 #define IS_FUNCTION(value) is_object_type(value, OBJ_FUNCTION)
-#define FROM_FUNCTION(value) ((struct function_object*) FROM_RAW_TO_OBJECT(value))
+#define FROM_GENERIC_TO_FUNCTION(value) ((struct function_object*) FROM_RAW_TO_OBJECT(value))
 #define TO_FUNCTION(value) (struct function_object *) (value.as.object)

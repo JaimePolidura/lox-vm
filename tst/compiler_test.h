@@ -4,10 +4,59 @@
 #include "../src/compiler/compiler.h"
 #include "../src/chunk/chunk_disassembler.h"
 
+TEST(simple_compiler_test_if_while) {
+    struct compilation_result result = compile("while(2 == 3) { \n print 1; \n }");
+    ASSERT_TRUE(result.success);
+
+    ASSERT_BYTECODE_SEQ(result.chunk->code,
+                        OP_CONSTANT, 0,
+                        OP_CONSTANT, 1,
+                        OP_EQUAL,
+                        OP_JUMP_IF_FALSE, 0, 7,
+                        OP_POP,
+                        OP_CONSTANT, 2, OP_PRINT,
+                        OP_LOOP, 0, 15,
+                        OP_POP);
+}
+
+TEST(simple_compiler_test_if_statements) {
+    struct compilation_result result = compile("if(2 == 3) {\n print 1;\n }else{\n print 2;\n}");
+    ASSERT_TRUE(result.success);
+
+    ASSERT_BYTECODE_SEQ(result.chunk->code,
+                        OP_CONSTANT, 0,
+                        OP_CONSTANT, 1,
+                        OP_EQUAL,
+                        OP_JUMP_IF_FALSE, 0, 4, // If
+                        OP_POP,
+                        OP_CONSTANT, 2, OP_PRINT, //print 1
+                        OP_POP,
+                        OP_JUMP, 0, 3, //Else
+                        OP_CONSTANT, 3,
+                        OP_PRINT, //print 2
+                        );
+}
+
 TEST(simple_compiler_test_with_functions) {
-    struct compilation_result result = compile("fun hola(a, b) {\n return a + b;\n }\n");
+    struct compilation_result result = compile("fun hola(a, b) {\n return a + b;\n }\n hola(1, 2);");
     struct chunk * chunk = result.chunk;
     ASSERT_TRUE(result.success);
+
+    ASSERT_BYTECODE_SEQ(chunk->code,
+                        OP_CONSTANT, 1,
+                        OP_DEFINE_GLOBAL, 0,
+                        OP_GET_GLOBAL, 2,
+                        OP_CONSTANT, 3,
+                        OP_CONSTANT, 4,
+                        OP_CALL, 2);
+
+    struct function_object * function = (struct function_object *) chunk->constants.values[1].as.object;
+
+    ASSERT_BYTECODE_SEQ(function->chunk.code,
+                        OP_GET_LOCAL, 1,
+                        OP_GET_LOCAL, 2,
+                        OP_ADD,
+                        OP_RETURN);
 }
 
 TEST(simple_compiler_test_with_scope_variables) {

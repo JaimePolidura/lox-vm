@@ -361,12 +361,14 @@ static void while_statement(struct compiler * compiler) {
 
     consume(compiler, TOKEN_OPEN_PAREN, "Expect '(' after while declaration.");
     expression(compiler);
-    consume(compiler, TOKEN_OPEN_PAREN, "Expect '{' after while declaration.");
+    consume(compiler, TOKEN_CLOSE_PAREN, "Expect ')' after while declaration.");
+    consume(compiler, TOKEN_OPEN_BRACE, "Expect '{' after while declaration.");
 
     int exit_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
     emit_bytecode(compiler, OP_POP);
 
     statement(compiler);
+    consume(compiler, TOKEN_CLOSE_BRACE, "Expect '}' after while body.");
 
     emit_loop(compiler, loop_start_index);
 
@@ -613,6 +615,7 @@ static struct compiler * alloc_compiler(function_type_t function_type) {
     init_compiler(compiler, function_type, NULL); //Parent compiler null, this function will be the first one to be called
     compiler->scanner = malloc(sizeof(struct scanner));
     compiler->parser = malloc(sizeof(struct parser));
+    compiler->parser->has_error = false;
 
     return compiler;
 }

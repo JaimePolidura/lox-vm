@@ -4,7 +4,7 @@
 #include "vm_test.h"
 
 int main() {
-    simple_compiler_test_with_functions_outer();
+    simple_compiler_test_if_while_outer();
 
 //    simple_vm_test_with_scope_variables_outer();
 //
