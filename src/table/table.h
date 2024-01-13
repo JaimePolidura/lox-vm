@@ -1,7 +1,7 @@
 #pragma once
 
 #include "shared.h"
-#include "types/strings/string_object.h"
+#include "types/string_object.h"
 
 struct hash_table_entry {
     struct string_object * key;
@@ -16,6 +16,8 @@ struct hash_table {
 
 bool get_hash_table(struct hash_table * table, struct string_object * key, lox_value_t * value);
 bool remove_hash_table(struct hash_table * table, struct string_object * key);
+void remove_entry_hash_table(struct hash_table_entry * entry);
+
 bool put_hash_table(struct hash_table * table, struct string_object * key, lox_value_t value);
 void add_all_hash_table(struct hash_table * to, struct hash_table * from);
 bool contains_hash_table(struct hash_table * table, struct string_object * key);

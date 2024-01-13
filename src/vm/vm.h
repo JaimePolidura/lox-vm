@@ -9,6 +9,7 @@
 #include "compiler/compiler.h"
 #include "types/native.h"
 #include "native_functions.h"
+#include "memory/gc_info.h"
 
 #define STACK_MAX 256
 #define FRAME_MAX (STACK_MAX * 256)
@@ -16,16 +17,16 @@
 struct call_frame {
     struct function_object * function;
     uint8_t * pc; //Actual instruction
-    lox_value_t * slots; //Used for local variables. It points to the stack
+    lox_value_t * slots; //Used for local variables. It points to the gray_stack
 };
 
 struct vm {
     struct call_frame frames[FRAME_MAX];
     int frames_in_use;
     lox_value_t stack[STACK_MAX];
-    lox_value_t * esp; // Top of the stack
-    struct object * heap; // Linked list of heap allocated objects
+    lox_value_t * esp; // Top of the gray_stack
     struct hash_table global_variables;
+    struct gc_info gc_info;
 };
 
 typedef enum {
@@ -39,7 +40,6 @@ void define_native(char * function_name, native_fn native_function);
 
 
 //TODO Should these functions be in the header file? Maybe move to .c as static
-struct string_object * add_string(char * ptr, int length);
 
 void push_stack_vm(lox_value_t value);
 lox_value_t pop_stack_vm();

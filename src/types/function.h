@@ -1,7 +1,7 @@
 #pragma once
 
 #include "types.h"
-#include "strings/string_object.h"
+#include "string_object.h"
 #include "chunk/chunk.h"
 
 struct function_object {

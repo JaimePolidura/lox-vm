@@ -3,7 +3,7 @@
 #include "shared.h"
 #include "scanner.h"
 #include "bytecode.h"
-#include "types/strings/string_object.h"
+#include "types/string_object.h"
 #include "types/function.h"
 #include "chunk/chunk_disassembler.h"
 #include "compiler/compiler.h"

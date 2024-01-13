@@ -1,8 +1,8 @@
 #pragma once
 
-#include "../../shared.h"
+#include "shared.h"
 
-#include "../types.h"
+#include "types.h"
 
 struct string_object {
     struct object object;

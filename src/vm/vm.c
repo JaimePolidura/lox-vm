@@ -11,7 +11,6 @@ static lox_value_t values_equal(lox_value_t a, lox_value_t b);
 static inline lox_value_t peek(int index_from_top);
 static inline void adition();
 static inline struct call_frame * get_current_frame();
-static void add_heap_object(struct object * object);
 static void define_global();
 static void read_global();
 static void set_global();
@@ -110,7 +109,7 @@ static inline void adition() {
     size_t b_length = strlen(b_chars);
 
     size_t new_length = a_length + b_length; //Include \0
-    char * concatenated = ALLOCATE(char, new_length + 1);
+    char * concatenated = malloc(sizeof(char) * (new_length + 1));
     memcpy(concatenated, a_chars, a_length);
     memcpy(concatenated + a_length, b_chars, b_length);
     concatenated[new_length] = '\0';
@@ -122,7 +121,14 @@ static inline void adition() {
         free(b_chars);
     }
 
-    push_stack_vm(FROM_RAW_TO_OBJECT(add_string(concatenated, new_length)));
+    struct string_pool_add_result add_result = add_to_global_string_pool(concatenated, new_length);
+    push_stack_vm(FROM_RAW_TO_OBJECT(add_result.string_object));
+
+    if(add_result.created_new) {
+        add_object_to_heap(&current_vm.gc_info, &add_result.string_object->object);
+    } else {
+        free(concatenated);
+    }
 }
 
 static void define_global() {
@@ -175,13 +181,14 @@ static void call() {
         case OBJ_FUNCTION:
             call_function(TO_FUNCTION(callee), n_args);
             break;
-        case OBJ_NATIVE:
+        case OBJ_NATIVE: {
             native_fn native_function = TO_NATIVE(callee)->native_fn;
             lox_value_t result = native_function(n_args, current_vm.esp - n_args);
             current_vm.esp -= n_args + 1;
             push_stack_vm(result);
 
             break;
+        }
         default:
             runtime_error("Cannot call");
     }
@@ -285,11 +292,11 @@ lox_value_t pop_stack_vm() {
 }
 
 void start_vm() {
-    current_vm.esp = current_vm.stack; //Reset stack
+    current_vm.esp = current_vm.stack; //Reset gray_stack
     current_vm.frames_in_use = 0;
 
-    current_vm.heap = NULL;
     init_hash_table(&current_vm.global_variables);
+    init_gc_info(&current_vm.gc_info);
 
     define_native("clock", clock_native);
 }
@@ -340,20 +347,6 @@ static void print_stack() {
     printf("\n");
 }
 
-struct string_object * add_string(char * string_ptr, int length) {
-    struct string_pool_add_result add_result = add_to_global_string_pool(string_ptr, length);
-    if(add_result.created_new){
-        add_heap_object((struct object *) add_result.string_object);
-    }
-
-    return add_result.string_object;
-}
-
-static void add_heap_object(struct object * object) {
-    object->next = current_vm.heap;
-    current_vm.heap = object;
-}
-
 static inline struct call_frame * get_current_frame() {
     return &current_vm.frames[current_vm.frames_in_use - 1];
 }
@@ -361,6 +354,9 @@ static inline struct call_frame * get_current_frame() {
 void define_native(char * function_name, native_fn native_function) {
     struct string_object * function_name_obj = copy_chars_to_string_object(function_name, strlen(function_name));
     struct native_object * native_object = alloc_native_object(native_function);
+
+    add_object_to_heap(&current_vm.gc_info, &function_name_obj->object);
+    add_object_to_heap(&current_vm.gc_info, &native_object->object);
 
     put_hash_table(&current_vm.global_variables, function_name_obj, FROM_RAW_TO_OBJECT(native_object));
 }

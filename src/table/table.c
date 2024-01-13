@@ -66,10 +66,14 @@ bool remove_hash_table(struct hash_table * table, struct string_object * key) {
         return false;
     }
 
-    entry->key = NULL;
-    entry->value = FROM_RAW_TO_BOOL(true); //Tombstone, marked as deleted
+    remove_entry_hash_table(entry);
 
     return true;
+}
+
+void remove_entry_hash_table(struct hash_table_entry * entry) {
+    entry->key = NULL;
+    entry->value = FROM_RAW_TO_BOOL(true); //Tombstone, marked as deleted
 }
 
 bool put_hash_table(struct hash_table * table, struct string_object * key, lox_value_t value) {
@@ -93,7 +97,7 @@ bool put_hash_table(struct hash_table * table, struct string_object * key, lox_v
 }
 
 static void adjust_hash_table_capacity(struct hash_table * table, int new_capcity) {
-    struct hash_table_entry * new_entries = ALLOCATE(struct hash_table_entry, new_capcity);
+    struct hash_table_entry * new_entries = malloc(sizeof(struct hash_table_entry) * new_capcity);
 
     for (int i = 0; i < new_capcity; i++) {
         new_entries[i].key = NULL;
@@ -111,7 +115,7 @@ static void adjust_hash_table_capacity(struct hash_table * table, int new_capcit
         }
     }
 
-    FREE_ARRAY(struct hash_table_entry, table->entries, table->capacity);
+    free(table->entries);
     table->entries = new_entries;
     table->capacity = new_capcity;
 }
