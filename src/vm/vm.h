@@ -1,6 +1,6 @@
 #pragma once
 
-#include "types/strings/string_pool.h"
+#include "memory/string_pool.h"
 #include "table/table.h"
 #include "chunk/chunk.h"
 #include "types/function.h"
@@ -25,7 +25,6 @@ struct vm {
     lox_value_t stack[STACK_MAX];
     lox_value_t * esp; // Top of the stack
     struct object * heap; // Linked list of heap allocated objects
-    struct string_pool string_pool;
     struct hash_table global_variables;
 };
 

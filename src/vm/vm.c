@@ -210,6 +210,8 @@ static void return_function(struct call_frame * function_to_return_frame) {
         return;
     }
 
+    current_vm.frames_in_use--;
+
     current_vm.esp = function_to_return_frame->slots;
 
     push_stack_vm(value);
@@ -287,7 +289,6 @@ void start_vm() {
     current_vm.frames_in_use = 0;
 
     current_vm.heap = NULL;
-    init_string_pool(&current_vm.string_pool);
     init_hash_table(&current_vm.global_variables);
 
     define_native("clock", clock_native);
@@ -340,7 +341,7 @@ static void print_stack() {
 }
 
 struct string_object * add_string(char * string_ptr, int length) {
-    struct string_pool_add_result add_result = add_string_pool(&current_vm.string_pool, string_ptr, length);
+    struct string_pool_add_result add_result = add_to_global_string_pool(string_ptr, length);
     if(add_result.created_new){
         add_heap_object((struct object *) add_result.string_object);
     }

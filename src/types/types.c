@@ -6,6 +6,7 @@ bool cast_to_boolean(lox_value_t value) {
 
 struct object * allocate_object(size_t size, object_type_t type) {
     struct object * object = (struct object *) reallocate(NULL, 0, size);
+    object->gc_marked = false;
     object->type = type;
     object->next = NULL; //Should be linked in vm
 

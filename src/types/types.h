@@ -18,6 +18,7 @@ typedef enum {
 
 struct object {
     object_type_t type;
+    bool gc_marked;
     struct object * next; //Next object heap allocated
 };
 

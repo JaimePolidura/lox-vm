@@ -48,6 +48,7 @@ struct parse_rule {
 static void report_error(struct compiler * compiler, struct token token, const char * message);
 static void advance(struct compiler * compiler);
 static struct compiler * alloc_compiler(function_type_t function_type);
+static void free_compiler(struct compiler * compiler);
 static void init_compiler(struct compiler * compiler, function_type_t function_type, struct compiler * parent_compiler);
 static struct function_object * alloc_function_compiler();
 static struct function_object * end_compiler(struct compiler * compiler);
@@ -157,11 +158,15 @@ struct compilation_result compile(char * source_code) {
 
     write_chunk(current_chunk(compiler), OP_EOF, 0);
 
-    return (struct compilation_result){
+    struct compilation_result compilation_result = {
         .function_object = end_compiler(compiler),
         .success = !compiler->parser->has_error,
         .chunk = current_chunk(compiler)
     };
+
+    free_compiler(compiler);
+
+    return compilation_result;
 }
 
 static void declaration(struct compiler * compiler) {
@@ -219,6 +224,7 @@ static void function(struct compiler * compiler, function_type_t function_type) 
     block(&function_compiler);
 
     struct function_object * function = end_compiler(&function_compiler);
+
     int function_constant_offset = add_constant_to_chunk(current_chunk(compiler), FROM_RAW_TO_OBJECT(function));
     emit_bytecodes(compiler, OP_CONSTANT, function_constant_offset);
 }
@@ -482,8 +488,7 @@ static void string(struct compiler * compiler, bool can_assign) {
     const char * string_ptr = compiler->parser->previous.start + 1;
     int string_length = compiler->parser->previous.length - 2;
 
-    struct string_pool_add_result add_result = add_string_pool(&current_chunk(compiler)->compiled_string_pool, string_ptr,
-            string_length);
+    struct string_pool_add_result add_result = add_to_global_string_pool(string_ptr, string_length);
     emit_constant(compiler, FROM_RAW_TO_OBJECT(add_result.string_object));
 }
 
@@ -496,7 +501,7 @@ static void literal(struct compiler * compiler, bool can_assign) {
     switch (compiler->parser->previous.type) {
         case TOKEN_FALSE: emit_bytecode(compiler, OP_FALSE); break;
         case TOKEN_TRUE: emit_bytecode(compiler, OP_TRUE); break;
-        case TOKEN_NIL: emit_bytecode(compiler, OP_NIL); break;;
+        case TOKEN_NIL: emit_bytecode(compiler, OP_NIL); break;
     }
 }
 
@@ -610,6 +615,7 @@ static void report_error(struct compiler * compiler, struct token token, const c
     compiler->parser->has_error = true;
 }
 
+// Can be freed with free_compiler();
 static struct compiler * alloc_compiler(function_type_t function_type) {
     struct compiler * compiler = malloc(sizeof(struct compiler));
     init_compiler(compiler, function_type, NULL); //Parent compiler null, this function will be the first one to be called
@@ -642,6 +648,12 @@ static void init_compiler(struct compiler * compiler, function_type_t function_t
     local->name.length = 0;
     local->name.start = "";
     local->depth = 0;
+}
+
+static void free_compiler(struct compiler * compiler) {
+    free(compiler->parser);
+    free(compiler->scanner);
+    free(compiler);
 }
 
 static struct function_object * end_compiler(struct compiler * compiler) {
@@ -706,8 +718,7 @@ static uint8_t add_string_constant(struct compiler * compiler, struct token stri
     const char * variable_name = string_token.start;
     int variable_name_length = string_token.length;
 
-    struct string_pool_add_result result_add = add_string_pool(&current_chunk(compiler)->compiled_string_pool,
-                                                               variable_name, variable_name_length);
+    struct string_pool_add_result result_add = add_to_global_string_pool(variable_name, variable_name_length);
 
     return add_constant_to_chunk(current_chunk(compiler), FROM_RAW_TO_OBJECT(result_add.string_object));
 }

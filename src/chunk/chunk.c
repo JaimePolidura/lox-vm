@@ -28,14 +28,7 @@ void write_chunk(struct chunk * chunk_to_write, uint8_t byte, int line) {
     chunk_to_write->lines[index_to_write] = line;
 }
 
-void free_chunk(struct chunk * chunk_to_free) {
-    free(chunk_to_free->code);
-    free(chunk_to_free->lines);
-    free(chunk_to_free->constants.values);
-}
-
 void init_chunk(struct chunk * chunk) {
-    init_string_pool(&chunk->compiled_string_pool);
     alloc_lox_array(&chunk->constants);
     chunk->lines = NULL;
     chunk->capacity = 0;

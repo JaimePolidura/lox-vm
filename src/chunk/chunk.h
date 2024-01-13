@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../types/strings/string_pool.h"
+#include "memory/string_pool.h"
 #include "../memory/memory.h"
 #include "../types/types.h"
 #include "../types/array.h"
@@ -12,7 +12,6 @@ struct chunk {
     int capacity; //nº of code allocated
     int in_use; //nº of code used
     int * lines;
-    struct string_pool compiled_string_pool;
 };
 
 void write_chunk(struct chunk * chunk_to_write, uint8_t byte, int line);

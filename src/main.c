@@ -14,8 +14,11 @@ char * read_file_source_code(char * path);
 interpret_result interpret_source_code(char * source_code);
 
 int main(int argc, char* args[]) {
+    init_global_string_pool();
     start_vm();
+
     run_file(args[1]);
+
     stop_vm();
 
     return 0;
