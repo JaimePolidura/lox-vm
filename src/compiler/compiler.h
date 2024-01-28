@@ -21,7 +21,7 @@ struct local {
 
 struct compiler {
     struct compiler * parent; // Used for functions
-    struct compiler_struct * structs; //Inherited from parent. Linked list of structs definitions
+    struct struct_definition * structs_definitions; //Inherited from parent. Linked list of structs_definitions definitions
     struct scanner * scanner;
     struct parser * parser;
     struct function_object * function;
@@ -29,6 +29,7 @@ struct compiler {
     struct local locals[UINT8_MAX];
     int local_count;
     int local_depth;
+    struct token current_variable_name;
 };
 
 struct compilation_result {

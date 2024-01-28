@@ -14,7 +14,7 @@ static inline lox_value_t peek(int index_from_top);
 static inline void adition();
 static inline struct call_frame * get_current_frame();
 static void define_global();
-static void read_global();
+static void get_global();
 static void set_global();
 static void set_local();
 static void get_local();
@@ -25,7 +25,7 @@ static void call();
 static void return_function(struct call_frame * function_to_return_frame);
 static void call_function(struct function_object * function, int n_args);
 static void print_frame_stack_trace();
-static void define_struct();
+static void initialize_struct();
 static void get_struct_field();
 static void set_struct_field();
 
@@ -84,7 +84,8 @@ static interpret_result run() {
             case OP_PRINT: print_value(pop_stack_vm()); printf("\n"); break;
             case OP_POP: pop_stack_vm(); break;
             case OP_DEFINE_GLOBAL: define_global(); break;
-            case OP_GET_GLOBAL: read_global(); break;
+            case OP_GET_GLOBAL:
+                get_global(); break;
             case OP_SET_GLOBAL: set_global(); break;
             case OP_GET_LOCAL: get_local(); break;
             case OP_JUMP_IF_FALSE: jump_if_false(); break;
@@ -93,7 +94,7 @@ static interpret_result run() {
             case OP_LOOP: loop(); break;
             case OP_CALL: call(); current_frame = get_current_frame(); break;
             case OP_EOF: return INTERPRET_OK;
-            case OP_DEFINE_STRUCT: define_struct(); break;
+            case OP_INITIALIZE_STRUCT: initialize_struct(); break;
             case OP_GET_STRUCT_FIELD: get_struct_field(); break;
             case OP_SET_STRUCT_FIELD: set_struct_field(); break;
             default:
@@ -145,7 +146,7 @@ static void define_global() {
     pop_stack_vm();
 }
 
-static void read_global() {
+static void get_global() {
     struct string_object * variable_name = TO_STRING(READ_CONSTANT(get_current_frame()));
     lox_value_t variable_value;
     if(!get_hash_table(&current_vm.global_variables, variable_name, &variable_value)) {
@@ -237,6 +238,34 @@ static void jump() {
     current_frame->pc += READ_U16(get_current_frame());
 }
 
+static void initialize_struct() {
+    struct struct_object * struct_object = alloc_struct_object();
+    int n_fields = (int) READ_BYTE(get_current_frame());
+
+    for(int i = 0; i < n_fields; i++) {
+        write_lox_array(&struct_object->fields, pop_stack_vm());
+    }
+
+    int totalBytesAllocated = sizeof(struct struct_object) + n_fields * sizeof(lox_value_t);
+    add_object_to_heap(&current_vm.gc, &struct_object->object, totalBytesAllocated);
+
+    push_stack_vm(FROM_RAW_TO_OBJECT(struct_object));
+}
+
+static void get_struct_field() {
+    struct struct_object * struct_object = (struct struct_object *) pop_stack_vm().as.object;
+    int offset = (int) READ_BYTE(get_current_frame());
+
+    push_stack_vm(struct_object->fields.values[offset]);
+}
+
+static void set_struct_field() {
+    lox_value_t new_value = pop_stack_vm();
+    struct struct_object * struct_object = (struct struct_object *) pop_stack_vm().as.object;
+    int offset = (int) READ_BYTE(get_current_frame());
+    struct_object->fields.values[offset] = new_value;
+}
+
 static void jump_if_false() {
     struct call_frame * current_frame = get_current_frame();
     if(!cast_to_boolean(READ_CONSTANT(current_frame))){
@@ -262,34 +291,6 @@ static double pop_and_check_number() {
         runtime_error("Operand must be a number.");
         return -1; //Unreachable
     }
-}
-
-static void define_struct() {
-    struct struct_object * struct_object = alloc_struct_object();
-    int n_fields = (int) pop_and_check_number();
-
-    for(int i = 0; i < n_fields; i++) {
-        write_lox_array(&struct_object->fields, pop_stack_vm());
-    }
-
-    int totalBytesAllocated = sizeof(struct struct_object) + n_fields * sizeof(lox_value_t);
-    add_object_to_heap(&current_vm.gc, &struct_object->object, totalBytesAllocated);
-
-    push_stack_vm(FROM_RAW_TO_OBJECT(struct_object));
-}
-
-static void get_struct_field() {
-    struct struct_object * struct_object = (struct struct_object *) pop_stack_vm().as.object;
-    int offset = (int) pop_and_check_number();
-
-    push_stack_vm(struct_object->fields.values[offset]);
-}
-
-static void set_struct_field() {
-    struct struct_object * struct_object = (struct struct_object *) pop_stack_vm().as.object;
-    int offset = (int) pop_and_check_number();
-    lox_value_t new_value = pop_stack_vm();
-    struct_object->fields.values[offset] = new_value;
 }
 
 static bool check_boolean() {

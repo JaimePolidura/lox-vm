@@ -29,7 +29,7 @@ typedef enum {
     OP_JUMP,             // 23
     OP_LOOP,             // 24
     OP_CALL,             // 25
-    OP_DEFINE_STRUCT,    // 26
+    OP_INITIALIZE_STRUCT,    // 26
     OP_GET_STRUCT_FIELD, // 27
     OP_SET_STRUCT_FIELD  // 28
 } op_code;

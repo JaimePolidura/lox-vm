@@ -4,6 +4,26 @@
 #include "../src/compiler/compiler.h"
 #include "../src/chunk/chunk_disassembler.h"
 
+
+TEST(simple_compiler_test_with_structs){
+    struct compilation_result result = compile("struct Persona {\nnombre; edad;\n}\nvar jaime = Persona{\"Jaime\" , 21};\nprint jaime.nombre;\njaime.edad = 12;");
+    struct chunk * chunk = result.chunk;
+    ASSERT_TRUE(result.success);
+    ASSERT_BYTECODE_SEQ(chunk->code,
+                        OP_CONSTANT, 1,
+                        OP_CONSTANT, 2,
+                        OP_INITIALIZE_STRUCT, 2,
+                        OP_DEFINE_GLOBAL, 0,
+
+                        OP_GET_GLOBAL, 3,
+                        OP_GET_STRUCT_FIELD, 0,
+                        OP_PRINT,
+
+                        OP_GET_GLOBAL, 4,
+                        OP_CONSTANT, 5,
+                        OP_SET_STRUCT_FIELD, 1);
+}
+
 TEST(simple_compiler_test_with_functions) {
     struct compilation_result result = compile("fun hola(a, b) {\n return a + b;\n }\n hola(1, 2);");
     struct chunk * chunk = result.chunk;

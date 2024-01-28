@@ -106,29 +106,22 @@ static struct token identifier(struct scanner * scanner) {
 static tokenType_t identifier_type(struct scanner * scanner) {
     switch (scanner->start[0]) {
         case 'a': return check_keyword(scanner, 1, 2, "nd", TOKEN_AND);
-        case 'c': return check_keyword(scanner, 1, 4, "lass", TOKEN_STRUCT);
         case 'e': return check_keyword(scanner, 1, 3, "lse", TOKEN_ELSE);
         case 'i': return check_keyword(scanner, 1, 1, "f", TOKEN_IF);
         case 'n': return check_keyword(scanner, 1, 2, "il", TOKEN_NIL);
         case 'o': return check_keyword(scanner, 1, 1, "r", TOKEN_OR);
         case 'p': return check_keyword(scanner, 1, 4, "rint", TOKEN_PRINT);
         case 'r': return check_keyword(scanner, 1, 5, "eturn", TOKEN_RETURN);
-        case 's': return check_keyword(scanner, 1, 4, "uper", TOKEN_SUPER);
+        case 's': return check_keyword(scanner, 1, 5, "truct", TOKEN_STRUCT);
         case 'v': return check_keyword(scanner, 1, 2, "ar", TOKEN_VAR);
         case 'w': return check_keyword(scanner, 1, 4, "hile", TOKEN_WHILE);
+        case 't': return check_keyword(scanner, 1, 3, "rue", TOKEN_TRUE);
         case 'f':
             if(scanner->current - scanner->start > 1) {
                 switch (scanner->start[1]) {
                     case 'a': return check_keyword(scanner, 2, 3, "lse", TOKEN_FALSE);
                     case 'o': return check_keyword(scanner, 2, 1, "r", TOKEN_FOR);
                     case 'u': return check_keyword(scanner, 2, 1, "n", TOKEN_FUN);
-                }
-            }
-        case 't':
-            if(scanner->current - scanner->start > 1) {
-                switch (scanner->start[1]) {
-                    case 'h': return check_keyword(scanner, 2, 2, "is", TOKEN_THIS);
-                    case 'r': return check_keyword(scanner, 2, 2, "ue", TOKEN_TRUE);
                 }
             }
         default:

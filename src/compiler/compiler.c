@@ -53,7 +53,7 @@ static void variable_declaration(struct compiler * compiler);
 static uint8_t add_string_constant(struct compiler * compiler, struct token string_token);
 static void define_global_variable(struct compiler * compiler, uint8_t global_constant_offset);
 static void variable(struct compiler * compiler, bool can_assign);
-static void named_variable(struct compiler * compiler, struct token previous, bool can_assign);
+static void named_variable(struct compiler * compiler, struct token variable_name, bool can_assign);
 static void begin_scope(struct compiler * compiler);
 static void end_scope(struct compiler * compiler);
 static void block(struct compiler * compiler);
@@ -82,9 +82,16 @@ static int function_call_number_arguments(struct compiler * compiler);
 static void return_statement(struct compiler * compiler);
 static void emit_empty_return(struct compiler * compiler);
 static void struct_declaration(struct compiler * compiler);
-static struct compiler_struct * register_new_struct(struct compiler * compiler, struct token new_struct_name);
+static struct struct_definition * register_new_struct(struct compiler * compiler, struct token new_struct_name);
 static int struct_fields(struct compiler * compiler, struct token * fields);
-static void free_compiler_structs(struct compiler_struct * compiler_structs);
+static void free_compiler_structs(struct struct_definition * compiler_structs);
+static void struct_initialization(struct compiler * compiler);
+static struct struct_definition * get_compiler_struct_definition(struct compiler * compiler, struct token struct_name);
+static int struct_initialization_fields(struct compiler * compiler);
+static void dot(struct compiler * compiler, bool can_assign);
+static void add_compilation_struct_instance(struct compiler * compiler, struct struct_definition * struct_definition);
+static struct struct_instance * find_struct_instance_by_name(struct compiler * compiler, struct token name);
+static int find_struct_field_offset(struct struct_definition * definition, struct token field_name);
 
 struct parse_rule rules[] = {
     [TOKEN_OPEN_PAREN] = {grouping, function_call, PREC_CALL},
@@ -92,7 +99,7 @@ struct parse_rule rules[] = {
     [TOKEN_OPEN_BRACE] = {NULL, NULL, PREC_NONE},
     [TOKEN_CLOSE_BRACE] = {NULL, NULL, PREC_NONE},
     [TOKEN_COMMA] = {NULL, NULL, PREC_NONE},
-    [TOKEN_DOT] = {NULL, NULL, PREC_NONE},
+    [TOKEN_DOT] = {NULL, dot, PREC_CALL},
     [TOKEN_MINUS] = {unary, binary, PREC_TERM},
     [TOKEN_PLUS] = {NULL, binary, PREC_TERM},
     [TOKEN_SEMICOLON] = {NULL, NULL, PREC_NONE},
@@ -120,8 +127,6 @@ struct parse_rule rules[] = {
     [TOKEN_OR] = {NULL, or, PREC_NONE},
     [TOKEN_PRINT] = {NULL, NULL, PREC_NONE},
     [TOKEN_RETURN] = {NULL, NULL, PREC_NONE},
-    [TOKEN_SUPER] = {NULL, NULL, PREC_NONE},
-    [TOKEN_THIS] = {NULL, NULL, PREC_NONE},
     [TOKEN_TRUE] = {literal, NULL, PREC_NONE},
     [TOKEN_VAR] = {NULL, NULL, PREC_NONE},
     [TOKEN_WHILE] = {NULL, NULL, PREC_NONE},
@@ -151,6 +156,30 @@ struct compilation_result compile(char * source_code) {
     return compilation_result;
 }
 
+
+static void dot(struct compiler * compiler, bool can_assign) {
+    consume(compiler, TOKEN_IDENTIFIER, "Expect property name after '.'");
+
+    struct token struct_instance_name = compiler->current_variable_name;
+    struct token struct_field_name = compiler->parser->previous;
+
+    struct struct_instance * instance = find_struct_instance_by_name(compiler, struct_instance_name);
+    if(instance == NULL){
+        report_error(compiler, instance->name, "Cannot find struct instance");
+    }
+    int struct_field_offset = find_struct_field_offset(instance->struct_definition, struct_field_name);
+    if(struct_field_offset == -1) {
+        report_error(compiler, struct_field_name, "Unknown field of struct");
+    }
+
+    if(can_assign && match(compiler, TOKEN_EQUAL)){
+        expression(compiler);
+        emit_bytecodes(compiler, OP_SET_STRUCT_FIELD, struct_field_offset);
+    } else {
+        emit_bytecodes(compiler, OP_GET_STRUCT_FIELD, struct_field_offset);
+    }
+}
+
 static void declaration(struct compiler * compiler) {
     if(match(compiler, TOKEN_VAR)) {
         variable_declaration(compiler);
@@ -169,7 +198,7 @@ static void struct_declaration(struct compiler * compiler) {
     consume(compiler, TOKEN_IDENTIFIER, "Expect struct name");
 
     struct token struct_name = compiler->parser->previous;
-    struct compiler_struct * struct_of_declaration = register_new_struct(compiler, struct_name);
+    struct struct_definition * struct_of_declaration = register_new_struct(compiler, struct_name);
     if(struct_of_declaration == NULL){
         report_error(compiler, compiler->parser->previous, "Struct already defined");
     }
@@ -184,11 +213,14 @@ static void struct_declaration(struct compiler * compiler) {
     }
 
     struct_of_declaration->n_fields = n_fields;
+    struct_of_declaration->name = struct_name;
     struct_of_declaration->field_names = malloc(sizeof(struct token) * n_fields);
-    memcpy(struct_of_declaration->field_names, fields, n_fields);
+    for(int i = 0; i < n_fields; i++){
+        struct_of_declaration->field_names[i] = fields[i];
+    }
 
-    struct_of_declaration->next = compiler->structs;
-    compiler->structs = struct_of_declaration;
+    struct_of_declaration->next = compiler->structs_definitions;
+    compiler->structs_definitions = struct_of_declaration;
 }
 
 static int struct_fields(struct compiler * compiler, struct token * fields) {
@@ -205,6 +237,8 @@ static int struct_fields(struct compiler * compiler, struct token * fields) {
 
 static void variable_declaration(struct compiler * compiler) {
     consume(compiler, TOKEN_IDENTIFIER, "Expected variable name.");
+
+    compiler->current_variable_name = compiler->parser->previous;
 
     if(compiler->local_depth > 0) { // Local scope
         int local_variable = add_local_variable(compiler, compiler->parser->previous);
@@ -483,16 +517,61 @@ static void print_statement(struct compiler * compiler) {
 }
 
 static void variable(struct compiler * compiler, bool can_assign) {
-    named_variable(compiler, compiler->parser->previous, can_assign);
+    if(check(compiler, TOKEN_OPEN_BRACE)) {
+        struct_initialization(compiler);
+    } else {
+        named_variable(compiler, compiler->parser->previous, can_assign);
+    }
 }
 
-static void named_variable(struct compiler * compiler, struct token previous, bool can_assign) {
-    int variable_identifier = resolve_local_variable(compiler, &previous);
+static void struct_initialization(struct compiler * compiler) {
+    struct token struct_name = compiler->parser->previous;
+    struct struct_definition * struct_definition = get_compiler_struct_definition(compiler, struct_name);
+    if(struct_definition == NULL){
+        report_error(compiler, struct_name, "Struct not defined");
+    }
+
+    advance(compiler); //Consume {
+
+    int n_fields = struct_initialization_fields(compiler);
+    consume(compiler, TOKEN_CLOSE_BRACE, "Expect '}' after struct initialization");
+
+    if(n_fields != struct_definition->n_fields){
+        report_error(compiler, struct_name, "Struct initialization number of args doest match with definition");
+    }
+
+    add_compilation_struct_instance(compiler, struct_definition);
+
+    emit_bytecodes(compiler, OP_INITIALIZE_STRUCT, n_fields);
+}
+
+static void add_compilation_struct_instance(struct compiler * compiler, struct struct_definition * struct_definition) {
+    struct struct_instance * instance = alloc_struct_compilation_instance();
+    instance->struct_definition = struct_definition;
+    instance->name = compiler->current_variable_name;
+    struct struct_instance * prev = compiler->function->struct_instances;
+    instance->next = prev;
+    compiler->function->struct_instances = instance;
+}
+
+static int struct_initialization_fields(struct compiler * compiler) {
+    int n_fields = 0;
+    do {
+        expression(compiler);
+        n_fields++;
+    }while(match(compiler, TOKEN_COMMA));
+
+    return n_fields;
+}
+
+static void named_variable(struct compiler * compiler, struct token variable_name, bool can_assign) {
+    compiler->current_variable_name = variable_name;
+    int variable_identifier = resolve_local_variable(compiler, &variable_name);
     bool is_local = variable_identifier != -1;
     uint8_t get_op = is_local ? OP_GET_LOCAL : OP_GET_GLOBAL;
     uint8_t set_op = is_local ? OP_SET_LOCAL : OP_SET_GLOBAL;
     if(!is_local){ //If is global, variable_identifier will contain constant offset, if not it will contain the local index
-        variable_identifier = add_string_constant(compiler, previous);
+        variable_identifier = add_string_constant(compiler, variable_name);
     }
 
     if(can_assign && match(compiler, TOKEN_EQUAL)){
@@ -590,7 +669,7 @@ static void number(struct compiler * compiler, bool can_assign) {
 }
 
 static void emit_constant(struct compiler * compiler, lox_value_t value) {
-    //TODO Perform contant overflow
+    //TODO Perform content overflow check
     int constant_offset = add_constant_to_chunk(current_chunk(compiler), value);
     write_chunk(current_chunk(compiler), OP_CONSTANT, compiler->parser->previous.line);
     write_chunk(current_chunk(compiler), constant_offset, compiler->parser->previous.line);
@@ -645,14 +724,14 @@ static struct compiler * alloc_compiler(function_type_t function_type) {
     compiler->scanner = malloc(sizeof(struct scanner));
     compiler->parser = malloc(sizeof(struct parser));
     compiler->parser->has_error = false;
-    compiler->structs = NULL;
+    compiler->structs_definitions = NULL;
 
     return compiler;
 }
 
 static void init_compiler(struct compiler * compiler, function_type_t function_type, struct compiler * parent_compiler) {
     if(parent_compiler != NULL){
-        compiler->structs = parent_compiler->structs;
+        compiler->structs_definitions = parent_compiler->structs_definitions;
         compiler->scanner = parent_compiler->scanner;
         compiler->parser = parent_compiler->parser;
     }
@@ -676,20 +755,19 @@ static void init_compiler(struct compiler * compiler, function_type_t function_t
 }
 
 static void free_compiler(struct compiler * compiler) {
-    free_compiler_structs(compiler->structs);
+    free_compiler_structs(compiler->structs_definitions);
     free(compiler->parser);
     free(compiler->scanner);
     free(compiler);
 }
 
-static void free_compiler_structs(struct compiler_struct * compiler_structs) {
-    struct compiler_struct * current = compiler_structs;
+static void free_compiler_structs(struct struct_definition * compiler_structs) {
+    struct struct_definition * current = compiler_structs;
     while(current != NULL){
-        struct compiler_struct * prev = current;
+        struct struct_definition * prev = current;
         current = prev->next;
 
         free(prev->field_names);
-        free(prev);
     }
 }
 
@@ -800,8 +878,8 @@ static struct function_object * alloc_function_compiler() {
     return function_object_ptr;
 }
 
-static struct compiler_struct * register_new_struct(struct compiler * compiler, struct token new_struct_name) {
-    struct compiler_struct * current = compiler->structs;
+static struct struct_definition * register_new_struct(struct compiler * compiler, struct token new_struct_name) {
+    struct struct_definition * current = compiler->structs_definitions;
     int new_struct_name_length = new_struct_name.length;
     while(current != NULL){
         if(current->name.length == new_struct_name_length &&
@@ -811,4 +889,44 @@ static struct compiler_struct * register_new_struct(struct compiler * compiler, 
     }
 
     return alloc_compiler_struct();
+}
+
+
+static struct struct_definition * get_compiler_struct_definition(struct compiler * compiler, struct token struct_name) {
+    struct struct_definition * current = compiler->structs_definitions;
+    int struct_name_length = struct_name.length;
+    while(current != NULL){
+        if(current->name.length == struct_name_length &&
+           strncmp(current->name.start, struct_name.start, struct_name_length) == 0){
+            return current; //Struct already registered, return null to indicate error
+        }
+    }
+
+    return NULL;
+}
+
+static struct struct_instance * find_struct_instance_by_name(struct compiler * compiler, struct token name) {
+    struct struct_instance * current = compiler->function->struct_instances;
+    int struct_name_length = current->name.length;
+    while(current != NULL){
+        if(current->name.length == name.length &&
+           strncmp(current->name.start, name.start, struct_name_length) == 0){
+            return current; //Struct already registered, return null to indicate error
+        }
+    }
+
+    return NULL;
+}
+
+static int find_struct_field_offset(struct struct_definition * definition, struct token field_name) {
+    for(int i = 0; i < definition->n_fields; i++){
+        struct token * current_field = &definition->field_names[i];
+
+        if(current_field->length == field_name.length &&
+           strncmp(current_field->start, field_name.start, field_name.length) == 0){
+            return i; //Struct already registered, return null to indicate error
+        }
+    }
+
+    return -1;
 }
