@@ -1,8 +1,12 @@
 #pragma once
 
+#include "shared.h"
+
 struct compiler_struct {
     struct compiler_struct * next;
     struct token name;
-    char ** field_names;
+    struct token * field_names;
     int n_fields;
 };
+
+struct compiler_struct * alloc_compiler_struct();

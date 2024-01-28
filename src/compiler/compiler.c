@@ -82,6 +82,9 @@ static int function_call_number_arguments(struct compiler * compiler);
 static void return_statement(struct compiler * compiler);
 static void emit_empty_return(struct compiler * compiler);
 static void struct_declaration(struct compiler * compiler);
+static struct compiler_struct * register_new_struct(struct compiler * compiler, struct token new_struct_name);
+static int struct_fields(struct compiler * compiler, struct token * fields);
+static void free_compiler_structs(struct compiler_struct * compiler_structs);
 
 struct parse_rule rules[] = {
     [TOKEN_OPEN_PAREN] = {grouping, function_call, PREC_CALL},
@@ -164,15 +167,40 @@ static void declaration(struct compiler * compiler) {
 
 static void struct_declaration(struct compiler * compiler) {
     consume(compiler, TOKEN_IDENTIFIER, "Expect struct name");
+
     struct token struct_name = compiler->parser->previous;
+    struct compiler_struct * struct_of_declaration = register_new_struct(compiler, struct_name);
+    if(struct_of_declaration == NULL){
+        report_error(compiler, compiler->parser->previous, "Struct already defined");
+    }
+
     consume(compiler, TOKEN_OPEN_BRACE, "Expect '{' after struct declaration");
-    
+
     struct token fields [256];
+    int n_fields = struct_fields(compiler, fields);
+
+    if(n_fields == 0){
+        report_error(compiler, struct_name, "Structs are expected to have at least one field");
+    }
+
+    struct_of_declaration->n_fields = n_fields;
+    struct_of_declaration->field_names = malloc(sizeof(struct token) * n_fields);
+    memcpy(struct_of_declaration->field_names, fields, n_fields);
+
+    struct_of_declaration->next = compiler->structs;
+    compiler->structs = struct_of_declaration;
+}
+
+static int struct_fields(struct compiler * compiler, struct token * fields) {
+    int current_field_index = 0;
 
     do {
         consume(compiler, TOKEN_IDENTIFIER, "Expect field in struct declaration");
+        fields[current_field_index++] = compiler->parser->previous;
         consume(compiler, TOKEN_SEMICOLON, "Expect ';' after struct field");
     }while(!match(compiler, TOKEN_CLOSE_BRACE));
+
+    return current_field_index;
 }
 
 static void variable_declaration(struct compiler * compiler) {
@@ -647,9 +675,21 @@ static void init_compiler(struct compiler * compiler, function_type_t function_t
 }
 
 static void free_compiler(struct compiler * compiler) {
+    free_compiler_structs(compiler->structs);
     free(compiler->parser);
     free(compiler->scanner);
     free(compiler);
+}
+
+static void free_compiler_structs(struct compiler_struct * compiler_structs) {
+    struct compiler_struct * current = compiler_structs;
+    while(current != NULL){
+        struct compiler_struct * prev = current;
+        current = prev->next;
+
+        free(prev->field_names);
+        free(prev);
+    }
 }
 
 static struct function_object * end_compiler(struct compiler * compiler) {
@@ -754,3 +794,32 @@ static struct function_object * alloc_function_compiler() {
 
     return function_object_ptr;
 }
+
+static struct compiler_struct * register_new_struct(struct compiler * compiler, struct token new_struct_name) {
+    struct compiler_struct * current = compiler->structs;
+    int new_struct_name_length = new_struct_name.length;
+    while(current != NULL){
+        if(current->name.length == new_struct_name_length &&
+            strncmp(current->name.start, new_struct_name.start, new_struct_name_length) == 0){
+            return NULL; //Struct already registered, return null to indicate error
+        }
+    }
+
+    return alloc_compiler_struct();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
