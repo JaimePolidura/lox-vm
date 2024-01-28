@@ -9,6 +9,6 @@ struct lox_array {
     int in_use;
 };
 
-void alloc_lox_array(struct lox_array * array);
+void init_lox_array(struct lox_array * array);
 void write_lox_array(struct lox_array * array, lox_value_t value);
 void free_lox_array(struct lox_array * array);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "shared.h"
+#include "compiler/scanner.h"
 
 struct compiler_struct {
     struct compiler_struct * next;

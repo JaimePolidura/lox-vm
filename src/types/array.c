@@ -1,6 +1,6 @@
 #include "array.h"
 
-void alloc_lox_array(struct lox_array * array) {
+void init_lox_array(struct lox_array * array) {
     array->values = NULL;
     array->capacity = 0;
     array->in_use = 0;

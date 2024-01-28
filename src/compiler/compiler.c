@@ -57,7 +57,7 @@ static void named_variable(struct compiler * compiler, struct token previous, bo
 static void begin_scope(struct compiler * compiler);
 static void end_scope(struct compiler * compiler);
 static void block(struct compiler * compiler);
-static void add_local_variable(struct compiler * compiler, struct token new_variable_name);
+static int add_local_variable(struct compiler * compiler, struct token new_variable_name);
 static bool is_variable_already_defined(struct compiler * compiler, struct token new_variable_name);
 static bool identifiers_equal(struct token * a, struct token * b);
 static int resolve_local_variable(struct compiler * compiler, struct token * name);
@@ -207,8 +207,9 @@ static void variable_declaration(struct compiler * compiler) {
     consume(compiler, TOKEN_IDENTIFIER, "Expected variable name.");
 
     if(compiler->local_depth > 0) { // Local scope
-        add_local_variable(compiler, compiler->parser->previous);
+        int local_variable = add_local_variable(compiler, compiler->parser->previous);
         variable_expression_declaration(compiler);
+        emit_bytecodes(compiler, OP_SET_LOCAL, local_variable);
     } else { //Global scope
         int variable_identifier_constant = add_string_constant(compiler, compiler->parser->previous);
         variable_expression_declaration(compiler);
@@ -381,7 +382,7 @@ static void block(struct compiler * compiler) {
 
 static void expression_statement(struct compiler * compiler) {
     expression(compiler);
-    consume(compiler, TOKEN_SEMICOLON, "Expected ';' after print.");
+    consume(compiler, TOKEN_SEMICOLON, "Expected ';'.");
 }
 
 static void while_statement(struct compiler * compiler) {
@@ -720,9 +721,9 @@ static int resolve_local_variable(struct compiler * compiler, struct token * nam
     return -1;
 }
 
-static void add_local_variable(struct compiler * compiler, struct token new_variable_name) {
+static int add_local_variable(struct compiler * compiler, struct token new_variable_name) {
     if(compiler->local_depth == 0){
-        return; //We are in a global scope
+        return - 1; //We are in a global scope
     }
 
     if(is_variable_already_defined(compiler, new_variable_name)){
@@ -732,6 +733,8 @@ static void add_local_variable(struct compiler * compiler, struct token new_vari
     struct local * local = &compiler->locals[compiler->local_count++];
     local->depth = compiler->local_depth;
     local->name = new_variable_name;
+
+    return compiler->local_count - 1;
 }
 
 static bool is_variable_already_defined(struct compiler * compiler, struct token new_variable_name) {
@@ -790,6 +793,8 @@ static struct function_object * alloc_function_compiler() {
     struct function_object * function_object_ptr = malloc(sizeof(struct function_object));
     function_object_ptr->n_arguments = 0;
     function_object_ptr->name = NULL;
+    function_object_ptr->object.type = OBJ_FUNCTION;
+    function_object_ptr->object.gc_marked = false;
     init_chunk(&function_object_ptr->chunk);
 
     return function_object_ptr;
@@ -807,19 +812,3 @@ static struct compiler_struct * register_new_struct(struct compiler * compiler, 
 
     return alloc_compiler_struct();
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

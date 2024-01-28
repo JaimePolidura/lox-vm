@@ -4,11 +4,11 @@
 
 #include "types/types.h"
 #include "types/string_object.h"
+#include "types/array.h"
 
 struct struct_object {
     struct object object;
-    lox_value_t * fields;
-    int n_fields;
+    struct lox_array fields;
 };
 
 struct struct_object * alloc_struct_object();

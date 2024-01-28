@@ -265,15 +265,12 @@ static double pop_and_check_number() {
 }
 
 static void define_struct() {
-    int n_fields = (int) pop_and_check_number();
-    lox_value_t * fields = malloc(n_fields);
-    for(int i = 0; i < n_fields; i++){
-        fields[n_fields - i - 1] = pop_stack_vm();
-    }
-
     struct struct_object * struct_object = alloc_struct_object();
-    struct_object->n_fields = n_fields;
-    struct_object->fields = fields;
+    int n_fields = (int) pop_and_check_number();
+
+    for(int i = 0; i < n_fields; i++) {
+        write_lox_array(&struct_object->fields, pop_stack_vm());
+    }
 
     int totalBytesAllocated = sizeof(struct struct_object) + n_fields * sizeof(lox_value_t);
     add_object_to_heap(&current_vm.gc, &struct_object->object, totalBytesAllocated);
@@ -285,14 +282,14 @@ static void get_struct_field() {
     struct struct_object * struct_object = (struct struct_object *) pop_stack_vm().as.object;
     int offset = (int) pop_and_check_number();
 
-    push_stack_vm(struct_object->fields[offset]);
+    push_stack_vm(struct_object->fields.values[offset]);
 }
 
 static void set_struct_field() {
     struct struct_object * struct_object = (struct struct_object *) pop_stack_vm().as.object;
     int offset = (int) pop_and_check_number();
     lox_value_t new_value = pop_stack_vm();
-    struct_object->fields[offset] = new_value;
+    struct_object->fields.values[offset] = new_value;
 }
 
 static bool check_boolean() {

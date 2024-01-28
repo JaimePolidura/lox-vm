@@ -29,7 +29,7 @@ void write_chunk(struct chunk * chunk_to_write, uint8_t byte, int line) {
 }
 
 void init_chunk(struct chunk * chunk) {
-    alloc_lox_array(&chunk->constants);
+    init_lox_array(&chunk->constants);
     chunk->lines = NULL;
     chunk->capacity = 0;
     chunk->code = NULL;

@@ -52,7 +52,9 @@ static void traverse_root_dependences(struct gc_mark_sweep * gc_mark_sweep) {
 
         switch (object->type) {
             case OBJ_STRUCT: {
-
+                struct struct_object * struct_object = (struct struct_object *) object;
+                mark_array(&struct_object->fields);
+                mark_object(&struct_object->object);
                 break;
             }
             case OBJ_FUNCTION: {
@@ -90,7 +92,8 @@ static void sweep_heap(struct gc_mark_sweep * gc_mark_sweep) {
                 current_vm.gc.heap = object;
             }
 
-            gc_mark_sweep->gc.bytes_allocated -= unreached;
+            //TODO
+//            gc_mark_sweep->gc.bytes_allocated -= unreached;
             free(unreached);
         }
     }
