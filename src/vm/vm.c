@@ -2,6 +2,8 @@
 
 struct vm current_vm;
 
+static void push_stack_vm(lox_value_t value);
+static lox_value_t pop_stack_vm();
 static double pop_and_check_number();
 static bool check_boolean();
 static interpret_result run();
@@ -23,6 +25,9 @@ static void call();
 static void return_function(struct call_frame * function_to_return_frame);
 static void call_function(struct function_object * function, int n_args);
 static void print_frame_stack_trace();
+static void define_struct();
+static void get_struct_field();
+static void set_struct_field();
 
 interpret_result interpret_vm(struct compilation_result compilation_result) {
     if(!compilation_result.success){
@@ -88,6 +93,9 @@ static interpret_result run() {
             case OP_LOOP: loop(); break;
             case OP_CALL: call(); current_frame = get_current_frame(); break;
             case OP_EOF: return INTERPRET_OK;
+            case OP_DEFINE_STRUCT: define_struct(); break;
+            case OP_GET_STRUCT_FIELD: get_struct_field(); break;
+            case OP_SET_STRUCT_FIELD: set_struct_field(); break;
             default:
                 perror("Unhandled bytecode op\n");
                 return INTERPRET_RUNTIME_ERROR;
@@ -125,7 +133,7 @@ static inline void adition() {
     push_stack_vm(FROM_RAW_TO_OBJECT(add_result.string_object));
 
     if(add_result.created_new) {
-        add_object_to_heap(&current_vm.gc_info, &add_result.string_object->object);
+        add_object_to_heap(&current_vm.gc, &add_result.string_object->object, sizeof(struct string_object));
     } else {
         free(concatenated);
     }
@@ -195,8 +203,8 @@ static void call() {
 }
 
 static void call_function(struct function_object * function, int n_args) {
-    if(n_args != function->arity){
-        runtime_error("Cannot call %s with %i args. Required %i nº args", function->name->chars, n_args, function->arity);
+    if(n_args != function->n_arguments){
+        runtime_error("Cannot call %s with %i args. Required %i nº args", function->name->chars, n_args, function->n_arguments);
     }
     if(current_vm.frames_in_use >= FRAME_MAX){
         runtime_error("Stack overflow. Max allowed frames: %i", FRAME_MAX);
@@ -256,6 +264,37 @@ static double pop_and_check_number() {
     }
 }
 
+static void define_struct() {
+    int n_fields = (int) pop_and_check_number();
+    lox_value_t * fields = malloc(n_fields);
+    for(int i = 0; i < n_fields; i++){
+        fields[n_fields - i - 1] = pop_stack_vm();
+    }
+
+    struct struct_object * struct_object = alloc_struct_object();
+    struct_object->n_fields = n_fields;
+    struct_object->fields = fields;
+
+    int totalBytesAllocated = sizeof(struct struct_object) + n_fields * sizeof(lox_value_t);
+    add_object_to_heap(&current_vm.gc, &struct_object->object, totalBytesAllocated);
+
+    push_stack_vm(FROM_RAW_TO_OBJECT(struct_object));
+}
+
+static void get_struct_field() {
+    struct struct_object * struct_object = (struct struct_object *) pop_stack_vm().as.object;
+    int offset = (int) pop_and_check_number();
+
+    push_stack_vm(struct_object->fields[offset]);
+}
+
+static void set_struct_field() {
+    struct struct_object * struct_object = (struct struct_object *) pop_stack_vm().as.object;
+    int offset = (int) pop_and_check_number();
+    lox_value_t new_value = pop_stack_vm();
+    struct_object->fields[offset] = new_value;
+}
+
 static bool check_boolean() {
     lox_value_t value = pop_stack_vm();
     if(IS_BOOL(value)) {
@@ -281,12 +320,12 @@ static lox_value_t values_equal(lox_value_t a, lox_value_t b) {
     }
 }
 
-void push_stack_vm(lox_value_t value) {
+static void push_stack_vm(lox_value_t value) {
     *current_vm.esp = value;
     current_vm.esp++;
 }
 
-lox_value_t pop_stack_vm() {
+static lox_value_t pop_stack_vm() {
     auto val = *--current_vm.esp;
     return val;
 }
@@ -296,7 +335,7 @@ void start_vm() {
     current_vm.frames_in_use = 0;
 
     init_hash_table(&current_vm.global_variables);
-    init_gc_info(&current_vm.gc_info);
+    init_gc_info(&current_vm.gc);
 
     define_native("clock", clock_native);
 }
@@ -354,9 +393,6 @@ static inline struct call_frame * get_current_frame() {
 void define_native(char * function_name, native_fn native_function) {
     struct string_object * function_name_obj = copy_chars_to_string_object(function_name, strlen(function_name));
     struct native_object * native_object = alloc_native_object(native_function);
-
-    add_object_to_heap(&current_vm.gc_info, &function_name_obj->object);
-    add_object_to_heap(&current_vm.gc_info, &native_object->object);
 
     put_hash_table(&current_vm.global_variables, function_name_obj, FROM_RAW_TO_OBJECT(native_object));
 }

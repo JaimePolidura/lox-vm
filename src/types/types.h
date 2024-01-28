@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../shared.h"
-#include "../memory/memory.h"
 
 typedef enum {
   VAL_BOOL,
@@ -13,7 +12,8 @@ typedef enum {
 typedef enum {
     OBJ_STRING,
     OBJ_FUNCTION,
-    OBJ_NATIVE
+    OBJ_NATIVE,
+    OBJ_STRUCT
 } object_type_t;
 
 struct object {

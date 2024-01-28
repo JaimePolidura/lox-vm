@@ -6,7 +6,7 @@
 
 struct function_object {
     struct object object;
-    int arity; //Number of arguments
+    int n_arguments; //Number of arguments
     struct chunk chunk;
     struct string_object * name;
 };

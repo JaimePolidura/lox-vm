@@ -1,27 +1,5 @@
 #include "compiler.h"
 
-struct parser {
-    struct token current;
-    struct token previous;
-    bool has_error;
-};
-
-struct local {
-    struct token name;
-    int depth;
-};
-
-struct compiler {
-    struct compiler * parent; // Used for functions
-    struct scanner * scanner;
-    struct parser * parser;
-    struct function_object * function;
-    function_type_t function_type;
-    struct local locals[UINT8_MAX];
-    int local_count;
-    int local_depth;
-};
-
 //Lowest to highest
 typedef enum {
     PREC_NONE,
@@ -103,6 +81,7 @@ static void function_call(struct compiler * compiler, bool can_assign);
 static int function_call_number_arguments(struct compiler * compiler);
 static void return_statement(struct compiler * compiler);
 static void emit_empty_return(struct compiler * compiler);
+static void struct_declaration(struct compiler * compiler);
 
 struct parse_rule rules[] = {
     [TOKEN_OPEN_PAREN] = {grouping, function_call, PREC_CALL},
@@ -128,7 +107,7 @@ struct parse_rule rules[] = {
     [TOKEN_STRING] = {string, NULL, PREC_NONE},
     [TOKEN_NUMBER] = {number, NULL, PREC_NONE},
     [TOKEN_AND] = {NULL, and, PREC_NONE},
-    [TOKEN_CLASS] = {NULL, NULL, PREC_NONE},
+    [TOKEN_STRUCT] = {NULL, NULL, PREC_NONE},
     [TOKEN_ELSE] = {NULL, NULL, PREC_NONE},
     [TOKEN_FALSE] = {literal, NULL, PREC_NONE},
     [TOKEN_FOR] = {NULL, NULL, PREC_NONE},
@@ -174,11 +153,26 @@ static void declaration(struct compiler * compiler) {
         variable_declaration(compiler);
     } else if(match(compiler, TOKEN_FUN) && compiler->function_type == TYPE_MAIN_SCOPE) {
         function_declaration(compiler);
+    } else if(match(compiler, TOKEN_STRUCT)) {
+        struct_declaration(compiler);
     } else if(match(compiler, TOKEN_FUN) && compiler->function_type == TYPE_FUNCTION_SCOPE){
         report_error(compiler, compiler->parser->current, "Nested functions are not allowed");
     } else {
         statement(compiler);
     }
+}
+
+static void struct_declaration(struct compiler * compiler) {
+    consume(compiler, TOKEN_IDENTIFIER, "Expect struct name");
+    struct token struct_name = compiler->parser->previous;
+    consume(compiler, TOKEN_OPEN_BRACE, "Expect '{' after struct declaration");
+    
+    struct token fields [256];
+
+    do {
+        consume(compiler, TOKEN_IDENTIFIER, "Expect field in struct declaration");
+        consume(compiler, TOKEN_SEMICOLON, "Expect ';' after struct field");
+    }while(!match(compiler, TOKEN_CLOSE_BRACE));
 }
 
 static void variable_declaration(struct compiler * compiler) {
@@ -232,7 +226,7 @@ static void function(struct compiler * compiler, function_type_t function_type) 
 static void function_parameters(struct compiler * function_compiler) {
     if(!match(function_compiler, TOKEN_CLOSE_PAREN)){
         do {
-            function_compiler->function->arity++;
+            function_compiler->function->n_arguments++;
             consume(function_compiler, TOKEN_IDENTIFIER, "Expect variable name in function arguments.");
             add_local_variable(function_compiler, function_compiler->parser->previous);
         } while (match(function_compiler, TOKEN_COMMA));
@@ -622,12 +616,14 @@ static struct compiler * alloc_compiler(function_type_t function_type) {
     compiler->scanner = malloc(sizeof(struct scanner));
     compiler->parser = malloc(sizeof(struct parser));
     compiler->parser->has_error = false;
+    compiler->structs = NULL;
 
     return compiler;
 }
 
 static void init_compiler(struct compiler * compiler, function_type_t function_type, struct compiler * parent_compiler) {
     if(parent_compiler != NULL){
+        compiler->structs = parent_compiler->structs;
         compiler->scanner = parent_compiler->scanner;
         compiler->parser = parent_compiler->parser;
     }
@@ -752,7 +748,7 @@ static void emit_empty_return(struct compiler * compiler) {
 
 static struct function_object * alloc_function_compiler() {
     struct function_object * function_object_ptr = malloc(sizeof(struct function_object));
-    function_object_ptr->arity = 0;
+    function_object_ptr->n_arguments = 0;
     function_object_ptr->name = NULL;
     init_chunk(&function_object_ptr->chunk);
 

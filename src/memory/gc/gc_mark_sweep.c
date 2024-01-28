@@ -1,25 +1,35 @@
-#include "gc.h"
+#include "gc_mark_sweep.h"
 
 extern struct string_pool global_string_pool;
 extern struct vm current_vm;
 
-static void mark_stack();
+static void traverse_root_dependences(struct gc_mark_sweep * gc_mark_sweep);
+static void add_value_gc_info(struct object * value);
 static void mark_globals();
-static void traverse_root_dependences();
+static void mark_stack();
 
 static void mark_value(lox_value_t * value);
 static void mark_object(struct object * object);
 static void mark_array(struct lox_array * array);
-static void sweep();
-static void sweep_heap();
+static void sweep(struct gc_mark_sweep * gc_mark_sweep);
+static void sweep_heap(struct gc_mark_sweep * gc_mark_sweep);
 static void sweep_string_pool();
 
+void setup_gc() {
+    struct gc_mark_sweep * gc_mark_sweep = (struct gc_mark_sweep *) &current_vm.gc;
+    gc_mark_sweep->gray_stack = NULL;
+    gc_mark_sweep->gray_capacity = 0;
+    gc_mark_sweep->gray_count = 0;
+}
+
 void start_gc() {
+    struct gc_mark_sweep * gc_mark_sweep = (struct gc_mark_sweep *) &current_vm.gc;
+
     mark_stack();
     mark_globals();
-    traverse_root_dependences();
+    traverse_root_dependences(gc_mark_sweep);
 
-    sweep();
+    sweep(gc_mark_sweep);
 }
 
 static void mark_stack() {
@@ -36,11 +46,15 @@ static void mark_globals() {
     }
 }
 
-static void traverse_root_dependences() {
-    while(current_vm.gc_info.gray_count > 0){
-        struct object * object = current_vm.gc_info.gray_stack[--current_vm.gc_info.gray_count];
+static void traverse_root_dependences(struct gc_mark_sweep * gc_mark_sweep) {
+    while(gc_mark_sweep->gray_count > 0){
+        struct object * object = gc_mark_sweep->gray_stack[--gc_mark_sweep->gray_count];
 
         switch (object->type) {
+            case OBJ_STRUCT: {
+
+                break;
+            }
             case OBJ_FUNCTION: {
                 struct function_object * function = (struct function_object *) object;
                 mark_object((struct object *) function->name);
@@ -53,14 +67,14 @@ static void traverse_root_dependences() {
     }
 }
 
-static void sweep() {
+static void sweep(struct gc_mark_sweep * gc_mark_sweep) {
     sweep_string_pool();
-    sweep_heap();
+    sweep_heap(gc_mark_sweep);
 }
 
-static void sweep_heap() {
+static void sweep_heap(struct gc_mark_sweep * gc_mark_sweep) {
     struct object * previous = NULL;
-    struct object * object = current_vm.gc_info.heap;
+    struct object * object = current_vm.gc.heap;
 
     while (object != NULL) {
         if (object->gc_marked) {
@@ -68,15 +82,15 @@ static void sweep_heap() {
             previous = object;
             object = object->next;
         } else {
-            struct object *unreached = object;
+            struct object * unreached = object;
             object = object->next;
             if (previous != NULL) {
                 previous->next = object;
             } else {
-                current_vm.gc_info.heap = object;
+                current_vm.gc.heap = object;
             }
 
-            current_vm.gc_info.bytes_allocated -= unreached;
+            gc_mark_sweep->gc.bytes_allocated -= unreached;
             free(unreached);
         }
     }
@@ -105,4 +119,16 @@ static void mark_value(lox_value_t * value) {
 
 static void mark_object(struct object * object) {
     object->gc_marked = true;
+    add_value_gc_info(object);
+}
+
+static void add_value_gc_info(struct object * value) {
+    struct gc_mark_sweep * gc_mark_sweep = (struct gc_mark_sweep *) &current_vm.gc;
+
+    if (gc_mark_sweep->gray_capacity < gc_mark_sweep->gray_count + 1) {
+        gc_mark_sweep->gray_capacity = GROW_CAPACITY(gc_mark_sweep->gray_capacity);
+        gc_mark_sweep->gray_stack = realloc(gc_mark_sweep->gray_stack, sizeof(struct object*) * gc_mark_sweep->gray_capacity);
+    }
+
+    gc_mark_sweep->gray_stack[gc_mark_sweep->gray_count++] = value;
 }

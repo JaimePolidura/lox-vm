@@ -1,7 +1,6 @@
 #pragma once
 
 #include "memory/string_pool.h"
-#include "../memory/memory.h"
 #include "../types/types.h"
 #include "../types/array.h"
 #include "../shared.h"
@@ -11,7 +10,7 @@ struct chunk {
     uint8_t * code;
     int capacity; //nº of code allocated
     int in_use; //nº of code used
-    int * lines;
+    int * lines; //Mapping of byte code line to line of original lox code
 };
 
 void write_chunk(struct chunk * chunk_to_write, uint8_t byte, int line);

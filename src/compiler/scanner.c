@@ -106,7 +106,7 @@ static struct token identifier(struct scanner * scanner) {
 static tokenType_t identifier_type(struct scanner * scanner) {
     switch (scanner->start[0]) {
         case 'a': return check_keyword(scanner, 1, 2, "nd", TOKEN_AND);
-        case 'c': return check_keyword(scanner, 1, 4, "lass", TOKEN_CLASS);
+        case 'c': return check_keyword(scanner, 1, 4, "lass", TOKEN_STRUCT);
         case 'e': return check_keyword(scanner, 1, 3, "lse", TOKEN_ELSE);
         case 'i': return check_keyword(scanner, 1, 1, "f", TOKEN_IF);
         case 'n': return check_keyword(scanner, 1, 2, "il", TOKEN_NIL);
