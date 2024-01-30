@@ -28,6 +28,7 @@ static void print_frame_stack_trace();
 static void initialize_struct();
 static void get_struct_field();
 static void set_struct_field();
+static void print();
 
 interpret_result interpret_vm(struct compilation_result compilation_result) {
     if(!compilation_result.success){
@@ -67,7 +68,7 @@ static interpret_result run() {
         print_stack();
 #endif
         switch (READ_BYTE(current_frame)) {
-            case OP_RETURN: return_function(current_frame);
+            case OP_RETURN: return_function(current_frame); current_frame = get_current_frame(); break;
             case OP_CONSTANT: push_stack_vm(READ_CONSTANT(current_frame)); break;
             case OP_NEGATE: push_stack_vm(FROM_RAW_TO_NUMBER(-pop_and_check_number())); break;
             case OP_ADD: adition(); break;
@@ -81,11 +82,10 @@ static interpret_result run() {
             case OP_NIL: push_stack_vm(NIL_VALUE()); break;
             case OP_NOT: push_stack_vm(FROM_RAW_TO_BOOL(!check_boolean())); break;
             case OP_EQUAL: push_stack_vm(values_equal(pop_stack_vm(), pop_stack_vm())); break;
-            case OP_PRINT: print_value(pop_stack_vm()); printf("\n"); break;
+            case OP_PRINT: print(); break;
             case OP_POP: pop_stack_vm(); break;
             case OP_DEFINE_GLOBAL: define_global(); break;
-            case OP_GET_GLOBAL:
-                get_global(); break;
+            case OP_GET_GLOBAL: get_global(); break;
             case OP_SET_GLOBAL: set_global(); break;
             case OP_GET_LOCAL: get_local(); break;
             case OP_JUMP_IF_FALSE: jump_if_false(); break;
@@ -218,16 +218,20 @@ static void call_function(struct function_object * function, int n_args) {
     new_function_frame->slots = current_vm.esp - n_args - 1;
 }
 
+static void print() {
+    lox_value_t value = pop_stack_vm();
+
+#ifdef VM_TEST
+    current_vm.log[current_vm.log_entries_in_use++] = to_string(value);
+#else
+    print_value(value);
+#endif
+}
+
 static void return_function(struct call_frame * function_to_return_frame) {
     lox_value_t value = pop_stack_vm();
 
-    if(current_vm.frames_in_use <= 1) {
-        pop_stack_vm();
-        return;
-    }
-
     current_vm.frames_in_use--;
-
     current_vm.esp = function_to_return_frame->slots;
 
     push_stack_vm(value);

@@ -3,12 +3,24 @@
 #include "../src/shared.h"
 
 #define TEST(name) \
-    void name##_inner(char * test_name, int n_assertions); \
+    void name##_inner(char * test_name, int n_assertions, int last_offset_vm_log); \
     void name##_outer() { \
-        name##_inner(#name, 0); \
+        name##_inner(#name, 0, 0); \
         printf("[%s] Success\n", #name); \
     } \
-    void name##_inner(char * test_name, int n_assertions)
+    void name##_inner(char * test_name, int n_assertions, int last_offset_vm_log)
+
+#define ASSERT_NEXT_VM_LOG(vm, expected) \
+    do { \
+        if(last_offset_vm_log >= vm.log_entries_in_use) { \
+            fprintf(stderr, "[%s] Invalid vm log assert number %i Max log entries have been reached\n", test_name, n_assertions); \
+            exit(65); \
+        } \
+        if(strcmp(vm.log[last_offset_vm_log++], expected) != 0) { \
+            fprintf(stderr, "[%s] Invalid vm log assert number %i while comparing %s and %s\n", test_name, n_assertions, vm.log[last_offset_vm_log - 1], expected); \
+            exit(65); \
+        } \
+    }while(false); \
 
 #define ASSERT_EQ(a, b) \
     do { \

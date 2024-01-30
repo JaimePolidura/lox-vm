@@ -51,3 +51,5 @@ struct object * allocate_object(size_t size, object_type_t type);
 
 #define OBJECT_TYPE(value) (TO_OBJECT_RAW(value)->type)
 #define ALLOCATE_OBJ(type, object_type) (type *) allocate_object(sizeof(type), object_type)
+
+char * to_string(lox_value_t value);

@@ -28,6 +28,11 @@ struct vm {
     lox_value_t * esp; //Top of stack
     struct hash_table global_variables;
     struct gc gc;
+
+#ifdef VM_TEST
+    char * log [256];
+    int log_entries_in_use;
+#endif
 };
 
 typedef enum {

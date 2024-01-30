@@ -43,6 +43,7 @@ int disassemble_chunk_instruction(const struct chunk * chunk, const int offset) 
         case OP_LOOP: return jump_instruction("LOOP", -1, chunk, offset);
         case OP_CALL: return byte_instruction("CALL", chunk, offset);
         case OP_JUMP_IF_FALSE: return jump_instruction("JUMP_IF_FALSE", 1, chunk, offset);
+        case OP_EOF: return 0x7FFFFFFF;
         default:
             printf("Unknown opcode %d\n", instruction);
             return offset + 1;
@@ -86,6 +87,7 @@ void print_value(lox_value_t value) {
         case VAL_OBJ:
             switch (value.as.object->type) {
                 case OBJ_STRING: printf("%s", TO_STRING_CHARS(value));
+                case OBJ_FUNCTION: printf("fun %s", ((struct function_object *) value.as.object)->name->chars);
             }
     }
 }

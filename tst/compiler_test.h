@@ -4,7 +4,6 @@
 #include "../src/compiler/compiler.h"
 #include "../src/chunk/chunk_disassembler.h"
 
-
 TEST(simple_compiler_test_with_structs){
     struct compilation_result result = compile("struct Persona {\nnombre; edad;\n}\nvar jaime = Persona{\"Jaime\" , 21};\nprint jaime.nombre;\njaime.edad = 12;");
     struct chunk * chunk = result.chunk;
