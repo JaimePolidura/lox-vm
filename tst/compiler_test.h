@@ -4,6 +4,26 @@
 #include "../src/compiler/compiler.h"
 #include "../src/chunk/chunk_disassembler.h"
 
+TEST(simple_compiler_test_with_for) {
+    struct compilation_result result = compile("for(var i = 0; i < 5; i = i + 1) {\n print i;\n }");
+    struct chunk * chunk = result.chunk;
+    ASSERT_TRUE(result.success);
+    ASSERT_BYTECODE_SEQ(chunk->code,
+                        OP_CONSTANT, 0,
+                        OP_SET_LOCAL, 1,
+                        OP_GET_LOCAL, 1,
+                        OP_CONSTANT, 1,
+                        OP_LESS,
+                        OP_JUMP_IF_FALSE, 0, 16,
+                        OP_GET_LOCAL, 1,
+                        OP_PRINT,
+                        OP_GET_LOCAL, 1,
+                        OP_CONSTANT, 2,
+                        OP_ADD,
+                        OP_SET_LOCAL, 1,
+                        OP_LOOP, 0, 18);
+}
+
 TEST(simple_compiler_test_with_structs){
     struct compilation_result result = compile("struct Persona {\nnombre; edad;\n}\nvar jaime = Persona{\"Jaime\" , 21};\nprint jaime.nombre;\njaime.edad = 12;");
     struct chunk * chunk = result.chunk;

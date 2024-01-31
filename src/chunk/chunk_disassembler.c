@@ -7,9 +7,7 @@ static int simple_instruction(const char * name, int offset);
 static int byte_instruction(const char * name, struct chunk * chunk, int offset);
 static int jump_instruction(const char* name, int sign, struct chunk * chunk, int offset);
 
-void disassemble_chunk(const struct chunk * chunk, char * name) {
-    printf("== %s ==\n", name);
-
+void disassemble_chunk(const struct chunk * chunk) {
     for(int offset = 0; offset < chunk->in_use;) {
         offset = disassemble_chunk_instruction(chunk, offset);
     }

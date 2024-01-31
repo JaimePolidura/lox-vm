@@ -168,7 +168,7 @@ static void set_global() {
 static void set_local() {
     struct call_frame * current_frame = get_current_frame();
     uint8_t slot = READ_BYTE(current_frame);
-    current_frame->slots[slot] = peek(0);
+    current_frame->slots[slot] = pop_stack_vm();
 }
 
 static void get_local() {
@@ -272,7 +272,7 @@ static void set_struct_field() {
 
 static void jump_if_false() {
     struct call_frame * current_frame = get_current_frame();
-    if(!cast_to_boolean(READ_CONSTANT(current_frame))){
+    if(!cast_to_boolean(pop_stack_vm())){
         int total_opcodes_to_jump_if_false = READ_U16(current_frame);
         current_frame->pc += total_opcodes_to_jump_if_false;
     }

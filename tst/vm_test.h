@@ -6,6 +6,31 @@
 
 extern struct vm current_vm;
 
+TEST(simple_vm_test_with_for_loops) {
+    struct compilation_result compilation_result = compile("for(var i = 0; i < 5; i = i + 1) {\n print i;\n }");
+    start_vm();
+
+    interpret_result vm_result = interpret_vm(compilation_result);
+
+    ASSERT_TRUE(vm_result == INTERPRET_OK);
+    ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "2.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "3.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "4.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "5.000000");
+}
+
+TEST(simple_vm_test_with_nested_functions) {
+    struct compilation_result compilation_result = compile("fun b(){\n print 1;\n }\n fun a() {\nb();\n print 2;\n}\na();");
+    start_vm();
+
+    interpret_result vm_result = interpret_vm(compilation_result);
+
+    ASSERT_TRUE(vm_result == INTERPRET_OK);
+    ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "2.000000");
+}
+
 TEST(simple_vm_test_with_functions) {
     struct compilation_result compilation_result = compile("fun sumar(a, b) {\nvar c = a + b;\nreturn c;\n}\nprint sumar(1, 2);");
     start_vm();

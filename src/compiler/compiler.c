@@ -64,7 +64,7 @@ static int resolve_local_variable(struct compiler * compiler, struct token * nam
 static void variable_expression_declaration(struct compiler * compiler);
 static void if_statement(struct compiler * compiler);
 static int emit_jump(struct compiler * compiler, op_code jump_opcode);
-static void patch_jump(struct compiler * compiler, int jump_op_index);
+static void patch_jump_here(struct compiler * compiler, int jump_op_index);
 static void and(struct compiler * compiler, bool can_assign);
 static void or(struct compiler * compiler, bool can_assign);
 static void while_statement(struct compiler * compiler);
@@ -72,7 +72,7 @@ static void emit_loop(struct compiler * compiler, int loop_start_index);
 static void for_loop(struct compiler * compiler);
 static void for_loop_initializer(struct compiler * compiler);
 static int for_loop_condition(struct compiler * compiler);
-static int for_loop_increment(struct compiler * compiler, int loop_start_index);
+static void for_loop_increment(struct compiler * compiler);
 static struct chunk * current_chunk(struct compiler * compiler);
 static void function_declaration(struct compiler * compiler);
 static void function(struct compiler * compiler, function_type_t function_type);
@@ -94,44 +94,44 @@ static struct struct_instance * find_struct_instance_by_name(struct compiler * c
 static int find_struct_field_offset(struct struct_definition * definition, struct token field_name);
 
 struct parse_rule rules[] = {
-    [TOKEN_OPEN_PAREN] = {grouping, function_call, PREC_CALL},
-    [TOKEN_CLOSE_PAREN] = {NULL, NULL, PREC_NONE},
-    [TOKEN_OPEN_BRACE] = {NULL, NULL, PREC_NONE},
-    [TOKEN_CLOSE_BRACE] = {NULL, NULL, PREC_NONE},
-    [TOKEN_COMMA] = {NULL, NULL, PREC_NONE},
-    [TOKEN_DOT] = {NULL, dot, PREC_CALL},
-    [TOKEN_MINUS] = {unary, binary, PREC_TERM},
-    [TOKEN_PLUS] = {NULL, binary, PREC_TERM},
-    [TOKEN_SEMICOLON] = {NULL, NULL, PREC_NONE},
-    [TOKEN_SLASH] = {NULL, binary, PREC_FACTOR},
-    [TOKEN_STAR] = {NULL, binary, PREC_FACTOR},
-    [TOKEN_BANG] = {unary, NULL, PREC_NONE},
-    [TOKEN_BANG_EQUAL] = {NULL, binary, PREC_EQUALITY},
-    [TOKEN_EQUAL] = {NULL, NULL, PREC_NONE},
-    [TOKEN_EQUAL_EQUAL] = {NULL, binary, PREC_EQUALITY},
-    [TOKEN_GREATER] = {NULL, binary, PREC_NONE},
-    [TOKEN_GREATER_EQUAL] = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_LESS] = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_LESS_EQUAL] = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_IDENTIFIER] = {variable, NULL, PREC_NONE},
-    [TOKEN_STRING] = {string, NULL, PREC_NONE},
-    [TOKEN_NUMBER] = {number, NULL, PREC_NONE},
-    [TOKEN_AND] = {NULL, and, PREC_NONE},
-    [TOKEN_STRUCT] = {NULL, NULL, PREC_NONE},
-    [TOKEN_ELSE] = {NULL, NULL, PREC_NONE},
-    [TOKEN_FALSE] = {literal, NULL, PREC_NONE},
-    [TOKEN_FOR] = {NULL, NULL, PREC_NONE},
-    [TOKEN_FUN] = {NULL, NULL, PREC_NONE},
-    [TOKEN_IF] = {NULL, NULL, PREC_NONE},
-    [TOKEN_NIL] = {literal, NULL, PREC_NONE},
-    [TOKEN_OR] = {NULL, or, PREC_NONE},
-    [TOKEN_PRINT] = {NULL, NULL, PREC_NONE},
-    [TOKEN_RETURN] = {NULL, NULL, PREC_NONE},
-    [TOKEN_TRUE] = {literal, NULL, PREC_NONE},
-    [TOKEN_VAR] = {NULL, NULL, PREC_NONE},
-    [TOKEN_WHILE] = {NULL, NULL, PREC_NONE},
-    [TOKEN_ERROR] = {NULL, NULL, PREC_NONE},
-    [TOKEN_EOF] = {NULL, NULL, PREC_NONE},};
+        [TOKEN_OPEN_PAREN] = {grouping, function_call, PREC_CALL},
+        [TOKEN_CLOSE_PAREN] = {NULL, NULL, PREC_NONE},
+        [TOKEN_OPEN_BRACE] = {NULL, NULL, PREC_NONE},
+        [TOKEN_CLOSE_BRACE] = {NULL, NULL, PREC_NONE},
+        [TOKEN_COMMA] = {NULL, NULL, PREC_NONE},
+        [TOKEN_DOT] = {NULL, dot, PREC_CALL},
+        [TOKEN_MINUS] = {unary, binary, PREC_TERM},
+        [TOKEN_PLUS] = {NULL, binary, PREC_TERM},
+        [TOKEN_SEMICOLON] = {NULL, NULL, PREC_NONE},
+        [TOKEN_SLASH] = {NULL, binary, PREC_FACTOR},
+        [TOKEN_STAR] = {NULL, binary, PREC_FACTOR},
+        [TOKEN_BANG] = {unary, NULL, PREC_NONE},
+        [TOKEN_BANG_EQUAL] = {NULL, binary, PREC_EQUALITY},
+        [TOKEN_EQUAL] = {NULL, NULL, PREC_NONE},
+        [TOKEN_EQUAL_EQUAL] = {NULL, binary, PREC_EQUALITY},
+        [TOKEN_GREATER] = {NULL, binary, PREC_NONE},
+        [TOKEN_GREATER_EQUAL] = {NULL, binary, PREC_COMPARISON},
+        [TOKEN_LESS] = {NULL, binary, PREC_COMPARISON},
+        [TOKEN_LESS_EQUAL] = {NULL, binary, PREC_COMPARISON},
+        [TOKEN_IDENTIFIER] = {variable, NULL, PREC_NONE},
+        [TOKEN_STRING] = {string, NULL, PREC_NONE},
+        [TOKEN_NUMBER] = {number, NULL, PREC_NONE},
+        [TOKEN_AND] = {NULL, and, PREC_NONE},
+        [TOKEN_STRUCT] = {NULL, NULL, PREC_NONE},
+        [TOKEN_ELSE] = {NULL, NULL, PREC_NONE},
+        [TOKEN_FALSE] = {literal, NULL, PREC_NONE},
+        [TOKEN_FOR] = {NULL, NULL, PREC_NONE},
+        [TOKEN_FUN] = {NULL, NULL, PREC_NONE},
+        [TOKEN_IF] = {NULL, NULL, PREC_NONE},
+        [TOKEN_NIL] = {literal, NULL, PREC_NONE},
+        [TOKEN_OR] = {NULL, or, PREC_NONE},
+        [TOKEN_PRINT] = {NULL, NULL, PREC_NONE},
+        [TOKEN_RETURN] = {NULL, NULL, PREC_NONE},
+        [TOKEN_TRUE] = {literal, NULL, PREC_NONE},
+        [TOKEN_VAR] = {NULL, NULL, PREC_NONE},
+        [TOKEN_WHILE] = {NULL, NULL, PREC_NONE},
+        [TOKEN_ERROR] = {NULL, NULL, PREC_NONE},
+        [TOKEN_EOF] = {NULL, NULL, PREC_NONE},};
 
 struct compilation_result compile(char * source_code) {
     struct compiler * compiler = alloc_compiler(TYPE_MAIN_SCOPE);
@@ -146,9 +146,9 @@ struct compilation_result compile(char * source_code) {
     write_chunk(current_chunk(compiler), OP_EOF, 0);
 
     struct compilation_result compilation_result = {
-        .function_object = end_compiler(compiler),
-        .success = !compiler->parser->has_error,
-        .chunk = current_chunk(compiler)
+            .function_object = end_compiler(compiler),
+            .success = !compiler->parser->has_error,
+            .chunk = current_chunk(compiler)
     };
 
     free_compiler(compiler);
@@ -359,7 +359,7 @@ static void if_statement(struct compiler * compiler) {
     emit_bytecode(compiler, OP_POP); //We clear the expression result of the if statement
 
     statement(compiler);
-    patch_jump(compiler, then_jump);
+    patch_jump_here(compiler, then_jump);
     emit_bytecode(compiler, OP_POP);
 
     int else_jump = emit_jump(compiler, OP_JUMP);
@@ -368,7 +368,7 @@ static void if_statement(struct compiler * compiler) {
         statement(compiler);
     }
 
-    patch_jump(compiler, else_jump);
+    patch_jump_here(compiler, else_jump);
 }
 
 static int emit_jump(struct compiler * compiler, op_code jump_opcode) {
@@ -379,8 +379,8 @@ static int emit_jump(struct compiler * compiler, op_code jump_opcode) {
     return current_chunk(compiler)->in_use - 2;
 }
 
-static void patch_jump(struct compiler * compiler, int jump_op_index) {
-    int jump = current_chunk(compiler)->in_use - jump_op_index - 2;
+static void patch_jump_here(struct compiler * compiler, int jump_op_index) {
+    int jump = current_chunk(compiler)->in_use - jump_op_index + 1;
 
     current_chunk(compiler)->code[jump_op_index] = (jump >> 8) & 0xff;
     current_chunk(compiler)->code[jump_op_index + 1] = jump & 0xff;
@@ -388,22 +388,21 @@ static void patch_jump(struct compiler * compiler, int jump_op_index) {
 
 static void and(struct compiler * compiler, bool can_assign) {
     int end_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
-    emit_bytecode(compiler, OP_POP);
 
     parse_precedence(compiler, PREC_AND);
 
-    patch_jump(compiler, end_jump);
+    patch_jump_here(compiler, end_jump);
 }
 
 static void or(struct compiler * compiler, bool can_assign) {
     int else_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
     int then_jump = emit_jump(compiler, OP_JUMP);
 
-    patch_jump(compiler, else_jump);
+    patch_jump_here(compiler, else_jump);
     emit_bytecode(compiler, OP_POP);
 
     parse_precedence(compiler, PREC_OR);
-    patch_jump(compiler, then_jump);
+    patch_jump_here(compiler, then_jump);
 }
 
 static void block(struct compiler * compiler) {
@@ -435,30 +434,31 @@ static void while_statement(struct compiler * compiler) {
 
     emit_loop(compiler, loop_start_index);
 
-    patch_jump(compiler, exit_jump);
-    emit_bytecode(compiler, OP_POP);
+    patch_jump_here(compiler, exit_jump);
 }
 
 static void for_loop(struct compiler * compiler) {
     begin_scope(compiler);
 
     consume(compiler, TOKEN_OPEN_PAREN, "Expect '(' after for.");
+
     for_loop_initializer(compiler);
 
     int loop_start_index = current_chunk(compiler)->in_use;
 
     int loop_jump_if_false_index = for_loop_condition(compiler);
 
-    loop_start_index = for_loop_increment(compiler, loop_start_index);
+    struct chunk_bytecode_context prev_to_increment_ctx = chunk_start_new_context(&compiler->function->chunk);
+    for_loop_increment(compiler);
+    struct chunk_bytecode_context increment_bytecodes = chunk_restore_context(&compiler->function->chunk, prev_to_increment_ctx);
 
     statement(compiler);
 
+    chunk_write_context(&compiler->function->chunk, increment_bytecodes);
+
     emit_loop(compiler, loop_start_index);
 
-    if(loop_jump_if_false_index != -1) { //Has condition
-        patch_jump(compiler, loop_jump_if_false_index);
-        emit_bytecode(compiler, OP_POP); //Condition
-    }
+    patch_jump_here(compiler, loop_jump_if_false_index);
 
     end_scope(compiler);
 }
@@ -474,37 +474,23 @@ static void for_loop_initializer(struct compiler * compiler) {
 }
 
 static int for_loop_condition(struct compiler * compiler) {
-    int exit_jump_index = -1;
+    expression(compiler);
 
-    if(!match(compiler, TOKEN_SEMICOLON)){
-        expression(compiler);
-        consume(compiler, TOKEN_SEMICOLON, "Expect ';' after loop condition");
-        exit_jump_index = emit_jump(compiler, OP_JUMP_IF_FALSE);
-        emit_bytecode(compiler, OP_POP);
-    }
+    consume(compiler, TOKEN_SEMICOLON, "Expect ';' after loop condition");
 
-    return exit_jump_index;
+    return emit_jump(compiler, OP_JUMP_IF_FALSE);
 }
 
-static int for_loop_increment(struct compiler * compiler, int loop_start_index) {
-    if(!match(compiler, TOKEN_CLOSE_PAREN)) { //Has increment
-        int jump_to_loop_body_index = emit_jump(compiler, OP_JUMP);
-        expression(compiler);
-        emit_bytecode(compiler, OP_POP);
+static void for_loop_increment(struct compiler * compiler) {
+    expression(compiler);
 
-        consume(compiler, TOKEN_CLOSE_PAREN, "Expect ')' after for loop");
-
-        emit_loop(compiler, loop_start_index);
-        patch_jump(compiler, jump_to_loop_body_index);
-    }
-
-    return -1;
+    consume(compiler, TOKEN_CLOSE_PAREN, "Expect ')' after for loop");
 }
 
 static void emit_loop(struct compiler * compiler, int loop_start_index) {
     emit_bytecode(compiler, OP_LOOP);
 
-    int n_opcodes_to_jump = current_chunk(compiler)->in_use - loop_start_index + 2; // +2 to get rid of op_loop two operands
+    int n_opcodes_to_jump = current_chunk(compiler)->in_use - 1 - loop_start_index; // +2 to get rid of op_loop two operands
 
     emit_bytecode(compiler, (n_opcodes_to_jump >> 8) & 0xff);
     emit_bytecode(compiler, n_opcodes_to_jump & 0xff);
@@ -883,7 +869,7 @@ static struct struct_definition * register_new_struct(struct compiler * compiler
     int new_struct_name_length = new_struct_name.length;
     while(current != NULL){
         if(current->name.length == new_struct_name_length &&
-            strncmp(current->name.start, new_struct_name.start, new_struct_name_length) == 0){
+           strncmp(current->name.start, new_struct_name.start, new_struct_name_length) == 0){
             return NULL; //Struct already registered, return null to indicate error
         }
     }

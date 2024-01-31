@@ -35,3 +35,44 @@ void init_chunk(struct chunk * chunk) {
     chunk->code = NULL;
     chunk->in_use = 0;
 }
+
+struct chunk_bytecode_context chunk_start_new_context(struct chunk * chunk) {
+    struct chunk_bytecode_context prev = {
+            .code = chunk->code,
+            .in_use = chunk->in_use,
+            .capacity = chunk->capacity,
+            .lines = chunk->lines,
+    };
+
+    chunk->code = NULL;
+    chunk->in_use = 0;
+    chunk->capacity = 0;
+    chunk->lines = NULL;
+
+    return prev;
+}
+
+struct chunk_bytecode_context chunk_restore_context(struct chunk * chunk, struct chunk_bytecode_context prev) {
+    struct chunk_bytecode_context actual = {
+            .code = chunk->code,
+            .in_use = chunk->in_use,
+            .capacity = chunk->capacity,
+            .lines = chunk->lines,
+    };
+
+    chunk->code = prev.code;
+    chunk->in_use = prev.in_use;
+    chunk->capacity = prev.capacity;
+    chunk->lines = prev.lines;
+
+    return actual;
+}
+
+void chunk_write_context(struct chunk * chunk, struct chunk_bytecode_context prev) {
+    for(int i = 0; i < prev.in_use; i++){
+        write_chunk(chunk, prev.code[i], prev.lines[i]);
+    }
+
+    free(prev.lines);
+    free(prev.code);
+}

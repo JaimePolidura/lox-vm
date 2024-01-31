@@ -14,12 +14,12 @@ struct object * allocate_object(size_t size, object_type_t type) {
     return object;
 }
 
-char string_as_double[20];
-
+//This function should be only used for testing since it may leak memory when value is a number
 char * to_string(lox_value_t value) {
     switch (value.type) {
         case VAL_NIL: return "nil"; break;
         case VAL_NUMBER: {
+            char * string_as_double = malloc(sizeof(char) * 20);
             sprintf(string_as_double, "%f", value.as.number);
             return string_as_double;
         }
