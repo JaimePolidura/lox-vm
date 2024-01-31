@@ -35,6 +35,7 @@ struct compiler {
 struct compilation_result {
     struct function_object * function_object;
     struct chunk * chunk;
+    int local_count;
     bool success;
 };
 

@@ -13,11 +13,11 @@ TEST(simple_vm_test_with_for_loops) {
     interpret_result vm_result = interpret_vm(compilation_result);
 
     ASSERT_TRUE(vm_result == INTERPRET_OK);
+    ASSERT_NEXT_VM_LOG(current_vm, "0.000000");
     ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
     ASSERT_NEXT_VM_LOG(current_vm, "2.000000");
     ASSERT_NEXT_VM_LOG(current_vm, "3.000000");
     ASSERT_NEXT_VM_LOG(current_vm, "4.000000");
-    ASSERT_NEXT_VM_LOG(current_vm, "5.000000");
 }
 
 TEST(simple_vm_test_with_nested_functions) {

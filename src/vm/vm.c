@@ -38,6 +38,8 @@ interpret_result interpret_vm(struct compilation_result compilation_result) {
     push_stack_vm(FROM_RAW_TO_OBJECT(compilation_result.function_object));
     call_function(compilation_result.function_object, 0);
 
+    current_vm.esp += compilation_result.local_count;
+
     return run();
 }
 
@@ -106,7 +108,9 @@ static interpret_result run() {
 
 static inline void adition() {
     if(IS_NUMBER(peek(0)) + IS_NUMBER(peek(1))) {
-        push_stack_vm(FROM_RAW_TO_NUMBER(TO_NUMBER_RAW(pop_stack_vm()) + TO_NUMBER_RAW(pop_stack_vm())));
+        double a = TO_NUMBER_RAW(pop_stack_vm());
+        double b = TO_NUMBER_RAW(pop_stack_vm());
+        push_stack_vm(FROM_RAW_TO_NUMBER(a + b));
         return;
     }
 
@@ -168,13 +172,15 @@ static void set_global() {
 static void set_local() {
     struct call_frame * current_frame = get_current_frame();
     uint8_t slot = READ_BYTE(current_frame);
-    current_frame->slots[slot] = pop_stack_vm();
+    lox_value_t value = pop_stack_vm();
+    current_frame->slots[slot] = value;
 }
 
 static void get_local() {
     struct call_frame * current_frame = get_current_frame();
     uint8_t slot = READ_BYTE(current_frame);
-    push_stack_vm(current_frame->slots[slot]);
+    lox_value_t value = current_frame->slots[slot];
+    push_stack_vm(value);
 }
 
 static void call() {
@@ -272,15 +278,19 @@ static void set_struct_field() {
 
 static void jump_if_false() {
     struct call_frame * current_frame = get_current_frame();
+
     if(!cast_to_boolean(pop_stack_vm())){
         int total_opcodes_to_jump_if_false = READ_U16(current_frame);
         current_frame->pc += total_opcodes_to_jump_if_false;
+    } else {
+        current_frame->pc += 2;
     }
 }
 
 static void loop() {
     struct call_frame * current_frame = get_current_frame();
-    current_frame->pc -= READ_U16(current_frame);
+    uint16_t val = READ_U16(current_frame);
+    current_frame->pc -= val;
 }
 
 static inline lox_value_t peek(int index_from_top) {
@@ -289,6 +299,7 @@ static inline lox_value_t peek(int index_from_top) {
 
 static double pop_and_check_number() {
     lox_value_t value = pop_stack_vm();
+
     if(IS_NUMBER(value)) {
         return TO_NUMBER_RAW(value);
     } else {
@@ -340,6 +351,10 @@ void start_vm() {
     init_gc_info(&current_vm.gc);
 
     define_native("clock", clock_native);
+
+#ifdef VM_TEST
+    current_vm.log_entries_in_use = 0;
+#endif
 }
 
 void stop_vm() {

@@ -14,14 +14,14 @@ TEST(simple_compiler_test_with_for) {
                         OP_GET_LOCAL, 1,
                         OP_CONSTANT, 1,
                         OP_LESS,
-                        OP_JUMP_IF_FALSE, 0, 16,
+                        OP_JUMP_IF_FALSE, 0, 13,
                         OP_GET_LOCAL, 1,
                         OP_PRINT,
                         OP_GET_LOCAL, 1,
                         OP_CONSTANT, 2,
                         OP_ADD,
                         OP_SET_LOCAL, 1,
-                        OP_LOOP, 0, 18);
+                        OP_LOOP, 0, 20);
 }
 
 TEST(simple_compiler_test_with_structs){

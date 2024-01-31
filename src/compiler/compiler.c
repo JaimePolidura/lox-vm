@@ -148,6 +148,7 @@ struct compilation_result compile(char * source_code) {
     struct compilation_result compilation_result = {
             .function_object = end_compiler(compiler),
             .success = !compiler->parser->has_error,
+            .local_count = compiler->local_count,
             .chunk = current_chunk(compiler)
     };
 
@@ -275,7 +276,6 @@ static void function(struct compiler * compiler, function_type_t function_type) 
 
     consume(&function_compiler, TOKEN_OPEN_PAREN, "Expect '(' after function name.");
     function_parameters(&function_compiler);
-    consume(&function_compiler, TOKEN_CLOSE_PAREN, "Expect ')' before function body.");
     consume(&function_compiler, TOKEN_OPEN_BRACE, "Expect '{' after function parenthesis.");
 
     block(&function_compiler);
@@ -287,13 +287,15 @@ static void function(struct compiler * compiler, function_type_t function_type) 
 }
 
 static void function_parameters(struct compiler * function_compiler) {
-    if(!match(function_compiler, TOKEN_CLOSE_PAREN)){
+    if(!check(function_compiler, TOKEN_CLOSE_PAREN)){
         do {
             function_compiler->function->n_arguments++;
             consume(function_compiler, TOKEN_IDENTIFIER, "Expect variable name in function arguments.");
             add_local_variable(function_compiler, function_compiler->parser->previous);
         } while (match(function_compiler, TOKEN_COMMA));
     }
+
+    consume(function_compiler, TOKEN_CLOSE_PAREN, "Expected ')' after function args");
 }
 
 static void function_call(struct compiler * compiler, bool can_assign) {
@@ -304,7 +306,7 @@ static void function_call(struct compiler * compiler, bool can_assign) {
 static int function_call_number_arguments(struct compiler * compiler) {
     int n_args = 0;
 
-    if(!match(compiler, TOKEN_CLOSE_PAREN)){
+    if(!check(compiler, TOKEN_CLOSE_PAREN)){
         do{
             expression(compiler);
             n_args++;
@@ -356,11 +358,9 @@ static void if_statement(struct compiler * compiler) {
     consume(compiler, TOKEN_CLOSE_PAREN, "Expect ')' after condition.");
 
     int then_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
-    emit_bytecode(compiler, OP_POP); //We clear the expression result of the if statement
 
     statement(compiler);
     patch_jump_here(compiler, then_jump);
-    emit_bytecode(compiler, OP_POP);
 
     int else_jump = emit_jump(compiler, OP_JUMP);
 
@@ -380,7 +380,7 @@ static int emit_jump(struct compiler * compiler, op_code jump_opcode) {
 }
 
 static void patch_jump_here(struct compiler * compiler, int jump_op_index) {
-    int jump = current_chunk(compiler)->in_use - jump_op_index + 1;
+    int jump = current_chunk(compiler)->in_use - jump_op_index - 2;
 
     current_chunk(compiler)->code[jump_op_index] = (jump >> 8) & 0xff;
     current_chunk(compiler)->code[jump_op_index + 1] = jump & 0xff;
@@ -399,7 +399,6 @@ static void or(struct compiler * compiler, bool can_assign) {
     int then_jump = emit_jump(compiler, OP_JUMP);
 
     patch_jump_here(compiler, else_jump);
-    emit_bytecode(compiler, OP_POP);
 
     parse_precedence(compiler, PREC_OR);
     patch_jump_here(compiler, then_jump);
@@ -427,7 +426,6 @@ static void while_statement(struct compiler * compiler) {
     consume(compiler, TOKEN_OPEN_BRACE, "Expect '{' after while declaration.");
 
     int exit_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
-    emit_bytecode(compiler, OP_POP);
 
     statement(compiler);
     consume(compiler, TOKEN_CLOSE_BRACE, "Expect '}' after while body.");
@@ -490,7 +488,7 @@ static void for_loop_increment(struct compiler * compiler) {
 static void emit_loop(struct compiler * compiler, int loop_start_index) {
     emit_bytecode(compiler, OP_LOOP);
 
-    int n_opcodes_to_jump = current_chunk(compiler)->in_use - 1 - loop_start_index; // +2 to get rid of op_loop two operands
+    int n_opcodes_to_jump = current_chunk(compiler)->in_use - loop_start_index + 2; // +2 to get rid of op_loop two operands
 
     emit_bytecode(compiler, (n_opcodes_to_jump >> 8) & 0xff);
     emit_bytecode(compiler, n_opcodes_to_jump & 0xff);
