@@ -14,5 +14,3 @@ struct struct_object {
 struct struct_object * alloc_struct_object();
 
 void init_struct_object(struct struct_object * struct_object);
-
-#define TO_STRUCT(value) ((struct struct_object *) TO_OBJECT_RAW(value))

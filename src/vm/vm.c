@@ -35,7 +35,7 @@ interpret_result interpret_vm(struct compilation_result compilation_result) {
         return INTERPRET_COMPILE_ERROR;
     }
 
-    push_stack_vm(FROM_RAW_TO_OBJECT(compilation_result.function_object));
+    push_stack_vm(TO_LOX_VALUE_OBJECT(compilation_result.function_object));
     call_function(compilation_result.function_object, 0);
 
     current_vm.esp += compilation_result.local_count;
@@ -51,14 +51,14 @@ interpret_result interpret_vm(struct compilation_result compilation_result) {
     do { \
         double b = pop_and_check_number(); \
         double a = pop_and_check_number(); \
-        push_stack_vm(FROM_RAW_TO_NUMBER(a op b)); \
+        push_stack_vm(TO_LOX_VALUE_NUMBER(a op b)); \
     }while(false);
 
 #define COMPARATION_OP(op) \
     do { \
         double b = pop_and_check_number(); \
         double a = pop_and_check_number(); \
-        push_stack_vm(FROM_RAW_TO_BOOL(a op b)); \
+        push_stack_vm(TO_LOX_VALUE_BOOL(a op b)); \
     }while(false);
 
 static interpret_result run() {
@@ -72,17 +72,17 @@ static interpret_result run() {
         switch (READ_BYTE(current_frame)) {
             case OP_RETURN: return_function(current_frame); current_frame = get_current_frame(); break;
             case OP_CONSTANT: push_stack_vm(READ_CONSTANT(current_frame)); break;
-            case OP_NEGATE: push_stack_vm(FROM_RAW_TO_NUMBER(-pop_and_check_number())); break;
+            case OP_NEGATE: push_stack_vm(TO_LOX_VALUE_NUMBER(-pop_and_check_number())); break;
             case OP_ADD: adition(); break;
             case OP_SUB: BINARY_OP(-) break;
             case OP_MUL: BINARY_OP(*) break;
             case OP_DIV: BINARY_OP(/) break;
             case OP_GREATER: COMPARATION_OP(>) break;
             case OP_LESS: COMPARATION_OP(<) break;
-            case OP_FALSE: push_stack_vm(FROM_RAW_TO_BOOL(false)); break;
-            case OP_TRUE: push_stack_vm(FROM_RAW_TO_BOOL(true)); break;
+            case OP_FALSE: push_stack_vm(TO_LOX_VALUE_BOOL(false)); break;
+            case OP_TRUE: push_stack_vm(TO_LOX_VALUE_BOOL(true)); break;
             case OP_NIL: push_stack_vm(NIL_VALUE()); break;
-            case OP_NOT: push_stack_vm(FROM_RAW_TO_BOOL(!check_boolean())); break;
+            case OP_NOT: push_stack_vm(TO_LOX_VALUE_BOOL(!check_boolean())); break;
             case OP_EQUAL: push_stack_vm(values_equal(pop_stack_vm(), pop_stack_vm())); break;
             case OP_PRINT: print(); break;
             case OP_POP: pop_stack_vm(); break;
@@ -108,16 +108,16 @@ static interpret_result run() {
 
 static inline void adition() {
     if(IS_NUMBER(peek(0)) + IS_NUMBER(peek(1))) {
-        double a = TO_NUMBER_RAW(pop_stack_vm());
-        double b = TO_NUMBER_RAW(pop_stack_vm());
-        push_stack_vm(FROM_RAW_TO_NUMBER(a + b));
+        double a = AS_NUMBER(pop_stack_vm());
+        double b = AS_NUMBER(pop_stack_vm());
+        push_stack_vm(TO_LOX_VALUE_NUMBER(a + b));
         return;
     }
 
     lox_value_t b_value = pop_stack_vm();
     lox_value_t a_value = pop_stack_vm();
-    char * a_chars = cast_to_string(a_value);
-    char * b_chars = cast_to_string(b_value);
+    char * a_chars = to_string(a_value);
+    char * b_chars = to_string(b_value);
     size_t a_length = strlen(a_chars);
     size_t b_length = strlen(b_chars);
 
@@ -127,15 +127,15 @@ static inline void adition() {
     memcpy(concatenated + a_length, b_chars, b_length);
     concatenated[new_length] = '\0';
 
-    if(a_value.type == VAL_NUMBER){
+    if(IS_NUMBER(a_value)){
         free(a_chars);
     }
-    if(b_value.type == VAL_NUMBER){
+    if(IS_NUMBER(b_value)){
         free(b_chars);
     }
 
     struct string_pool_add_result add_result = add_to_global_string_pool(concatenated, new_length);
-    push_stack_vm(FROM_RAW_TO_OBJECT(add_result.string_object));
+    push_stack_vm(TO_LOX_VALUE_OBJECT(add_result.string_object));
 
     if(add_result.created_new) {
         add_object_to_heap(&current_vm.gc, &add_result.string_object->object, sizeof(struct string_object));
@@ -145,13 +145,12 @@ static inline void adition() {
 }
 
 static void define_global() {
-    struct string_object * name = TO_STRING(READ_CONSTANT(get_current_frame()));
+    struct string_object * name = AS_STRING_OBJECT(READ_CONSTANT(get_current_frame()));
     put_hash_table(&current_vm.global_variables, name, pop_stack_vm());
-    ;
 }
 
 static void get_global() {
-    struct string_object * variable_name = TO_STRING(READ_CONSTANT(get_current_frame()));
+    struct string_object * variable_name = AS_STRING_OBJECT(READ_CONSTANT(get_current_frame()));
     lox_value_t variable_value;
     if(!get_hash_table(&current_vm.global_variables, variable_name, &variable_value)) {
         runtime_error("Undefined variable %s.", variable_name->chars);
@@ -161,7 +160,7 @@ static void get_global() {
 }
 
 static void set_global() {
-    struct string_object * variable_name = TO_STRING(READ_CONSTANT(get_current_frame()));
+    struct string_object * variable_name = AS_STRING_OBJECT(READ_CONSTANT(get_current_frame()));
     if(!contains_hash_table(&current_vm.global_variables, variable_name)){
         runtime_error("Cannot assign value to undeclared variable %s", variable_name->chars);
     }
@@ -188,14 +187,17 @@ static void call() {
     int n_args = READ_BYTE(current_frame);
 
     lox_value_t callee = peek(n_args);
+    struct function_object * o = AS_FUNCTION(callee);
+
     if(!IS_OBJECT(callee)){
         runtime_error("Cannot call");
     }
 
-    switch (TO_OBJECT_RAW(callee)->type) {
-        case OBJ_FUNCTION:
-            call_function(TO_FUNCTION(callee), n_args);
+    switch (AS_OBJECT(callee)->type) {
+        case OBJ_FUNCTION: {
+            call_function(AS_FUNCTION(callee), n_args);
             break;
+        }
         case OBJ_NATIVE: {
             native_fn native_function = TO_NATIVE(callee)->native_fn;
             lox_value_t result = native_function(n_args, current_vm.esp - n_args);
@@ -261,11 +263,11 @@ static void initialize_struct() {
     int totalBytesAllocated = sizeof(struct struct_object) + n_fields * sizeof(lox_value_t);
     add_object_to_heap(&current_vm.gc, &struct_object->object, totalBytesAllocated);
 
-    push_stack_vm(FROM_RAW_TO_OBJECT(struct_object));
+    push_stack_vm(TO_LOX_VALUE_OBJECT(struct_object));
 }
 
 static void get_struct_field() {
-    struct struct_object * struct_object = (struct struct_object *) pop_stack_vm().as.object;
+    struct struct_object * struct_object = (struct struct_object *) AS_OBJECT(pop_stack_vm());
     int offset = (int) READ_BYTE(get_current_frame());
 
     push_stack_vm(struct_object->fields.values[offset]);
@@ -273,7 +275,7 @@ static void get_struct_field() {
 
 static void set_struct_field() {
     lox_value_t new_value = pop_stack_vm();
-    struct struct_object * struct_object = (struct struct_object *) pop_stack_vm().as.object;
+    struct struct_object * struct_object = (struct struct_object *) AS_OBJECT(pop_stack_vm());
     int offset = (int) READ_BYTE(get_current_frame());
     struct_object->fields.values[offset] = new_value;
 }
@@ -303,7 +305,7 @@ static double pop_and_check_number() {
     lox_value_t value = pop_stack_vm();
 
     if(IS_NUMBER(value)) {
-        return TO_NUMBER_RAW(value);
+        return AS_NUMBER(value);
     } else {
         runtime_error("Operand must be a number.");
         return -1; //Unreachable
@@ -313,26 +315,30 @@ static double pop_and_check_number() {
 static bool check_boolean() {
     lox_value_t value = pop_stack_vm();
     if(IS_BOOL(value)) {
-        return TO_BOOL_RAW(value);
+        return AS_BOOL(value);
     } else {
         runtime_error("Operand must be a boolean.");
     }
 }
 
 static lox_value_t values_equal(lox_value_t a, lox_value_t b) {
+#ifdef NAN_BOXING
+    return TO_LOX_VALUE_BOOL(a == b);
+#else
     if(a.type != b.type) {
-        return FROM_RAW_TO_BOOL(false);
+        return TO_LOX_VALUE_BOOL(false);
     }
 
     switch (a.type) {
-        case VAL_NIL: return FROM_RAW_TO_BOOL(true);
-        case VAL_NUMBER: return FROM_RAW_TO_BOOL(a.as.number == b.as.number);
-        case VAL_BOOL: return FROM_RAW_TO_BOOL(a.as.boolean == b.as.boolean);
-        case VAL_OBJ: return FROM_RAW_TO_BOOL(TO_STRING(a)->chars == TO_STRING(b)->chars);
+        case VAL_NIL: return TO_LOX_VALUE_BOOL(true);
+        case VAL_NUMBER: return TO_LOX_VALUE_BOOL(a.as.number == b.as.number);
+        case VAL_BOOL: return TO_LOX_VALUE_BOOL(a.as.boolean == b.as.boolean);
+        case VAL_OBJ: return TO_LOX_VALUE_BOOL(AS_STRING_OBJECT(a)->chars == AS_STRING_OBJECT(b)->chars);
         default:
             runtime_error("Operator '==' not supported for that type");
-            return FROM_RAW_TO_BOOL(false); //Unreachable, runtime_error executes exit()
+            return TO_LOX_VALUE_BOOL(false); //Unreachable, runtime_error executes exit()
     }
+#endif
 }
 
 static void push_stack_vm(lox_value_t value) {
@@ -413,5 +419,5 @@ void define_native(char * function_name, native_fn native_function) {
     struct string_object * function_name_obj = copy_chars_to_string_object(function_name, strlen(function_name));
     struct native_object * native_object = alloc_native_object(native_function);
 
-    put_hash_table(&current_vm.global_variables, function_name_obj, FROM_RAW_TO_OBJECT(native_object));
+    put_hash_table(&current_vm.global_variables, function_name_obj, TO_LOX_VALUE_OBJECT(native_object));
 }

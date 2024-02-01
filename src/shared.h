@@ -10,6 +10,8 @@
 
 uint32_t hash_string(const char * string_ptr, int length);
 
+#define NAN_BOXING
+
 #define GROW_CAPACITY(capacity) (capacity < 8 ? 8 : capacity << 1)
 
 #define GROW_ARRAY(type, pointer, oldCount, newCount) \

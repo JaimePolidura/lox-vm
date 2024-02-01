@@ -12,5 +12,4 @@ struct native_object {
 
 struct native_object * alloc_native_object(native_fn native_fn);
 
-#define IS_NATIVE(value) isObjType(value, OBJ_NATIVE)
-#define TO_NATIVE(value) ((struct native_object *) TO_OBJECT_RAW(value))
+#define TO_NATIVE(value) ((struct native_object *) AS_OBJECT(value))

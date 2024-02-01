@@ -13,12 +13,10 @@ struct string_object {
 
 struct string_object * copy_chars_to_string_object(const char * chars, int length);
 
-char * cast_to_string(lox_value_t value);
-
-#define TO_STRING(value) ((struct string_object *)TO_OBJECT_RAW(value))
-#define TO_STRING_CHARS(value) (((struct string_object *) value.as.object)->chars)
+#define AS_STRING_OBJECT(value) ((struct string_object *)AS_OBJECT(value))
+#define AS_STRING_CHARS_OBJECT(value) (((struct string_object *) AS_OBJECT(value))->chars)
 #define IS_STRING(value) is_object_type(value, OBJ_STRING)
 
 static inline bool is_object_type(lox_value_t value, object_type_t type) {
-    return IS_OBJECT(value) && TO_OBJECT_RAW(value)->type == type;
+    return IS_OBJECT(value) && AS_OBJECT(value)->type == type;
 }

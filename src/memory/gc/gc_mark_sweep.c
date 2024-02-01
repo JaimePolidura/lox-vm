@@ -102,7 +102,7 @@ static void sweep_heap(struct gc_mark_sweep * gc_mark_sweep) {
 static void sweep_string_pool() {
     for(int i = 0; i < global_string_pool.strings.size; i++) {
         struct hash_table_entry * entry = &global_string_pool.strings.entries[i];
-        if(entry != NULL && !entry->value.as.object->gc_marked){
+        if(entry != NULL && AS_OBJECT(entry->value)->gc_marked){
             remove_entry_hash_table(entry);
         }
     }
@@ -116,7 +116,7 @@ static void mark_array(struct lox_array * array) {
 
 static void mark_value(lox_value_t * value) {
     if(IS_OBJECT(*value)){
-        mark_object(value->as.object);
+        mark_object(AS_OBJECT(*value));
     }
 }
 

@@ -4,11 +4,11 @@
 
 static struct hash_table_entry * find_entry(struct hash_table_entry * entries, int capacity, struct string_object * key);
 static struct hash_table_entry * find_entry_by_hash(struct hash_table_entry * entries, int capacity, uint32_t key_hash);
-static void adjust_hash_table_capacity(struct hash_table * table, int new_capcity);
+static void adjust_hash_table_capacity(struct hash_table * table, int new_capacity);
 
 void init_hash_table(struct hash_table * table) {
     table->size = 0;
-    table->capacity = 0;
+    table->capacity = -1;
     table->entries = NULL;
 }
 
@@ -73,7 +73,7 @@ bool remove_hash_table(struct hash_table * table, struct string_object * key) {
 
 void remove_entry_hash_table(struct hash_table_entry * entry) {
     entry->key = NULL;
-    entry->value = FROM_RAW_TO_BOOL(true); //Tombstone, marked as deleted
+    entry->value = TO_LOX_VALUE_BOOL(true); //Tombstone, marked as deleted
 }
 
 bool put_hash_table(struct hash_table * table, struct string_object * key, lox_value_t value) {
@@ -87,7 +87,7 @@ bool put_hash_table(struct hash_table * table, struct string_object * key, lox_v
     entry->key = key;
     entry->value = value;
 
-    bool is_tombstone = entry->key == NULL && IS_BOOL(entry->value) && entry->value.as.boolean;
+    bool is_tombstone = entry->key == NULL && IS_BOOL(entry->value) && AS_BOOL(entry->value);
 
     if (is_new_key && !is_tombstone) {
         table->size++;
@@ -96,10 +96,10 @@ bool put_hash_table(struct hash_table * table, struct string_object * key, lox_v
     return is_new_key;
 }
 
-static void adjust_hash_table_capacity(struct hash_table * table, int new_capcity) {
-    struct hash_table_entry * new_entries = malloc(sizeof(struct hash_table_entry) * new_capcity);
+static void adjust_hash_table_capacity(struct hash_table * table, int new_capacity) {
+    struct hash_table_entry * new_entries = malloc(sizeof(struct hash_table_entry) * new_capacity);
 
-    for (int i = 0; i < new_capcity; i++) {
+    for (int i = 0; i < new_capacity; i++) {
         new_entries[i].key = NULL;
     }
 
@@ -108,7 +108,7 @@ static void adjust_hash_table_capacity(struct hash_table * table, int new_capcit
     for (int i = 0; i < table->capacity; i++) {
         struct hash_table_entry * entry = &table->entries[i];
         if (entry->key != NULL) {
-            struct hash_table_entry * dest = find_entry(new_entries, new_capcity, entry->key);
+            struct hash_table_entry * dest = find_entry(new_entries, new_capacity, entry->key);
             dest->key = entry->key;
             dest->value = entry->value;
             table->size++;
@@ -117,7 +117,7 @@ static void adjust_hash_table_capacity(struct hash_table * table, int new_capcit
 
     free(table->entries);
     table->entries = new_entries;
-    table->capacity = new_capcity;
+    table->capacity = new_capacity;
 }
 
 static struct hash_table_entry * find_entry(struct hash_table_entry * entries, int capacity, struct string_object * key) {
@@ -129,7 +129,7 @@ static struct hash_table_entry * find_entry_by_hash(struct hash_table_entry * en
     uint32_t index = key_hash & (capacity - 1); //Optimized %
     for (;;) {
         struct hash_table_entry * entry = &entries[index];
-        bool is_tombstone = entry->key == NULL && IS_BOOL(entry->value) && entry->value.as.boolean;
+        bool is_tombstone = entry->key == NULL && IS_BOOL(entry->value) && AS_BOOL(entry->value);
 
         if(is_tombstone && first_tombstone_found == NULL){
             first_tombstone_found = entry;

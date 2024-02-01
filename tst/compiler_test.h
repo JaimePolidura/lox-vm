@@ -56,7 +56,7 @@ TEST(simple_compiler_test_with_functions) {
                         OP_CONSTANT, 4,
                         OP_CALL, 2);
 
-    struct function_object * function = (struct function_object *) chunk->constants.values[1].as.object;
+    struct function_object * function = (struct function_object *) AS_OBJECT(chunk->constants.values[1]);
 
     ASSERT_BYTECODE_SEQ(function->chunk.code,
                         OP_GET_LOCAL, 1,

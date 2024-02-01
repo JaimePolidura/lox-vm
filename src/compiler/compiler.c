@@ -157,7 +157,6 @@ struct compilation_result compile(char * source_code) {
     return compilation_result;
 }
 
-
 static void dot(struct compiler * compiler, bool can_assign) {
     consume(compiler, TOKEN_IDENTIFIER, "Expect property name after '.'");
 
@@ -282,7 +281,7 @@ static void function(struct compiler * compiler, function_type_t function_type) 
 
     struct function_object * function = end_compiler(&function_compiler);
 
-    int function_constant_offset = add_constant_to_chunk(current_chunk(compiler), FROM_RAW_TO_OBJECT(function));
+    int function_constant_offset = add_constant_to_chunk(current_chunk(compiler), TO_LOX_VALUE_OBJECT(function));
     emit_bytecodes(compiler, OP_CONSTANT, function_constant_offset);
 }
 
@@ -574,7 +573,7 @@ static void string(struct compiler * compiler, bool can_assign) {
     int string_length = compiler->parser->previous.length - 2;
 
     struct string_pool_add_result add_result = add_to_global_string_pool(string_ptr, string_length);
-    emit_constant(compiler, FROM_RAW_TO_OBJECT(add_result.string_object));
+    emit_constant(compiler, TO_LOX_VALUE_OBJECT(add_result.string_object));
 }
 
 static void grouping(struct compiler * compiler, bool can_assign) {
@@ -648,7 +647,7 @@ static void binary(struct compiler * compiler, bool can_assign) {
 
 static void number(struct compiler * compiler, bool can_assign) {
     double value = strtod(compiler->parser->previous.start, NULL);
-    emit_constant(compiler, FROM_RAW_TO_NUMBER(value));
+    emit_constant(compiler, TO_LOX_VALUE_NUMBER(value));
 }
 
 static void emit_constant(struct compiler * compiler, lox_value_t value) {
@@ -820,7 +819,7 @@ static uint8_t add_string_constant(struct compiler * compiler, struct token stri
 
     struct string_pool_add_result result_add = add_to_global_string_pool(variable_name, variable_name_length);
 
-    return add_constant_to_chunk(current_chunk(compiler), FROM_RAW_TO_OBJECT(result_add.string_object));
+    return add_constant_to_chunk(current_chunk(compiler), TO_LOX_VALUE_OBJECT(result_add.string_object));
 }
 
 static void define_global_variable(struct compiler * compiler, uint8_t global_constant_offset) {
