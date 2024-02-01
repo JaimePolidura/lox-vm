@@ -73,11 +73,9 @@ TEST(simple_compiler_test_if_while) {
                         OP_CONSTANT, 0,
                         OP_CONSTANT, 1,
                         OP_EQUAL,
-                        OP_JUMP_IF_FALSE, 0, 7,
-                        OP_POP,
+                        OP_JUMP_IF_FALSE, 0, 6,
                         OP_CONSTANT, 2, OP_PRINT,
-                        OP_LOOP, 0, 15,
-                        OP_POP);
+                        OP_LOOP, 0, 14);
 }
 
 TEST(simple_compiler_test_if_statements) {

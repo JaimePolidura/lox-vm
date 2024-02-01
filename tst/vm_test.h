@@ -6,6 +6,28 @@
 
 extern struct vm current_vm;
 
+TEST(simple_vm_test_with_structs){
+    struct compilation_result compilation_result = compile(
+            "struct Persona{ nombre; edad; } var jaime = Persona{\"Jaime\", 21}; print jaime.nombre; jaime.edad = 21 + 1; print jaime.edad;"
+            );
+    start_vm();
+    interpret_result vm_result = interpret_vm(compilation_result);
+
+    ASSERT_TRUE(vm_result == INTERPRET_OK);
+    ASSERT_NEXT_VM_LOG(current_vm, "Jaime");
+    ASSERT_NEXT_VM_LOG(current_vm, "22.000000");
+}
+
+TEST(simple_vm_test_with_while) {
+    struct compilation_result compilation_result = compile("var i = 0; while(i < 2) { print i; i = i + 1; }");
+    start_vm();
+    interpret_result vm_result = interpret_vm(compilation_result);
+
+    ASSERT_TRUE(vm_result == INTERPRET_OK);
+    ASSERT_NEXT_VM_LOG(current_vm, "0.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
+}
+
 TEST(simple_vm_test_with_ifs) {
     struct compilation_result compilation_result = compile("if(1 == 1) {\n print 1;\n }\n if(1 == 2) {\n print 2;\n } else {\n print 3;\n } if (1 == 2) { print 4; } print 5;");
     start_vm();

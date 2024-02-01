@@ -146,8 +146,8 @@ static inline void adition() {
 
 static void define_global() {
     struct string_object * name = TO_STRING(READ_CONSTANT(get_current_frame()));
-    put_hash_table(&current_vm.global_variables, name, peek(0));
-    pop_stack_vm();
+    put_hash_table(&current_vm.global_variables, name, pop_stack_vm());
+    ;
 }
 
 static void get_global() {
@@ -252,9 +252,11 @@ static void initialize_struct() {
     struct struct_object * struct_object = alloc_struct_object();
     int n_fields = (int) READ_BYTE(get_current_frame());
 
-    for(int i = 0; i < n_fields; i++) {
+    for(int i = 0; i < n_fields; i++){
         write_lox_array(&struct_object->fields, pop_stack_vm());
     }
+
+    flip_lox_array(&struct_object->fields);
 
     int totalBytesAllocated = sizeof(struct struct_object) + n_fields * sizeof(lox_value_t);
     add_object_to_heap(&current_vm.gc, &struct_object->object, totalBytesAllocated);

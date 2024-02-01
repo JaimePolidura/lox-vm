@@ -424,12 +424,10 @@ static void while_statement(struct compiler * compiler) {
     consume(compiler, TOKEN_OPEN_PAREN, "Expect '(' after while declaration.");
     expression(compiler);
     consume(compiler, TOKEN_CLOSE_PAREN, "Expect ')' after while declaration.");
-    consume(compiler, TOKEN_OPEN_BRACE, "Expect '{' after while declaration.");
 
     int exit_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
 
     statement(compiler);
-    consume(compiler, TOKEN_CLOSE_BRACE, "Expect '}' after while body.");
 
     emit_loop(compiler, loop_start_index);
 

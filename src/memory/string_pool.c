@@ -7,11 +7,9 @@ struct string_pool_add_result add_to_global_string_pool(char * string_ptr, int l
     struct string_object * pooled_string = get_key_by_hash(&global_string_pool.strings, string_hash);
     bool string_already_in_pool = pooled_string != NULL;
 
-    if(!string_already_in_pool){
-        struct string_object * string = ALLOCATE_OBJ(struct string_object, OBJ_STRING);
+    if(!string_already_in_pool) {
+        struct string_object * string = copy_chars_to_string_object(string_ptr, length);
         string->hash = string_hash;
-        string->chars = string_ptr;
-        string->length = length;
 
         put_hash_table(&global_string_pool.strings, string, NIL_VALUE());
 

@@ -11,4 +11,5 @@ struct lox_array {
 
 void init_lox_array(struct lox_array * array);
 void write_lox_array(struct lox_array * array, lox_value_t value);
+void flip_lox_array(struct lox_array * array);
 void free_lox_array(struct lox_array * array);

@@ -18,6 +18,19 @@ void write_lox_array(struct lox_array * array, lox_value_t value) {
     array->values[array->in_use++] = value;
 }
 
+void flip_lox_array(struct lox_array * array) {
+    for(int i = 0; i < array->in_use / 2; i++){
+        int a_index = i;
+        int b_index = array->in_use - a_index - 1;
+
+        lox_value_t a_value = array->values[a_index];
+        lox_value_t b_value = array->values[b_index];
+
+        array->values[a_index] = b_value;
+        array->values[b_index] = a_value;
+    }
+}
+
 void free_lox_array(struct lox_array * array){
     free(array->values);
 }
