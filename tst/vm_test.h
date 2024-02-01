@@ -6,6 +6,17 @@
 
 extern struct vm current_vm;
 
+TEST(simple_vm_test_with_ifs) {
+    struct compilation_result compilation_result = compile("if(1 == 1) {\n print 1;\n }\n if(1 == 2) {\n print 2;\n } else {\n print 3;\n } if (1 == 2) { print 4; } print 5;");
+    start_vm();
+    interpret_result vm_result = interpret_vm(compilation_result);
+
+    ASSERT_TRUE(vm_result == INTERPRET_OK);
+    ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "3.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "5.000000");
+}
+
 TEST(simple_vm_test_with_for_loops) {
     struct compilation_result compilation_result = compile("for(var i = 0; i < 5; i = i + 1) {\n print i;\n }");
     start_vm();

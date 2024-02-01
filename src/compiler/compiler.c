@@ -360,9 +360,10 @@ static void if_statement(struct compiler * compiler) {
     int then_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
 
     statement(compiler);
-    patch_jump_here(compiler, then_jump);
 
     int else_jump = emit_jump(compiler, OP_JUMP);
+
+    patch_jump_here(compiler, then_jump);
 
     if(match(compiler, TOKEN_ELSE)){
         statement(compiler);

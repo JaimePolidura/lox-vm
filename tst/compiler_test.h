@@ -21,7 +21,7 @@ TEST(simple_compiler_test_with_for) {
                         OP_CONSTANT, 2,
                         OP_ADD,
                         OP_SET_LOCAL, 1,
-                        OP_LOOP, 0, 20);
+                        OP_LOOP, 0, 21);
 }
 
 TEST(simple_compiler_test_with_structs){
@@ -88,10 +88,9 @@ TEST(simple_compiler_test_if_statements) {
                         OP_CONSTANT, 0,
                         OP_CONSTANT, 1,
                         OP_EQUAL,
-                        OP_JUMP_IF_FALSE, 0, 4, // If
-                        OP_POP,
-                        OP_CONSTANT, 2, OP_PRINT, //print 1
-                        OP_POP,
+                        OP_JUMP_IF_FALSE, 0, 6, // If
+                        OP_CONSTANT, 2,
+                        OP_PRINT, //print 1
                         OP_JUMP, 0, 3, //Else
                         OP_CONSTANT, 3,
                         OP_PRINT, //print 2
