@@ -10,7 +10,6 @@ struct function_object {
     int n_arguments; //Number of arguments
     struct chunk chunk;
     struct string_object * name;
-    struct struct_instance * struct_instances; //Only used for compilation
 };
 
 struct struct_instance {

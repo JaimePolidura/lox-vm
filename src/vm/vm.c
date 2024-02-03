@@ -66,7 +66,7 @@ static interpret_result run() {
 
     for(;;) {
 #ifdef  DEBUG_TRACE_EXECUTION
-        disassembleInstruction(&current_frame->function->chunk, (int)(frame->pc - frame->function->chunk->code));
+        disassembleInstruction(&current_frame->compiled_function->chunk, (int)(frame->pc - frame->compiled_function->chunk->code));
         print_stack();
 #endif
         switch (READ_BYTE(current_frame)) {

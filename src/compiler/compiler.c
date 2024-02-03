@@ -28,8 +28,8 @@ static void advance(struct compiler * compiler);
 static struct compiler * alloc_compiler(function_type_t function_type);
 static void free_compiler(struct compiler * compiler);
 static void init_compiler(struct compiler * compiler, function_type_t function_type, struct compiler * parent_compiler);
-static struct function_object * alloc_function_compiler();
-static struct function_object * end_compiler(struct compiler * compiler);
+static struct compiled_function * alloc_compiled_function();
+static struct compiled_function * end_compiler(struct compiler * compiler);
 static void consume(struct compiler * compiler, tokenType_t expected_token_type, const char * error_message);
 static void emit_bytecode(struct compiler * compiler, uint8_t bytecode);
 static void emit_bytecodes(struct compiler * compiler, uint8_t bytecodeA, uint8_t bytecodeB);
@@ -146,7 +146,7 @@ struct compilation_result compile(char * source_code) {
     write_chunk(current_chunk(compiler), OP_EOF, 0);
 
     struct compilation_result compilation_result = {
-            .function_object = end_compiler(compiler),
+            .function_object = end_compiler(compiler)->function_object,
             .success = !compiler->parser->has_error,
             .local_count = compiler->local_count,
             .chunk = current_chunk(compiler)
@@ -262,7 +262,7 @@ static void variable_expression_declaration(struct compiler * compiler) {
 }
 
 static void function_declaration(struct compiler * compiler) {
-    consume(compiler, TOKEN_IDENTIFIER, "Expected function name after fun keyword.");
+    consume(compiler, TOKEN_IDENTIFIER, "Expected compiled_function name after fun keyword.");
     int function_name_constant_offset = add_string_constant(compiler, compiler->parser->previous);
     function(compiler, TYPE_FUNCTION_SCOPE);
     define_global_variable(compiler, function_name_constant_offset);
@@ -273,28 +273,28 @@ static void function(struct compiler * compiler, function_type_t function_type) 
     init_compiler(&function_compiler, TYPE_FUNCTION_SCOPE, compiler);
     begin_scope(&function_compiler);
 
-    consume(&function_compiler, TOKEN_OPEN_PAREN, "Expect '(' after function name.");
+    consume(&function_compiler, TOKEN_OPEN_PAREN, "Expect '(' after compiled_function name.");
     function_parameters(&function_compiler);
-    consume(&function_compiler, TOKEN_OPEN_BRACE, "Expect '{' after function parenthesis.");
+    consume(&function_compiler, TOKEN_OPEN_BRACE, "Expect '{' after compiled_function parenthesis.");
 
     block(&function_compiler);
 
-    struct function_object * function = end_compiler(&function_compiler);
+    struct compiled_function * function = end_compiler(&function_compiler);
 
-    int function_constant_offset = add_constant_to_chunk(current_chunk(compiler), TO_LOX_VALUE_OBJECT(function));
+    int function_constant_offset = add_constant_to_chunk(current_chunk(compiler), TO_LOX_VALUE_OBJECT(function->function_object));
     emit_bytecodes(compiler, OP_CONSTANT, function_constant_offset);
 }
 
 static void function_parameters(struct compiler * function_compiler) {
     if(!check(function_compiler, TOKEN_CLOSE_PAREN)){
         do {
-            function_compiler->function->n_arguments++;
-            consume(function_compiler, TOKEN_IDENTIFIER, "Expect variable name in function arguments.");
+            function_compiler->compiled_function->function_object->n_arguments++;
+            consume(function_compiler, TOKEN_IDENTIFIER, "Expect variable name in compiled_function arguments.");
             add_local_variable(function_compiler, function_compiler->parser->previous);
         } while (match(function_compiler, TOKEN_COMMA));
     }
 
-    consume(function_compiler, TOKEN_CLOSE_PAREN, "Expected ')' after function args");
+    consume(function_compiler, TOKEN_CLOSE_PAREN, "Expected ')' after compiled_function args");
 }
 
 static void function_call(struct compiler * compiler, bool can_assign) {
@@ -312,7 +312,7 @@ static int function_call_number_arguments(struct compiler * compiler) {
         } while (match(compiler, TOKEN_COMMA));
     }
 
-    consume(compiler, TOKEN_CLOSE_PAREN, "Expect ')' after function call");
+    consume(compiler, TOKEN_CLOSE_PAREN, "Expect ')' after compiled_function call");
 
     return n_args;
 }
@@ -444,13 +444,13 @@ static void for_loop(struct compiler * compiler) {
 
     int loop_jump_if_false_index = for_loop_condition(compiler);
 
-    struct chunk_bytecode_context prev_to_increment_ctx = chunk_start_new_context(&compiler->function->chunk);
+    struct chunk_bytecode_context prev_to_increment_ctx = chunk_start_new_context(&compiler->compiled_function->function_object->chunk);
     for_loop_increment(compiler);
-    struct chunk_bytecode_context increment_bytecodes = chunk_restore_context(&compiler->function->chunk, prev_to_increment_ctx);
+    struct chunk_bytecode_context increment_bytecodes = chunk_restore_context(&compiler->compiled_function->function_object->chunk, prev_to_increment_ctx);
 
     statement(compiler);
 
-    chunk_write_context(&compiler->function->chunk, increment_bytecodes);
+    chunk_write_context(&compiler->compiled_function->function_object->chunk, increment_bytecodes);
 
     emit_loop(compiler, loop_start_index);
 
@@ -531,9 +531,9 @@ static void add_compilation_struct_instance(struct compiler * compiler, struct s
     struct struct_instance * instance = alloc_struct_compilation_instance();
     instance->struct_definition = struct_definition;
     instance->name = compiler->current_variable_name;
-    struct struct_instance * prev = compiler->function->struct_instances;
+    struct struct_instance * prev = compiler->compiled_function->struct_instances;
     instance->next = prev;
-    compiler->function->struct_instances = instance;
+    compiler->compiled_function->struct_instances = instance;
 }
 
 static int struct_initialization_fields(struct compiler * compiler) {
@@ -702,7 +702,7 @@ static void report_error(struct compiler * compiler, struct token token, const c
 // Can be freed with free_compiler();
 static struct compiler * alloc_compiler(function_type_t function_type) {
     struct compiler * compiler = malloc(sizeof(struct compiler));
-    init_compiler(compiler, function_type, NULL); //Parent compiler null, this function will be the first one to be called
+    init_compiler(compiler, function_type, NULL); //Parent compiler null, this compiled_function will be the first one to be called
     compiler->scanner = malloc(sizeof(struct scanner));
     compiler->parser = malloc(sizeof(struct parser));
     compiler->parser->has_error = false;
@@ -718,16 +718,15 @@ static void init_compiler(struct compiler * compiler, function_type_t function_t
         compiler->parser = parent_compiler->parser;
     }
 
-    compiler->function = NULL;
     compiler->parent = parent_compiler;
     compiler->function_type = function_type;
     compiler->local_count = 0;
     compiler->local_depth = 0;
-    compiler->function = alloc_function_compiler();
+    compiler->compiled_function = alloc_compiled_function();
 
     if(function_type != TYPE_MAIN_SCOPE) {
-        compiler->function->name = copy_chars_to_string_object(parent_compiler->parser->previous.start,
-                                                               parent_compiler->parser->previous.length);
+        compiler->compiled_function->function_object->name = copy_chars_to_string_object(parent_compiler->parser->previous.start,
+                                                                        parent_compiler->parser->previous.length);
     }
 
     struct local * local = &compiler->locals[compiler->local_count++];
@@ -753,9 +752,9 @@ static void free_compiler_structs(struct struct_definition * compiler_structs) {
     }
 }
 
-static struct function_object * end_compiler(struct compiler * compiler) {
+static struct compiled_function * end_compiler(struct compiler * compiler) {
     emit_empty_return(compiler);
-    return compiler->function;
+    return compiler->compiled_function;
 }
 
 static bool match(struct compiler * compiler, tokenType_t type) {
@@ -842,14 +841,14 @@ static void end_scope(struct compiler * compiler) {
 }
 
 static struct chunk * current_chunk(struct compiler * compiler) {
-    return &compiler->function->chunk;
+    return &compiler->compiled_function->function_object->chunk;
 }
 
 static void emit_empty_return(struct compiler * compiler) {
     emit_bytecodes(compiler, OP_NIL, OP_RETURN);
 }
 
-static struct function_object * alloc_function_compiler() {
+static struct compiled_function * alloc_compiled_function() {
     struct function_object * function_object_ptr = malloc(sizeof(struct function_object));
     function_object_ptr->n_arguments = 0;
     function_object_ptr->name = NULL;
@@ -857,7 +856,11 @@ static struct function_object * alloc_function_compiler() {
     function_object_ptr->object.gc_marked = false;
     init_chunk(&function_object_ptr->chunk);
 
-    return function_object_ptr;
+    struct compiled_function * compiled_function = malloc(sizeof(compiled_function));
+    compiled_function->function_object = function_object_ptr;
+    compiled_function->struct_instances = NULL;
+
+    return compiled_function;
 }
 
 static struct struct_definition * register_new_struct(struct compiler * compiler, struct token new_struct_name) {
@@ -888,7 +891,7 @@ static struct struct_definition * get_compiler_struct_definition(struct compiler
 }
 
 static struct struct_instance * find_struct_instance_by_name(struct compiler * compiler, struct token name) {
-    struct struct_instance * current = compiler->function->struct_instances;
+    struct struct_instance * current = compiler->compiled_function->struct_instances;
     int struct_name_length = current->name.length;
     while(current != NULL){
         if(current->name.length == name.length &&

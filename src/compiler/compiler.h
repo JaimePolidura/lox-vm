@@ -24,12 +24,17 @@ struct compiler {
     struct struct_definition * structs_definitions; //Inherited from parent. Linked list of structs_definitions definitions
     struct scanner * scanner;
     struct parser * parser;
-    struct function_object * function;
+    struct compiled_function * compiled_function;
     function_type_t function_type;
     struct local locals[UINT8_MAX];
     int local_count;
     int local_depth;
     struct token current_variable_name;
+};
+
+struct compiled_function {
+    struct function_object * function_object;
+    struct struct_instance * struct_instances;
 };
 
 struct compilation_result {
