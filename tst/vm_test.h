@@ -2,7 +2,7 @@
 
 #include "test.h"
 #include "../src/vm/vm.h"
-#include "../src/compiler/compiler.h"
+#include "compiler/package_compiler.h"
 
 extern struct vm current_vm;
 

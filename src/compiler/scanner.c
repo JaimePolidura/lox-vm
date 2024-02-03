@@ -110,7 +110,15 @@ static tokenType_t identifier_type(struct scanner * scanner) {
         case 'i': return check_keyword(scanner, 1, 1, "f", TOKEN_IF);
         case 'n': return check_keyword(scanner, 1, 2, "il", TOKEN_NIL);
         case 'o': return check_keyword(scanner, 1, 1, "r", TOKEN_OR);
-        case 'p': return check_keyword(scanner, 1, 4, "rint", TOKEN_PRINT);
+        case 'p': {
+            if(scanner->current - scanner->start > 1) {
+                switch (scanner->start[1]) {
+                    case 'a': return check_keyword(scanner, 2, 5, "ckage", TOKEN_PACKAGE);
+                    case 'r': return check_keyword(scanner, 2, 3, "int", TOKEN_PRINT);
+                    case 'u'; return check_keyword(scanner, 2, 2, "ub", TOKEN_PUB);
+                }
+            }
+        }
         case 'r': return check_keyword(scanner, 1, 5, "eturn", TOKEN_RETURN);
         case 's': return check_keyword(scanner, 1, 5, "truct", TOKEN_STRUCT);
         case 'v': return check_keyword(scanner, 1, 2, "ar", TOKEN_VAR);
@@ -229,4 +237,11 @@ void init_scanner(struct scanner * scanner, char * source_code) {
     scanner->current = source_code;
     scanner->start = source_code;
     scanner->line = 0;
+}
+
+char * token_to_string(struct token token) {
+    char * string = malloc(sizeof(char) * token.length + 1);
+    memcpy(string, token.start, token.length);
+    string[token.length] = 0x00;
+    return string;
 }

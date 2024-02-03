@@ -19,7 +19,10 @@ typedef enum {
     TOKEN_PRINT, TOKEN_RETURN,
     TOKEN_TRUE, TOKEN_VAR, TOKEN_WHILE,
     TOKEN_ERROR,
-    TOKEN_EOF
+    TOKEN_EOF,
+
+    TOKEN_PACKAGE,
+    TOKEN_PUB
 } tokenType_t;
 
 struct token {
@@ -38,3 +41,4 @@ struct scanner {
 void init_scanner(struct scanner * scanner, char * source_code);
 struct scanner * alloc_scanner(char * source_code);
 struct token next_token_scanner(struct scanner * scanner);
+char * token_to_string(struct token token);

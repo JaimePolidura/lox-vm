@@ -1,7 +1,7 @@
 #pragma once
 
 #include "test.h"
-#include "../src/compiler/compiler.h"
+#include "compiler/package_compiler.h"
 #include "../src/chunk/chunk_disassembler.h"
 
 TEST(simple_compiler_test_with_for) {
@@ -44,7 +44,7 @@ TEST(simple_compiler_test_with_structs){
 }
 
 TEST(simple_compiler_test_with_functions) {
-    struct compilation_result result = compile("fun hola(a, b) {\n return a + b;\n }\n hola(1, 2);");
+    struct compilation_result result = compile("fun hola(a, b) {\n return a + b;\n }\n print hola(1, 2);");
     struct chunk * chunk = result.chunk;
     ASSERT_TRUE(result.success);
 

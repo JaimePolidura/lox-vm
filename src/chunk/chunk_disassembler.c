@@ -82,9 +82,11 @@ void print_value(lox_value_t value) {
     if(IS_NIL(value)) {
         printf("nil");
     } else if(IS_OBJECT(value)) {
+        struct object * object = AS_OBJECT(value);
+
         switch (AS_OBJECT(value)->type) {
-            case OBJ_STRING: printf("%s", ((struct string_object *) AS_OBJECT(value))->chars);
-            case OBJ_FUNCTION: printf("fun %s",  ((struct function_object *) TO_LOX_VALUE_OBJECT(value))->name->chars);
+            case OBJ_STRING: printf("%s", ((struct string_object *) AS_OBJECT(value))->chars); break;
+            case OBJ_FUNCTION: printf("fun %s",  ((struct function_object *) AS_OBJECT(value))->name->chars); break;
         }
     } else if(IS_BOOL(value)) {
         printf("%s", AS_OBJECT(value) ? "true" : "false");

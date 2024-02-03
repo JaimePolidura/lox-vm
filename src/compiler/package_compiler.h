@@ -19,8 +19,10 @@ struct local {
     int depth;
 };
 
-struct compiler {
-    struct compiler * parent; // Used for functions
+struct package_compiler {
+    char * package_name;
+
+    struct package_compiler * parent; // Used for functions
     struct struct_definition * structs_definitions; //Inherited from parent. Linked list of structs_definitions definitions
     struct scanner * scanner;
     struct parser * parser;

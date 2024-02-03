@@ -6,7 +6,7 @@
 #include "types/function.h"
 #include "shared.h"
 #include "chunk/chunk_disassembler.h"
-#include "compiler/compiler.h"
+#include "compiler/package_compiler.h"
 #include "types/native.h"
 #include "native_functions.h"
 #include "memory/gc/gc.h"
