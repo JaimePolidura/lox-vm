@@ -1,7 +1,7 @@
 #pragma once
 
 #include "memory/string_pool.h"
-#include "table/table.h"
+#include "utils/table.h"
 #include "chunk/chunk.h"
 #include "types/function.h"
 #include "shared.h"

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "test.h"
-#include "../src/table/table.h"
+#include "../src/utils/table.h"
 
 #define STRING_TO_OBJ(string_chars) { \
     .length = strlen(string_chars), \

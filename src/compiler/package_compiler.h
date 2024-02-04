@@ -7,6 +7,7 @@
 #include "types/function.h"
 #include "chunk/chunk_disassembler.h"
 #include "compiler/compiler_structs.h"
+#include "utils/utils.h"
 
 struct parser {
     struct token current;
@@ -28,10 +29,12 @@ struct package_compiler {
     struct parser * parser;
     struct compiled_function * compiled_function;
     function_type_t function_type;
+
+    struct token current_variable_name; //Trick to get the current variable name which stores an struct
+
     struct local locals[UINT8_MAX];
     int local_count;
     int local_depth;
-    struct token current_variable_name;
 };
 
 struct compiled_function {

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "shared.h"
-#include "table/table.h"
+#include "utils/table.h"
 
 struct string_pool {
     struct hash_table strings;

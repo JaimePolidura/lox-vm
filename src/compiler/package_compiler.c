@@ -49,7 +49,7 @@ static void declaration(struct package_compiler * compiler);
 static void statement(struct package_compiler * compiler);
 static void print_statement(struct package_compiler * compiler);
 static void expression_statement(struct package_compiler * compiler);
-static void variable_declaration(struct package_compiler * compiler);
+static void variable_declaration(struct package_compiler * compiler, bool is_public);
 static uint8_t add_string_constant(struct package_compiler * compiler, struct token string_token);
 static void define_global_variable(struct package_compiler * compiler, uint8_t global_constant_offset);
 static void variable(struct package_compiler * compiler, bool can_assign);
@@ -74,14 +74,14 @@ static void for_loop_initializer(struct package_compiler * compiler);
 static int for_loop_condition(struct package_compiler * compiler);
 static void for_loop_increment(struct package_compiler * compiler);
 static struct chunk * current_chunk(struct package_compiler * compiler);
-static void function_declaration(struct package_compiler * compiler);
+static void function_declaration(struct package_compiler * compiler, bool is_public);
 static void function(struct package_compiler * compiler, function_type_t function_type);
 static void function_parameters(struct package_compiler * function_compiler);
 static void function_call(struct package_compiler * compiler, bool can_assign);
 static int function_call_number_arguments(struct package_compiler * compiler);
 static void return_statement(struct package_compiler * compiler);
 static void emit_empty_return(struct package_compiler * compiler);
-static void struct_declaration(struct package_compiler * compiler);
+static void struct_declaration(struct package_compiler * compiler, bool is_public);
 static struct struct_definition * register_new_struct(struct package_compiler * compiler, struct token new_struct_name);
 static int struct_fields(struct package_compiler * compiler, struct token * fields);
 static void free_compiler_structs(struct struct_definition * compiler_structs);
@@ -93,6 +93,8 @@ static void add_compilation_struct_instance(struct package_compiler * compiler, 
 static struct struct_instance * find_struct_instance_by_name(struct package_compiler * compiler, struct token name);
 static int find_struct_field_offset(struct struct_definition * definition, struct token field_name);
 static void package_name(struct package_compiler * compiler);
+static void import_declarations(struct package_compiler * compiler);
+static void import_declaration(struct package_compiler * compiler);
 
 struct parse_rule rules[] = {
         [TOKEN_OPEN_PAREN] = {grouping, function_call, PREC_CALL},
@@ -175,7 +177,7 @@ static void dot(struct package_compiler * compiler, bool can_assign) {
 
     struct struct_instance * instance = find_struct_instance_by_name(compiler, struct_instance_name);
     if(instance == NULL){
-        report_error(compiler, instance->name, "Cannot find struct instance");
+        report_error(compiler, instance->name, "Cannot find_trie struct instance");
     }
     int struct_field_offset = find_struct_field_offset(instance->struct_definition, struct_field_name);
     if(struct_field_offset == -1) {
@@ -191,23 +193,39 @@ static void dot(struct package_compiler * compiler, bool can_assign) {
 }
 
 static void declaration(struct package_compiler * compiler) {
-    if(match(compiler, TOKEN_VAR)) {
-        variable_declaration(compiler);
-    } else if(match(compiler, TOKEN_FUN) && compiler->function_type == TYPE_MAIN_SCOPE) {
-        function_declaration(compiler);
-    } else if(match(compiler, TOKEN_PUB)) {
-        consume(compiler, TOKEN_FUN, "Expect fun after pub keyword");
+    bool is_public = match(compiler, TOKEN_PUB);
 
-    } else if(match(compiler, TOKEN_STRUCT)) {
-        struct_declaration(compiler);
-    } else if(match(compiler, TOKEN_FUN) && compiler->function_type == TYPE_FUNCTION_SCOPE){
+    if(match(compiler, TOKEN_VAR)) {
+        variable_declaration(compiler, is_public);
+    } else if(match(compiler, TOKEN_FUN) && compiler->function_type == TYPE_MAIN_SCOPE) {
+        function_declaration(compiler, is_public);
+    } else if(match(compiler, TOKEN_FUN) && compiler->function_type == TYPE_FUNCTION_SCOPE) {
         report_error(compiler, compiler->parser->current, "Nested functions are not allowed");
+    } else if(match(compiler, TOKEN_STRUCT)) {
+        struct_declaration(compiler, is_public);
+    } else if(match(compiler, TOKEN_IMPORT)) {
+        import_declarations(compiler);
     } else {
         statement(compiler);
     }
 }
 
-static void struct_declaration(struct package_compiler * compiler) {
+static void import_declarations(struct package_compiler * compiler) {
+    while(match(compiler, TOKEN_IMPORT)) {
+        import_declaration(compiler);
+    }
+}
+
+static void import_declaration(struct package_compiler * compiler) {
+    consume(compiler, TOKEN_STRING, "Expect path after import declaration");
+
+    struct package_compiler * import_package = alloc_compiler(TYPE_MAIN_SCOPE);
+    char * source_code = read_file_as_text(compiler->parser->previous.start, compiler->parser->previous.length);
+
+
+}
+
+static void struct_declaration(struct package_compiler * compiler, bool is_public) {
     consume(compiler, TOKEN_IDENTIFIER, "Expect struct name");
 
     struct token struct_name = compiler->parser->previous;
@@ -248,7 +266,7 @@ static int struct_fields(struct package_compiler * compiler, struct token * fiel
     return current_field_index;
 }
 
-static void variable_declaration(struct package_compiler * compiler) {
+static void variable_declaration(struct package_compiler * compiler, bool is_public) {
     consume(compiler, TOKEN_IDENTIFIER, "Expected variable name.");
 
     compiler->current_variable_name = compiler->parser->previous;
@@ -274,7 +292,7 @@ static void variable_expression_declaration(struct package_compiler * compiler) 
     }
 }
 
-static void function_declaration(struct package_compiler * compiler) {
+static void function_declaration(struct package_compiler * compiler, bool is_public) {
     consume(compiler, TOKEN_IDENTIFIER, "Expected compiled_function name after fun keyword.");
     int function_name_constant_offset = add_string_constant(compiler, compiler->parser->previous);
     function(compiler, TYPE_FUNCTION_SCOPE);
@@ -476,7 +494,7 @@ static void for_loop_initializer(struct package_compiler * compiler) {
     if(match(compiler, TOKEN_SEMICOLON)){
         //No initializer
     } else if(match(compiler, TOKEN_VAR)){
-        variable_declaration(compiler);
+        variable_declaration(compiler, false);
     } else {
         expression_statement(compiler);
     }

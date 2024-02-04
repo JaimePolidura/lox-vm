@@ -12,12 +12,6 @@ struct function_object {
     struct string_object * name;
 };
 
-struct struct_instance {
-    struct token name;
-    struct struct_definition * struct_definition;
-    struct struct_instance * next;
-};
-
 typedef enum {
     TYPE_FUNCTION_SCOPE,
     TYPE_MAIN_SCOPE,

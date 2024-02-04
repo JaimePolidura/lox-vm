@@ -6,7 +6,8 @@ set(SOURCES ${SOURCES}
         scanner_test.h
         compiler_test.h
         hash_table_test.h
-        vm_test.h)
+        vm_test.h
+        trie_test.h)
 
 include_directories(${PROJECT_SOURCE_DIR}/src)
 

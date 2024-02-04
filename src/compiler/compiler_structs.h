@@ -10,4 +10,10 @@ struct struct_definition {
     int n_fields;
 };
 
+struct struct_instance {
+    struct token name;
+    struct struct_definition * struct_definition;
+    struct struct_instance * next;
+};
+
 struct struct_definition * alloc_compiler_struct();

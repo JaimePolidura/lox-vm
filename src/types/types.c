@@ -51,6 +51,6 @@ char * to_string(lox_value_t value) {
             }
     };
 #endif
-    perror("Cannot print to string");
+    perror("Cannot print to key");
     exit(-1);
 }
