@@ -8,6 +8,10 @@
 #include "chunk/chunk_disassembler.h"
 #include "compiler/compiler_structs.h"
 #include "utils/utils.h"
+#include "utils/trie.h"
+#include "compiled_function.h"
+#include "exported_symbol.h"
+#include "package.h"
 
 struct parser {
     struct token current;
@@ -20,26 +24,20 @@ struct local {
     int depth;
 };
 
-struct package_compiler {
-    char * package_name;
+struct compiler {
+    struct package * current_package;
+    scope_type_t scope;
 
-    struct package_compiler * parent; // Used for functions
-    struct struct_definition * structs_definitions; //Inherited from parent. Linked list of structs_definitions definitions
     struct scanner * scanner;
     struct parser * parser;
-    struct compiled_function * compiled_function;
-    function_type_t function_type;
 
-    struct token current_variable_name; //Trick to get the current variable name which stores an struct
+    struct token current_variable_name; //Trick to get the current variable name which stores a struct
+
+    struct compiled_function * compiled_function;
 
     struct local locals[UINT8_MAX];
     int local_count;
     int local_depth;
-};
-
-struct compiled_function {
-    struct function_object * function_object;
-    struct struct_instance * struct_instances;
 };
 
 struct compilation_result {

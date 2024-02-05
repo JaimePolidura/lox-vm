@@ -13,9 +13,9 @@ struct function_object {
 };
 
 typedef enum {
-    TYPE_FUNCTION_SCOPE,
-    TYPE_MAIN_SCOPE,
-} function_type_t;
+    SCOPE_FUNCTION,
+    SCOPE_PACKAGE,
+} scope_type_t;
 
 struct struct_instance * alloc_struct_compilation_instance();
 struct function_object * alloc_function();

@@ -5,7 +5,7 @@
 #include "chunk/chunk.h"
 #include "chunk/chunk_disassembler.h"
 #include "vm/vm.h"
-#include "compiler/package_compiler.h"
+#include "compiler/compiler.h"
 
 void debug_simple_calculation();
 void prod();

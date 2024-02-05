@@ -53,8 +53,12 @@ bool put_trie(struct trie_list * trie, char * new_key, int new_key_length, void 
 
 struct trie_list * alloc_trie_list() {
     struct trie_list * trie_list = malloc(sizeof(struct trie_list));
-    trie_list->head = alloc_trie_node();
+    init_trie_list(trie_list);
     return trie_list;
+}
+
+void init_trie_list(struct trie_list * trie_list) {
+    trie_list->head = alloc_trie_node();
 }
 
 void free_trie_list(struct trie_list * trie) {

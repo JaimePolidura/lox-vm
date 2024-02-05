@@ -23,7 +23,7 @@ typedef enum {
 
     TOKEN_PACKAGE,
     TOKEN_PUB,
-    TOKEN_IMPORT,
+    TOKEN_USE,
 } tokenType_t;
 
 struct token {

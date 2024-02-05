@@ -23,6 +23,7 @@ struct trie_list {
 };
 
 struct trie_list * alloc_trie_list();
+void init_trie_list(struct trie_list * trie_list);
 void free_trie_list(struct trie_list * trie);
 
 void * find_trie(struct trie_list * trie, char * key, int key_length);

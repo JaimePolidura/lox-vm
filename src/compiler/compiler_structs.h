@@ -4,10 +4,10 @@
 #include "compiler/scanner.h"
 
 struct struct_definition {
-    struct struct_definition * next;
     struct token name;
     struct token * field_names;
     int n_fields;
+    bool is_public;
 };
 
 struct struct_instance {
@@ -16,4 +16,4 @@ struct struct_instance {
     struct struct_instance * next;
 };
 
-struct struct_definition * alloc_compiler_struct();
+struct struct_definition * alloc_struct_definition();

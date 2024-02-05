@@ -4,10 +4,10 @@
 #include "vm_test.h"
 #include "trie_test.h"
 
-//#define RUN_VM_TEST
-//#define RUN_HASH_TABLE_TEST
-//#define RUN_COMPILER_TEST
-//#define RUN_GLOBAL_STRING_POOL_TEST
+#define RUN_VM_TEST
+#define RUN_HASH_TABLE_TEST
+#define RUN_COMPILER_TEST
+#define RUN_GLOBAL_STRING_POOL_TEST
 #define RUN_TRIE_TEST
 
 //Run in debug mode

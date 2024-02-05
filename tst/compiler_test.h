@@ -1,7 +1,7 @@
 #pragma once
 
 #include "test.h"
-#include "compiler/package_compiler.h"
+#include "compiler/compiler.h"
 #include "../src/chunk/chunk_disassembler.h"
 
 TEST(simple_compiler_test_with_for) {
