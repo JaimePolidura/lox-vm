@@ -40,7 +40,7 @@ interpret_result interpret_vm(struct compilation_result compilation_result) {
     push_stack_vm(TO_LOX_VALUE_OBJECT(compilation_result.compiled_package->main_function));
     call_function(compilation_result.compiled_package->main_function, 0);
 
-    current_vm.esp += compilation_result.local_count;
+    current_vm.esp += compilation_result.compiled_package->local_count;
 
     return run();
 }

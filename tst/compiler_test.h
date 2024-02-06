@@ -7,7 +7,7 @@
 extern struct trie_list * compiled_packages;
 
 TEST(simple_compiler_test_with_for) {
-    struct compilation_result result = compile("for(var i = 0; i < 5; i = i + 1) {\n print i;\n }");
+    struct compilation_result result = compile_standalone("for(var i = 0; i < 5; i = i + 1) {\n print i;\n }");
     struct chunk * chunk = &result.compiled_package->main_function->chunk;
     ASSERT_TRUE(result.success);
     ASSERT_BYTECODE_SEQ(chunk->code,
@@ -29,7 +29,8 @@ TEST(simple_compiler_test_with_for) {
 }
 
 TEST(simple_compiler_test_with_structs){
-    struct compilation_result result = compile("struct Persona {\nnombre; edad;\n}\nvar jaime = Persona{\"Jaime\" , 21};\nprint jaime.nombre;\njaime.edad = 12;");
+    struct compilation_result result = compile_standalone(
+            "struct Persona {\nnombre; edad;\n}\nvar jaime = Persona{\"Jaime\" , 21};\nprint jaime.nombre;\njaime.edad = 12;");
     struct chunk * chunk = &result.compiled_package->main_function->chunk;
     ASSERT_TRUE(result.success);
     ASSERT_BYTECODE_SEQ(chunk->code,
@@ -50,7 +51,7 @@ TEST(simple_compiler_test_with_structs){
 }
 
 TEST(simple_compiler_test_with_functions) {
-    struct compilation_result result = compile("fun hola(a, b) {\n return a + b;\n }\n print hola(1, 2);");
+    struct compilation_result result = compile_standalone("fun hola(a, b) {\n return a + b;\n }\n print hola(1, 2);");
     struct chunk * chunk = &result.compiled_package->main_function->chunk;
     ASSERT_TRUE(result.success);
 
@@ -74,7 +75,7 @@ TEST(simple_compiler_test_with_functions) {
 }
 
 TEST(simple_compiler_test_if_while) {
-    struct compilation_result result = compile("while(2 == 3) { \n print 1; \n }");
+    struct compilation_result result = compile_standalone("while(2 == 3) { \n print 1; \n }");
     struct chunk * chunk = &result.compiled_package->main_function->chunk;
     ASSERT_TRUE(result.success);
 
@@ -90,7 +91,7 @@ TEST(simple_compiler_test_if_while) {
 }
 
 TEST(simple_compiler_test_if_statements) {
-    struct compilation_result result = compile("if(2 == 3) {\n print 1;\n }else{\n print 2;\n}");
+    struct compilation_result result = compile_standalone("if(2 == 3) {\n print 1;\n }else{\n print 2;\n}");
     ASSERT_TRUE(result.success);
     struct chunk * chunk = &result.compiled_package->main_function->chunk;
 
@@ -110,7 +111,8 @@ TEST(simple_compiler_test_if_statements) {
 }
 
 TEST(simple_compiler_test_with_scope_variables) {
-    struct compilation_result result = compile("var edad = 10;\n{\nvar nombre = \"jaime\";\nnombre = 1;\nprint nombre;}");
+    struct compilation_result result = compile_standalone(
+            "var edad = 10;\n{\nvar nombre = \"jaime\";\nnombre = 1;\nprint nombre;}");
     ASSERT_TRUE(result.success);
     struct chunk * chunk = &result.compiled_package->main_function->chunk;
 
@@ -129,7 +131,8 @@ TEST(simple_compiler_test_with_scope_variables) {
 }
 
 TEST(simple_compiler_test) {
-    struct compilation_result result = compile("var nombre = \"jaime\";\nnombre = 1 + 2 * 3;\n print nombre;");
+    struct compilation_result result = compile_standalone(
+            "var nombre = \"jaime\";\nnombre = 1 + 2 * 3;\n print nombre;");
     ASSERT_TRUE(result.success);
     struct chunk * chunk = &result.compiled_package->main_function->chunk;
 

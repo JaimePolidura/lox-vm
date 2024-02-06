@@ -24,9 +24,15 @@ struct local {
     int depth;
 };
 
+
 struct compiler {
     struct package * package;
     scope_type_t scope;
+
+    //This is set to true when the only input of the compiler is the code.
+    //No local packages will be allowed to use
+    //TODO Replace this with a enum
+    bool is_standalone_mode;
 
     struct scanner * scanner;
     struct parser * parser;
@@ -42,8 +48,9 @@ struct compiler {
 
 struct compilation_result {
     struct package * compiled_package;
-    int local_count;
     bool success;
 };
 
-struct compilation_result compile(char * source_code);
+struct compilation_result compile(char * entrypoint_absolute_path, char * compilation_base_dir);
+
+struct compilation_result compile_standalone(char * source_code);

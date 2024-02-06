@@ -14,5 +14,9 @@ void init_package(struct package * package) {
 }
 
 char * read_package_name(struct token import_path) {
-    return NULL; //TOOD
+    return NULL; //TODO
+}
+
+char * read_package_name_by_source_code(char * source_code) {
+    return ""; //TODO
 }

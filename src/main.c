@@ -36,7 +36,7 @@ void run_file(char * path) {
 }
 
 interpret_result interpret_source_code(char * source_code) {
-    struct compilation_result compilation_result = compile(source_code);
+    struct compilation_result compilation_result = compile_standalone(source_code);
 
     if(!compilation_result.success){
         return INTERPRET_COMPILE_ERROR;

@@ -2,6 +2,7 @@
 
 // Shared between all compiler
 struct trie_list * compiled_packages = NULL;
+const char * compiling_base_dir = NULL;
 
 //Lowest to highest
 typedef enum {
@@ -28,7 +29,7 @@ struct parse_rule {
 
 static void report_error(struct compiler * compiler, struct token token, const char * message);
 static void advance(struct compiler * compiler);
-static struct compiler * alloc_compiler(scope_type_t scope);
+static struct compiler * alloc_compiler(scope_type_t scope, char * package_name, bool is_standalone_mode);
 static void free_compiler(struct compiler * compiler);
 static void init_compiler(struct compiler * compiler, scope_type_t scope_type, struct compiler * parent_compiler);
 static struct compiled_function * alloc_compiled_function();
@@ -97,7 +98,10 @@ static int find_struct_field_offset(struct struct_definition * definition, struc
 static void package_name(struct compiler * compiler);
 static void add_exported_symbol(struct compiler * compiler, struct exported_symbol * exported_symbol, struct token token_symbol);
 static void import_packages(struct compiler * compiler);
-static struct compiler * start_compiling(char * source_code);
+static struct compiler * start_compiling(char * source_code, bool is_standalone_mode);
+static void load_package(struct compiler * compiler);
+static struct package * compile_package(struct compiler * compiler, struct package * package);
+static struct package * add_package_to_compiled_packages(char * package_import_name, int package_import_name_length, bool is_standalone_mode);
 
 struct parse_rule rules[] = {
         [TOKEN_OPEN_PAREN] = {grouping, function_call, PREC_CALL},
@@ -139,19 +143,23 @@ struct parse_rule rules[] = {
         [TOKEN_ERROR] = {NULL, NULL, PREC_NONE},
         [TOKEN_EOF] = {NULL, NULL, PREC_NONE},};
 
-struct compilation_result compile(char * source_code) {
+struct compilation_result compile(char * entrypoint_absolute_path, char * compilation_base_dir_args) {
     if(compiled_packages == NULL){
         compiled_packages = alloc_trie_list();
     }
+    if(compiling_base_dir == NULL){
+        compiling_base_dir = compilation_base_dir_args;
+    }
 
-    struct compiler * compiler = start_compiling(source_code);
+    char * source_code = read_package_source_code(entrypoint_absolute_path, strlen(entrypoint_absolute_path));
+    struct compiler * compiler = start_compiling(source_code, false);
 
     compiler->package->main_function = end_compiler(compiler)->function_object;
+    compiler->local_count = compiler->local_count;
 
     struct compilation_result compilation_result = {
             .compiled_package = compiler->package,
             .success = !compiler->parser->has_error,
-            .local_count = compiler->local_count,
     };
 
     free_compiler(compiler);
@@ -159,8 +167,28 @@ struct compilation_result compile(char * source_code) {
     return compilation_result;
 }
 
-static struct compiler * start_compiling(char * source_code) {
-    struct compiler * compiler = alloc_compiler(SCOPE_PACKAGE);
+struct compilation_result compile_standalone(char * source_code) {
+    if(compiled_packages == NULL){
+        compiled_packages = alloc_trie_list();
+    }
+
+    struct compiler * compiler = start_compiling(source_code, true);
+
+    compiler->package->main_function = end_compiler(compiler)->function_object;
+    compiler->local_count = compiler->local_count;
+
+    struct compilation_result compilation_result = {
+            .compiled_package = compiler->package,
+            .success = !compiler->parser->has_error,
+    };
+
+    free_compiler(compiler);
+
+    return compilation_result;
+}
+
+static struct compiler * start_compiling(char * source_code, bool is_standalone_mode) {
+    struct compiler * compiler = alloc_compiler(SCOPE_PACKAGE, read_package_name_by_source_code(source_code), is_standalone_mode);
     init_scanner(compiler->scanner, source_code);
 
     advance(compiler);
@@ -180,14 +208,6 @@ static struct compiler * start_compiling(char * source_code) {
 static void package_name(struct compiler * compiler) {
     if(check(compiler, TOKEN_PACKAGE)){
         consume(compiler, TOKEN_IDENTIFIER, "Expect package name after package");
-        compiler->package->name = token_to_string(compiler->parser->previous);
-    } else {
-        compiler->package->name = "main";
-    }
-
-    compiler->package->state = PENDING_COMPILATION;
-    if(!put_trie(compiled_packages, compiler->package->name, strlen(compiler->package->name), compiler->package)){
-        report_error(compiler, compiler->parser->current, "Package name already defined");
     }
 }
 
@@ -195,18 +215,9 @@ static void import_packages(struct compiler * compiler) {
     while (match(compiler, TOKEN_USE)) {
         consume(compiler, TOKEN_STRING, "Expect import path after use");
 
-        struct token import_path = compiler->parser->previous;
-        char * package_name = read_package_name(import_path);
+        struct token package_import_name = compiler->parser->previous;
 
-        if (!contains_trie(compiled_packages, import_path.start, import_path.length)) {
-            struct package * package = alloc_package();
-            package->state = PENDING_COMPILATION;
-            package->name = package_name;
-
-            put_trie(compiled_packages, import_path.start, import_path.length, package);
-        } else {
-            free(package_name);
-        }
+        add_package_to_compiled_packages(package_import_name.start, package_import_name.length, compiler->is_standalone_mode);
 
         consume(compiler, TOKEN_SEMICOLON, "Expect ';' after use");
     }
@@ -566,10 +577,35 @@ static void variable(struct compiler * compiler, bool can_assign) {
     if(check(compiler, TOKEN_OPEN_BRACE)) {
         struct_initialization(compiler);
     } else if(check(compiler, TOKEN_COLON)) {
-        consume(compiler, TOKEN_COLON, "Expect ':' after : when using a package symbol");
+        load_package(compiler);
     } else {
         named_variable(compiler, compiler->parser->previous, can_assign);
     }
+}
+
+static void load_package(struct compiler * compiler) {
+    consume(compiler, TOKEN_COLON, "Expect ':' after : when using a package symbol");
+    struct token package_name = compiler->parser->previous;
+
+    struct package * package = find_trie(compiled_packages, package_name.start, package_name.length);
+    if(package == NULL){
+        report_error(compiler, package_name, "Cannot find package");
+    }
+
+    if(package->state == PENDING_COMPILATION){
+        compile_package(compiler, package);
+    }
+}
+
+static struct package * compile_package(struct compiler * compiler, struct package * package) {
+    if(compiler->is_standalone_mode){
+        report_error(compiler, compiler->parser->previous, "Cannot use local packages in standalone mode");
+    }
+
+    struct compilation_result compilation_result = compile(package->absolute_path, compiling_base_dir);
+    package->state = PENDING_INITIALIZATION;
+
+    return package;
 }
 
 static void struct_initialization(struct compiler * compiler) {
@@ -764,18 +800,40 @@ static void report_error(struct compiler * compiler, struct token token, const c
     }
     fprintf(stderr, ": %s\n", message);
     compiler->parser->has_error = true;
+    exit(1);
 }
 
-// Can be freed with free_compiler();
-static struct compiler * alloc_compiler(scope_type_t scope) {
+static struct compiler * alloc_compiler(scope_type_t scope, char * package_name, bool is_standalone_mode) {
     struct compiler * compiler = malloc(sizeof(struct compiler));
-    compiler->package = alloc_package();
+    compiler->package = add_package_to_compiled_packages(package_name, strlen(package_name), is_standalone_mode);
     init_compiler(compiler, scope, NULL); //Parent compiler null, this current_function_in_compilation will be the first one to be called
     compiler->scanner = malloc(sizeof(struct scanner));
     compiler->parser = malloc(sizeof(struct parser));
     compiler->parser->has_error = false;
+    compiler->is_standalone_mode = is_standalone_mode;
 
     return compiler;
+}
+
+static struct package * add_package_to_compiled_packages(char * package_import_name, int package_import_name_length, bool is_stand_alone_mode) {
+    char * package_name = read_package_name(package_import_name, package_import_name_length);
+    struct package * package_in_compiled_packages = find_trie(compiled_packages, package_name, strlen(package_name));
+
+    //If it is not found, it means it is a local package -> a path is used as an import name
+    if(package_in_compiled_packages == NULL) {
+        struct package * new_package = alloc_package();
+        new_package->state = PENDING_COMPILATION;
+        new_package->name = package_name;
+        if(!is_stand_alone_mode) { //If used in standalone mode no local packages is allowed to use
+            new_package->absolute_path = relative_import_path_to_absolute(package_import_name, package_import_name_length, compiling_base_dir);
+        }
+
+        put_trie(compiled_packages, package_name, strlen(package_name), new_package);
+
+        return new_package;
+    } else {
+        return package_in_compiled_packages;
+    }
 }
 
 static void init_compiler(struct compiler * compiler, scope_type_t scope_type, struct compiler * parent_compiler) {
