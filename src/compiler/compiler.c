@@ -146,11 +146,12 @@ struct compilation_result compile(char * source_code) {
 
     struct compiler * compiler = start_compiling(source_code);
 
+    compiler->package->main_function = end_compiler(compiler)->function_object;
+
     struct compilation_result compilation_result = {
-            .function_object = end_compiler(compiler)->function_object,
+            .compiled_package = compiler->package,
             .success = !compiler->parser->has_error,
             .local_count = compiler->local_count,
-            .chunk = current_chunk(compiler)
     };
 
     free_compiler(compiler);
@@ -179,9 +180,14 @@ static struct compiler * start_compiling(char * source_code) {
 static void package_name(struct compiler * compiler) {
     if(check(compiler, TOKEN_PACKAGE)){
         consume(compiler, TOKEN_IDENTIFIER, "Expect package name after package");
-        compiler->current_package->name = token_to_string(compiler->parser->previous);
+        compiler->package->name = token_to_string(compiler->parser->previous);
     } else {
-        compiler->current_package->name = "main";
+        compiler->package->name = "main";
+    }
+
+    compiler->package->state = PENDING_COMPILATION;
+    if(!put_trie(compiled_packages, compiler->package->name, strlen(compiler->package->name), compiler->package)){
+        report_error(compiler, compiler->parser->current, "Package name already defined");
     }
 }
 
@@ -194,6 +200,7 @@ static void import_packages(struct compiler * compiler) {
 
         if (!contains_trie(compiled_packages, import_path.start, import_path.length)) {
             struct package * package = alloc_package();
+            package->state = PENDING_COMPILATION;
             package->name = package_name;
 
             put_trie(compiled_packages, import_path.start, import_path.length, package);
@@ -248,7 +255,7 @@ static void struct_declaration(struct compiler * compiler, bool is_public) {
     consume(compiler, TOKEN_IDENTIFIER, "Expect struct name");
 
     struct token struct_name = compiler->parser->previous;
-    if(contains_trie(&compiler->current_package->struct_definitions, struct_name.start, struct_name.length)){
+    if(contains_trie(&compiler->package->struct_definitions, struct_name.start, struct_name.length)){
         report_error(compiler, compiler->parser->previous, "Struct already defined");
     }
 
@@ -270,7 +277,7 @@ static void struct_declaration(struct compiler * compiler, bool is_public) {
         struct_of_declaration->field_names[i] = fields[i];
     }
 
-    put_trie(&compiler->current_package->struct_definitions, struct_name.start, struct_name.length, struct_of_declaration);
+    put_trie(&compiler->package->struct_definitions, struct_name.start, struct_name.length, struct_of_declaration);
 }
 
 static int struct_fields(struct compiler * compiler, struct token * fields) {
@@ -312,7 +319,7 @@ static void variable_expression_declaration(struct compiler * compiler) {
 }
 
 static void function_declaration(struct compiler * compiler, bool is_public) {
-    consume(compiler, TOKEN_IDENTIFIER, "Expected compiled_function name after fun keyword.");
+    consume(compiler, TOKEN_IDENTIFIER, "Expected current_function_in_compilation name after fun keyword.");
     struct token function_name = compiler->parser->previous;
     int function_name_constant_offset = add_string_constant(compiler, function_name);
     struct compiled_function * compiled_function = function(compiler);
@@ -328,9 +335,9 @@ static struct compiled_function * function(struct compiler * compiler) {
     init_compiler(&function_compiler, SCOPE_FUNCTION, compiler);
     begin_scope(&function_compiler);
 
-    consume(&function_compiler, TOKEN_OPEN_PAREN, "Expect '(' after compiled_function name.");
+    consume(&function_compiler, TOKEN_OPEN_PAREN, "Expect '(' after current_function_in_compilation name.");
     function_parameters(&function_compiler);
-    consume(&function_compiler, TOKEN_OPEN_BRACE, "Expect '{' after compiled_function parenthesis.");
+    consume(&function_compiler, TOKEN_OPEN_BRACE, "Expect '{' after current_function_in_compilation parenthesis.");
 
     block(&function_compiler);
 
@@ -345,13 +352,13 @@ static struct compiled_function * function(struct compiler * compiler) {
 static void function_parameters(struct compiler * function_compiler) {
     if(!check(function_compiler, TOKEN_CLOSE_PAREN)){
         do {
-            function_compiler->compiled_function->function_object->n_arguments++;
-            consume(function_compiler, TOKEN_IDENTIFIER, "Expect variable name in compiled_function arguments.");
+            function_compiler->current_function_in_compilation->function_object->n_arguments++;
+            consume(function_compiler, TOKEN_IDENTIFIER, "Expect variable name in current_function_in_compilation arguments.");
             add_local_variable(function_compiler, function_compiler->parser->previous);
         } while (match(function_compiler, TOKEN_COMMA));
     }
 
-    consume(function_compiler, TOKEN_CLOSE_PAREN, "Expected ')' after compiled_function args");
+    consume(function_compiler, TOKEN_CLOSE_PAREN, "Expected ')' after current_function_in_compilation args");
 }
 
 static void function_call(struct compiler * compiler, bool can_assign) {
@@ -369,7 +376,7 @@ static int function_call_number_arguments(struct compiler * compiler) {
         } while (match(compiler, TOKEN_COMMA));
     }
 
-    consume(compiler, TOKEN_CLOSE_PAREN, "Expect ')' after compiled_function call");
+    consume(compiler, TOKEN_CLOSE_PAREN, "Expect ')' after current_function_in_compilation call");
 
     return n_args;
 }
@@ -501,13 +508,13 @@ static void for_loop(struct compiler * compiler) {
 
     int loop_jump_if_false_index = for_loop_condition(compiler);
 
-    struct chunk_bytecode_context prev_to_increment_ctx = chunk_start_new_context(&compiler->compiled_function->function_object->chunk);
+    struct chunk_bytecode_context prev_to_increment_ctx = chunk_start_new_context(&compiler->current_function_in_compilation->function_object->chunk);
     for_loop_increment(compiler);
-    struct chunk_bytecode_context increment_bytecodes = chunk_restore_context(&compiler->compiled_function->function_object->chunk, prev_to_increment_ctx);
+    struct chunk_bytecode_context increment_bytecodes = chunk_restore_context(&compiler->current_function_in_compilation->function_object->chunk, prev_to_increment_ctx);
 
     statement(compiler);
 
-    chunk_write_context(&compiler->compiled_function->function_object->chunk, increment_bytecodes);
+    chunk_write_context(&compiler->current_function_in_compilation->function_object->chunk, increment_bytecodes);
 
     emit_loop(compiler, loop_start_index);
 
@@ -558,6 +565,8 @@ static void print_statement(struct compiler * compiler) {
 static void variable(struct compiler * compiler, bool can_assign) {
     if(check(compiler, TOKEN_OPEN_BRACE)) {
         struct_initialization(compiler);
+    } else if(check(compiler, TOKEN_COLON)) {
+        consume(compiler, TOKEN_COLON, "Expect ':' after : when using a package symbol");
     } else {
         named_variable(compiler, compiler->parser->previous, can_assign);
     }
@@ -565,8 +574,8 @@ static void variable(struct compiler * compiler, bool can_assign) {
 
 static void struct_initialization(struct compiler * compiler) {
     struct token struct_name = compiler->parser->previous;
-    struct struct_definition * struct_definition = find_trie(&compiler->current_package->struct_definitions, struct_name.start,
-            struct_name.length);
+    struct struct_definition * struct_definition = find_trie(&compiler->package->struct_definitions, struct_name.start,
+                                                             struct_name.length);
     if (struct_definition == NULL) {
         report_error(compiler, struct_name, "Struct not defined");
     }
@@ -589,9 +598,9 @@ static void add_compilation_struct_instance(struct compiler * compiler, struct s
     struct struct_instance * instance = alloc_struct_compilation_instance();
     instance->struct_definition = struct_definition;
     instance->name = compiler->current_variable_name;
-    struct struct_instance * prev = compiler->compiled_function->struct_instances;
+    struct struct_instance * prev = compiler->current_function_in_compilation->struct_instances;
     instance->next = prev;
-    compiler->compiled_function->struct_instances = instance;
+    compiler->current_function_in_compilation->struct_instances = instance;
 }
 
 static int struct_initialization_fields(struct compiler * compiler) {
@@ -760,24 +769,26 @@ static void report_error(struct compiler * compiler, struct token token, const c
 // Can be freed with free_compiler();
 static struct compiler * alloc_compiler(scope_type_t scope) {
     struct compiler * compiler = malloc(sizeof(struct compiler));
-    init_compiler(compiler, scope, NULL); //Parent compiler null, this compiled_function will be the first one to be called
+    compiler->package = alloc_package();
+    init_compiler(compiler, scope, NULL); //Parent compiler null, this current_function_in_compilation will be the first one to be called
     compiler->scanner = malloc(sizeof(struct scanner));
     compiler->parser = malloc(sizeof(struct parser));
     compiler->parser->has_error = false;
-    compiler->current_package = alloc_package();
 
     return compiler;
 }
 
 static void init_compiler(struct compiler * compiler, scope_type_t scope_type, struct compiler * parent_compiler) {
-    compiler->compiled_function = alloc_compiled_function();
+    compiler->current_function_in_compilation = alloc_compiled_function();
 
     if(scope_type == SCOPE_FUNCTION) {
-        compiler->current_package = parent_compiler->current_package;
+        compiler->package = parent_compiler->package;
         compiler->scanner = parent_compiler->scanner;
         compiler->parser = parent_compiler->parser;
-        compiler->compiled_function->function_object->name = copy_chars_to_string_object(parent_compiler->parser->previous.start,
-                                                                                         parent_compiler->parser->previous.length);
+        compiler->current_function_in_compilation->function_object->name = copy_chars_to_string_object(parent_compiler->parser->previous.start,
+                                                                                                       parent_compiler->parser->previous.length);
+    } else {
+        compiler->package->main_function = compiler->current_function_in_compilation->function_object;
     }
 
     compiler->scope = scope_type;
@@ -799,7 +810,8 @@ static void free_compiler(struct compiler * compiler) {
 
 static struct compiled_function * end_compiler(struct compiler * compiler) {
     emit_empty_return(compiler);
-    return compiler->compiled_function;
+    compiler->package->state = PENDING_INITIALIZATION;
+    return compiler->current_function_in_compilation;
 }
 
 static bool match(struct compiler * compiler, tokenType_t type) {
@@ -886,7 +898,7 @@ static void end_scope(struct compiler * compiler) {
 }
 
 static struct chunk * current_chunk(struct compiler * compiler) {
-    return &compiler->compiled_function->function_object->chunk;
+    return &compiler->current_function_in_compilation->function_object->chunk;
 }
 
 static void emit_empty_return(struct compiler * compiler) {
@@ -909,7 +921,7 @@ static struct compiled_function * alloc_compiled_function() {
 }
 
 static struct struct_instance * find_struct_instance_by_name(struct compiler * compiler, struct token name) {
-    struct struct_instance * current = compiler->compiled_function->struct_instances;
+    struct struct_instance * current = compiler->current_function_in_compilation->struct_instances;
     int struct_name_length = current->name.length;
     while(current != NULL){
         if(current->name.length == name.length &&
@@ -935,7 +947,7 @@ static int find_struct_field_offset(struct struct_definition * definition, struc
 }
 
 static void add_exported_symbol(struct compiler * compiler, struct exported_symbol * exported_symbol, struct token token_symbol) {
-    bool already_defined = !put_trie(&compiler->current_package->exported_symbols,
+    bool already_defined = !put_trie(&compiler->package->exported_symbols,
                                      get_name_char_from_symbol(exported_symbol),
                                      get_name_length_from_symbol(exported_symbol), exported_symbol);
     if(already_defined){

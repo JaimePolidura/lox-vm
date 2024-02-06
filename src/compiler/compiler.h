@@ -25,7 +25,7 @@ struct local {
 };
 
 struct compiler {
-    struct package * current_package;
+    struct package * package;
     scope_type_t scope;
 
     struct scanner * scanner;
@@ -33,7 +33,7 @@ struct compiler {
 
     struct token current_variable_name; //Trick to get the current variable name which stores a struct
 
-    struct compiled_function * compiled_function;
+    struct compiled_function * current_function_in_compilation; //If scope is main, it points to package->main_function
 
     struct local locals[UINT8_MAX];
     int local_count;
@@ -41,8 +41,7 @@ struct compiler {
 };
 
 struct compilation_result {
-    struct function_object * function_object;
-    struct chunk * chunk;
+    struct package * compiled_package;
     int local_count;
     bool success;
 };

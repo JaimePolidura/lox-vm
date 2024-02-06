@@ -29,3 +29,4 @@ void free_trie_list(struct trie_list * trie);
 void * find_trie(struct trie_list * trie, char * key, int key_length);
 bool put_trie(struct trie_list * trie, char * new_key, int new_key_length, void * new_data);
 bool contains_trie(struct trie_list * trie, char * key, int key_length);
+void clear_trie(struct trie_list * trie);

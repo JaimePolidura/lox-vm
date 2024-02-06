@@ -16,6 +16,8 @@ TEST(simple_vm_test_with_structs){
     ASSERT_TRUE(vm_result == INTERPRET_OK);
     ASSERT_NEXT_VM_LOG(current_vm, "Jaime");
     ASSERT_NEXT_VM_LOG(current_vm, "22.000000");
+
+    stop_vm();
 }
 
 TEST(simple_vm_test_with_while) {
@@ -26,6 +28,8 @@ TEST(simple_vm_test_with_while) {
     ASSERT_TRUE(vm_result == INTERPRET_OK);
     ASSERT_NEXT_VM_LOG(current_vm, "0.000000");
     ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
+
+    stop_vm();
 }
 
 TEST(simple_vm_test_with_ifs) {
@@ -37,6 +41,8 @@ TEST(simple_vm_test_with_ifs) {
     ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
     ASSERT_NEXT_VM_LOG(current_vm, "3.000000");
     ASSERT_NEXT_VM_LOG(current_vm, "5.000000");
+
+    stop_vm();
 }
 
 TEST(simple_vm_test_with_for_loops) {
@@ -51,6 +57,8 @@ TEST(simple_vm_test_with_for_loops) {
     ASSERT_NEXT_VM_LOG(current_vm, "2.000000");
     ASSERT_NEXT_VM_LOG(current_vm, "3.000000");
     ASSERT_NEXT_VM_LOG(current_vm, "4.000000");
+
+    stop_vm();
 }
 
 TEST(simple_vm_test_with_nested_functions) {
@@ -62,6 +70,8 @@ TEST(simple_vm_test_with_nested_functions) {
     ASSERT_TRUE(vm_result == INTERPRET_OK);
     ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
     ASSERT_NEXT_VM_LOG(current_vm, "2.000000");
+
+    stop_vm();
 }
 
 TEST(simple_vm_test_with_functions) {
@@ -72,6 +82,8 @@ TEST(simple_vm_test_with_functions) {
 
     ASSERT_TRUE(vm_result == INTERPRET_OK);
     ASSERT_NEXT_VM_LOG(current_vm, "3.000000");
+
+    stop_vm();
 }
 
 TEST(simple_vm_test_with_scope_variables) {
@@ -81,4 +93,6 @@ TEST(simple_vm_test_with_scope_variables) {
 
     ASSERT_TRUE(vm_result == EXIT_SUCCESS);
     ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
+
+    stop_vm();
 }

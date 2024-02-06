@@ -30,13 +30,15 @@ static void get_struct_field();
 static void set_struct_field();
 static void print();
 
+extern struct trie_list * compiled_packages;
+
 interpret_result interpret_vm(struct compilation_result compilation_result) {
     if(!compilation_result.success){
         return INTERPRET_COMPILE_ERROR;
     }
 
-    push_stack_vm(TO_LOX_VALUE_OBJECT(compilation_result.function_object));
-    call_function(compilation_result.function_object, 0);
+    push_stack_vm(TO_LOX_VALUE_OBJECT(compilation_result.compiled_package->main_function));
+    call_function(compilation_result.compiled_package->main_function, 0);
 
     current_vm.esp += compilation_result.local_count;
 
@@ -66,7 +68,7 @@ static interpret_result run() {
 
     for(;;) {
 #ifdef  DEBUG_TRACE_EXECUTION
-        disassembleInstruction(&current_frame->compiled_function->chunk, (int)(frame->pc - frame->compiled_function->chunk->code));
+        disassembleInstruction(&current_frame->current_function_in_compilation->chunk, (int)(frame->pc - frame->current_function_in_compilation->chunk->code));
         print_stack();
 #endif
         switch (READ_BYTE(current_frame)) {
@@ -366,6 +368,7 @@ void start_vm() {
 }
 
 void stop_vm() {
+    clear_trie(compiled_packages);
 }
 
 static void runtime_error(char * format, ...) {

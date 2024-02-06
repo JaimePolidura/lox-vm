@@ -4,9 +4,11 @@
 #include "compiler/compiler.h"
 #include "../src/chunk/chunk_disassembler.h"
 
+extern struct trie_list * compiled_packages;
+
 TEST(simple_compiler_test_with_for) {
     struct compilation_result result = compile("for(var i = 0; i < 5; i = i + 1) {\n print i;\n }");
-    struct chunk * chunk = result.chunk;
+    struct chunk * chunk = &result.compiled_package->main_function->chunk;
     ASSERT_TRUE(result.success);
     ASSERT_BYTECODE_SEQ(chunk->code,
                         OP_CONSTANT, 0,
@@ -22,11 +24,13 @@ TEST(simple_compiler_test_with_for) {
                         OP_ADD,
                         OP_SET_LOCAL, 1,
                         OP_LOOP, 0, 21);
+
+    clear_trie(compiled_packages);
 }
 
 TEST(simple_compiler_test_with_structs){
     struct compilation_result result = compile("struct Persona {\nnombre; edad;\n}\nvar jaime = Persona{\"Jaime\" , 21};\nprint jaime.nombre;\njaime.edad = 12;");
-    struct chunk * chunk = result.chunk;
+    struct chunk * chunk = &result.compiled_package->main_function->chunk;
     ASSERT_TRUE(result.success);
     ASSERT_BYTECODE_SEQ(chunk->code,
                         OP_CONSTANT, 1,
@@ -41,11 +45,13 @@ TEST(simple_compiler_test_with_structs){
                         OP_GET_GLOBAL, 4,
                         OP_CONSTANT, 5,
                         OP_SET_STRUCT_FIELD, 1);
+
+    clear_trie(compiled_packages);
 }
 
 TEST(simple_compiler_test_with_functions) {
     struct compilation_result result = compile("fun hola(a, b) {\n return a + b;\n }\n print hola(1, 2);");
-    struct chunk * chunk = result.chunk;
+    struct chunk * chunk = &result.compiled_package->main_function->chunk;
     ASSERT_TRUE(result.success);
 
     ASSERT_BYTECODE_SEQ(chunk->code,
@@ -63,26 +69,32 @@ TEST(simple_compiler_test_with_functions) {
                         OP_GET_LOCAL, 2,
                         OP_ADD,
                         OP_RETURN);
+
+    clear_trie(compiled_packages);
 }
 
 TEST(simple_compiler_test_if_while) {
     struct compilation_result result = compile("while(2 == 3) { \n print 1; \n }");
+    struct chunk * chunk = &result.compiled_package->main_function->chunk;
     ASSERT_TRUE(result.success);
 
-    ASSERT_BYTECODE_SEQ(result.chunk->code,
+    ASSERT_BYTECODE_SEQ(chunk->code,
                         OP_CONSTANT, 0,
                         OP_CONSTANT, 1,
                         OP_EQUAL,
                         OP_JUMP_IF_FALSE, 0, 6,
                         OP_CONSTANT, 2, OP_PRINT,
                         OP_LOOP, 0, 14);
+
+    clear_trie(compiled_packages);
 }
 
 TEST(simple_compiler_test_if_statements) {
     struct compilation_result result = compile("if(2 == 3) {\n print 1;\n }else{\n print 2;\n}");
     ASSERT_TRUE(result.success);
+    struct chunk * chunk = &result.compiled_package->main_function->chunk;
 
-    ASSERT_BYTECODE_SEQ(result.chunk->code,
+    ASSERT_BYTECODE_SEQ(chunk->code,
                         OP_CONSTANT, 0,
                         OP_CONSTANT, 1,
                         OP_EQUAL,
@@ -93,12 +105,16 @@ TEST(simple_compiler_test_if_statements) {
                         OP_CONSTANT, 3,
                         OP_PRINT, //print 2
                         );
+
+    clear_trie(compiled_packages);
 }
 
 TEST(simple_compiler_test_with_scope_variables) {
     struct compilation_result result = compile("var edad = 10;\n{\nvar nombre = \"jaime\";\nnombre = 1;\nprint nombre;}");
     ASSERT_TRUE(result.success);
-    ASSERT_BYTECODE_SEQ(result.chunk->code,
+    struct chunk * chunk = &result.compiled_package->main_function->chunk;
+
+    ASSERT_BYTECODE_SEQ(chunk->code,
                         OP_CONSTANT, 1, //var edad = 10
                         OP_DEFINE_GLOBAL, 0,
                         OP_CONSTANT, 2, //var nombre = "jaime"
@@ -108,12 +124,14 @@ TEST(simple_compiler_test_with_scope_variables) {
                         OP_GET_LOCAL, 1, //print nombre;
                         OP_PRINT,
                         OP_POP);
+
+    clear_trie(compiled_packages);
 }
 
 TEST(simple_compiler_test) {
     struct compilation_result result = compile("var nombre = \"jaime\";\nnombre = 1 + 2 * 3;\n print nombre;");
     ASSERT_TRUE(result.success);
-    struct chunk * chunk = result.chunk;
+    struct chunk * chunk = &result.compiled_package->main_function->chunk;
 
     ASSERT_EQ(chunk->code[0], OP_CONSTANT);
     ASSERT_EQ(chunk->code[1], 1); //Constant offset: nombre
@@ -134,4 +152,6 @@ TEST(simple_compiler_test) {
     ASSERT_EQ(chunk->code[14], OP_GET_GLOBAL);
     ASSERT_EQ(chunk->code[15], 6);
     ASSERT_EQ(chunk->code[16], OP_PRINT);
+
+    clear_trie(compiled_packages);
 }

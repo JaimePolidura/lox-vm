@@ -51,6 +51,20 @@ bool put_trie(struct trie_list * trie, char * new_key, int new_key_length, void 
     return true;
 }
 
+void clear_trie_recursive(struct trie_node * node) {
+    for (int i = 0; i < TRIE_CHARS; ++i) {
+        if(node->nodes[i] != NULL){
+            clear_trie_recursive(node->nodes[i]);
+            free(node->nodes[i]);
+            node->nodes[i] = NULL;
+        }
+    }
+ }
+
+void clear_trie(struct trie_list * trie) {
+    clear_trie_recursive(trie->head);
+}
+
 struct trie_list * alloc_trie_list() {
     struct trie_list * trie_list = malloc(sizeof(struct trie_list));
     init_trie_list(trie_list);

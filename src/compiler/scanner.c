@@ -39,6 +39,7 @@ struct token next_token_scanner(struct scanner * scanner) {
     }
 
     switch (character) {
+        case ':': return create_token(scanner, TOKEN_COLON);
         case '(': return create_token(scanner, TOKEN_OPEN_PAREN);
         case ')': return create_token(scanner, TOKEN_CLOSE_PAREN);
         case '{': return create_token(scanner, TOKEN_OPEN_BRACE);

@@ -5,16 +5,24 @@
 #include "utils/trie.h"
 #include "scanner.h"
 
+typedef enum {
+    PENDING_COMPILATION,
+    PENDING_INITIALIZATION,
+    READY_TO_USE
+} package_state_t;
+
 struct package {
     char * name;
 
-    struct chunk chunk;
+    package_state_t state;
 
-    //Includes functions, vars & functions
+    struct function_object * main_function;
+
+    //Includes functions, vars & structs
     struct trie_list exported_symbols;
 
-    //May include public & private structs
-    struct trie_list struct_definitions;
+    //May include public & private
+    struct trie_list struct_definitions; //Stores struct_definition
 };
 
 struct package * alloc_package();

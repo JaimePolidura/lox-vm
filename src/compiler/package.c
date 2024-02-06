@@ -10,7 +10,7 @@ void init_package(struct package * package) {
     init_trie_list(&package->struct_definitions);
     init_trie_list(&package->exported_symbols);
     package->name = NULL;
-    init_chunk(&package->chunk);
+    package->state = PENDING_COMPILATION;
 }
 
 char * read_package_name(struct token import_path) {
