@@ -11,6 +11,7 @@
 #include "native_functions.h"
 #include "memory/gc/gc.h"
 #include "types/struct_object.h"
+#include "utils/stack_list.h"
 
 #define STACK_MAX 256
 #define FRAME_MAX (STACK_MAX * 256)
@@ -22,11 +23,13 @@ struct call_frame {
 };
 
 struct vm {
+    struct package * current_package;
+    struct stack_list package_stack;
+
     struct call_frame frames[FRAME_MAX];
     int frames_in_use;
     lox_value_t stack[STACK_MAX];
-    lox_value_t * esp; //Top of stack
-    struct hash_table global_variables;
+    lox_value_t * esp; //Top of stack_list
     struct gc gc;
 
 #ifdef VM_TEST
@@ -39,9 +42,9 @@ typedef enum {
     INTERPRET_OK,
     INTERPRET_COMPILE_ERROR,
     INTERPRET_RUNTIME_ERROR,
-} interpret_result;
+} interpret_result_t;
 
-interpret_result interpret_vm(struct compilation_result compilation_result);
+interpret_result_t interpret_vm(struct compilation_result compilation_result);
 void define_native(char * function_name, native_fn native_function);
 
 void start_vm();

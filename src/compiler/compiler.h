@@ -12,6 +12,7 @@
 #include "compiled_function.h"
 #include "exported_symbol.h"
 #include "package.h"
+#include "types/package_object.h"
 
 struct parser {
     struct token current;

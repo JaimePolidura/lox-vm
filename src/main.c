@@ -11,7 +11,7 @@ void debug_simple_calculation();
 void prod();
 void run_file(char * path);
 char * read_file_source_code(char * path);
-interpret_result interpret_source_code(char * source_code);
+interpret_result_t interpret_source_code(char * source_code);
 
 int main(int argc, char* args[]) {
     init_global_string_pool();
@@ -26,7 +26,7 @@ int main(int argc, char* args[]) {
 
 void run_file(char * path) {
     char * source_code = read_file_source_code(path);
-    interpret_result result = interpret_source_code(source_code);
+    interpret_result_t result = interpret_source_code(source_code);
     free(source_code);
 
     switch (result) {
@@ -35,7 +35,7 @@ void run_file(char * path) {
     }
 }
 
-interpret_result interpret_source_code(char * source_code) {
+interpret_result_t interpret_source_code(char * source_code) {
     struct compilation_result compilation_result = compile_standalone(source_code);
 
     if(!compilation_result.success){

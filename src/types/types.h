@@ -13,7 +13,8 @@ typedef enum {
     OBJ_STRING,
     OBJ_FUNCTION,
     OBJ_NATIVE,
-    OBJ_STRUCT
+    OBJ_STRUCT,
+    OBJ_PACKAGE
 } object_type_t;
 
 struct object {
@@ -47,7 +48,6 @@ typedef uint64_t lox_value_t;
 
 #define TO_LOX_VALUE_OBJECT(value) (FLOAT_SIGN_BIT | QUIET_FLOAT_NAN | (lox_value_t)value)
 #define AS_OBJECT(value) ((struct object *) (uintptr_t)((value) & ~(FLOAT_SIGN_BIT | QUIET_FLOAT_NAN)))
-
 
 #define IS_OBJECT(value) (((value) & (QUIET_FLOAT_NAN | FLOAT_SIGN_BIT)) == (QUIET_FLOAT_NAN | FLOAT_SIGN_BIT))
 

@@ -11,7 +11,7 @@ TEST(simple_vm_test_with_structs){
             "struct Persona{ nombre; edad; } var jaime = Persona{\"Jaime\", 21}; print jaime.nombre; jaime.edad = 21 + 1; print jaime.edad;"
     );
     start_vm();
-    interpret_result vm_result = interpret_vm(compilation_result);
+    interpret_result_t vm_result = interpret_vm(compilation_result);
 
     ASSERT_TRUE(vm_result == INTERPRET_OK);
     ASSERT_NEXT_VM_LOG(current_vm, "Jaime");
@@ -23,7 +23,7 @@ TEST(simple_vm_test_with_structs){
 TEST(simple_vm_test_with_while) {
     struct compilation_result compilation_result = compile_standalone("var i = 0; while(i < 2) { print i; i = i + 1; }");
     start_vm();
-    interpret_result vm_result = interpret_vm(compilation_result);
+    interpret_result_t vm_result = interpret_vm(compilation_result);
 
     ASSERT_TRUE(vm_result == INTERPRET_OK);
     ASSERT_NEXT_VM_LOG(current_vm, "0.000000");
@@ -36,7 +36,7 @@ TEST(simple_vm_test_with_ifs) {
     struct compilation_result compilation_result = compile_standalone(
             "if(1 == 1) {\n print 1;\n }\n if(1 == 2) {\n print 2;\n } else {\n print 3;\n } if (1 == 2) { print 4; } print 5;");
     start_vm();
-    interpret_result vm_result = interpret_vm(compilation_result);
+    interpret_result_t vm_result = interpret_vm(compilation_result);
 
     ASSERT_TRUE(vm_result == INTERPRET_OK);
     ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
@@ -51,7 +51,7 @@ TEST(simple_vm_test_with_for_loops) {
             "for(var i = 0; i < 5; i = i + 1) {\n print i;\n }");
     start_vm();
 
-    interpret_result vm_result = interpret_vm(compilation_result);
+    interpret_result_t vm_result = interpret_vm(compilation_result);
 
     ASSERT_TRUE(vm_result == INTERPRET_OK);
     ASSERT_NEXT_VM_LOG(current_vm, "0.000000");
@@ -68,7 +68,7 @@ TEST(simple_vm_test_with_nested_functions) {
             "fun b(){\n print 1;\n }\n fun a() {\nb();\n print 2;\n}\na();");
     start_vm();
 
-    interpret_result vm_result = interpret_vm(compilation_result);
+    interpret_result_t vm_result = interpret_vm(compilation_result);
 
     ASSERT_TRUE(vm_result == INTERPRET_OK);
     ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
@@ -82,7 +82,7 @@ TEST(simple_vm_test_with_functions) {
             "fun sumar(a, b) {\nvar c = a + b;\nreturn c;\n}\nprint sumar(1, 2);");
     start_vm();
 
-    interpret_result vm_result = interpret_vm(compilation_result);
+    interpret_result_t vm_result = interpret_vm(compilation_result);
 
     ASSERT_TRUE(vm_result == INTERPRET_OK);
     ASSERT_NEXT_VM_LOG(current_vm, "3.000000");
@@ -94,7 +94,7 @@ TEST(simple_vm_test_with_scope_variables) {
     struct compilation_result compilation_result = compile_standalone(
             "var edad = 10;\n{\nvar nombre = 1;\nnombre = 1.0;\nprint nombre;}");
     start_vm();
-    interpret_result vm_result = interpret_vm(compilation_result);
+    interpret_result_t vm_result = interpret_vm(compilation_result);
 
     ASSERT_TRUE(vm_result == EXIT_SUCCESS);
     ASSERT_NEXT_VM_LOG(current_vm, "1.000000");

@@ -8,6 +8,7 @@
 typedef enum {
     PENDING_COMPILATION, //Bytecode not generated
     PENDING_INITIALIZATION, //Bytecode generated but not executed
+    INITIALIZING,
     READY_TO_USE //Bytecode generated & executed
 } package_state_t;
 
@@ -16,6 +17,9 @@ struct package {
 
     //Used only for local imports
     char * absolute_path;
+
+    //Used only by vm
+    struct hash_table global_variables;
 
     int local_count;
 

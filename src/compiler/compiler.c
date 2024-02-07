@@ -584,7 +584,7 @@ static void variable(struct compiler * compiler, bool can_assign) {
 }
 
 static void load_package(struct compiler * compiler) {
-    consume(compiler, TOKEN_COLON, "Expect ':' after : when using a package symbol");
+    consume(compiler, TOKEN_COLON, "Expect ':' after : when referencing a package symbol");
     struct token package_name = compiler->parser->previous;
 
     struct package * package = find_trie(compiled_packages, package_name.start, package_name.length);
@@ -595,6 +595,10 @@ static void load_package(struct compiler * compiler) {
     if(package->state == PENDING_COMPILATION){
         compile_package(compiler, package);
     }
+    
+    emit_constant(compiler, to_lox_package(package));
+
+    emit_bytecode(compiler, OP_INITIALIZE_PACKAGE);
 }
 
 static struct package * compile_package(struct compiler * compiler, struct package * package) {

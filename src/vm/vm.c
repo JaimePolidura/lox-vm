@@ -1,12 +1,15 @@
 #include "vm.h"
 
+extern struct trie_list * compiled_packages;
+
 struct vm current_vm;
 
+static void set_up_package_to_interpret(struct package * package);
 static void push_stack_vm(lox_value_t value);
 static lox_value_t pop_stack_vm();
 static double pop_and_check_number();
 static bool check_boolean();
-static interpret_result run();
+static interpret_result_t run();
 static void print_stack();
 static void runtime_error(char * format, ...);
 static lox_value_t values_equal(lox_value_t a, lox_value_t b);
@@ -29,20 +32,29 @@ static void initialize_struct();
 static void get_struct_field();
 static void set_struct_field();
 static void print();
+static void initialize_package();
+static void do_initialize_package(struct package * package_to_initialize);
+static void restore_prev_package(struct package * prev_package);
 
 extern struct trie_list * compiled_packages;
 
-interpret_result interpret_vm(struct compilation_result compilation_result) {
+interpret_result_t interpret_vm(struct compilation_result compilation_result) {
     if(!compilation_result.success){
         return INTERPRET_COMPILE_ERROR;
     }
 
-    push_stack_vm(TO_LOX_VALUE_OBJECT(compilation_result.compiled_package->main_function));
-    call_function(compilation_result.compiled_package->main_function, 0);
-
-    current_vm.esp += compilation_result.compiled_package->local_count;
+    set_up_package_to_interpret(compilation_result.compiled_package);
 
     return run();
+}
+
+static void set_up_package_to_interpret(struct package * package) {
+    current_vm.current_package = package;
+
+    push_stack_vm(TO_LOX_VALUE_OBJECT(package->main_function));
+    call_function(package->main_function, 0);
+
+    current_vm.esp += package->local_count;
 }
 
 #define READ_BYTE(frame) (*frame->pc++)
@@ -63,7 +75,7 @@ interpret_result interpret_vm(struct compilation_result compilation_result) {
         push_stack_vm(TO_LOX_VALUE_BOOL(a op b)); \
     }while(false);
 
-static interpret_result run() {
+static interpret_result_t run() {
     struct call_frame * current_frame = get_current_frame();
 
     for(;;) {
@@ -101,11 +113,43 @@ static interpret_result run() {
             case OP_INITIALIZE_STRUCT: initialize_struct(); break;
             case OP_GET_STRUCT_FIELD: get_struct_field(); break;
             case OP_SET_STRUCT_FIELD: set_struct_field(); break;
+            case OP_INITIALIZE_PACKAGE: initialize_package(); break;
             default:
                 perror("Unhandled bytecode op\n");
                 return INTERPRET_RUNTIME_ERROR;
         }
     }
+}
+
+static void initialize_package() {
+    struct package * package = (struct package *) AS_OBJECT(pop_stack_vm());
+
+    switch (package->state) {
+        case READY_TO_USE: return;
+        case INITIALIZING: runtime_error("Found cyclical dependency with package %s", package->name);
+        case PENDING_COMPILATION: runtime_error("Found bug in VM with package %s", package->name);
+        case PENDING_INITIALIZATION: do_initialize_package(package);
+    }
+}
+
+static void do_initialize_package(struct package * package_to_initialize) {
+    package_to_initialize->state = INITIALIZING;
+
+    push_stack(&current_vm.package_stack, current_vm.current_package);
+    set_up_package_to_interpret(package_to_initialize);
+
+    interpret_result_t result = run();
+    if(result == INTERPRET_RUNTIME_ERROR) {
+        runtime_error("Error while interpreting package %s", package_to_initialize->name);
+    }
+
+    package_to_initialize->state = READY_TO_USE;
+
+    restore_prev_package(pop_stack(&current_vm.package_stack));
+}
+
+static void restore_prev_package(struct package * prev_package) {
+    current_vm.current_package = prev_package;
 }
 
 static inline void adition() {
@@ -148,13 +192,13 @@ static inline void adition() {
 
 static void define_global() {
     struct string_object * name = AS_STRING_OBJECT(READ_CONSTANT(get_current_frame()));
-    put_hash_table(&current_vm.global_variables, name, pop_stack_vm());
+    put_hash_table(&current_vm.current_package->global_variables, name, pop_stack_vm());
 }
 
 static void get_global() {
     struct string_object * variable_name = AS_STRING_OBJECT(READ_CONSTANT(get_current_frame()));
     lox_value_t variable_value;
-    if(!get_hash_table(&current_vm.global_variables, variable_name, &variable_value)) {
+    if(!get_hash_table(&current_vm.current_package->global_variables, variable_name, &variable_value)) {
         runtime_error("Undefined variable %s.", variable_name->chars);
     }
 
@@ -163,11 +207,11 @@ static void get_global() {
 
 static void set_global() {
     struct string_object * variable_name = AS_STRING_OBJECT(READ_CONSTANT(get_current_frame()));
-    if(!contains_hash_table(&current_vm.global_variables, variable_name)){
+    if(!contains_hash_table(&current_vm.current_package->global_variables, variable_name)){
         runtime_error("Cannot assign value to undeclared variable %s", variable_name->chars);
     }
 
-    put_hash_table(&current_vm.global_variables, variable_name, peek(0));
+    put_hash_table(&current_vm.current_package->global_variables, variable_name, peek(0));
 }
 
 static void set_local() {
@@ -357,8 +401,10 @@ void start_vm() {
     current_vm.esp = current_vm.stack; //Reset gray_stack
     current_vm.frames_in_use = 0;
 
-    init_hash_table(&current_vm.global_variables);
+    init_hash_table(&current_vm.current_package->global_variables);
     init_gc_info(&current_vm.gc);
+
+    init_stack_list(&current_vm.package_stack);
 
     define_native("clock", clock_native);
 
@@ -369,6 +415,7 @@ void start_vm() {
 
 void stop_vm() {
     clear_trie(compiled_packages);
+    clear_stack(&current_vm.package_stack);
 }
 
 static void runtime_error(char * format, ...) {
@@ -422,5 +469,5 @@ void define_native(char * function_name, native_fn native_function) {
     struct string_object * function_name_obj = copy_chars_to_string_object(function_name, strlen(function_name));
     struct native_object * native_object = alloc_native_object(native_function);
 
-    put_hash_table(&current_vm.global_variables, function_name_obj, TO_LOX_VALUE_OBJECT(native_object));
+    put_hash_table(&current_vm.current_package->global_variables, function_name_obj, TO_LOX_VALUE_OBJECT(native_object));
 }
