@@ -4,7 +4,7 @@ extern struct trie_list * compiled_packages;
 
 struct vm current_vm;
 
-static void set_up_package_to_interpret(struct package * package);
+static void set_up_package_to_initialize(struct package * package);
 static void push_stack_vm(lox_value_t value);
 static lox_value_t pop_stack_vm();
 static double pop_and_check_number();
@@ -32,24 +32,29 @@ static void initialize_struct();
 static void get_struct_field();
 static void set_struct_field();
 static void print();
-static void initialize_package();
-static void do_initialize_package(struct package * package_to_initialize);
-static void restore_prev_package(struct package * prev_package);
+static void enter_package();
+static void initialize_package(struct package * package_to_initialize);
+static void exit_package();
+static void setup_new_package_execution(struct package * new_package);
+static void restore_prev_package_execution();
 
 extern struct trie_list * compiled_packages;
 
 interpret_result_t interpret_vm(struct compilation_result compilation_result) {
+    //By doing this, we enforce that no other package can call the main package
+    compilation_result.compiled_package->state = INITIALIZING;
+
     if(!compilation_result.success){
         return INTERPRET_COMPILE_ERROR;
     }
 
-    set_up_package_to_interpret(compilation_result.compiled_package);
+    set_up_package_to_initialize(compilation_result.compiled_package);
 
     return run();
 }
 
-static void set_up_package_to_interpret(struct package * package) {
-    current_vm.current_package = package;
+static void set_up_package_to_initialize(struct package * package) {
+    setup_new_package_execution(package);
 
     push_stack_vm(TO_LOX_VALUE_OBJECT(package->main_function));
     call_function(package->main_function, 0);
@@ -113,7 +118,8 @@ static interpret_result_t run() {
             case OP_INITIALIZE_STRUCT: initialize_struct(); break;
             case OP_GET_STRUCT_FIELD: get_struct_field(); break;
             case OP_SET_STRUCT_FIELD: set_struct_field(); break;
-            case OP_INITIALIZE_PACKAGE: initialize_package(); break;
+            case OP_ENTER_PACKAGE: enter_package(); break;
+            case OP_EXIT_PACKAGE: exit_package(); break;
             default:
                 perror("Unhandled bytecode op\n");
                 return INTERPRET_RUNTIME_ERROR;
@@ -121,22 +127,26 @@ static interpret_result_t run() {
     }
 }
 
-static void initialize_package() {
+static void enter_package() {
     struct package * package = (struct package *) AS_OBJECT(pop_stack_vm());
 
     switch (package->state) {
-        case READY_TO_USE: return;
+        case READY_TO_USE: break;
         case INITIALIZING: runtime_error("Found cyclical dependency with package %s", package->name);
-        case PENDING_COMPILATION: runtime_error("Found bug in VM with package %s", package->name);
-        case PENDING_INITIALIZATION: do_initialize_package(package);
+        case PENDING_INITIALIZATION: initialize_package(package);
+        default: runtime_error("Unexpected package state Found bug in VM with package %s", package->name);
     }
+
+    setup_new_package_execution(package);
 }
 
-static void do_initialize_package(struct package * package_to_initialize) {
-    package_to_initialize->state = INITIALIZING;
+static void exit_package() {
+    restore_prev_package_execution();
+}
 
-    push_stack(&current_vm.package_stack, current_vm.current_package);
-    set_up_package_to_interpret(package_to_initialize);
+static void initialize_package(struct package * package_to_initialize) {
+    set_up_package_to_initialize(package_to_initialize);
+    package_to_initialize->state = INITIALIZING;
 
     interpret_result_t result = run();
     if(result == INTERPRET_RUNTIME_ERROR) {
@@ -144,11 +154,16 @@ static void do_initialize_package(struct package * package_to_initialize) {
     }
 
     package_to_initialize->state = READY_TO_USE;
-
-    restore_prev_package(pop_stack(&current_vm.package_stack));
+    restore_prev_package_execution();
 }
 
-static void restore_prev_package(struct package * prev_package) {
+static void setup_new_package_execution(struct package * new_package) {
+    push_stack(&current_vm.package_stack, current_vm.current_package);
+    current_vm.current_package = new_package;
+}
+
+static void restore_prev_package_execution() {
+    struct package * prev_package = pop_stack(&current_vm.package_stack);
     current_vm.current_package = prev_package;
 }
 

@@ -13,7 +13,7 @@ void init_package(struct package * package) {
     package->state = PENDING_COMPILATION;
 }
 
-char * read_package_name(struct token import_path) {
+char * read_package_name(char * import_name, int import_name_length) {
     return NULL; //TODO
 }
 

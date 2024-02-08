@@ -521,7 +521,8 @@ static void for_loop(struct compiler * compiler) {
 
     struct chunk_bytecode_context prev_to_increment_ctx = chunk_start_new_context(&compiler->current_function_in_compilation->function_object->chunk);
     for_loop_increment(compiler);
-    struct chunk_bytecode_context increment_bytecodes = chunk_restore_context(&compiler->current_function_in_compilation->function_object->chunk, prev_to_increment_ctx);
+    struct chunk_bytecode_context increment_bytecodes = chunk_restore_context(&compiler->current_function_in_compilation->function_object->chunk,
+            prev_to_increment_ctx);
 
     statement(compiler);
 
@@ -574,12 +575,21 @@ static void print_statement(struct compiler * compiler) {
 }
 
 static void variable(struct compiler * compiler, bool can_assign) {
-    if(check(compiler, TOKEN_OPEN_BRACE)) {
-        struct_initialization(compiler);
-    } else if(check(compiler, TOKEN_COLON)) {
+    bool is_from_package = false;
+
+    if (check(compiler, TOKEN_COLON)) {
         load_package(compiler);
+        is_from_package = true;
+    }
+
+    if (check(compiler, TOKEN_OPEN_BRACE)) {
+        struct_initialization(compiler);
     } else {
         named_variable(compiler, compiler->parser->previous, can_assign);
+    }
+
+    if(is_from_package){
+        emit_bytecode(compiler, OP_EXIT_PACKAGE);
     }
 }
 
@@ -598,7 +608,7 @@ static void load_package(struct compiler * compiler) {
     
     emit_constant(compiler, to_lox_package(package));
 
-    emit_bytecode(compiler, OP_INITIALIZE_PACKAGE);
+    emit_bytecode(compiler, OP_ENTER_PACKAGE);
 }
 
 static struct package * compile_package(struct compiler * compiler, struct package * package) {

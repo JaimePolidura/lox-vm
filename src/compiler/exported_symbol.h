@@ -15,7 +15,8 @@ struct exported_symbol {
     exported_symbol_type_t type;
 
     union {
-        struct compiled_function * function;
+        struct struct_definition * struct_definition;
+        struct compiled_function * function_object;
     } as;
 };
 

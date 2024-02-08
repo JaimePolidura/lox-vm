@@ -30,9 +30,10 @@ typedef enum {
     OP_LOOP,             // 24
     OP_CALL,             // 25
 
-    OP_INITIALIZE_STRUCT,  // 26
-    OP_GET_STRUCT_FIELD,   // 27
-    OP_SET_STRUCT_FIELD,   // 28
-    OP_INITIALIZE_PACKAGE, // 29
+    OP_INITIALIZE_STRUCT, // 26
+    OP_GET_STRUCT_FIELD,  // 27
+    OP_SET_STRUCT_FIELD,  // 28
+    OP_ENTER_PACKAGE,     // 29
+    OP_EXIT_PACKAGE,      // 30
 } op_code;
 
