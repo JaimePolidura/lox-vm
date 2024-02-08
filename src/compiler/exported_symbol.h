@@ -17,10 +17,13 @@ struct exported_symbol {
     union {
         struct struct_definition * struct_definition;
         struct compiled_function * function_object;
+        char * var;
     } as;
 };
 
 struct exported_symbol * to_exported_symbol_function(struct compiled_function * compiled_function);
+struct exported_symbol * to_exported_symbol_struct(struct struct_definition * struct_definition);
+struct exported_symbol * to_exported_symbol_var(struct token name);
 
 int get_name_length_from_symbol(struct exported_symbol * symbol);
 

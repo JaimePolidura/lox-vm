@@ -1,6 +1,7 @@
 #include "gc_mark_sweep.h"
 
 extern struct string_pool global_string_pool;
+extern struct trie_list * compiled_packages;
 extern struct vm current_vm;
 
 static void traverse_root_dependences(struct gc_mark_sweep * gc_mark_sweep);
