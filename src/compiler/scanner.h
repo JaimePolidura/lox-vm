@@ -23,7 +23,6 @@ typedef enum {
 
     TOKEN_STRUCT,
     TOKEN_COLON,
-    TOKEN_PACKAGE,
     TOKEN_PUB,
     TOKEN_USE,
 } tokenType_t;

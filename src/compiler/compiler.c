@@ -98,11 +98,11 @@ static int find_struct_field_offset(struct struct_definition * definition, struc
 static void package_name(struct compiler * compiler);
 static void add_exported_symbol(struct compiler * compiler, struct exported_symbol * exported_symbol, struct token token_symbol);
 static void import_packages(struct compiler * compiler);
-static struct compiler * start_compiling(char * source_code, bool is_standalone_mode);
+static struct compiler * start_compiling(char * source_code, char * package_name, bool is_standalone_mode);
 static struct package * load_package(struct compiler * compiler);
 static struct package * compile_package(struct compiler * compiler, struct package * package);
 static struct package * add_package_to_compiled_packages(char * package_import_name, int package_import_name_length, bool is_standalone_mode);
-static struct struct_definition * get_struct_definition(struct compiler * compiler, struct package * package, struct token name);
+static struct struct_definition * get_struct_definition(struct package * package, struct token name);
 
 struct parse_rule rules[] = {
         [TOKEN_OPEN_PAREN] = {grouping, function_call, PREC_CALL},
@@ -144,7 +144,7 @@ struct parse_rule rules[] = {
         [TOKEN_ERROR] = {NULL, NULL, PREC_NONE},
         [TOKEN_EOF] = {NULL, NULL, PREC_NONE},};
 
-struct compilation_result compile(char * entrypoint_absolute_path, char * compilation_base_dir_args) {
+struct compilation_result compile(char * entrypoint_absolute_path, char * compilation_base_dir_args, char * package_name) {
     if(compiled_packages == NULL){
         compiled_packages = alloc_trie_list();
     }
@@ -152,8 +152,16 @@ struct compilation_result compile(char * entrypoint_absolute_path, char * compil
         compiling_base_dir = compilation_base_dir_args;
     }
 
-    char * source_code = read_package_source_code(entrypoint_absolute_path, strlen(entrypoint_absolute_path));
-    struct compiler * compiler = start_compiling(source_code, false);
+    char * source_code = read_package_source_code(entrypoint_absolute_path);
+    if(source_code == NULL) {
+        return (struct compilation_result) {
+            .compiled_package = NULL,
+            .error_message = "Cannot read entrypoint file",
+            .success = false
+        };
+    }
+
+    struct compiler * compiler = start_compiling(source_code, package_name, false);
 
     compiler->package->main_function = end_compiler(compiler)->function_object;
     compiler->local_count = compiler->local_count;
@@ -161,6 +169,7 @@ struct compilation_result compile(char * entrypoint_absolute_path, char * compil
     struct compilation_result compilation_result = {
             .compiled_package = compiler->package,
             .success = !compiler->parser->has_error,
+            .error_message = NULL,
     };
 
     free_compiler(compiler);
@@ -173,7 +182,7 @@ struct compilation_result compile_standalone(char * source_code) {
         compiled_packages = alloc_trie_list();
     }
 
-    struct compiler * compiler = start_compiling(source_code, true);
+    struct compiler * compiler = start_compiling(source_code, "main", true);
 
     compiler->package->main_function = end_compiler(compiler)->function_object;
     compiler->local_count = compiler->local_count;
@@ -188,13 +197,12 @@ struct compilation_result compile_standalone(char * source_code) {
     return compilation_result;
 }
 
-static struct compiler * start_compiling(char * source_code, bool is_standalone_mode) {
-    struct compiler * compiler = alloc_compiler(SCOPE_PACKAGE, read_package_name_by_source_code(source_code), is_standalone_mode);
+static struct compiler * start_compiling(char * source_code, char * package_name, bool is_standalone_mode) {
+    struct compiler * compiler = alloc_compiler(SCOPE_PACKAGE, package_name, is_standalone_mode);
     init_scanner(compiler->scanner, source_code);
 
     advance(compiler);
 
-    package_name(compiler);
     import_packages(compiler);
 
     while(!match(compiler, TOKEN_EOF)){
@@ -204,12 +212,6 @@ static struct compiler * start_compiling(char * source_code, bool is_standalone_
     write_chunk(current_chunk(compiler), OP_EOF, 0);
 
     return compiler;
-}
-
-static void package_name(struct compiler * compiler) {
-    if(check(compiler, TOKEN_PACKAGE)){
-        consume(compiler, TOKEN_IDENTIFIER, "Expect package name after package");
-    }
 }
 
 static void import_packages(struct compiler * compiler) {
@@ -627,7 +629,7 @@ static struct package * compile_package(struct compiler * compiler, struct packa
         report_error(compiler, compiler->parser->previous, "Cannot use local packages in standalone mode");
     }
 
-    struct compilation_result compilation_result = compile(package->absolute_path, compiling_base_dir);
+    struct compilation_result compilation_result = compile(package->absolute_path, compiling_base_dir, package->name);
     package->state = PENDING_INITIALIZATION;
 
     return package;
@@ -636,8 +638,8 @@ static struct package * compile_package(struct compiler * compiler, struct packa
 static void struct_initialization(struct compiler * compiler, struct package * external_package) {
     struct token struct_name = compiler->parser->previous;
     struct struct_definition * struct_definition = external_package != NULL ?
-            get_struct_definition(compiler, external_package, struct_name) :
-            get_struct_definition(compiler, compiler->package, struct_name);
+            get_struct_definition(external_package, struct_name) :
+            get_struct_definition(compiler->package, struct_name);
 
     if (struct_definition == NULL) {
         report_error(compiler, struct_name, "Struct not defined");
@@ -854,19 +856,20 @@ static struct compiler * alloc_compiler(scope_type_t scope, char * package_name,
 }
 
 static struct package * add_package_to_compiled_packages(char * package_import_name, int package_import_name_length, bool is_stand_alone_mode) {
-    char * package_name = read_package_name(package_import_name, package_import_name_length);
-    struct package * package_in_compiled_packages = find_trie(compiled_packages, package_name, strlen(package_name));
+    struct substring package_substring = read_package_name(package_import_name, package_import_name_length);
+    struct package * package_in_compiled_packages = find_trie(compiled_packages, start_substring(package_substring), length_substring(package_substring));
 
     //If it is not found, it means it is a local package -> a path is used as an import name
     if(package_in_compiled_packages == NULL) {
         struct package * new_package = alloc_package();
+        char * package_string = copy_substring_to_string(package_substring);
         new_package->state = PENDING_COMPILATION;
-        new_package->name = package_name;
+        new_package->name = package_string;
         if(!is_stand_alone_mode) { //If used in standalone mode no local packages is allowed to use
-            new_package->absolute_path = relative_import_path_to_absolute(package_import_name, package_import_name_length, compiling_base_dir);
+            new_package->absolute_path = import_name_to_absolute_path(package_import_name, package_import_name_length);
         }
 
-        put_trie(compiled_packages, package_name, strlen(package_name), new_package);
+        put_trie(compiled_packages, package_string, strlen(package_string), new_package);
 
         return new_package;
     } else {
@@ -1042,8 +1045,8 @@ static int find_struct_field_offset(struct struct_definition * definition, struc
     return -1;
 }
 
-static struct struct_definition * get_struct_definition(struct compiler * compiler, struct package * package, struct token name) {
-    return NULL; //TODO
+static struct struct_definition * get_struct_definition(struct package * package, struct token name) {
+    return find_trie(&package->struct_definitions, name.start, name.length);;
 }
 
 static void add_exported_symbol(struct compiler * compiler, struct exported_symbol * exported_symbol, struct token token_symbol) {

@@ -4,6 +4,8 @@
 #include "chunk/chunk.h"
 #include "utils/trie.h"
 #include "scanner.h"
+#include "utils/substring.h"
+#include "utils/utils.h"
 
 typedef enum {
     PENDING_COMPILATION, //Bytecode not generated
@@ -34,10 +36,18 @@ struct package {
     struct trie_list struct_definitions; //Stores struct_definition
 };
 
+void free_package(struct package * package);
+
 struct package * alloc_package();
 void init_package(struct package * package);
 
-char * read_package_name(char * import_name, int import_name_length);
-char * read_package_name_by_source_code(char * source_code);
+// Takes an import path and a length, and returns the package name.
+//
+// Packages names are included in the import path.
+// An import could be in these types: math, math.lox, utils/math.lox
+// This method should return math in these cases
+struct substring read_package_name(char * import_name, int import_name_length);
 
-char * read_package_source_code(char * import_name, int import_name_length);
+char * read_package_source_code(char * absolute_path);
+
+char * import_name_to_absolute_path(char * import_name, int import_name_length);

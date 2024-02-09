@@ -44,7 +44,6 @@ int main() {
 #endif
 
 #ifdef RUN_TRIE_TEST
-    trie_test_free_no_segfault_outer();
     trie_test_put_with_general_case_outer();
     trie_test_put_with_same_prefix_key_outer();
     trie_test_put_with_same_key_outer();

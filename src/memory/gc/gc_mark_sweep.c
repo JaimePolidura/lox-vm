@@ -15,6 +15,7 @@ static void mark_array(struct lox_array * array);
 static void sweep(struct gc_mark_sweep * gc_mark_sweep);
 static void sweep_heap(struct gc_mark_sweep * gc_mark_sweep);
 static void sweep_string_pool();
+static void for_each_package_callback(void * package_ptr);
 
 void setup_gc() {
     struct gc_mark_sweep * gc_mark_sweep = (struct gc_mark_sweep *) &current_vm.gc;
@@ -40,8 +41,14 @@ static void mark_stack() {
 }
 
 static void mark_globals() {
-    for(int i = 0; i < current_vm.global_variables.capacity; i++) {
-        struct hash_table_entry * entry = &current_vm.global_variables.entries[i];
+    for_each_node(compiled_packages, for_each_package_callback);
+}
+
+static void for_each_package_callback(void * package_ptr) {
+    struct package * package = (struct package *) package_ptr;
+
+    for(int i = 0; i < package->global_variables.capacity && package->state != PENDING_COMPILATION; i++) {
+        struct hash_table_entry * entry = &package->global_variables.entries[i];
         mark_value(&entry->value);
         mark_object(&entry->key->object);
     }

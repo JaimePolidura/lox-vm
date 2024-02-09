@@ -2,7 +2,8 @@
 
 #include "shared.h"
 
-char * read_file_as_text(char * path, int length_path);
-char * to_lower_case(char * key, int length);
+#define TO_UPPER_CASE(character) ( ~((character >= 'a' & character <= 'z') << 5) & character )
+
+char * to_upper_case(char * key, int length);
 bool string_contains(char * string, int length, char to_check);
-char * relative_import_path_to_absolute(char * import_path, int import_path_length, char * base_compilation_path);
+bool string_equals_ignore_case(char * a, char * b, int length_a);

@@ -13,6 +13,7 @@
 #include "exported_symbol.h"
 #include "package.h"
 #include "types/package_object.h"
+#include "utils/substring.h"
 
 struct parser {
     struct token current;
@@ -49,9 +50,10 @@ struct compiler {
 
 struct compilation_result {
     struct package * compiled_package;
+    char * error_message;
     bool success;
 };
 
-struct compilation_result compile(char * entrypoint_absolute_path, char * compilation_base_dir);
+struct compilation_result compile(char * entrypoint_absolute_path, char * compilation_base_dir, char * package_name_entrypoint);
 
 struct compilation_result compile_standalone(char * source_code);
