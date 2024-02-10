@@ -60,12 +60,14 @@ void clear_trie_recursive(struct trie_node * node) {
  }
 
 static void for_each_node_recursive(struct trie_node * node, consumer_t consumer_callback) {
-    consumer_callback(node);
-
     for(int i = 0; i < TRIE_CHARS; i++){
         if(node->nodes[i] != NULL){
             for_each_node_recursive(node->nodes[i], consumer_callback);
         }
+    }
+
+    if(node->data != NULL){
+        consumer_callback(node);
     }
 }
 

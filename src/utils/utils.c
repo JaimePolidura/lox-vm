@@ -1,10 +1,11 @@
 #include "utils.h"
 
 char * to_upper_case(char * src, int length) {
-    char * new = malloc(sizeof(char) * length);
+    char * new = malloc(sizeof(char) * (length + 1));
     for(int i = 0; i < length; i++){
         new[i] = TO_UPPER_CASE(src[i]);
     }
+    new[length] = 0x00;
 
     return new;
 }

@@ -3,6 +3,26 @@
 #include "test.h"
 #include "utils/trie.h"
 
+int trie_test_for_each_counter = 0;
+
+static void trie_test_for_each_callback(void * ptr) {
+    trie_test_for_each_counter++;
+}
+
+TEST(trie_test_for_each) {
+    struct trie_list * trie_list = alloc_trie_list();
+    ASSERT_TRUE(put_trie(trie_list, "hola", 4, (void *) 0x01));
+    ASSERT_TRUE(put_trie(trie_list, "helicoptero", 11, (void *) 0x02));
+    ASSERT_TRUE(put_trie(trie_list, "_caca", 5, (void *) 0x03));
+    ASSERT_TRUE(put_trie(trie_list, "AVIONETA", 8, (void *) 0x04));
+    ASSERT_TRUE(put_trie(trie_list, "PSOE", 4, (void *) 0x05));
+    ASSERT_FALSE(put_trie(trie_list, "psoe", 4, (void *) 0x05));
+
+    for_each_node(trie_list, trie_test_for_each_callback);
+
+    ASSERT_EQ(trie_test_for_each_counter, 5);
+}
+
 TEST(trie_test_put_with_general_case) {
     struct trie_list * trie_list = alloc_trie_list();
     ASSERT_TRUE(put_trie(trie_list, "hola", 4, (void *) 0x01));

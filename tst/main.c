@@ -3,14 +3,35 @@
 #include "hash_table_test.h"
 #include "vm_test.h"
 #include "trie_test.h"
+#include "stack_test.h"
+#include "utils_test.h"
+#include "package_test.h"
 
-#define RUN_VM_TEST
 #define RUN_HASH_TABLE_TEST
 #define RUN_COMPILER_TEST
 #define RUN_TRIE_TEST
+#define PACKAGE_TEST
+#define RUN_VM_TEST
+#define STACK_TEST
+#define UTILS_TEST
 
 //Run in debug mode
 int main() {
+#ifdef PACKAGE_TEST
+    package_import_name_to_absolute_path_test_outer();
+    package_read_package_name_test_outer();
+#endif
+
+#ifdef UTILS_TEST
+    utils_string_equals_ignore_case_test_outer();
+    utils_string_contains_test_outer();
+    utils_to_upper_case_test_outer();
+#endif
+
+#ifdef STACK_TEST
+    simple_stack_push_pop_test_outer();
+    simple_stack_clear_test_outer();
+#endif
 
 #ifdef RUN_VM_TEST
     simple_vm_test_with_structs_outer();
@@ -44,6 +65,7 @@ int main() {
     trie_test_put_with_same_prefix_key_outer();
     trie_test_put_with_same_key_outer();
     trie_test_emtpy_trie_contains_outer();
+    trie_test_for_each_outer();
 #endif
 
     return 0;

@@ -43,13 +43,20 @@ void push_stack(struct stack_list * stack, void * to_push) {
 }
 
 void * pop_stack(struct stack_list * stack) {
+    if(stack->head == NULL) { //Always return NULL in case the stack is emtpy
+        return NULL;
+    }
+
     struct stack_node * to_pop = stack->head;
     void * data_to_pop = to_pop->data;
 
-    struct stack_node * new_head = to_pop->next;
+    struct stack_node * new_head = to_pop->prev;
 
     stack->head = new_head;
-    new_head->next = NULL;
+
+    if(new_head != NULL){
+        new_head->next = NULL;
+    }
 
     free(to_pop);
 

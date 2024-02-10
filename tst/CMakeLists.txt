@@ -7,7 +7,10 @@ set(SOURCES ${SOURCES}
         compiler_test.h
         hash_table_test.h
         vm_test.h
-        trie_test.h)
+        trie_test.h
+        stack_test.h
+        utils_test.h
+        package_test.h)
 
 include_directories(${PROJECT_SOURCE_DIR}/src)
 

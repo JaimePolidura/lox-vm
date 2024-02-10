@@ -1,7 +1,7 @@
 #include "substring.h"
 
 int length_substring(struct substring substring) {
-    return substring.end_exclusive - substring.end_exclusive + 1;
+    return substring.end_exclusive - substring.start_inclusive;
 }
 
 char * start_substring(struct substring substring) {
