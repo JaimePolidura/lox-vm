@@ -40,6 +40,8 @@ int disassemble_chunk_instruction(const struct chunk * chunk, const int offset) 
         case OP_JUMP: return jump_instruction("JUMP", 1, chunk, offset);
         case OP_LOOP: return jump_instruction("LOOP", -1, chunk, offset);
         case OP_CALL: return byte_instruction("CALL", chunk, offset);
+        case OP_ENTER_PACKAGE: return byte_instruction("ENTER_PACKAGE", chunk, offset);
+        case OP_EXIT_PACKAGE: return byte_instruction("OP_EXIT_PACKAGE", chunk, offset);
         case OP_JUMP_IF_FALSE: return jump_instruction("JUMP_IF_FALSE", 1, chunk, offset);
         case OP_EOF: return 0x7FFFFFFF;
         default:

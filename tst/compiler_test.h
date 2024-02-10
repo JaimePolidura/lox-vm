@@ -6,6 +6,24 @@
 
 extern struct trie_list * compiled_packages;
 
+TEST(compiler_package_global_variables) {
+    struct compilation_result result = compile(
+            "C:\\programacion\\lox-vm\\tst\\resources\\global_variables\\main.lox",
+            "C:\\programacion\\lox-vm\\tst\\resources\\global_variables",
+            "main"
+    );
+    struct chunk * chunk = &result.compiled_package->main_function->chunk;
+
+    ASSERT_TRUE(result.success);
+    ASSERT_BYTECODE_SEQ(chunk->code,
+                        OP_CONSTANT, 0,
+                        OP_ENTER_PACKAGE,
+                        OP_GET_GLOBAL, 0,
+                        OP_EXIT_PACKAGE,
+                        OP_PRINT,
+                        OP_EOF);
+}
+
 TEST(simple_compiler_test_with_for) {
     struct compilation_result result = compile_standalone("for(var i = 0; i < 5; i = i + 1) {\n print i;\n }");
     struct chunk * chunk = &result.compiled_package->main_function->chunk;

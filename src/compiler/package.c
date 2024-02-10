@@ -33,9 +33,9 @@ char * read_package_source_code(char * absolute_path) {
         fclose(file);
         return NULL;
     }
-
+    
     size_t bytes_read = fread(content, 1, file_size, file);
-    if (bytes_read != file_size) {
+    if (bytes_read == 0) {
         fclose(file);
         free(content);
         return NULL;

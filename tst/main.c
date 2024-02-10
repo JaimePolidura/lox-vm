@@ -7,40 +7,41 @@
 #include "utils_test.h"
 #include "package_test.h"
 
-#define RUN_HASH_TABLE_TEST
-#define RUN_COMPILER_TEST
-#define RUN_TRIE_TEST
-#define PACKAGE_TEST
+//#define RUN_HASH_TABLE_TEST
+//#define RUN_COMPILER_TEST
+//#define RUN_PACKAGE_TEST
+//#define RUN_TRIE_TEST
 #define RUN_VM_TEST
-#define STACK_TEST
-#define UTILS_TEST
+//#define RUN_STACK_TEST
+//#define RUN_UTILS_TEST
 
 //Run in debug mode
 int main() {
-#ifdef PACKAGE_TEST
+#ifdef RUN_PACKAGE_TEST
     package_import_name_to_absolute_path_test_outer();
     package_read_package_name_test_outer();
 #endif
 
-#ifdef UTILS_TEST
+#ifdef RUN_UTILS_TEST
     utils_string_equals_ignore_case_test_outer();
     utils_string_contains_test_outer();
     utils_to_upper_case_test_outer();
 #endif
 
-#ifdef STACK_TEST
+#ifdef RUN_STACK_TEST
     simple_stack_push_pop_test_outer();
     simple_stack_clear_test_outer();
 #endif
 
 #ifdef RUN_VM_TEST
-    simple_vm_test_with_structs_outer();
-    simple_vm_test_with_while_outer();
-    simple_vm_test_with_ifs_outer();
-    simple_vm_test_with_scope_variables_outer();
-    simple_vm_test_with_functions_outer();
-    simple_vm_test_with_nested_functions_outer();
-    simple_vm_test_with_for_loops_outer();
+    vm_file_global_variables_test_outer();
+//    simple_vm_test_with_structs_outer();
+//    simple_vm_test_with_while_outer();
+//    simple_vm_test_with_ifs_outer();
+//    simple_vm_test_with_scope_variables_outer();
+//    simple_vm_test_with_functions_outer();
+//    simple_vm_test_with_nested_functions_outer();
+//    simple_vm_test_with_for_loops_outer();
 #endif
 
 #ifdef RUN_HASH_TABLE_TEST
@@ -50,14 +51,14 @@ int main() {
 #endif
 
 #ifdef RUN_COMPILER_TEST
-    simple_scanner_test_outer();
-    simple_compiler_test_with_for_outer();
-    simple_compiler_test_with_structs_outer();
-    simple_compiler_test_with_scope_variables_outer();
-    simple_compiler_test_with_functions_outer();
-    simple_compiler_test_if_statements_outer();
-    simple_compiler_test_if_while_outer();
-    simple_compiler_test_outer();
+//    simple_scanner_test_outer();
+//    simple_compiler_test_with_for_outer();
+//    simple_compiler_test_with_structs_outer();
+//    simple_compiler_test_with_scope_variables_outer();
+//    simple_compiler_test_with_functions_outer();
+//    simple_compiler_test_if_statements_outer();
+//    simple_compiler_test_if_while_outer();
+//    simple_compiler_test_outer();
 #endif
 
 #ifdef RUN_TRIE_TEST

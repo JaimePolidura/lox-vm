@@ -10,7 +10,8 @@ set(SOURCES ${SOURCES}
         trie_test.h
         stack_test.h
         utils_test.h
-        package_test.h)
+        package_test.h
+)
 
 include_directories(${PROJECT_SOURCE_DIR}/src)
 

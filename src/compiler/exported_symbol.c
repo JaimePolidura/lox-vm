@@ -14,9 +14,9 @@ struct exported_symbol * to_exported_symbol_struct(struct struct_definition * st
     return exported_symbol;
 }
 
-struct exported_symbol * to_exported_symbol_var(struct token name) {
+struct exported_symbol * to_exported_symbol_var(int var_identifier) {
     struct exported_symbol * exported_symbol = malloc(sizeof(struct exported_symbol));
-    exported_symbol->as.var = token_to_string(name);
+    exported_symbol->as.var_identifier = var_identifier;
     exported_symbol->type = EXPORTED_SYMBOL_VAR;
     return exported_symbol;
 }

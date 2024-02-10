@@ -96,13 +96,14 @@ static void add_compilation_struct_instance(struct compiler * compiler, struct s
 static struct struct_instance * find_struct_instance_by_name(struct compiler * compiler, struct token name);
 static int find_struct_field_offset(struct struct_definition * definition, struct token field_name);
 static void package_name(struct compiler * compiler);
-static void add_exported_symbol(struct compiler * compiler, struct exported_symbol * exported_symbol, struct token token_symbol);
+static void add_exported_symbol(struct compiler * compiler, struct exported_symbol * exported_symbol, struct token name);
 static void import_packages(struct compiler * compiler);
 static struct compiler * start_compiling(char * source_code, char * package_name, bool is_standalone_mode);
 static struct package * load_package(struct compiler * compiler);
 static struct package * compile_package(struct compiler * compiler, struct package * package);
 static struct package * add_package_to_compiled_packages(char * package_import_name, int package_import_name_length, bool is_standalone_mode);
 static struct struct_definition * get_struct_definition(struct package * package, struct token name);
+static int get_var_identifier_exported(struct compiler * compiler, struct package * package, struct token variable_name);
 
 struct parse_rule rules[] = {
         [TOKEN_OPEN_PAREN] = {grouping, function_call, PREC_CALL},
@@ -220,7 +221,9 @@ static void import_packages(struct compiler * compiler) {
 
         struct token package_import_name = compiler->parser->previous;
 
-        add_package_to_compiled_packages(package_import_name.start, package_import_name.length, compiler->is_standalone_mode);
+        // -2 and +1 to avoid including in the string "
+        add_package_to_compiled_packages(package_import_name.start + 1,
+                                         package_import_name.length - 2, compiler->is_standalone_mode);
 
         consume(compiler, TOKEN_SEMICOLON, "Expect ';' after use");
     }
@@ -329,10 +332,10 @@ static void variable_declaration(struct compiler * compiler, bool is_public) {
         int variable_identifier_constant = add_string_constant(compiler, compiler->parser->previous);
         variable_expression_declaration(compiler);
         define_global_variable(compiler, variable_identifier_constant);
-    }
 
-    if(is_public) {
-        add_exported_symbol(compiler, to_exported_symbol_var(compiler->parser->previous), compiler->parser->previous);
+        if(is_public) {
+            add_exported_symbol(compiler, to_exported_symbol_var(variable_identifier_constant), compiler->current_variable_name);
+        }
     }
 
     consume(compiler, TOKEN_SEMICOLON, "Expected ';' after variable declaration.");
@@ -597,6 +600,9 @@ static void variable(struct compiler * compiler, bool can_assign) {
 
     if (is_from_package) {
         external_package = load_package(compiler);
+        consume(compiler, TOKEN_COLON, "Expect ':' after : when accessing a package symbol");
+        consume(compiler, TOKEN_COLON, "Expect ':' after : when accessing a package symbol");
+        advance(compiler); //As we are accessing the variable name with the previous token, we need to advance
     }
 
     if (check(compiler, TOKEN_OPEN_BRACE)) {
@@ -607,7 +613,6 @@ static void variable(struct compiler * compiler, bool can_assign) {
 }
 
 static struct package * load_package(struct compiler * compiler) {
-    consume(compiler, TOKEN_COLON, "Expect ':' after : when referencing a package symbol");
     struct token package_name = compiler->parser->previous;
 
     struct package * package = find_trie(compiled_packages, package_name.start, package_name.length);
@@ -691,8 +696,11 @@ static void named_variable(struct compiler * compiler, struct token variable_nam
             (is_local ? OP_GET_LOCAL : OP_GET_GLOBAL);
 
     //If it is global and is not from a package, variable_identifier will contain constant offset, if not it will contain the local index
-    if (is_global) {
+    if (is_global && !is_from_external_package) {
         variable_identifier = add_string_constant(compiler, variable_name);
+    }
+    if (is_global && is_from_external_package) {
+        variable_identifier = get_var_identifier_exported(compiler, external_package, variable_name);
     }
 
     if(is_set_op) {
@@ -1045,15 +1053,21 @@ static int find_struct_field_offset(struct struct_definition * definition, struc
     return -1;
 }
 
+static int get_var_identifier_exported(struct compiler * compiler, struct package * package, struct token variable_name) {
+    struct exported_symbol * exported_var = find_trie(&package->exported_symbols, variable_name.start, variable_name.length);
+    if(exported_var == NULL){
+        report_error(compiler, variable_name, "Variable exported by package not found");
+    }
+    return exported_var->as.var_identifier;
+}
+
 static struct struct_definition * get_struct_definition(struct package * package, struct token name) {
     return find_trie(&package->struct_definitions, name.start, name.length);;
 }
 
-static void add_exported_symbol(struct compiler * compiler, struct exported_symbol * exported_symbol, struct token token_symbol) {
-    bool already_defined = !put_trie(&compiler->package->exported_symbols,
-                                     get_name_char_from_symbol(exported_symbol),
-                                     get_name_length_from_symbol(exported_symbol), exported_symbol);
+static void add_exported_symbol(struct compiler * compiler, struct exported_symbol * exported_symbol, struct token name) {
+    bool already_defined = !put_trie(&compiler->package->exported_symbols,name.start, name.length, exported_symbol);
     if(already_defined){
-        report_error(compiler, token_symbol, "Symbol already defined");
+        report_error(compiler, name, "Symbol already defined");
     }
 }

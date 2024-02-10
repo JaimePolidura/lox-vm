@@ -4,7 +4,7 @@ extern struct trie_list * compiled_packages;
 
 struct vm current_vm;
 
-static void set_up_package_to_initialize(struct package * package);
+static void setup_package_execution(struct package * package);
 static void push_stack_vm(lox_value_t value);
 static lox_value_t pop_stack_vm();
 static double pop_and_check_number();
@@ -14,7 +14,7 @@ static void print_stack();
 static void runtime_error(char * format, ...);
 static lox_value_t values_equal(lox_value_t a, lox_value_t b);
 static inline lox_value_t peek(int index_from_top);
-static inline void adition();
+static void adition();
 static inline struct call_frame * get_current_frame();
 static void define_global();
 static void get_global();
@@ -35,9 +35,11 @@ static void print();
 static void enter_package();
 static void initialize_package(struct package * package_to_initialize);
 static void exit_package();
-static void setup_new_package_execution(struct package * new_package);
 static void restore_prev_package_execution();
 static void setup_native_functions(struct package * package);
+static void setup_call_frame_function(struct function_object * function);
+static void setup_enter_package(struct package * package_to_enter);
+static void restore_prev_call_frame();
 
 extern struct trie_list * compiled_packages;
 
@@ -49,20 +51,9 @@ interpret_result_t interpret_vm(struct compilation_result compilation_result) {
         return INTERPRET_COMPILE_ERROR;
     }
 
-    set_up_package_to_initialize(compilation_result.compiled_package);
+    setup_package_execution(compilation_result.compiled_package);
 
     return run();
-}
-
-static void set_up_package_to_initialize(struct package * package) {
-    setup_new_package_execution(package);
-
-    init_hash_table(&package->global_variables);
-
-    push_stack_vm(TO_LOX_VALUE_OBJECT(package->main_function));
-    call_function(package->main_function, 0);
-
-    current_vm.esp += package->local_count;
 }
 
 #define READ_BYTE(frame) (*frame->pc++)
@@ -87,10 +78,6 @@ static interpret_result_t run() {
     struct call_frame * current_frame = get_current_frame();
 
     for(;;) {
-#ifdef  DEBUG_TRACE_EXECUTION
-        disassembleInstruction(&current_frame->current_function_in_compilation->chunk, (int)(frame->pc - frame->current_function_in_compilation->chunk->code));
-        print_stack();
-#endif
         switch (READ_BYTE(current_frame)) {
             case OP_RETURN: return_function(current_frame); current_frame = get_current_frame(); break;
             case OP_CONSTANT: push_stack_vm(READ_CONSTANT(current_frame)); break;
@@ -121,8 +108,8 @@ static interpret_result_t run() {
             case OP_INITIALIZE_STRUCT: initialize_struct(); break;
             case OP_GET_STRUCT_FIELD: get_struct_field(); break;
             case OP_SET_STRUCT_FIELD: set_struct_field(); break;
-            case OP_ENTER_PACKAGE: enter_package(); break;
-            case OP_EXIT_PACKAGE: exit_package(); break;
+            case OP_ENTER_PACKAGE: enter_package(); current_frame = get_current_frame(); break;
+            case OP_EXIT_PACKAGE: exit_package(); current_frame = get_current_frame(); break;
             default:
                 perror("Unhandled bytecode op\n");
                 return INTERPRET_RUNTIME_ERROR;
@@ -131,46 +118,70 @@ static interpret_result_t run() {
 }
 
 static void enter_package() {
-    struct package * package = (struct package *) AS_OBJECT(pop_stack_vm());
+    struct package_object * package_object = (struct package_object *) AS_OBJECT(pop_stack_vm());
+    struct package * package = package_object->package;
 
     switch (package->state) {
         case READY_TO_USE: break;
         case INITIALIZING: runtime_error("Found cyclical dependency with package %s", package->name);
-        case PENDING_INITIALIZATION: initialize_package(package);
+        case PENDING_INITIALIZATION: initialize_package(package); break;
         default: runtime_error("Unexpected package state Found bug in VM with package %s", package->name);
     }
 
-    setup_new_package_execution(package);
+    setup_enter_package(package);
+}
+
+// We only want to keep the constants of the package_to_enter, in case we set or get a global variable
+static void setup_enter_package(struct package * package_to_enter) {
+    struct call_frame * prev_frame = get_current_frame();
+    struct call_frame * new_frame = &current_vm.frames[current_vm.frames_in_use++];
+
+    new_frame->pc = prev_frame->pc;
+    new_frame->function = package_to_enter->main_function;
+    new_frame->slots = prev_frame->slots;
+
+    push_stack(&current_vm.package_stack, current_vm.current_package);
+    current_vm.current_package = package_to_enter;
 }
 
 static void exit_package() {
     restore_prev_package_execution();
+    get_current_frame()->pc = current_vm.frames[current_vm.frames_in_use].pc;
 }
 
 static void initialize_package(struct package * package_to_initialize) {
-    set_up_package_to_initialize(package_to_initialize);
+    setup_package_execution(package_to_initialize);
+
     package_to_initialize->state = INITIALIZING;
 
-    interpret_result_t result = run();
-    if(result == INTERPRET_RUNTIME_ERROR) {
+    if(run() == INTERPRET_RUNTIME_ERROR) {
         runtime_error("Error while interpreting package %s", package_to_initialize->name);
     }
 
     package_to_initialize->state = READY_TO_USE;
+
     restore_prev_package_execution();
 }
 
-static void setup_new_package_execution(struct package * new_package) {
-    setup_native_functions(new_package);
+static void setup_package_execution(struct package * package) {
     push_stack(&current_vm.package_stack, current_vm.current_package);
-    current_vm.current_package = new_package;
+    current_vm.current_package = package;
+
+    if(package->state != READY_TO_USE) {
+        init_hash_table(&package->global_variables);
+        setup_native_functions(package);
+
+        push_stack_vm(TO_LOX_VALUE_OBJECT(package->main_function));
+        setup_call_frame_function(package->main_function);
+    }
 }
 
 static void restore_prev_package_execution() {
     current_vm.current_package = pop_stack(&current_vm.package_stack);
+    restore_prev_call_frame();
 }
 
-static inline void adition() {
+static void adition() {
     if(IS_NUMBER(peek(0)) + IS_NUMBER(peek(1))) {
         double a = AS_NUMBER(pop_stack_vm());
         double b = AS_NUMBER(pop_stack_vm());
@@ -283,11 +294,7 @@ static void call_function(struct function_object * function, int n_args) {
         runtime_error("Stack overflow. Max allowed frames: %i", FRAME_MAX);
     }
 
-    struct call_frame * new_function_frame = &current_vm.frames[current_vm.frames_in_use++];
-
-    new_function_frame->function = function;
-    new_function_frame->pc = function->chunk.code;
-    new_function_frame->slots = current_vm.esp - n_args - 1;
+    setup_call_frame_function(function);
 }
 
 static void print() {
@@ -301,12 +308,13 @@ static void print() {
 }
 
 static void return_function(struct call_frame * function_to_return_frame) {
-    lox_value_t value = pop_stack_vm();
+    lox_value_t returned_value = pop_stack_vm();
 
-    current_vm.frames_in_use--;
+    restore_prev_call_frame();
+
     current_vm.esp = function_to_return_frame->slots;
 
-    push_stack_vm(value);
+    push_stack_vm(returned_value);
 }
 
 static void jump() {
@@ -492,4 +500,16 @@ void define_native(char * function_name, native_fn native_function) {
     struct native_object * native_object = alloc_native_object(native_function);
 
     put_hash_table(&current_vm.current_package->global_variables, function_name_obj, TO_LOX_VALUE_OBJECT(native_object));
+}
+
+static void setup_call_frame_function(struct function_object * function) {
+    struct call_frame * new_frame = &current_vm.frames[current_vm.frames_in_use++];
+
+    new_frame->function = function;
+    new_frame->pc = function->chunk.code;
+    new_frame->slots = current_vm.esp - function->n_arguments - 1;
+}
+
+static void restore_prev_call_frame() {
+    current_vm.frames_in_use--;
 }

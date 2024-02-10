@@ -6,6 +6,22 @@
 
 extern struct vm current_vm;
 
+TEST(vm_file_global_variables_test) {
+    struct compilation_result result = compile(
+            "C:\\programacion\\lox-vm\\tst\\resources\\global_variables\\main.lox",
+            "C:\\programacion\\lox-vm\\tst\\resources\\global_variables",
+            "main"
+    );
+    start_vm();
+    
+    interpret_result_t vm_result = interpret_vm(result);
+    ASSERT_TRUE(vm_result == INTERPRET_OK);
+    ASSERT_NEXT_VM_LOG(current_vm, "3.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
+
+    stop_vm();
+}
+
 TEST(simple_vm_test_with_structs){
     struct compilation_result compilation_result = compile_standalone(
             "struct Persona{ nombre; edad; } var jaime = Persona{\"Jaime\", 21}; print jaime.nombre; jaime.edad = 21 + 1; print jaime.edad;"

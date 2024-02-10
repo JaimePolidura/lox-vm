@@ -1,0 +1,6 @@
+use "math.lox";
+
+var i = 1;
+
+print Math::PI;
+print i;
