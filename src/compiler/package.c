@@ -13,6 +13,9 @@ void init_package(struct package * package) {
     init_trie_list(&package->exported_symbols);
     package->name = NULL;
     package->state = PENDING_COMPILATION;
+    package->local_count = 0;
+    package->main_function = NULL;
+    package->absolute_path = NULL;
 }
 
 char * read_package_source_code(char * absolute_path) {

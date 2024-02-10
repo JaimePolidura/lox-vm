@@ -164,7 +164,7 @@ struct compilation_result compile(char * entrypoint_absolute_path, char * compil
     struct compiler * compiler = start_compiling(source_code, package_name, false);
 
     compiler->package->main_function = end_compiler(compiler)->function_object;
-    compiler->local_count = compiler->local_count;
+    compiler->package->local_count = compiler->local_count;
 
     struct compilation_result compilation_result = {
             .compiled_package = compiler->package,
@@ -185,7 +185,7 @@ struct compilation_result compile_standalone(char * source_code) {
     struct compiler * compiler = start_compiling(source_code, "main", true);
 
     compiler->package->main_function = end_compiler(compiler)->function_object;
-    compiler->local_count = compiler->local_count;
+    compiler->package->local_count = compiler->local_count;
 
     struct compilation_result compilation_result = {
             .compiled_package = compiler->package,
@@ -688,7 +688,7 @@ static void named_variable(struct compiler * compiler, struct token variable_nam
     bool is_set_op = can_assign && match(compiler, TOKEN_EQUAL);
     uint8_t op = is_set_op ?
             (is_local ? OP_SET_LOCAL : OP_SET_GLOBAL) :
-            (is_local ? OP_SET_LOCAL : OP_SET_GLOBAL);
+            (is_local ? OP_GET_LOCAL : OP_GET_GLOBAL);
 
     //If it is global and is not from a package, variable_identifier will contain constant offset, if not it will contain the local index
     if (is_global) {

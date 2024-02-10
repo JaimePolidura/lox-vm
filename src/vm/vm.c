@@ -37,6 +37,7 @@ static void initialize_package(struct package * package_to_initialize);
 static void exit_package();
 static void setup_new_package_execution(struct package * new_package);
 static void restore_prev_package_execution();
+static void setup_native_functions(struct package * package);
 
 extern struct trie_list * compiled_packages;
 
@@ -55,6 +56,8 @@ interpret_result_t interpret_vm(struct compilation_result compilation_result) {
 
 static void set_up_package_to_initialize(struct package * package) {
     setup_new_package_execution(package);
+
+    init_hash_table(&package->global_variables);
 
     push_stack_vm(TO_LOX_VALUE_OBJECT(package->main_function));
     call_function(package->main_function, 0);
@@ -158,13 +161,13 @@ static void initialize_package(struct package * package_to_initialize) {
 }
 
 static void setup_new_package_execution(struct package * new_package) {
+    setup_native_functions(new_package);
     push_stack(&current_vm.package_stack, current_vm.current_package);
     current_vm.current_package = new_package;
 }
 
 static void restore_prev_package_execution() {
-    struct package * prev_package = pop_stack(&current_vm.package_stack);
-    current_vm.current_package = prev_package;
+    current_vm.current_package = pop_stack(&current_vm.package_stack);
 }
 
 static inline void adition() {
@@ -366,7 +369,8 @@ static double pop_and_check_number() {
     lox_value_t value = pop_stack_vm();
 
     if(IS_NUMBER(value)) {
-        return AS_NUMBER(value);
+        double d = AS_NUMBER(value);
+        return d;
     } else {
         runtime_error("Operand must be a number.");
         return -1; //Unreachable
@@ -416,12 +420,9 @@ void start_vm() {
     current_vm.esp = current_vm.stack; //Reset gray_stack
     current_vm.frames_in_use = 0;
 
-    init_hash_table(&current_vm.current_package->global_variables);
     init_gc_info(&current_vm.gc);
 
     init_stack_list(&current_vm.package_stack);
-
-    define_native("clock", clock_native);
 
 #ifdef VM_TEST
     current_vm.log_entries_in_use = 0;
@@ -478,6 +479,12 @@ static void print_stack() {
 
 static inline struct call_frame * get_current_frame() {
     return &current_vm.frames[current_vm.frames_in_use - 1];
+}
+
+static void setup_native_functions(struct package * package) {
+    if(package->state == PENDING_INITIALIZATION){
+        define_native("clock", clock_native);
+    }
 }
 
 void define_native(char * function_name, native_fn native_function) {

@@ -7,14 +7,10 @@
 #define RUN_VM_TEST
 #define RUN_HASH_TABLE_TEST
 #define RUN_COMPILER_TEST
-#define RUN_GLOBAL_STRING_POOL_TEST
 #define RUN_TRIE_TEST
 
 //Run in debug mode
 int main() {
-#ifdef RUN_GLOBAL_STRING_POOL_TEST
-    init_global_string_pool();
-#endif
 
 #ifdef RUN_VM_TEST
     simple_vm_test_with_structs_outer();
