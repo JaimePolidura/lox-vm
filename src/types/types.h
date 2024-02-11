@@ -13,7 +13,8 @@ typedef enum {
     OBJ_STRING,
     OBJ_FUNCTION,
     OBJ_NATIVE,
-    OBJ_STRUCT,
+    OBJ_STRUCT_INSTANCE,
+    OBJ_STRUCT_DEFINITION,
     OBJ_PACKAGE
 } object_type_t;
 

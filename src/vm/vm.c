@@ -323,23 +323,24 @@ static void jump() {
 }
 
 static void initialize_struct() {
-    struct struct_object * struct_object = alloc_struct_object();
-    int n_fields = (int) READ_BYTE(get_current_frame());
+    struct struct_instance_object * struct_instance = alloc_struct_instance_object();
+    struct struct_definition * struct_definition = ((struct struct_definition_object *)
+            AS_OBJECT(READ_CONSTANT(get_current_frame())))->definition;
+    int n_fields = struct_definition->n_fields;
 
-    for(int i = 0; i < n_fields; i++){
-        write_lox_array(&struct_object->fields, pop_stack_vm());
+    for(int i = 0; i < n_fields; i++) {
+        struct string_object * field_name = &struct_definition->field_names[struct_definition->n_fields - i - 1];
+        put_hash_table(&struct_instance->fields, field_name, pop_stack_vm());
     }
 
-    flip_lox_array(&struct_object->fields);
+    int total_bytes_allocated = sizeof(struct struct_instance_object) + n_fields * sizeof(lox_value_t);
+    add_object_to_heap(&current_vm.gc, &struct_instance->object, total_bytes_allocated);
 
-    int totalBytesAllocated = sizeof(struct struct_object) + n_fields * sizeof(lox_value_t);
-    add_object_to_heap(&current_vm.gc, &struct_object->object, totalBytesAllocated);
-
-    push_stack_vm(TO_LOX_VALUE_OBJECT(struct_object));
+    push_stack_vm(TO_LOX_VALUE_OBJECT(struct_instance));
 }
 
 static void get_struct_field() {
-    struct struct_object * struct_object = (struct struct_object *) AS_OBJECT(pop_stack_vm());
+    struct struct_instance_object * struct_object = (struct struct_instance_object *) AS_OBJECT(pop_stack_vm());
     int offset = (int) READ_BYTE(get_current_frame());
 
     push_stack_vm(struct_object->fields.values[offset]);
@@ -347,7 +348,7 @@ static void get_struct_field() {
 
 static void set_struct_field() {
     lox_value_t new_value = pop_stack_vm();
-    struct struct_object * struct_object = (struct struct_object *) AS_OBJECT(pop_stack_vm());
+    struct struct_instance_object * struct_object = (struct struct_instance_object *) AS_OBJECT(pop_stack_vm());
     int offset = (int) READ_BYTE(get_current_frame());
     struct_object->fields.values[offset] = new_value;
 }

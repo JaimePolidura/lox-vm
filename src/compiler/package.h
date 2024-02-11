@@ -23,8 +23,6 @@ struct package {
     //Used only by vm
     struct hash_table global_variables;
 
-    int local_count;
-
     package_state_t state;
 
     struct function_object * main_function;

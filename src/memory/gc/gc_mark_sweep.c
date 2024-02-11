@@ -59,8 +59,8 @@ static void traverse_root_dependences(struct gc_mark_sweep * gc_mark_sweep) {
         struct object * object = gc_mark_sweep->gray_stack[--gc_mark_sweep->gray_count];
 
         switch (object->type) {
-            case OBJ_STRUCT: {
-                struct struct_object * struct_object = (struct struct_object *) object;
+            case OBJ_STRUCT_INSTANCE: {
+                struct struct_instance_object * struct_object = (struct struct_instance_object *) object;
                 mark_array(&struct_object->fields);
                 mark_object(&struct_object->object);
                 break;

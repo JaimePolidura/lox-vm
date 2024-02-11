@@ -10,7 +10,7 @@
 #include "types/native.h"
 #include "native_functions.h"
 #include "memory/gc/gc.h"
-#include "types/struct_object.h"
+#include "types/struct_instance_object.h"
 #include "utils/stack_list.h"
 
 #define STACK_MAX 256

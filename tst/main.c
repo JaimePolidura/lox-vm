@@ -35,13 +35,13 @@ int main() {
 
 #ifdef RUN_VM_TEST
     vm_file_global_variables_test_outer();
-//    simple_vm_test_with_structs_outer();
-//    simple_vm_test_with_while_outer();
-//    simple_vm_test_with_ifs_outer();
-//    simple_vm_test_with_scope_variables_outer();
-//    simple_vm_test_with_functions_outer();
-//    simple_vm_test_with_nested_functions_outer();
-//    simple_vm_test_with_for_loops_outer();
+    simple_vm_test_with_structs_outer();
+    simple_vm_test_with_while_outer();
+    simple_vm_test_with_ifs_outer();
+    simple_vm_test_with_scope_variables_outer();
+    simple_vm_test_with_functions_outer();
+    simple_vm_test_with_nested_functions_outer();
+    simple_vm_test_with_for_loops_outer();
 #endif
 
 #ifdef RUN_HASH_TABLE_TEST

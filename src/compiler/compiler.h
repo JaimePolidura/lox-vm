@@ -9,11 +9,12 @@
 #include "compiler/compiler_structs.h"
 #include "utils/utils.h"
 #include "utils/trie.h"
-#include "compiled_function.h"
 #include "exported_symbol.h"
 #include "package.h"
 #include "types/package_object.h"
 #include "utils/substring.h"
+#include "types/struct_definition_object.h"
+#include "types/struct_instance_object.h"
 
 struct parser {
     struct token current;
@@ -41,7 +42,7 @@ struct compiler {
 
     struct token current_variable_name; //Trick to get the current variable name which stores a struct
 
-    struct compiled_function * current_function_in_compilation; //If scope is main, it points to package->main_function
+    struct function_object * current_function_in_compilation;
 
     struct local locals[UINT8_MAX];
     int local_count;

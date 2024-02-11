@@ -4,12 +4,17 @@
 #include "string_object.h"
 #include "chunk/chunk.h"
 #include "compiler/compiler_structs.h"
+#include "utils/trie.h"
 
 struct function_object {
     struct object object;
     int n_arguments; //Number of arguments
     struct chunk chunk;
     struct string_object * name;
+
+    //Mapping between variable names and struct_definition
+    //This is only used in compile time
+    struct trie_list struct_instances;
 };
 
 typedef enum {

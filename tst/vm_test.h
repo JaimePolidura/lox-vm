@@ -13,7 +13,7 @@ TEST(vm_file_global_variables_test) {
             "main"
     );
     start_vm();
-    
+
     interpret_result_t vm_result = interpret_vm(result);
     ASSERT_TRUE(vm_result == INTERPRET_OK);
     ASSERT_NEXT_VM_LOG(current_vm, "3.000000");
