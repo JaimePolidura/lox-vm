@@ -70,7 +70,7 @@ typedef struct {
 #define IS_NUMBER(value) ((value).type == VAL_NUMBER)
 
 #define IS_NIL(value) ((value).type == VAL_NIL)
-#define NIL_VALUE ((lox_value_t){VAL_NIL})
+#define NIL_VALUE() ((lox_value_t){VAL_NIL})
 
 #define FALSE_VALUE(value) ((lox_value_t){VAL_BOOL, {.boolean = false}})
 #define TRUE_VALUE(value) ((lox_value_t){VAL_BOOL, {.boolean = true}})

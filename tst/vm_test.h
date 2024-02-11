@@ -6,6 +6,20 @@
 
 extern struct vm current_vm;
 
+TEST(vm_file_global_structs_test) {
+    struct compilation_result result = compile(
+            "C:\\programacion\\lox-vm\\tst\\resources\\global_structs\\main.lox",
+            "C:\\programacion\\lox-vm\\tst\\resources\\global_structs",
+            "main"
+    );
+    start_vm();
+
+    interpret_result_t vm_result = interpret_vm(result);
+    ASSERT_TRUE(vm_result == INTERPRET_OK);
+    ASSERT_NEXT_VM_LOG(current_vm, "192.168.1.159");
+    ASSERT_NEXT_VM_LOG(current_vm, "8080.000000");
+}
+
 TEST(vm_file_global_variables_test) {
     struct compilation_result result = compile(
             "C:\\programacion\\lox-vm\\tst\\resources\\global_variables\\main.lox",
@@ -17,6 +31,9 @@ TEST(vm_file_global_variables_test) {
     interpret_result_t vm_result = interpret_vm(result);
     ASSERT_TRUE(vm_result == INTERPRET_OK);
     ASSERT_NEXT_VM_LOG(current_vm, "3.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "10.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "5.000000");
     ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
 
     stop_vm();

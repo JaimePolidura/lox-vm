@@ -123,7 +123,7 @@ static void mark_array(struct lox_array * array) {
 }
 
 static void mark_value(lox_value_t * value) {
-    if(IS_OBJECT(*value)){
+    if(IS_OBJECT((*value))){
         mark_object(AS_OBJECT(*value));
     }
 }

@@ -1,0 +1,10 @@
+use "net.lox";
+
+var socket = Net::Socket{"192.168.1.159", 8080};
+
+print socket.address;
+print socket.port;
+
+print Net::BaseConnection.socket.address;
+print Net::BaseConnection.socket.port;
+print Net::BaseConnection.socket.state;

@@ -4,3 +4,13 @@ var i = 1;
 
 print Math::PI;
 print i;
+
+print Math::Numero.real;
+
+fun sumar(a, b) {
+    return a + b.imaginario;
+}
+
+print sumar(Math::PI, Math::Numero);
+
+print i;

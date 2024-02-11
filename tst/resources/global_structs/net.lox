@@ -1,0 +1,16 @@
+pub struct Socket {
+    address;
+    port;
+}
+
+pub struct Connection {
+    socket;
+    state;
+}
+
+pub struct State {
+    name;
+    state;
+}
+
+pub var BaseConnection = Connection{Socket{"localhost", 8080}, "RUNNING"};

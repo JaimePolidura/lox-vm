@@ -173,7 +173,6 @@ static void setup_package_execution(struct package * package) {
         init_hash_table(&package->global_variables);
         setup_native_functions(package);
 
-        push_stack_vm(TO_LOX_VALUE_OBJECT(package->main_function));
         setup_call_frame_function(package->main_function);
     }
 }

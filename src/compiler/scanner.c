@@ -87,7 +87,9 @@ static void skip_white_space(struct scanner * scanner) {
                 break;
             case '/':
                 if(peek_next(scanner) == '/') {
-                    while(peek_next(scanner) != '\n' && !at_the_end(scanner)) advance(scanner);
+                    while(peek(scanner) != '\n' && !at_the_end(scanner)) {
+                        advance(scanner);
+                    }
                     break;
                 }
             default:

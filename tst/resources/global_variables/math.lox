@@ -1,1 +1,8 @@
+struct NumeroComplejo {
+    real;
+    imaginario;
+}
+
+pub var Numero = NumeroComplejo{10, 2};
+
 pub var PI = 3;
