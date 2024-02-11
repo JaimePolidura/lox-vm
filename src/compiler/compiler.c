@@ -85,9 +85,7 @@ static int function_call_number_arguments(struct compiler * compiler);
 static void return_statement(struct compiler * compiler);
 static void emit_empty_return(struct compiler * compiler);
 static void struct_declaration(struct compiler * compiler, bool is_public);
-static struct struct_definition * register_new_struct(struct compiler * compiler, struct token new_struct_name);
 static int struct_fields(struct compiler * compiler, struct token * fields);
-static void free_compiler_structs(struct struct_definition * compiler_structs);
 static void struct_initialization(struct compiler * compiler, struct package * external_package);
 static int struct_initialization_fields(struct compiler * compiler);
 static void dot(struct compiler * compiler, bool can_assign);
@@ -98,7 +96,7 @@ static struct compiler * start_compiling(char * source_code, char * package_name
 static struct package * load_package(struct compiler * compiler);
 static struct package * compile_package(struct compiler * compiler, struct package * package);
 static struct package * add_package_to_compiled_packages(char * package_import_name, int package_import_name_length, bool is_standalone_mode);
-static struct struct_definition * get_struct_definition(struct package * package, struct token name);
+static struct struct_definition_object * get_struct_definition(struct package * package, struct token name);
 static int get_identifier_exported(struct compiler * compiler, struct package * external_package, struct token variable_name);
 
 struct parse_rule rules[] = {
@@ -183,8 +181,9 @@ struct compilation_result compile_standalone(char * source_code) {
     compiler->package->main_function = end_compiler(compiler);
 
     struct compilation_result compilation_result = {
-            .compiled_package = compiler->package,
             .success = !compiler->parser->has_error,
+            .compiled_package = compiler->package,
+            .local_count = compiler->local_count
     };
 
     free_compiler(compiler);
@@ -226,7 +225,6 @@ static void import_packages(struct compiler * compiler) {
 static void dot(struct compiler * compiler, bool can_assign) {
     consume(compiler, TOKEN_IDENTIFIER, "Expect property name after '.'");
 
-    struct token struct_instance_name = compiler->current_variable_name;
     struct token struct_field_name = compiler->parser->previous;
 
     int field_name_string_constant = add_string_constant(compiler, struct_field_name);
@@ -262,7 +260,7 @@ static void struct_declaration(struct compiler * compiler, bool is_public) {
         report_error(compiler, compiler->parser->previous, "Struct already defined");
     }
 
-    struct struct_definition * struct_definition = alloc_struct_definition();
+    struct struct_definition_object * struct_definition = alloc_struct_definition_object();
 
     consume(compiler, TOKEN_OPEN_BRACE, "Expect '{' after struct declaration");
 
@@ -274,10 +272,14 @@ static void struct_declaration(struct compiler * compiler, bool is_public) {
     }
 
     struct_definition->n_fields = n_fields;
-    struct_definition->name = struct_name;
-    put_trie(&compiler->package->struct_definitions, struct_name.start, struct_name.length, struct_definition);
-    //TODO Add field names
+    struct_definition->name = copy_chars_to_string_object(struct_name.start, struct_name.length);
+    struct_definition->field_names = malloc(sizeof(struct token) * n_fields);
+    for(int i = 0; i < n_fields; i++) {
+        struct token field = fields[i];
+        struct_definition->field_names[i] = copy_chars_to_string_object(field.start, field.length);
+    }
 
+    put_trie(&compiler->package->struct_definitions, struct_name.start, struct_name.length, struct_definition);
 
     if(is_public) {
         add_exported_symbol(compiler, to_exported_symbol_struct(struct_definition), struct_name);
@@ -299,7 +301,7 @@ static int struct_fields(struct compiler * compiler, struct token * fields) {
 static void variable_declaration(struct compiler * compiler, bool is_public) {
     consume(compiler, TOKEN_IDENTIFIER, "Expected variable name.");
 
-    compiler->current_variable_name = compiler->parser->previous;
+    struct token variable_name = compiler->parser->previous;
 
     bool is_local_variable = compiler->local_depth > 0;
 
@@ -317,7 +319,7 @@ static void variable_declaration(struct compiler * compiler, bool is_public) {
         define_global_variable(compiler, variable_identifier_constant);
 
         if(is_public) {
-            add_exported_symbol(compiler, to_exported_symbol_var(variable_identifier_constant), compiler->current_variable_name);
+            add_exported_symbol(compiler, to_exported_symbol_var(variable_identifier_constant), variable_name);
         }
     }
 
@@ -625,7 +627,7 @@ static struct package * compile_package(struct compiler * compiler, struct packa
 
 static void struct_initialization(struct compiler * compiler, struct package * external_package) {
     struct token struct_name = compiler->parser->previous;
-    struct struct_definition * struct_definition = external_package != NULL ?
+    struct struct_definition_object * struct_definition = external_package != NULL ?
             get_struct_definition(external_package, struct_name) :
             get_struct_definition(compiler->package, struct_name);
 
@@ -642,9 +644,7 @@ static void struct_initialization(struct compiler * compiler, struct package * e
         report_error(compiler, struct_name, "Struct initialization number of args doest match with definition");
     }
 
-    struct struct_definition_object * struct_definition_object = alloc_struct_definition_object();
-    struct_definition_object->definition = struct_definition;
-    int struct_definition_constant = add_constant_to_chunk(current_chunk(compiler), TO_LOX_VALUE_OBJECT(struct_definition_object));
+    int struct_definition_constant = add_constant_to_chunk(current_chunk(compiler), TO_LOX_VALUE_OBJECT(struct_definition));
 
     emit_bytecodes(compiler, OP_INITIALIZE_STRUCT, struct_definition_constant);
 }
@@ -660,7 +660,6 @@ static int struct_initialization_fields(struct compiler * compiler) {
 }
 
 static void named_variable(struct compiler * compiler, struct token variable_name, bool can_assign, struct package * external_package) {
-    compiler->current_variable_name = variable_name;
     bool is_from_external_package = external_package != NULL;
 
     int variable_identifier = resolve_local_variable(compiler, &variable_name);
@@ -973,7 +972,7 @@ static void begin_scope(struct compiler * compiler) {
 static void end_scope(struct compiler * compiler) {
     compiler->local_depth--;
 
-    while(compiler->local_count > 0 && compiler->locals[compiler->local_count - 1].depth > compiler->local_depth){
+    while(compiler->local_count > 0 && compiler->locals[compiler->local_count - 1].depth > compiler->local_depth) {
         emit_bytecode(compiler, OP_POP);
         compiler->local_count--;
     }
@@ -996,7 +995,7 @@ static int get_identifier_exported(struct compiler * compiler, struct package * 
     return exported_var->as.identifier;
 }
 
-static struct struct_definition * get_struct_definition(struct package * package, struct token name) {
+static struct struct_definition_object * get_struct_definition(struct package * package, struct token name) {
     return find_trie(&package->struct_definitions, name.start, name.length);;
 }
 

@@ -7,13 +7,16 @@
 #include "utils_test.h"
 #include "package_test.h"
 
-//#define RUN_HASH_TABLE_TEST
-//#define RUN_COMPILER_TEST
-//#define RUN_PACKAGE_TEST
-//#define RUN_TRIE_TEST
+#define RUN_HASH_TABLE_TEST
+#define RUN_COMPILER_TEST
+#define RUN_PACKAGE_TEST
+#define RUN_TRIE_TEST
 #define RUN_VM_TEST
-//#define RUN_STACK_TEST
-//#define RUN_UTILS_TEST
+#define RUN_STACK_TEST
+#define RUN_UTILS_TEST
+
+extern struct trie_list * compiled_packages;
+extern const char * compiling_base_dir;
 
 //Run in debug mode
 int main() {
@@ -34,6 +37,9 @@ int main() {
 #endif
 
 #ifdef RUN_VM_TEST
+    compiling_base_dir = NULL;
+    compiled_packages = NULL;
+
     vm_file_global_variables_test_outer();
     simple_vm_test_with_structs_outer();
     simple_vm_test_with_while_outer();
@@ -51,14 +57,14 @@ int main() {
 #endif
 
 #ifdef RUN_COMPILER_TEST
-//    simple_scanner_test_outer();
-//    simple_compiler_test_with_for_outer();
-//    simple_compiler_test_with_structs_outer();
-//    simple_compiler_test_with_scope_variables_outer();
-//    simple_compiler_test_with_functions_outer();
-//    simple_compiler_test_if_statements_outer();
-//    simple_compiler_test_if_while_outer();
-//    simple_compiler_test_outer();
+    simple_scanner_test_outer();
+    simple_compiler_test_with_for_outer();
+    simple_compiler_test_with_structs_outer();
+    simple_compiler_test_with_scope_variables_outer();
+    simple_compiler_test_with_functions_outer();
+    simple_compiler_test_if_statements_outer();
+    simple_compiler_test_if_while_outer();
+    simple_compiler_test_outer();
 #endif
 
 #ifdef RUN_TRIE_TEST

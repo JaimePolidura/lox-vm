@@ -53,6 +53,8 @@ interpret_result_t interpret_vm(struct compilation_result compilation_result) {
 
     setup_package_execution(compilation_result.compiled_package);
 
+    current_vm.esp += compilation_result.local_count;
+
     return run();
 }
 
@@ -262,7 +264,6 @@ static void call() {
     int n_args = READ_BYTE(current_frame);
 
     lox_value_t callee = peek(n_args);
-    struct function_object * o = AS_FUNCTION(callee);
 
     if(!IS_OBJECT(callee)){
         runtime_error("Cannot call");
@@ -324,12 +325,13 @@ static void jump() {
 
 static void initialize_struct() {
     struct struct_instance_object * struct_instance = alloc_struct_instance_object();
-    struct struct_definition * struct_definition = ((struct struct_definition_object *)
-            AS_OBJECT(READ_CONSTANT(get_current_frame())))->definition;
+    struct struct_definition_object * struct_definition = (struct struct_definition_object *) AS_OBJECT(READ_CONSTANT(get_current_frame()));
     int n_fields = struct_definition->n_fields;
 
+    struct_instance->definition = struct_definition;
+
     for(int i = 0; i < n_fields; i++) {
-        struct string_object * field_name = &struct_definition->field_names[struct_definition->n_fields - i - 1];
+        struct string_object * field_name = struct_definition->field_names[struct_definition->n_fields - i - 1];
         put_hash_table(&struct_instance->fields, field_name, pop_stack_vm());
     }
 
@@ -340,17 +342,27 @@ static void initialize_struct() {
 }
 
 static void get_struct_field() {
-    struct struct_instance_object * struct_object = (struct struct_instance_object *) AS_OBJECT(pop_stack_vm());
-    int offset = (int) READ_BYTE(get_current_frame());
+    struct struct_instance_object * instance = (struct struct_instance_object *) AS_OBJECT(pop_stack_vm());
+    struct string_object * field_name = (struct string_object *) AS_OBJECT(READ_CONSTANT(get_current_frame()));
 
-    push_stack_vm(struct_object->fields.values[offset]);
+    lox_value_t field_value;
+    if(!get_hash_table(&instance->fields, field_name, &field_value)) {
+        runtime_error("Undefined field %s", field_name->chars);
+    }
+
+    push_stack_vm(field_value);
 }
 
 static void set_struct_field() {
     lox_value_t new_value = pop_stack_vm();
-    struct struct_instance_object * struct_object = (struct struct_instance_object *) AS_OBJECT(pop_stack_vm());
-    int offset = (int) READ_BYTE(get_current_frame());
-    struct_object->fields.values[offset] = new_value;
+    struct struct_instance_object * instance = (struct struct_instance_object *) AS_OBJECT(pop_stack_vm());
+    struct string_object * field_name = (struct string_object *) AS_OBJECT(READ_CONSTANT(get_current_frame()));
+
+    if(!contains_hash_table(&instance->fields, field_name)) {
+        runtime_error("Undefined field %s", field_name->chars);
+    }
+
+    put_hash_table(&instance->fields, field_name, new_value);
 }
 
 static void jump_if_false() {

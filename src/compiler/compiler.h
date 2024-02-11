@@ -6,7 +6,6 @@
 #include "types/string_object.h"
 #include "types/function.h"
 #include "chunk/chunk_disassembler.h"
-#include "compiler/compiler_structs.h"
 #include "utils/utils.h"
 #include "utils/trie.h"
 #include "exported_symbol.h"
@@ -40,8 +39,6 @@ struct compiler {
     struct scanner * scanner;
     struct parser * parser;
 
-    struct token current_variable_name; //Trick to get the current variable name which stores a struct
-
     struct function_object * current_function_in_compilation;
 
     struct local locals[UINT8_MAX];
@@ -52,6 +49,7 @@ struct compiler {
 struct compilation_result {
     struct package * compiled_package;
     char * error_message;
+    int local_count;
     bool success;
 };
 

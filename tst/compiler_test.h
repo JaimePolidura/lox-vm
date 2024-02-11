@@ -54,16 +54,16 @@ TEST(simple_compiler_test_with_structs){
     ASSERT_BYTECODE_SEQ(chunk->code,
                         OP_CONSTANT, 1,
                         OP_CONSTANT, 2,
-                        OP_INITIALIZE_STRUCT, 2,
+                        OP_INITIALIZE_STRUCT, 3,
                         OP_DEFINE_GLOBAL, 0,
 
-                        OP_GET_GLOBAL, 3,
-                        OP_GET_STRUCT_FIELD, 0,
+                        OP_GET_GLOBAL, 4,
+                        OP_GET_STRUCT_FIELD, 5,
                         OP_PRINT,
 
-                        OP_GET_GLOBAL, 4,
-                        OP_CONSTANT, 5,
-                        OP_SET_STRUCT_FIELD, 1);
+                        OP_GET_GLOBAL, 6,
+                        OP_CONSTANT, 8,
+                        OP_SET_STRUCT_FIELD, 7);
 
     clear_trie(compiled_packages);
 }

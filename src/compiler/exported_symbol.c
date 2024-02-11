@@ -7,7 +7,7 @@ struct exported_symbol * to_exported_symbol_function(struct function_object * fu
     return exported_symbol;
 }
 
-struct exported_symbol * to_exported_symbol_struct(struct struct_definition * struct_definition) {
+struct exported_symbol * to_exported_symbol_struct(struct struct_definition_object * struct_definition) {
     struct exported_symbol * exported_symbol = malloc(sizeof(struct exported_symbol));
     exported_symbol->as.struct_definition = struct_definition;
     exported_symbol->type = EXPORTED_SYMBOL_STRUCT;
