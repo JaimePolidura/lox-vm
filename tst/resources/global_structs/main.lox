@@ -7,4 +7,4 @@ print socket.port;
 
 print Net::BaseConnection.socket.address;
 print Net::BaseConnection.socket.port;
-print Net::BaseConnection.socket.state;
+print Net::BaseConnection.state;

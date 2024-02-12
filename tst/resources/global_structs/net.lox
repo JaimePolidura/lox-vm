@@ -13,4 +13,4 @@ pub struct State {
     state;
 }
 
-pub var BaseConnection = Connection{Socket{"localhost", 8080}, "RUNNING"};
+pub var BaseConnection = Connection{Socket{"localhost", 9090}, "RUNNING"};
