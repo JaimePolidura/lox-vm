@@ -6,6 +6,21 @@
 
 extern struct vm current_vm;
 
+TEST(vm_global_functions_test){
+    struct compilation_result result = compile(
+            "C:\\programacion\\lox-vm\\tst\\resources\\global_functions\\main.lox",
+            "C:\\programacion\\lox-vm\\tst\\resources\\global_functions",
+            "main"
+    );
+
+    start_vm();
+
+    interpret_result_t vm_result = interpret_vm(result);
+    ASSERT_NEXT_VM_LOG(current_vm, "Opened file 1.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "reading 10 bytes from file 1.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "closing file 1.000000");
+}
+
 TEST(vm_file_global_structs_test) {
     struct compilation_result result = compile(
             "C:\\programacion\\lox-vm\\tst\\resources\\global_structs\\main.lox",

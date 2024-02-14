@@ -97,7 +97,7 @@ static struct package * load_package(struct compiler * compiler);
 static struct package * compile_package(struct compiler * compiler, struct package * package);
 static struct package * add_package_to_compiled_packages(char * package_import_name, int package_import_name_length, bool is_standalone_mode);
 static struct struct_definition_object * get_struct_definition(struct package * package, struct token name);
-static int get_identifier_exported(struct compiler * compiler, struct package * external_package, struct token variable_name);
+static struct exported_symbol * get_exported_symbol(struct compiler * compiler, struct package * external_package, struct token variable_name);
 
 struct parse_rule rules[] = {
         [TOKEN_OPEN_PAREN] = {grouping, function_call, PREC_CALL},
@@ -282,7 +282,11 @@ static void struct_declaration(struct compiler * compiler, bool is_public) {
     put_trie(&compiler->package->struct_definitions, struct_name.start, struct_name.length, struct_definition);
 
     if(is_public) {
-        add_exported_symbol(compiler, to_exported_symbol_struct(struct_definition), struct_name);
+        int variable_identifier_constant = add_string_constant(compiler, struct_name);
+        emit_constant(compiler, TO_LOX_VALUE_OBJECT(struct_definition));
+        define_global_variable(compiler, variable_identifier_constant);
+
+        add_exported_symbol(compiler, to_exported_symbol(variable_identifier_constant, EXPORTED_STRUCT), struct_name);
     }
 }
 
@@ -319,7 +323,7 @@ static void variable_declaration(struct compiler * compiler, bool is_public) {
         define_global_variable(compiler, variable_identifier_constant);
 
         if(is_public) {
-            add_exported_symbol(compiler, to_exported_symbol_var(variable_identifier_constant), variable_name);
+            add_exported_symbol(compiler, to_exported_symbol(variable_identifier_constant, EXPORTED_VAR), variable_name);
         }
     }
 
@@ -338,11 +342,11 @@ static void function_declaration(struct compiler * compiler, bool is_public) {
     consume(compiler, TOKEN_IDENTIFIER, "Expected current_function_in_compilation name after fun keyword.");
     struct token function_name = compiler->parser->previous;
     int function_name_constant_offset = add_string_constant(compiler, function_name);
-    struct function_object * compiled_function = function(compiler);
+    function(compiler);
     define_global_variable(compiler, function_name_constant_offset);
 
     if(is_public){
-        add_exported_symbol(compiler, to_exported_symbol_function(compiled_function), function_name);
+        add_exported_symbol(compiler, to_exported_symbol(function_name_constant_offset, EXPORTED_FUNCTION), function_name);
     }
 }
 
@@ -379,7 +383,21 @@ static void function_parameters(struct compiler * function_compiler) {
 
 static void function_call(struct compiler * compiler, bool can_assign) {
     int n_args = function_call_number_arguments(compiler);
+
+    if (compiler->state == COMPILER_COMPILING_EXTERNAL_FUNCTION) {
+        lox_value_t package_lox_type = to_lox_package(compiler->package_of_compiling_external_func);
+        emit_constant(compiler, package_lox_type);
+        emit_bytecode(compiler, OP_ENTER_PACKAGE);
+    }
+
     emit_bytecodes(compiler, OP_CALL, n_args);
+
+    if (compiler->state == COMPILER_COMPILING_EXTERNAL_FUNCTION) {
+        emit_bytecode(compiler, OP_EXIT_PACKAGE);
+
+        compiler->package_of_compiling_external_func = NULL;
+        compiler->state = COMPILER_NONE;
+    }
 }
 
 static int function_call_number_arguments(struct compiler * compiler) {
@@ -661,6 +679,7 @@ static int struct_initialization_fields(struct compiler * compiler) {
 
 static void named_variable(struct compiler * compiler, struct token variable_name, bool can_assign, struct package * external_package) {
     bool is_from_external_package = external_package != NULL;
+    bool is_function_call = compiler->parser->current.type == TOKEN_OPEN_PAREN;
 
     int variable_identifier = resolve_local_variable(compiler, &variable_name);
     bool is_local = variable_identifier != -1;
@@ -674,19 +693,37 @@ static void named_variable(struct compiler * compiler, struct token variable_nam
         variable_identifier = add_string_constant(compiler, variable_name);
     }
     if (is_global && is_from_external_package) {
-        variable_identifier = get_identifier_exported(compiler, external_package, variable_name);
+        struct exported_symbol * exported_symbol = get_exported_symbol(compiler, external_package, variable_name);
+        exported_symbol_type_t expected_exported_type = is_function_call ?
+                                                        EXPORTED_FUNCTION :
+                                                        EXPORTED_VAR;
+
+        if(exported_symbol->type != expected_exported_type) {
+            report_error(compiler, variable_name, "Exported type is invalid in this context");
+        }
+
+        variable_identifier = exported_symbol->constant_identifier;
+
+        if(is_function_call) {
+            compiler->package_of_compiling_external_func = external_package;
+            compiler->state = COMPILER_COMPILING_EXTERNAL_FUNCTION;
+        }
     }
 
     if(is_set_op) {
         expression(compiler);
     }
 
-    //The opcode const of the package is added by named_variable
-    if(is_from_external_package) emit_bytecode(compiler, OP_ENTER_PACKAGE);
+    //The opcode const of the package is added by load_package()
+    if(is_from_external_package) {
+        emit_bytecode(compiler, OP_ENTER_PACKAGE);
+    }
 
     emit_bytecodes(compiler, op, (uint8_t) variable_identifier);
 
-    if(is_from_external_package) emit_bytecode(compiler, OP_EXIT_PACKAGE);
+    if(is_from_external_package) {
+        emit_bytecode(compiler, OP_EXIT_PACKAGE);
+    }
 }
 
 static struct parse_rule* get_rule(tokenType_t type) {
@@ -986,13 +1023,13 @@ static void emit_empty_return(struct compiler * compiler) {
     emit_bytecodes(compiler, OP_NIL, OP_RETURN);
 }
 
-static int get_identifier_exported(struct compiler * compiler, struct package * external_package, struct token variable_name) {
+static struct exported_symbol * get_exported_symbol(struct compiler * compiler, struct package * external_package, struct token variable_name) {
     struct exported_symbol * exported_var = find_trie(&external_package->exported_symbols, variable_name.start, variable_name.length);
     if(exported_var == NULL){
         report_error(compiler, variable_name, "Variable exported by external_package not found");
     }
 
-    return exported_var->as.identifier;
+    return exported_var;
 }
 
 static struct struct_definition_object * get_struct_definition(struct package * package, struct token name) {

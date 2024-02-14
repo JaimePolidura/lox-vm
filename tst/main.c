@@ -40,9 +40,10 @@ int main() {
     compiling_base_dir = NULL;
     compiled_packages = NULL;
 
-    vm_file_global_structs_test_outer();
-
+    vm_global_functions_test_outer();
+//    vm_file_global_structs_test_outer();
 //    vm_file_global_variables_test_outer();
+
 //    simple_vm_test_with_structs_outer();
 //    simple_vm_test_with_while_outer();
 //    simple_vm_test_with_ifs_outer();

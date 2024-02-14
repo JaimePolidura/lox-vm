@@ -1,0 +1,10 @@
+use "files.lox";
+
+var file = Files::open("/etc/test");
+
+print "Opened file " + file.fd;
+
+//read(file, 10);
+
+//close(file);
+

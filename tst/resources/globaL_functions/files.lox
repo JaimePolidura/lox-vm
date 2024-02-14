@@ -1,0 +1,15 @@
+pub struct File {
+    fd;
+}
+
+pub fun open(path) {
+    return File{1};
+}
+
+pub fun read(file, n) {
+    print "reading " + n + " bytes from file " + file.fd;
+}
+
+pub fun close(file) {
+    print "closing file " + file.fd;
+}

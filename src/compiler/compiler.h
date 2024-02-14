@@ -26,6 +26,10 @@ struct local {
     int depth;
 };
 
+typedef enum {
+    COMPILER_NONE,
+    COMPILER_COMPILING_EXTERNAL_FUNCTION,
+} compiler_state_t;
 
 struct compiler {
     struct package * package;
@@ -44,6 +48,9 @@ struct compiler {
     struct local locals[UINT8_MAX];
     int local_count;
     int local_depth;
+
+    compiler_state_t state;
+    struct package * package_of_compiling_external_func;
 };
 
 struct compilation_result {
