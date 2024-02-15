@@ -5,6 +5,13 @@
 #include "compiler/compiler.h"
 
 extern struct vm current_vm;
+extern struct trie_list * compiled_packages;
+extern const char * compiling_base_dir;
+
+static void reset() {
+    compiling_base_dir = NULL;
+    compiled_packages = NULL;
+}
 
 TEST(vm_global_functions_test){
     struct compilation_result result = compile(
@@ -17,11 +24,16 @@ TEST(vm_global_functions_test){
 
     interpret_result_t vm_result = interpret_vm(result);
     ASSERT_NEXT_VM_LOG(current_vm, "Opened file 1.000000");
-    ASSERT_NEXT_VM_LOG(current_vm, "reading 10 bytes from file 1.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "reading 10.000000 bytes from file 1.000000");
     ASSERT_NEXT_VM_LOG(current_vm, "closing file 1.000000");
+
+    stop_vm();
+    reset();
 }
 
 TEST(vm_file_global_structs_test) {
+    reset();
+
     struct compilation_result result = compile(
             "C:\\programacion\\lox-vm\\tst\\resources\\global_structs\\main.lox",
             "C:\\programacion\\lox-vm\\tst\\resources\\global_structs",
@@ -33,6 +45,9 @@ TEST(vm_file_global_structs_test) {
     ASSERT_TRUE(vm_result == INTERPRET_OK);
     ASSERT_NEXT_VM_LOG(current_vm, "192.168.1.159");
     ASSERT_NEXT_VM_LOG(current_vm, "8080.000000");
+
+    stop_vm();
+    reset();
 }
 
 TEST(vm_file_global_variables_test) {
@@ -52,6 +67,7 @@ TEST(vm_file_global_variables_test) {
     ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
 
     stop_vm();
+    reset();
 }
 
 TEST(simple_vm_test_with_structs){
@@ -66,6 +82,7 @@ TEST(simple_vm_test_with_structs){
     ASSERT_NEXT_VM_LOG(current_vm, "22.000000");
 
     stop_vm();
+    reset();
 }
 
 TEST(simple_vm_test_with_while) {
@@ -78,6 +95,7 @@ TEST(simple_vm_test_with_while) {
     ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
 
     stop_vm();
+    reset();
 }
 
 TEST(simple_vm_test_with_ifs) {
@@ -92,6 +110,7 @@ TEST(simple_vm_test_with_ifs) {
     ASSERT_NEXT_VM_LOG(current_vm, "5.000000");
 
     stop_vm();
+    reset();
 }
 
 TEST(simple_vm_test_with_for_loops) {
@@ -109,6 +128,7 @@ TEST(simple_vm_test_with_for_loops) {
     ASSERT_NEXT_VM_LOG(current_vm, "4.000000");
 
     stop_vm();
+    reset();
 }
 
 TEST(simple_vm_test_with_nested_functions) {
@@ -123,6 +143,7 @@ TEST(simple_vm_test_with_nested_functions) {
     ASSERT_NEXT_VM_LOG(current_vm, "2.000000");
 
     stop_vm();
+    reset();
 }
 
 TEST(simple_vm_test_with_functions) {
@@ -136,6 +157,7 @@ TEST(simple_vm_test_with_functions) {
     ASSERT_NEXT_VM_LOG(current_vm, "3.000000");
 
     stop_vm();
+    reset();
 }
 
 TEST(simple_vm_test_with_scope_variables) {
@@ -148,4 +170,5 @@ TEST(simple_vm_test_with_scope_variables) {
     ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
 
     stop_vm();
+    reset();
 }

@@ -7,13 +7,13 @@
 #include "utils_test.h"
 #include "package_test.h"
 
-//#define RUN_HASH_TABLE_TEST
-//#define RUN_COMPILER_TEST
-//#define RUN_PACKAGE_TEST
-//#define RUN_TRIE_TEST
+#define RUN_HASH_TABLE_TEST
+#define RUN_COMPILER_TEST
+#define RUN_PACKAGE_TEST
+#define RUN_TRIE_TEST
 #define RUN_VM_TEST
-//#define RUN_STACK_TEST
-//#define RUN_UTILS_TEST
+#define RUN_STACK_TEST
+#define RUN_UTILS_TEST
 
 extern struct trie_list * compiled_packages;
 extern const char * compiling_base_dir;
@@ -41,16 +41,16 @@ int main() {
     compiled_packages = NULL;
 
     vm_global_functions_test_outer();
-//    vm_file_global_structs_test_outer();
-//    vm_file_global_variables_test_outer();
+    vm_file_global_structs_test_outer();
+    vm_file_global_variables_test_outer();
 
-//    simple_vm_test_with_structs_outer();
-//    simple_vm_test_with_while_outer();
-//    simple_vm_test_with_ifs_outer();
-//    simple_vm_test_with_scope_variables_outer();
-//    simple_vm_test_with_functions_outer();
-//    simple_vm_test_with_nested_functions_outer();
-//    simple_vm_test_with_for_loops_outer();
+    simple_vm_test_with_structs_outer();
+    simple_vm_test_with_while_outer();
+    simple_vm_test_with_ifs_outer();
+    simple_vm_test_with_scope_variables_outer();
+    simple_vm_test_with_functions_outer();
+    simple_vm_test_with_nested_functions_outer();
+    simple_vm_test_with_for_loops_outer();
 #endif
 
 #ifdef RUN_HASH_TABLE_TEST

@@ -183,7 +183,7 @@ static void restore_prev_package_execution() {
 }
 
 static void adition() {
-    if(IS_NUMBER(peek(0)) + IS_NUMBER(peek(1))) {
+    if(IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
         double a = AS_NUMBER(pop_stack_vm());
         double b = AS_NUMBER(pop_stack_vm());
         push_stack_vm(TO_LOX_VALUE_NUMBER(a + b));
