@@ -35,6 +35,8 @@ struct compiler {
     struct package * package;
     scope_type_t scope;
 
+    char * source_code;
+
     //This is set to true when the only input of the compiler is the code.
     //No local packages will be allowed to use
     //TODO Replace this with a enum

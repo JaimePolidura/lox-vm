@@ -237,14 +237,13 @@ static bool is_digit(char character) {
 }
 
 void init_scanner(struct scanner * scanner, char * source_code) {
+    scanner->base_source_code = source_code;
     scanner->current = source_code;
     scanner->start = source_code;
     scanner->line = 0;
 }
 
-char * token_to_string(struct token token) {
-    char * string = malloc(sizeof(char) * token.length + 1);
-    memcpy(string, token.start, token.length);
-    string[token.length] = 0x00;
-    return string;
+void free_scanner(struct scanner * scanner) {
+    //TODO for some reason this segfaults
+//    free(scanner->base_source_code);
 }

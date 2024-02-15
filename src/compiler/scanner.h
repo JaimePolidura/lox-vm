@@ -35,12 +35,14 @@ struct token {
 };
 
 struct scanner {
+    char * base_source_code;
+
     char * start;
     char * current;
     int line;
 };
 
+void free_scanner(struct scanner * scanner);
 void init_scanner(struct scanner * scanner, char * source_code);
 struct scanner * alloc_scanner(char * source_code);
 struct token next_token_scanner(struct scanner * scanner);
-char * token_to_string(struct token token);

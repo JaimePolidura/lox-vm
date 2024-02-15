@@ -2,6 +2,10 @@
 
 struct string_pool global_string_pool;
 
+struct string_pool_add_result add_substring_to_global_string_pool(struct substring substring) {
+    return add_to_global_string_pool(start_substring(substring), length_substring(substring));
+}
+
 struct string_pool_add_result add_to_global_string_pool(char * string_ptr, int length) {
     uint32_t string_hash = hash_string(string_ptr, length);
     struct string_object * pooled_string = get_key_by_hash(&global_string_pool.strings, string_hash);

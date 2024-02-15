@@ -45,7 +45,6 @@ static void parse_precedence(struct compiler * compiler, precedence_t precedence
 static struct parse_rule * get_rule(tokenType_t type);
 static void binary(struct compiler * compiler, bool can_assign);
 static void literal(struct compiler * compiler, bool can_assign);
-static void string(struct compiler * compiler, bool can_assign);
 static bool match(struct compiler * compiler, tokenType_t type);
 static bool check(struct compiler * compiler, tokenType_t type);
 static void declaration(struct compiler * compiler);
@@ -98,6 +97,7 @@ static struct package * compile_package(struct compiler * compiler, struct packa
 static struct package * add_package_to_compiled_packages(char * package_import_name, int package_import_name_length, bool is_standalone_mode);
 static struct struct_definition_object * get_struct_definition(struct package * package, struct token name);
 static struct exported_symbol * get_exported_symbol(struct compiler * compiler, struct package * external_package, struct token variable_name);
+static void string(struct compiler * compiler, bool can_assign);
 
 struct parse_rule rules[] = {
         [TOKEN_OPEN_PAREN] = {grouping, function_call, PREC_CALL},
@@ -167,6 +167,7 @@ struct compilation_result compile(char * entrypoint_absolute_path, char * compil
     };
 
     free_compiler(compiler);
+    free(source_code);
 
     return compilation_result;
 }
@@ -272,17 +273,18 @@ static void struct_declaration(struct compiler * compiler, bool is_public) {
     }
 
     struct_definition->n_fields = n_fields;
-    struct_definition->name = copy_chars_to_string_object(struct_name.start, struct_name.length);
+    struct_definition->name = add_to_global_string_pool(struct_name.start, struct_name.length).string_object;
     struct_definition->field_names = malloc(sizeof(struct token) * n_fields);
     for(int i = 0; i < n_fields; i++) {
         struct token field = fields[i];
-        struct_definition->field_names[i] = copy_chars_to_string_object(field.start, field.length);
+        struct_definition->field_names[i] = add_to_global_string_pool(field.start, field.length).string_object;
     }
 
-    put_trie(&compiler->package->struct_definitions, struct_name.start, struct_name.length, struct_definition);
+    put_trie(&compiler->package->struct_definitions, struct_definition->name->chars,
+             strlen(struct_definition->name->chars), struct_definition);
 
     if(is_public) {
-        int variable_identifier_constant = add_string_constant(compiler, struct_name);
+        int variable_identifier_constant = add_constant_to_chunk(current_chunk(compiler), TO_LOX_VALUE_OBJECT(struct_definition->name));
         emit_constant(compiler, TO_LOX_VALUE_OBJECT(struct_definition));
         define_global_variable(compiler, variable_identifier_constant);
 
@@ -436,11 +438,11 @@ static void statement(struct compiler * compiler) {
 }
 
 static void return_statement(struct compiler * compiler) {
-    if(compiler->scope == SCOPE_PACKAGE){
+    if (compiler->scope == SCOPE_PACKAGE) {
         report_error(compiler, compiler->parser->previous, "Can't return from top level code");
     }
 
-    if(match(compiler, TOKEN_SEMICOLON)){
+    if (match(compiler, TOKEN_SEMICOLON)) {
         emit_empty_return(compiler);
     } else {
         expression(compiler);
@@ -730,14 +732,6 @@ static struct parse_rule* get_rule(tokenType_t type) {
     return &rules[type];
 }
 
-static void string(struct compiler * compiler, bool can_assign) {
-    const char * string_ptr = compiler->parser->previous.start + 1;
-    int string_length = compiler->parser->previous.length - 2;
-
-    struct string_pool_add_result add_result = add_to_global_string_pool(string_ptr, string_length);
-    emit_constant(compiler, TO_LOX_VALUE_OBJECT(add_result.string_object));
-}
-
 static void grouping(struct compiler * compiler, bool can_assign) {
     expression(compiler);
     consume(compiler, TOKEN_CLOSE_PAREN, "Expected ')'");
@@ -881,7 +875,7 @@ static struct package * add_package_to_compiled_packages(char * package_import_n
     //If it is not found, it means it is a local package -> a path is used as an import name
     if(package_in_compiled_packages == NULL) {
         struct package * new_package = alloc_package();
-        char * package_string = copy_substring_to_string(package_substring);
+        char * package_string = add_substring_to_global_string_pool(package_substring).string_object->chars;
         new_package->state = PENDING_COMPILATION;
         new_package->name = package_string;
         if(!is_stand_alone_mode) { //If used in standalone mode no local packages is allowed to use
@@ -920,7 +914,16 @@ static void init_compiler(struct compiler * compiler, scope_type_t scope_type, s
     local->depth = 0;
 }
 
+static void string(struct compiler * compiler, bool can_assign) {
+    const char * string_ptr = compiler->parser->previous.start + 1;
+    int string_length = compiler->parser->previous.length - 2;
+
+    struct string_pool_add_result add_result = add_to_global_string_pool(string_ptr, string_length);
+    emit_constant(compiler, TO_LOX_VALUE_OBJECT(add_result.string_object));
+}
+
 static void free_compiler(struct compiler * compiler) {
+    free_scanner(compiler->scanner);
     free(compiler->parser);
     free(compiler->scanner);
     free(compiler);
@@ -991,6 +994,7 @@ static uint8_t add_string_constant(struct compiler * compiler, struct token stri
     const char * variable_name = string_token.start;
     int variable_name_length = string_token.length;
 
+    //TODO Reuse constant offsets
     struct string_pool_add_result result_add = add_to_global_string_pool(variable_name, variable_name_length);
 
     return add_constant_to_chunk(current_chunk(compiler), TO_LOX_VALUE_OBJECT(result_add.string_object));
@@ -1037,7 +1041,7 @@ static struct struct_definition_object * get_struct_definition(struct package * 
 }
 
 static void add_exported_symbol(struct compiler * compiler, struct exported_symbol * exported_symbol, struct token name) {
-    bool already_defined = !put_trie(&compiler->package->exported_symbols,name.start, name.length, exported_symbol);
+    bool already_defined = !put_trie(&compiler->package->exported_symbols, name.start, name.length, exported_symbol);
     if(already_defined){
         report_error(compiler, name, "Symbol already defined");
     }

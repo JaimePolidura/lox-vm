@@ -2,6 +2,7 @@
 
 #include "shared.h"
 #include "utils/table.h"
+#include "utils/substring.h"
 
 struct string_pool {
     struct hash_table strings;
@@ -15,3 +16,4 @@ struct string_pool_add_result {
 void init_global_string_pool();
 
 struct string_pool_add_result add_to_global_string_pool(char * string_ptr, int length);
+struct string_pool_add_result add_substring_to_global_string_pool(struct substring substring);
