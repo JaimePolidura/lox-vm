@@ -16,6 +16,7 @@ void init_package(struct package * package) {
     package->state = PENDING_COMPILATION;
     package->main_function = NULL;
     package->absolute_path = NULL;
+    pthread_mutex_init(&package->state_mutex, NULL);
 }
 
 char * read_package_source_code(char * absolute_path) {

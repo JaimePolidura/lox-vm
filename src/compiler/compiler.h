@@ -33,13 +33,15 @@ typedef enum {
 
 struct compiler {
     struct package * package;
-    scope_type_t scope;
+
+    // Indicates if we are compiling a function or top level code
+    scope_type_t current_scope;
 
     char * source_code;
 
-    //This is set to true when the only input of the compiler is the code.
-    //No local packages will be allowed to use
-    //TODO Replace this with a enum
+    // This is set to true when the only input of the compiler is the code.
+    // No local packages will be allowed to use
+    // TODO Replace this with a enum
     bool is_standalone_mode;
 
     struct scanner * scanner;

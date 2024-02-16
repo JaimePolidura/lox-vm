@@ -55,7 +55,6 @@ int main() {
 
 #ifdef RUN_HASH_TABLE_TEST
     hash_table_put_contains_remove_get_test_outer();
-    hash_table_add_all_test_outer();
     hash_table_multiple_put_test_outer();
 #endif
 

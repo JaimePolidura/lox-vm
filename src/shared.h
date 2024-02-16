@@ -7,6 +7,8 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <pthread.h>
+#include <stdatomic.h>
 
 uint32_t hash_string(const char * string_ptr, int length);
 

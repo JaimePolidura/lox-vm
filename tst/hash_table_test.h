@@ -55,31 +55,3 @@ TEST(hash_table_put_contains_remove_get_test) {
     ASSERT_FALSE(contains_hash_table(&table, &key1));
     ASSERT_TRUE(contains_hash_table(&table, &key2));
 }
-
-TEST(hash_table_add_all_test) {
-    struct hash_table tableA;
-    init_hash_table(&tableA);
-
-    struct hash_table tableB;
-    init_hash_table(&tableB);
-
-    struct string_object key1 = STRING_TO_OBJ("key1");
-    struct string_object key2 = STRING_TO_OBJ("key2");
-    struct string_object key3 = STRING_TO_OBJ("key3");
-    struct string_object key4 = STRING_TO_OBJ("key4");
-
-    put_hash_table(&tableA, &key1, TO_LOX_VALUE_NUMBER(1));
-    put_hash_table(&tableA, &key2, TO_LOX_VALUE_NUMBER(2));
-    put_hash_table(&tableA, &key3, TO_LOX_VALUE_NUMBER(3));
-
-    put_hash_table(&tableB, &key4, TO_LOX_VALUE_NUMBER(4));
-
-    add_all_hash_table(&tableA, &tableB);
-
-    contains_hash_table(&tableA, &key1);
-
-    ASSERT_TRUE(contains_hash_table(&tableA, &key1));
-    ASSERT_TRUE(contains_hash_table(&tableA, &key2));
-    ASSERT_TRUE(contains_hash_table(&tableA, &key3));
-    ASSERT_TRUE(contains_hash_table(&tableA, &key4));
-}

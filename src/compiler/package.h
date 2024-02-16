@@ -8,29 +8,39 @@
 #include "utils/utils.h"
 
 typedef enum {
-    PENDING_COMPILATION, //Bytecode not generated
-    PENDING_INITIALIZATION, //Bytecode generated but not executed
-    INITIALIZING,
-    READY_TO_USE //Bytecode generated & executed
+    PENDING_COMPILATION, // Bytecode not generated
+    PENDING_INITIALIZATION, // Bytecode generated but not executed
+    INITIALIZING, // Executing lox package for the first time.
+    READY_TO_USE // Bytecode generated & executed
 } package_state_t;
 
 struct package {
-    char * name;
+    // Package name. Defined by the name of the lox file
+    const char * name;
 
-    //Used only for local imports
-    char * absolute_path;
+    // Absolute path of package in the file system
+    // Only set when package is local (not part of stdlib)
+    // Only used in compile time
+    const char * absolute_path;
 
-    //Used only by vm
+    // Maintains mapping of names with global variables, this might include functions, packages, variables etc.
+    // Only modified by the vm when executing instruction OP_DEFINE_GLOBAL in scope SCOPE_PACKAGE (top level code)
+    // This might be modified concurrently
     struct hash_table global_variables;
 
+    // Used at vm & compiler
+    // This might be modified concurrently by vm Protected by state_mutex
     package_state_t state;
+    pthread_mutex_t state_mutex;
 
     struct function_object * main_function;
 
-    //Includes functions, vars & structs
+    // Includes functions, vars & structs
+    // Only used and modified at compile time
     struct trie_list exported_symbols;
 
-    //May include public & private
+    // May include public & private
+    // Only used and modified at compile time
     struct trie_list struct_definitions; //Stores struct_definition
 };
 

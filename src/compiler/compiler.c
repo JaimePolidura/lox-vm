@@ -242,9 +242,9 @@ static void declaration(struct compiler * compiler) {
 
     if(match(compiler, TOKEN_VAR)) {
         variable_declaration(compiler, is_public);
-    } else if(match(compiler, TOKEN_FUN) && compiler->scope == SCOPE_PACKAGE) {
+    } else if(match(compiler, TOKEN_FUN) && compiler->current_scope == SCOPE_PACKAGE) {
         function_declaration(compiler, is_public);
-    } else if(match(compiler, TOKEN_FUN) && compiler->scope == SCOPE_FUNCTION) {
+    } else if(match(compiler, TOKEN_FUN) && compiler->current_scope == SCOPE_FUNCTION) {
         report_error(compiler, compiler->parser->current, "Nested functions are not allowed");
     } else if(match(compiler, TOKEN_STRUCT)) {
         struct_declaration(compiler, is_public);
@@ -315,11 +315,11 @@ static void variable_declaration(struct compiler * compiler, bool is_public) {
         report_error(compiler, compiler->parser->previous, "Cannot declare local variables as public");
     }
 
-    if(is_local_variable) { // Local scope
+    if(is_local_variable) { // Local current_scope
         int local_variable = add_local_variable(compiler, compiler->parser->previous);
         variable_expression_declaration(compiler);
         emit_bytecodes(compiler, OP_SET_LOCAL, local_variable);
-    } else { //Global scope
+    } else { //Global current_scope
         int variable_identifier_constant = add_string_constant(compiler, compiler->parser->previous);
         variable_expression_declaration(compiler);
         define_global_variable(compiler, variable_identifier_constant);
@@ -438,7 +438,7 @@ static void statement(struct compiler * compiler) {
 }
 
 static void return_statement(struct compiler * compiler) {
-    if (compiler->scope == SCOPE_PACKAGE) {
+    if (compiler->current_scope == SCOPE_PACKAGE) {
         report_error(compiler, compiler->parser->previous, "Can't return from top level code");
     }
 
@@ -903,7 +903,7 @@ static void init_compiler(struct compiler * compiler, scope_type_t scope_type, s
         compiler->package->main_function = compiler->current_function_in_compilation;
     }
 
-    compiler->scope = scope_type;
+    compiler->current_scope = scope_type;
 
     compiler->local_count = 0;
     compiler->local_depth = 0;
@@ -960,7 +960,7 @@ static int resolve_local_variable(struct compiler * compiler, struct token * nam
 
 static int add_local_variable(struct compiler * compiler, struct token new_variable_name) {
     if(compiler->local_depth == 0){
-        return - 1; //We are in a global scope
+        return - 1; //We are in a global current_scope
     }
 
     if(is_variable_already_defined(compiler, new_variable_name)){
@@ -1001,7 +1001,7 @@ static uint8_t add_string_constant(struct compiler * compiler, struct token stri
 }
 
 static void define_global_variable(struct compiler * compiler, uint8_t global_constant_offset) {
-    if(compiler->local_depth == 0) { // Global scope
+    if(compiler->local_depth == 0) { // Global current_scope
         emit_bytecodes(compiler, OP_DEFINE_GLOBAL, global_constant_offset);
     }
 }

@@ -3,9 +3,11 @@
 #include "shared.h"
 #include "utils/table.h"
 #include "utils/substring.h"
+#include "utils/concurrency/mutex.h"
 
 struct string_pool {
     struct hash_table strings;
+    struct mutex lock;
 };
 
 struct string_pool_add_result {

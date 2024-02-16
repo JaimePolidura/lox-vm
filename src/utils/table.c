@@ -2,6 +2,8 @@
 
 #define TABLE_MAX_LOAD 0.75
 
+static inline bool is_tombstone(struct hash_table_entry * entry);
+
 static struct hash_table_entry * find_entry(struct hash_table_entry * entries, int capacity, struct string_object * key);
 static struct hash_table_entry * find_entry_by_hash(struct hash_table_entry * entries, int capacity, uint32_t key_hash);
 static void adjust_hash_table_capacity(struct hash_table * table, int new_capacity);
@@ -10,6 +12,7 @@ void init_hash_table(struct hash_table * table) {
     table->size = 0;
     table->capacity = -1;
     table->entries = NULL;
+    init_rw_mutex(&table->lock);
 }
 
 void add_all_hash_table(struct hash_table * to, struct hash_table * from) {
@@ -26,13 +29,18 @@ struct string_object * get_key_by_hash(struct hash_table * table, uint32_t keyHa
         return NULL;
     }
 
+    lock_reader_rw_mutex(&table->lock);
+
     struct hash_table_entry * entry = find_entry_by_hash(table->entries, table->capacity, keyHash);
+    struct string_object * key_to_return = NULL;
 
     if(entry->key != NULL){
-        return entry->key;
-    } else {
-        return NULL;
+        key_to_return = entry->key;
     }
+
+    unlock_reader_rw_mutex(&table->lock);
+
+    return key_to_return;
 }
 
 bool contains_hash_table(struct hash_table * table, struct string_object * key){
@@ -44,8 +52,11 @@ bool get_hash_table(struct hash_table * table, struct string_object * key, lox_v
         return false;
     }
 
+    lock_reader_rw_mutex(&table->lock);
+
     struct hash_table_entry * entry = find_entry(table->entries, table->capacity, key);
     if (entry->key == NULL) {
+        unlock_reader_rw_mutex(&table->lock);
         return false;
     }
 
@@ -53,7 +64,47 @@ bool get_hash_table(struct hash_table * table, struct string_object * key, lox_v
         *value = entry->value;
     }
 
+    unlock_reader_rw_mutex(&table->lock);
+
     return true;
+}
+
+bool put_if_absent_hash_table(struct hash_table * table, struct string_object * key, lox_value_t value) {
+    lock_writer_rw_mutex(&table->lock);
+
+    struct hash_table_entry * entry = find_entry(table->entries, table->capacity, key);
+    bool element_added = false;
+
+    if(entry->key == NULL){
+        entry->value = value;
+        entry->key = key;
+
+        if (!is_tombstone(entry)) {
+            table->size++;
+        }
+
+        element_added = true;
+    }
+
+    unlock_writer_rw_mutex(&table->lock);
+
+    return element_added;
+}
+
+bool put_if_present_hash_table(struct hash_table * table, struct string_object * key, lox_value_t value) {
+    lock_writer_rw_mutex(&table->lock);
+
+    struct hash_table_entry * entry = find_entry(table->entries, table->capacity, key);
+    bool element_added = false;
+
+    if(entry->key != NULL){
+        entry->value = value;
+        element_added = true;
+    }
+
+    unlock_writer_rw_mutex(&table->lock);
+
+    return element_added;
 }
 
 bool remove_hash_table(struct hash_table * table, struct string_object * key) {
@@ -61,14 +112,19 @@ bool remove_hash_table(struct hash_table * table, struct string_object * key) {
         return false;
     }
 
+    lock_writer_rw_mutex(&table->lock);
+
     struct hash_table_entry * entry = find_entry(table->entries, table->capacity, key);
-    if (entry->key == NULL)  {
-        return false;
+    bool element_removed = false;
+
+    if (entry->key != NULL)  {
+        remove_entry_hash_table(entry);
+        element_removed = true;
     }
 
-    remove_entry_hash_table(entry);
+    unlock_writer_rw_mutex(&table->lock);
 
-    return true;
+    return element_removed;
 }
 
 void remove_entry_hash_table(struct hash_table_entry * entry) {
@@ -77,6 +133,8 @@ void remove_entry_hash_table(struct hash_table_entry * entry) {
 }
 
 bool put_hash_table(struct hash_table * table, struct string_object * key, lox_value_t value) {
+    lock_writer_rw_mutex(&table->lock);
+
     if (table->size + 1 > table->capacity * TABLE_MAX_LOAD) {
         adjust_hash_table_capacity(table, GROW_CAPACITY(table->capacity));
     }
@@ -87,11 +145,11 @@ bool put_hash_table(struct hash_table * table, struct string_object * key, lox_v
     entry->key = key;
     entry->value = value;
 
-    bool is_tombstone = entry->key == NULL && IS_BOOL(entry->value) && AS_BOOL(entry->value);
-
-    if (is_new_key && !is_tombstone) {
+    if (is_new_key && !is_tombstone(entry)) {
         table->size++;
     }
+
+    unlock_writer_rw_mutex(&table->lock);
 
     return is_new_key;
 }
@@ -147,4 +205,8 @@ static struct hash_table_entry * find_entry_by_hash(struct hash_table_entry * en
 
         index = (index + 1) & (capacity - 1); //Optimized %
     }
+}
+
+static inline bool is_tombstone(struct hash_table_entry * entry) {
+    return entry->key == NULL && IS_BOOL(entry->value) && AS_BOOL(entry->value);
 }

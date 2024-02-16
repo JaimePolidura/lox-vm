@@ -123,12 +123,16 @@ static void enter_package() {
     struct package_object * package_object = (struct package_object *) AS_OBJECT(pop_stack_vm());
     struct package * package = package_object->package;
 
+    pthread_mutex_lock(&package->state_mutex);
+
     switch (package->state) {
         case READY_TO_USE: break;
         case INITIALIZING: runtime_error("Found cyclical dependency with package %s", package->name);
         case PENDING_INITIALIZATION: initialize_package(package); break;
         default: runtime_error("Unexpected package state Found bug in VM with package %s", package->name);
     }
+
+    pthread_mutex_unlock(&package->state_mutex);
 
     setup_enter_package(package);
 }
@@ -237,11 +241,10 @@ static void get_global() {
 
 static void set_global() {
     struct string_object * variable_name = AS_STRING_OBJECT(READ_CONSTANT(get_current_frame()));
-    if(!contains_hash_table(&current_vm.current_package->global_variables, variable_name)){
+
+    if(!put_if_present_hash_table(&current_vm.current_package->global_variables, variable_name, peek(0))) {
         runtime_error("Cannot assign value to undeclared variable %s", variable_name->chars);
     }
-
-    put_hash_table(&current_vm.current_package->global_variables, variable_name, peek(0));
 }
 
 static void set_local() {
@@ -357,11 +360,9 @@ static void set_struct_field() {
     struct struct_instance_object * instance = (struct struct_instance_object *) AS_OBJECT(pop_stack_vm());
     struct string_object * field_name = (struct string_object *) AS_OBJECT(READ_CONSTANT(get_current_frame()));
 
-    if(!contains_hash_table(&instance->fields, field_name)) {
+    if(!put_if_present_hash_table(&instance->fields, field_name, new_value)) {
         runtime_error("Undefined field %s", field_name->chars);
     }
-
-    put_hash_table(&instance->fields, field_name, new_value);
 }
 
 static void jump_if_false() {
