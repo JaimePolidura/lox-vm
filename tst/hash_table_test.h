@@ -12,6 +12,46 @@
         .type = OBJ_STRING \
     }}
 
+TEST(hash_table_put_if_absent){
+    struct hash_table table;
+    init_hash_table(&table);
+    struct string_object key1 = STRING_TO_OBJ("key1");
+
+    put_hash_table(&table, &key1, TO_LOX_VALUE_NUMBER(1));
+
+    ASSERT_FALSE(put_if_absent_hash_table(&table, &key1, TO_LOX_VALUE_NUMBER(2)));
+    ASSERT_TRUE(contains_hash_table(&table, &key1));
+    lox_value_t value;
+    get_hash_table(&table, &key1, &value);
+    ASSERT_TRUE(AS_NUMBER(value) == 1);
+
+    remove_hash_table(&table, &key1);
+
+    ASSERT_TRUE(put_if_absent_hash_table(&table, &key1, TO_LOX_VALUE_NUMBER(3)));
+    ASSERT_TRUE(contains_hash_table(&table, &key1));
+
+    get_hash_table(&table, &key1, &value);
+    ASSERT_TRUE(AS_NUMBER(value) == 3);
+}
+
+TEST(hash_table_put_if_present){
+    struct hash_table table;
+    init_hash_table(&table);
+    struct string_object key1 = STRING_TO_OBJ("key1");
+
+    ASSERT_FALSE(put_if_present_hash_table(&table, &key1, TO_LOX_VALUE_NUMBER(1)));
+    ASSERT_FALSE(contains_hash_table(&table, &key1));
+
+    put_hash_table(&table, &key1, TO_LOX_VALUE_NUMBER(1));
+
+    ASSERT_TRUE(put_if_present_hash_table(&table, &key1, TO_LOX_VALUE_NUMBER(2)));
+    ASSERT_TRUE(contains_hash_table(&table, &key1));
+
+    lox_value_t value;
+    get_hash_table(&table, &key1, &value);
+    ASSERT_TRUE(AS_NUMBER(value) == 2);
+}
+
 TEST(hash_table_multiple_put_test) {
     struct hash_table table;
     init_hash_table(&table);

@@ -10,6 +10,8 @@
 #include <pthread.h>
 #include <stdatomic.h>
 
+typedef int lox_thread_id;
+
 uint32_t hash_string(const char * string_ptr, int length);
 
 //#define NAN_BOXING

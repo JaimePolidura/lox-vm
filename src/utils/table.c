@@ -70,6 +70,11 @@ bool get_hash_table(struct hash_table * table, struct string_object * key, lox_v
 }
 
 bool put_if_absent_hash_table(struct hash_table * table, struct string_object * key, lox_value_t value) {
+    if(table->size == 0){
+        put_hash_table(table, key, value);
+        return true;
+    }
+
     lock_writer_rw_mutex(&table->lock);
 
     struct hash_table_entry * entry = find_entry(table->entries, table->capacity, key);
@@ -92,6 +97,10 @@ bool put_if_absent_hash_table(struct hash_table * table, struct string_object * 
 }
 
 bool put_if_present_hash_table(struct hash_table * table, struct string_object * key, lox_value_t value) {
+    if(table->size == 0){
+        return false;
+    }
+
     lock_writer_rw_mutex(&table->lock);
 
     struct hash_table_entry * entry = find_entry(table->entries, table->capacity, key);
