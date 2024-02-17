@@ -7,7 +7,6 @@ struct vm_thread * alloc_vm_thread() {
 }
 
 void init_vm_thread(struct vm_thread * vm_thread) {
-    vm_thread->state = NEW;
     vm_thread->thread_id = -1;
 
     vm_thread->esp = vm_thread->stack;

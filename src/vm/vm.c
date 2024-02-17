@@ -2,6 +2,8 @@
 
 extern struct trie_list * compiled_packages;
 
+const uint8_t eof = OP_EOF;
+
 struct vm current_vm;
 __thread struct vm_thread * self_thread;
 
@@ -27,7 +29,7 @@ static void jump();
 static void loop();
 static void call();
 static void return_function(struct call_frame * function_to_return_frame);
-static void call_function(struct function_object * function, int n_args);
+static void call_function(struct function_object * function, int n_args, bool is_parallel);
 static void print_frame_stack_trace();
 static void initialize_struct();
 static void get_struct_field();
@@ -38,27 +40,16 @@ static void initialize_package(struct package * package_to_initialize);
 static void exit_package();
 static void restore_prev_package_execution();
 static void setup_native_functions(struct package * package);
-static void setup_call_frame_function(struct function_object * function);
+static void setup_call_frame_function(struct vm_thread * thread, struct function_object * function);
 static void setup_enter_package(struct package * package_to_enter);
 static void restore_prev_call_frame();
 static void create_root_thread();
-
-interpret_result_t interpret_vm(struct compilation_result compilation_result) {
-    //By doing this, we enforce that no other package can call the main package
-    compilation_result.compiled_package->state = INITIALIZING;
-    
-    if(!compilation_result.success){
-        return INTERPRET_COMPILE_ERROR;
-    }
-
-    create_root_thread();
-
-    setup_package_execution(compilation_result.compiled_package);
-
-    self_thread->esp += compilation_result.local_count;
-
-    return run();
-}
+static void start_child_thread(struct function_object * thread_entry_point_func);
+static void add_child_to_parent_list(struct vm_thread * new_child_thread);
+static void copy_stack_from_esp(struct vm_thread * from, struct vm_thread * top, int n);
+static void * run_thread_entrypoint(void * thread_ptr);
+static bool some_child_thread_running(struct vm_thread * thread);
+static void terminate_self_thread();
 
 #define READ_BYTE(frame) (*frame->pc++)
 #define READ_U16(frame) \
@@ -77,6 +68,56 @@ interpret_result_t interpret_vm(struct compilation_result compilation_result) {
         double a = pop_and_check_number(); \
         push_stack_vm(TO_LOX_VALUE_BOOL(a op b)); \
     }while(false);
+
+interpret_result_t interpret_vm(struct compilation_result compilation_result) {
+    //By doing this, we enforce that no other package can call the main package
+    compilation_result.compiled_package->state = INITIALIZING;
+    
+    if(!compilation_result.success){
+        return INTERPRET_COMPILE_ERROR;
+    }
+
+    create_root_thread();
+
+    setup_package_execution(compilation_result.compiled_package);
+
+    self_thread->esp += compilation_result.local_count;
+
+    return run();
+}
+
+static void * run_thread_entrypoint(void * thread_ptr) {
+    struct vm_thread * thread = (struct vm_thread *) thread_ptr;
+    thread->native_thread = pthread_self();
+    self_thread = thread;
+    self_thread->state = THREAD_RUNNABLE;
+
+    run();
+
+    terminate_self_thread();
+
+    return NULL;
+}
+
+static void terminate_self_thread() {
+    if(some_child_thread_running(self_thread)) {
+        runtime_error("Cannot end execution while some child thread still running");
+    }
+
+    self_thread->state = THREAD_TERMINATED;
+}
+
+static bool some_child_thread_running(struct vm_thread * thread) {
+    for(int i = 0; i < MAX_CHILD_THREADS_PER_THREAD; i++) {
+        struct vm_thread * current_thread = thread->children[i];
+
+        if(current_thread != NULL && current_thread->state < THREAD_TERMINATED) { //They are in order
+            return true;
+        }
+    }
+
+    return false;
+}
 
 static interpret_result_t run() {
     struct call_frame * current_frame = get_current_frame();
@@ -108,12 +149,12 @@ static interpret_result_t run() {
             case OP_SET_LOCAL: set_local(); break;
             case OP_LOOP: loop(); break;
             case OP_CALL: call(); current_frame = get_current_frame(); break;
-            case OP_EOF: return INTERPRET_OK;
             case OP_INITIALIZE_STRUCT: initialize_struct(); break;
             case OP_GET_STRUCT_FIELD: get_struct_field(); break;
             case OP_SET_STRUCT_FIELD: set_struct_field(); break;
             case OP_ENTER_PACKAGE: enter_package(); current_frame = get_current_frame(); break;
             case OP_EXIT_PACKAGE: exit_package(); current_frame = get_current_frame(); break;
+            case OP_EOF: return INTERPRET_OK;
             default:
                 perror("Unhandled bytecode op\n");
                 return INTERPRET_RUNTIME_ERROR;
@@ -179,7 +220,7 @@ static void setup_package_execution(struct package * package) {
         init_hash_table(&package->global_variables);
         setup_native_functions(package);
 
-        setup_call_frame_function(package->main_function);
+        setup_call_frame_function(self_thread, package->main_function);
     }
 }
 
@@ -276,10 +317,14 @@ static void call() {
 
     switch (AS_OBJECT(callee)->type) {
         case OBJ_FUNCTION: {
-            call_function(AS_FUNCTION(callee), n_args);
+            call_function(AS_FUNCTION(callee), n_args, is_parallel);
             break;
         }
         case OBJ_NATIVE: {
+            if(is_parallel) {
+                runtime_error("Cannot call parallel in native functions");
+            }
+
             native_fn native_function = TO_NATIVE(callee)->native_fn;
             lox_value_t result = native_function(n_args, self_thread->esp - n_args);
             self_thread->esp -= n_args + 1;
@@ -292,7 +337,7 @@ static void call() {
     }
 }
 
-static void call_function(struct function_object * function, int n_args) {
+static void call_function(struct function_object * function, int n_args, bool is_parallel) {
     if(n_args != function->n_arguments){
         runtime_error("Cannot call %s with %i args. Required %i nº args", function->name->chars, n_args, function->n_arguments);
     }
@@ -300,7 +345,11 @@ static void call_function(struct function_object * function, int n_args) {
         runtime_error("Stack overflow. Max allowed frames: %i", FRAME_MAX);
     }
 
-    setup_call_frame_function(function);
+    if(!is_parallel) {
+        setup_call_frame_function(self_thread, function);
+    } else {
+        start_child_thread(function);
+    }
 }
 
 static void print() {
@@ -407,6 +456,7 @@ static bool check_boolean() {
         return AS_BOOL(value);
     } else {
         runtime_error("Operand must be a boolean.");
+        return false; //Compiler doest warn me
     }
 }
 
@@ -513,16 +563,22 @@ void define_native(char * function_name, native_fn native_function) {
     put_hash_table(&self_thread->current_package->global_variables, function_name_obj, TO_LOX_VALUE_OBJECT(native_object));
 }
 
-static void setup_call_frame_function(struct function_object * function) {
-    struct call_frame * new_frame = &self_thread->frames[self_thread->frames_in_use++];
+static void setup_call_frame_function(struct vm_thread * thread, struct function_object * function) {
+    struct call_frame * new_frame = &thread->frames[thread->frames_in_use++];
 
     new_frame->function = function;
     new_frame->pc = function->chunk.code;
-    new_frame->slots = self_thread->esp - function->n_arguments - 1;
+    new_frame->slots = thread->esp - function->n_arguments - 1;
 }
 
 static void restore_prev_call_frame() {
     self_thread->frames_in_use--;
+
+    //We have hit end of execution of a thread (thread entrypoint are functions)
+    if(self_thread->frames_in_use == 0) {
+        struct call_frame * eof_call_frame = &self_thread->frames[self_thread->frames_in_use++];
+        eof_call_frame->pc = &eof;
+    }
 }
 
 static void create_root_thread() {
@@ -530,7 +586,44 @@ static void create_root_thread() {
     root_thread->thread_id = acquire_thread_id_pool(&current_vm.thread_id_pool);
     root_thread->native_thread = pthread_self();
     root_thread->esp = root_thread->stack;
-
+    root_thread->state = THREAD_RUNNABLE;
     current_vm.root = root_thread;
     self_thread = root_thread;
+}
+
+static void start_child_thread(struct function_object * thread_entry_point_func) {
+    struct vm_thread * new_thread = alloc_vm_thread();
+    new_thread->thread_id = acquire_thread_id_pool(&current_vm.thread_id_pool);
+    new_thread->state = THREAD_NEW;
+    new_thread->current_package = self_thread->current_package;
+
+    add_child_to_parent_list(new_thread);
+    copy_stack_from_esp(self_thread, new_thread, thread_entry_point_func->n_arguments);
+    setup_call_frame_function(new_thread, thread_entry_point_func);
+
+    pthread_create(&new_thread->native_thread, NULL, run_thread_entrypoint, new_thread);
+}
+
+static void copy_stack_from_esp(struct vm_thread * from, struct vm_thread * top, int n) {
+    for(int i = 0; i < n; i++){
+        top->stack[i] = from->esp[- i - 1];
+        from->esp += 1;
+    }
+}
+
+static void add_child_to_parent_list(struct vm_thread * new_child_thread) {
+    for(int i = 0; i < MAX_CHILD_THREADS_PER_THREAD; i++){
+        struct vm_thread * current_thread_slot = self_thread->children[i];
+
+        if(current_thread_slot == NULL) {
+            self_thread->children[i] = new_child_thread;
+            return;
+        } else if(current_thread_slot != NULL && current_thread_slot->state == THREAD_TERMINATED){
+            free_vm_thread(current_thread_slot);
+            free(current_thread_slot);
+            self_thread->children[i] = NULL;
+        }
+    }
+
+    runtime_error("Exceeded max number of child threads %i per thread", MAX_CHILD_THREADS_PER_THREAD);
 }

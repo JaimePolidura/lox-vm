@@ -24,10 +24,10 @@ struct call_frame {
 };
 
 typedef enum {
-    NEW,
-    RUNNABLE,
-    WAITING,
-    TERMINATED
+    THREAD_NEW,
+    THREAD_RUNNABLE,
+    THREAD_WAITING,
+    THREAD_TERMINATED
 } vm_thread_tate_t;
 
 struct vm_thread {

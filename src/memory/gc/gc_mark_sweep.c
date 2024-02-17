@@ -51,9 +51,9 @@ static void mark_stack() {
         for(int i = 0; i < MAX_CHILD_THREADS_PER_THREAD; i++){
             struct vm_thread * child_current_thread = current_thread->children[i];
 
-            if(child_current_thread != NULL && child_current_thread->state != TERMINATED) {
+            if(child_current_thread != NULL && child_current_thread->state != THREAD_TERMINATED) {
                 push_stack(&pending_threads, child_current_thread);
-            } else if (child_current_thread != NULL && child_current_thread->state == TERMINATED) {
+            } else if (child_current_thread != NULL && child_current_thread->state == THREAD_TERMINATED) {
                 free_vm_thread(child_current_thread);
                 free(child_current_thread);
                 current_thread->children[i] = NULL;
