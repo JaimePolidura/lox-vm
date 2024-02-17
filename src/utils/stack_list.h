@@ -27,3 +27,4 @@ void clear_stack(struct stack_list * stack);
 
 void push_stack(struct stack_list * stack, void * to_push);
 void * pop_stack(struct stack_list * stack);
+bool is_empty(struct stack_list * stack);

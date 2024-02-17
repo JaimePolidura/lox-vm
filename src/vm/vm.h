@@ -12,25 +12,14 @@
 #include "memory/gc/gc.h"
 #include "types/struct_instance_object.h"
 #include "utils/stack_list.h"
-
-#define STACK_MAX 256
-#define FRAME_MAX (STACK_MAX * 256)
-
-struct call_frame {
-    struct function_object * function;
-    uint8_t * pc; //Actual instruction
-    lox_value_t * slots; //Used for local variables. It points to the gray_stack
-};
+#include "vm/threads/vm_thread.h"
+#include "vm/threads/vm_thread_id_pool.h"
 
 struct vm {
-    struct package * current_package;
-    struct stack_list package_stack;
-
-    struct call_frame frames[FRAME_MAX];
-    int frames_in_use;
-    lox_value_t stack[STACK_MAX];
-    lox_value_t * esp; //Top of stack_list
+    struct vm_thread * root;
     struct gc gc;
+
+    struct thread_id_pool thread_id_pool;
 
 #ifdef VM_TEST
     char * log [256];

@@ -3,6 +3,7 @@
 extern struct trie_list * compiled_packages;
 
 struct vm current_vm;
+__thread struct vm_thread * self_thread;
 
 static void setup_package_execution(struct package * package);
 static void push_stack_vm(lox_value_t value);
@@ -40,20 +41,21 @@ static void setup_native_functions(struct package * package);
 static void setup_call_frame_function(struct function_object * function);
 static void setup_enter_package(struct package * package_to_enter);
 static void restore_prev_call_frame();
-
-extern struct trie_list * compiled_packages;
+static void create_root_thread();
 
 interpret_result_t interpret_vm(struct compilation_result compilation_result) {
     //By doing this, we enforce that no other package can call the main package
     compilation_result.compiled_package->state = INITIALIZING;
-
+    
     if(!compilation_result.success){
         return INTERPRET_COMPILE_ERROR;
     }
 
+    create_root_thread();
+
     setup_package_execution(compilation_result.compiled_package);
 
-    current_vm.esp += compilation_result.local_count;
+    self_thread->esp += compilation_result.local_count;
 
     return run();
 }
@@ -140,19 +142,19 @@ static void enter_package() {
 // We only want to keep the constants of the package_to_enter, in case we set or get a global variable
 static void setup_enter_package(struct package * package_to_enter) {
     struct call_frame * prev_frame = get_current_frame();
-    struct call_frame * new_frame = &current_vm.frames[current_vm.frames_in_use++];
+    struct call_frame * new_frame = &self_thread->frames[self_thread->frames_in_use++];
 
     new_frame->pc = prev_frame->pc;
     new_frame->function = package_to_enter->main_function;
     new_frame->slots = prev_frame->slots;
 
-    push_stack(&current_vm.package_stack, current_vm.current_package);
-    current_vm.current_package = package_to_enter;
+    push_stack(&self_thread->package_stack, self_thread->current_package);
+    self_thread->current_package = package_to_enter;
 }
 
 static void exit_package() {
     restore_prev_package_execution();
-    get_current_frame()->pc = current_vm.frames[current_vm.frames_in_use].pc;
+    get_current_frame()->pc = self_thread->frames[self_thread->frames_in_use].pc;
 }
 
 static void initialize_package(struct package * package_to_initialize) {
@@ -170,8 +172,8 @@ static void initialize_package(struct package * package_to_initialize) {
 }
 
 static void setup_package_execution(struct package * package) {
-    push_stack(&current_vm.package_stack, current_vm.current_package);
-    current_vm.current_package = package;
+    push_stack(&self_thread->package_stack, self_thread->current_package);
+    self_thread->current_package = package;
 
     if(package->state != READY_TO_USE) {
         init_hash_table(&package->global_variables);
@@ -182,7 +184,7 @@ static void setup_package_execution(struct package * package) {
 }
 
 static void restore_prev_package_execution() {
-    current_vm.current_package = pop_stack(&current_vm.package_stack);
+    self_thread->current_package = pop_stack(&self_thread->package_stack);
     restore_prev_call_frame();
 }
 
@@ -226,13 +228,13 @@ static void adition() {
 
 static void define_global() {
     struct string_object * name = AS_STRING_OBJECT(READ_CONSTANT(get_current_frame()));
-    put_hash_table(&current_vm.current_package->global_variables, name, pop_stack_vm());
+    put_hash_table(&self_thread->current_package->global_variables, name, pop_stack_vm());
 }
 
 static void get_global() {
     struct string_object * variable_name = AS_STRING_OBJECT(READ_CONSTANT(get_current_frame()));
     lox_value_t variable_value;
-    if(!get_hash_table(&current_vm.current_package->global_variables, variable_name, &variable_value)) {
+    if(!get_hash_table(&self_thread->current_package->global_variables, variable_name, &variable_value)) {
         runtime_error("Undefined variable %s.", variable_name->chars);
     }
 
@@ -242,7 +244,7 @@ static void get_global() {
 static void set_global() {
     struct string_object * variable_name = AS_STRING_OBJECT(READ_CONSTANT(get_current_frame()));
 
-    if(!put_if_present_hash_table(&current_vm.current_package->global_variables, variable_name, peek(0))) {
+    if(!put_if_present_hash_table(&self_thread->current_package->global_variables, variable_name, peek(0))) {
         runtime_error("Cannot assign value to undeclared variable %s", variable_name->chars);
     }
 }
@@ -279,8 +281,8 @@ static void call() {
         }
         case OBJ_NATIVE: {
             native_fn native_function = TO_NATIVE(callee)->native_fn;
-            lox_value_t result = native_function(n_args, current_vm.esp - n_args);
-            current_vm.esp -= n_args + 1;
+            lox_value_t result = native_function(n_args, self_thread->esp - n_args);
+            self_thread->esp -= n_args + 1;
             push_stack_vm(result);
 
             break;
@@ -294,7 +296,7 @@ static void call_function(struct function_object * function, int n_args) {
     if(n_args != function->n_arguments){
         runtime_error("Cannot call %s with %i args. Required %i nº args", function->name->chars, n_args, function->n_arguments);
     }
-    if(current_vm.frames_in_use >= FRAME_MAX){
+    if(self_thread->frames_in_use >= FRAME_MAX){
         runtime_error("Stack overflow. Max allowed frames: %i", FRAME_MAX);
     }
 
@@ -316,7 +318,7 @@ static void return_function(struct call_frame * function_to_return_frame) {
 
     restore_prev_call_frame();
 
-    current_vm.esp = function_to_return_frame->slots;
+    self_thread->esp = function_to_return_frame->slots;
 
     push_stack_vm(returned_value);
 }
@@ -384,7 +386,7 @@ static void loop() {
 }
 
 static inline lox_value_t peek(int index_from_top) {
-    return *(current_vm.esp - 1 - index_from_top);
+    return *(self_thread->esp - 1 - index_from_top);
 }
 
 static double pop_and_check_number() {
@@ -429,22 +431,17 @@ static lox_value_t values_equal(lox_value_t a, lox_value_t b) {
 }
 
 static void push_stack_vm(lox_value_t value) {
-    *current_vm.esp = value;
-    current_vm.esp++;
+    *self_thread->esp = value;
+    self_thread->esp++;
 }
 
 static lox_value_t pop_stack_vm() {
-    auto val = *--current_vm.esp;
+    auto val = *--self_thread->esp;
     return val;
 }
 
 void start_vm() {
-    current_vm.esp = current_vm.stack; //Reset gray_stack
-    current_vm.frames_in_use = 0;
-
     init_gc_info(&current_vm.gc);
-
-    init_stack_list(&current_vm.package_stack);
 
 #ifdef VM_TEST
     current_vm.log_entries_in_use = 0;
@@ -453,7 +450,7 @@ void start_vm() {
 
 void stop_vm() {
     clear_trie(compiled_packages);
-    clear_stack(&current_vm.package_stack);
+    clear_stack(&self_thread->package_stack);
 }
 
 static void runtime_error(char * format, ...) {
@@ -474,8 +471,8 @@ static void runtime_error(char * format, ...) {
 }
 
 static void print_frame_stack_trace() {
-    for (int i = current_vm.frames_in_use - 1; i >= 0; i--) {
-        struct call_frame * frame = &current_vm.frames[i];
+    for (int i = self_thread->frames_in_use - 1; i >= 0; i--) {
+        struct call_frame * frame = &self_thread->frames[i];
         struct function_object * function = frame->function;
 
         size_t instruction = frame->pc - function->chunk.code - 1;
@@ -491,7 +488,7 @@ static void print_frame_stack_trace() {
 
 static void print_stack() {
     printf("\t");
-    for(lox_value_t * value = current_vm.stack; value < current_vm.esp; value++)  {
+    for(lox_value_t * value = self_thread->stack; value < self_thread->esp; value++)  {
         printf("[");
         print_value(*value);
         printf("]");
@@ -500,7 +497,7 @@ static void print_stack() {
 }
 
 static inline struct call_frame * get_current_frame() {
-    return &current_vm.frames[current_vm.frames_in_use - 1];
+    return &self_thread->frames[self_thread->frames_in_use - 1];
 }
 
 static void setup_native_functions(struct package * package) {
@@ -513,17 +510,27 @@ void define_native(char * function_name, native_fn native_function) {
     struct string_object * function_name_obj = copy_chars_to_string_object(function_name, strlen(function_name));
     struct native_object * native_object = alloc_native_object(native_function);
 
-    put_hash_table(&current_vm.current_package->global_variables, function_name_obj, TO_LOX_VALUE_OBJECT(native_object));
+    put_hash_table(&self_thread->current_package->global_variables, function_name_obj, TO_LOX_VALUE_OBJECT(native_object));
 }
 
 static void setup_call_frame_function(struct function_object * function) {
-    struct call_frame * new_frame = &current_vm.frames[current_vm.frames_in_use++];
+    struct call_frame * new_frame = &self_thread->frames[self_thread->frames_in_use++];
 
     new_frame->function = function;
     new_frame->pc = function->chunk.code;
-    new_frame->slots = current_vm.esp - function->n_arguments - 1;
+    new_frame->slots = self_thread->esp - function->n_arguments - 1;
 }
 
 static void restore_prev_call_frame() {
-    current_vm.frames_in_use--;
+    self_thread->frames_in_use--;
+}
+
+static void create_root_thread() {
+    struct vm_thread * root_thread = alloc_vm_thread();
+    root_thread->thread_id = acquire_thread_id_pool(&current_vm.thread_id_pool);
+    root_thread->native_thread = pthread_self();
+    root_thread->esp = root_thread->stack;
+
+    current_vm.root = root_thread;
+    self_thread = root_thread;
 }

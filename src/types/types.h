@@ -86,6 +86,8 @@ typedef struct {
 
 #endif
 
+typedef void (*lox_type_consumer_t)(lox_value_t);
+
 bool cast_to_boolean(lox_value_t value);
 
 struct object * allocate_object(size_t size, object_type_t type);

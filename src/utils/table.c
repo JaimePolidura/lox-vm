@@ -187,6 +187,16 @@ static void adjust_hash_table_capacity(struct hash_table * table, int new_capaci
     table->capacity = new_capacity;
 }
 
+void for_each_value_hash_table(struct hash_table * table, lox_type_consumer_t consumer) {
+    for(int i = 0; i < table->capacity; i++){
+        struct hash_table_entry * entry = &table->entries[i];
+
+        if(entry->key != NULL && !is_tombstone(entry)){
+            consumer(entry->value);
+        }
+    }
+}
+
 static struct hash_table_entry * find_entry(struct hash_table_entry * entries, int capacity, struct string_object * key) {
     return find_entry_by_hash(entries, capacity, key->hash);
 }
@@ -196,9 +206,8 @@ static struct hash_table_entry * find_entry_by_hash(struct hash_table_entry * en
     uint32_t index = key_hash & (capacity - 1); //Optimized %
     for (;;) {
         struct hash_table_entry * entry = &entries[index];
-        bool is_tombstone = entry->key == NULL && IS_BOOL(entry->value) && AS_BOOL(entry->value);
 
-        if(is_tombstone && first_tombstone_found == NULL){
+        if(is_tombstone(entry) && first_tombstone_found == NULL){
             first_tombstone_found = entry;
             continue;
         }

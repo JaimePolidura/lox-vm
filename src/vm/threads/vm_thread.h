@@ -15,6 +15,7 @@
 
 #define STACK_MAX 256
 #define FRAME_MAX (STACK_MAX * 256)
+#define MAX_CHILD_THREADS_PER_THREAD 64
 
 struct call_frame {
     struct function_object * function;
@@ -23,11 +24,14 @@ struct call_frame {
 };
 
 typedef enum {
-    RUNNING,
+    NEW,
+    RUNNABLE,
+    WAITING,
+    TERMINATED
 } vm_thread_tate_t;
 
 struct vm_thread {
-    vm_thread_tate_t state;
+    volatile vm_thread_tate_t state;
 
     lox_thread_id thread_id;
 
@@ -41,4 +45,9 @@ struct vm_thread {
 
     struct call_frame frames[FRAME_MAX];
     int frames_in_use;
+
+    struct vm_thread * children[MAX_CHILD_THREADS_PER_THREAD];
 };
+
+struct vm_thread * alloc_vm_thread();
+void init_vm_thread(struct vm_thread * vm_thread);

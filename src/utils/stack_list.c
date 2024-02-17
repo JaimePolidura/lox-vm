@@ -29,6 +29,10 @@ void init_stack_list(struct stack_list * stack) {
     stack->head = NULL;
 }
 
+bool is_empty(struct stack_list * stack) {
+    return stack->head == NULL;
+}
+
 void push_stack(struct stack_list * stack, void * to_push) {
     struct stack_node * new_node = alloc_stack_node();
     struct stack_node * prev_node = stack->head;

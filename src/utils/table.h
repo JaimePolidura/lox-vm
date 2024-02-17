@@ -16,6 +16,8 @@ struct hash_table {
     struct hash_table_entry * entries;
 };
 
+void for_each_value_hash_table(struct hash_table * table, lox_type_consumer_t consumer);
+
 // Get the value of the associated key in the value parameter. Returns false if the element is not found
 bool get_hash_table(struct hash_table * table, struct string_object * key, lox_value_t * value);
 

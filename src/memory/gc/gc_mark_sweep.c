@@ -12,6 +12,7 @@ static void mark_stack();
 static void mark_value(lox_value_t * value);
 static void mark_object(struct object * object);
 static void mark_array(struct lox_array * array);
+static void mark_hash_table(struct hash_table * table);
 static void sweep(struct gc_mark_sweep * gc_mark_sweep);
 static void sweep_heap(struct gc_mark_sweep * gc_mark_sweep);
 static void sweep_string_pool();
@@ -35,8 +36,23 @@ void start_gc() {
 }
 
 static void mark_stack() {
-    for(lox_value_t * value = current_vm.stack; value < current_vm.esp; value++){
-        mark_value(value);
+    struct stack_list pending_threads;
+    init_stack_list(&pending_threads);
+
+    push_stack(&pending_threads, current_vm.root);
+
+    while(!is_empty(&pending_threads)){
+        struct vm_thread * current_thread = pop_stack(&pending_threads);
+
+        for(lox_value_t * value = current_thread->stack; value < current_thread->esp; value++){
+            mark_value(value);
+        }
+
+        for(int i = 0; i < MAX_CHILD_THREADS_PER_THREAD; i++){
+            if(current_thread->children[i] != NULL && current_thread->children[i]->state != TERMINATED) {
+                push_stack(&pending_threads, current_thread->children[i]);
+            }
+        }
     }
 }
 
@@ -61,7 +77,7 @@ static void traverse_root_dependences(struct gc_mark_sweep * gc_mark_sweep) {
         switch (object->type) {
             case OBJ_STRUCT_INSTANCE: {
                 struct struct_instance_object * struct_object = (struct struct_instance_object *) object;
-                mark_array(&struct_object->fields);
+                mark_hash_table(&struct_object->fields);
                 mark_object(&struct_object->object);
                 break;
             }
@@ -114,6 +130,14 @@ static void sweep_string_pool() {
             remove_entry_hash_table(entry);
         }
     }
+}
+
+static void mark_hash_table_entry(lox_value_t value) {
+    mark_value(&value);
+}
+
+static void mark_hash_table(struct hash_table * table) {
+    for_each_value_hash_table(table, mark_hash_table_entry);
 }
 
 static void mark_array(struct lox_array * array) {
