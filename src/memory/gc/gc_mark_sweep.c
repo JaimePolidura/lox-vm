@@ -44,13 +44,19 @@ static void mark_stack() {
     while(!is_empty(&pending_threads)){
         struct vm_thread * current_thread = pop_stack(&pending_threads);
 
-        for(lox_value_t * value = current_thread->stack; value < current_thread->esp; value++){
+        for(lox_value_t * value = current_thread->stack; value < current_thread->esp; value++) {
             mark_value(value);
         }
 
         for(int i = 0; i < MAX_CHILD_THREADS_PER_THREAD; i++){
-            if(current_thread->children[i] != NULL && current_thread->children[i]->state != TERMINATED) {
-                push_stack(&pending_threads, current_thread->children[i]);
+            struct vm_thread * child_current_thread = current_thread->children[i];
+
+            if(child_current_thread != NULL && child_current_thread->state != TERMINATED) {
+                push_stack(&pending_threads, child_current_thread);
+            } else if (child_current_thread != NULL && child_current_thread->state == TERMINATED) {
+                free_vm_thread(child_current_thread);
+                free(child_current_thread);
+                current_thread->children[i] = NULL;
             }
         }
     }

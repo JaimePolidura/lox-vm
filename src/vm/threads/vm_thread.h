@@ -51,3 +51,4 @@ struct vm_thread {
 
 struct vm_thread * alloc_vm_thread();
 void init_vm_thread(struct vm_thread * vm_thread);
+void free_vm_thread(struct vm_thread * vm_thread);
