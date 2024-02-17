@@ -116,6 +116,7 @@ static tokenType_t identifier_type(struct scanner * scanner) {
         case 'p': {
             if(scanner->current - scanner->start > 1) {
                 switch (scanner->start[1]) {
+                    case 'a': return check_keyword(scanner, 2, 6, "rallel", TOKEN_PARALLEL);
                     case 'r': return check_keyword(scanner, 2, 3, "int", TOKEN_PRINT);
                     case 'u': return check_keyword(scanner, 2, 1, "b", TOKEN_PUB);
                 }

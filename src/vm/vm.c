@@ -264,6 +264,7 @@ static void get_local() {
 static void call() {
     struct call_frame * current_frame = get_current_frame();
     int n_args = READ_BYTE(current_frame);
+    bool is_parallel = READ_BYTE(current_frame);
 
     lox_value_t callee = peek(n_args);
 

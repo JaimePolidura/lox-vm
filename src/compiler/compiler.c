@@ -98,6 +98,7 @@ static struct package * add_package_to_compiled_packages(char * package_import_n
 static struct struct_definition_object * get_struct_definition(struct package * package, struct token name);
 static struct exported_symbol * get_exported_symbol(struct compiler * compiler, struct package * external_package, struct token variable_name);
 static void string(struct compiler * compiler, bool can_assign);
+static void parallel_declaration(struct compiler * compiler);
 
 struct parse_rule rules[] = {
         [TOKEN_OPEN_PAREN] = {grouping, function_call, PREC_CALL},
@@ -248,9 +249,21 @@ static void declaration(struct compiler * compiler) {
         report_error(compiler, compiler->parser->current, "Nested functions are not allowed");
     } else if(match(compiler, TOKEN_STRUCT)) {
         struct_declaration(compiler, is_public);
+    } else if(match(compiler, TOKEN_PARALLEL)) {
+        parallel_declaration(compiler);
     } else {
         statement(compiler);
     }
+}
+
+static void parallel_declaration(struct compiler * compiler) {
+    if(compiler->current_scope == SCOPE_PACKAGE){
+        report_error(compiler, compiler->parser->previous, "Parallel is only allowed to be called in function code");
+    }
+
+    compiler->compiling_parallel_call = true;
+    expression_statement(compiler);
+    compiler->compiling_parallel_call = false;
 }
 
 static void struct_declaration(struct compiler * compiler, bool is_public) {
@@ -386,19 +399,20 @@ static void function_parameters(struct compiler * function_compiler) {
 static void function_call(struct compiler * compiler, bool can_assign) {
     int n_args = function_call_number_arguments(compiler);
 
-    if (compiler->state == COMPILER_COMPILING_EXTERNAL_FUNCTION) {
+    if (compiler->compiling_external_function) {
         lox_value_t package_lox_type = to_lox_package(compiler->package_of_compiling_external_func);
         emit_constant(compiler, package_lox_type);
         emit_bytecode(compiler, OP_ENTER_PACKAGE);
     }
 
     emit_bytecodes(compiler, OP_CALL, n_args);
+    emit_bytecode(compiler, compiler->compiling_parallel_call ? 1 : 0);
 
-    if (compiler->state == COMPILER_COMPILING_EXTERNAL_FUNCTION) {
+    if (compiler->compiling_external_function) {
         emit_bytecode(compiler, OP_EXIT_PACKAGE);
 
         compiler->package_of_compiling_external_func = NULL;
-        compiler->state = COMPILER_NONE;
+        compiler->compiling_external_function = false;
     }
 }
 
@@ -708,7 +722,7 @@ static void named_variable(struct compiler * compiler, struct token variable_nam
 
         if(is_function_call) {
             compiler->package_of_compiling_external_func = external_package;
-            compiler->state = COMPILER_COMPILING_EXTERNAL_FUNCTION;
+            compiler->compiling_external_function = true;
         }
     }
 
@@ -912,6 +926,10 @@ static void init_compiler(struct compiler * compiler, scope_type_t scope_type, s
     local->name.length = 0;
     local->name.start = "";
     local->depth = 0;
+
+    compiler->package_of_compiling_external_func = NULL;
+    compiler->compiling_external_function = false;
+    compiler->compiling_parallel_call = false;
 }
 
 static void string(struct compiler * compiler, bool can_assign) {

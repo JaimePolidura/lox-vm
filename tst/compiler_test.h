@@ -79,7 +79,7 @@ TEST(simple_compiler_test_with_functions) {
                         OP_GET_GLOBAL, 2,
                         OP_CONSTANT, 3,
                         OP_CONSTANT, 4,
-                        OP_CALL, 2);
+                        OP_CALL, 2, 0); //Nº arguments, non parallel code
 
     struct function_object * function = (struct function_object *) AS_OBJECT(chunk->constants.values[1]);
 

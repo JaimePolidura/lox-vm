@@ -26,35 +26,29 @@ struct local {
     int depth;
 };
 
-typedef enum {
-    COMPILER_NONE,
-    COMPILER_COMPILING_EXTERNAL_FUNCTION,
-} compiler_state_t;
-
 struct compiler {
     struct package * package;
+
+    struct function_object * current_function_in_compilation;
 
     // Indicates if we are compiling a function or top level code
     scope_type_t current_scope;
 
-    char * source_code;
-
     // This is set to true when the only input of the compiler is the code.
     // No local packages will be allowed to use
-    // TODO Replace this with a enum
     bool is_standalone_mode;
 
     struct scanner * scanner;
     struct parser * parser;
 
-    struct function_object * current_function_in_compilation;
-
     struct local locals[UINT8_MAX];
     int local_count;
     int local_depth;
 
-    compiler_state_t state;
+    bool compiling_external_function;
     struct package * package_of_compiling_external_func;
+
+    bool compiling_parallel_call;
 };
 
 struct compilation_result {
