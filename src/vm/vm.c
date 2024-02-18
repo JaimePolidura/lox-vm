@@ -491,7 +491,7 @@ static lox_value_t pop_stack_vm() {
 }
 
 void start_vm() {
-    init_gc_info(&current_vm.gc);
+    init_gc_thread_info(&current_vm.gc);
 
 #ifdef VM_TEST
     current_vm.log_entries_in_use = 0;
@@ -552,7 +552,10 @@ static inline struct call_frame * get_current_frame() {
 
 static void setup_native_functions(struct package * package) {
     if(package->state == PENDING_INITIALIZATION){
+        define_native("selfThreadId", self_thread_id_native);
+        define_native("sleep", sleep_ms_native);
         define_native("clock", clock_native);
+        define_native("join", join_native);
     }
 }
 
@@ -587,6 +590,8 @@ static void create_root_thread() {
     root_thread->native_thread = pthread_self();
     root_thread->esp = root_thread->stack;
     root_thread->state = THREAD_RUNNABLE;
+    root_thread->gc_info.gc_global_info = &current_vm.gc;
+
     current_vm.root = root_thread;
     self_thread = root_thread;
 }
@@ -596,6 +601,7 @@ static void start_child_thread(struct function_object * thread_entry_point_func)
     new_thread->thread_id = acquire_thread_id_pool(&current_vm.thread_id_pool);
     new_thread->state = THREAD_NEW;
     new_thread->current_package = self_thread->current_package;
+    new_thread->gc_info.gc_global_info = &current_vm.gc;
 
     add_child_to_parent_list(new_thread);
     copy_stack_from_esp(self_thread, new_thread, thread_entry_point_func->n_arguments);
@@ -626,4 +632,9 @@ static void add_child_to_parent_list(struct vm_thread * new_child_thread) {
     }
 
     runtime_error("Exceeded max number of child threads %i per thread", MAX_CHILD_THREADS_PER_THREAD);
+}
+
+//Used by garbage collection
+void signal_threads_start_gc() {
+    
 }

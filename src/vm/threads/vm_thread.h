@@ -8,10 +8,11 @@
 #include "chunk/chunk_disassembler.h"
 #include "compiler/compiler.h"
 #include "types/native.h"
-#include "vm/native_functions.h"
-#include "memory/gc/gc.h"
+#include "vm/native/native_functions.h"
+#include "memory/gc/gc_global_info.h"
 #include "types/struct_instance_object.h"
 #include "utils/stack_list.h"
+#include "memory/gc/gc_global_info.h"
 
 #define STACK_MAX 256
 #define FRAME_MAX (STACK_MAX * 256)
@@ -47,8 +48,9 @@ struct vm_thread {
     int frames_in_use;
 
     struct vm_thread * children[MAX_CHILD_THREADS_PER_THREAD];
+
+    struct gc_thread_info gc_info;
 };
 
 struct vm_thread * alloc_vm_thread();
-void init_vm_thread(struct vm_thread * vm_thread);
 void free_vm_thread(struct vm_thread * vm_thread);

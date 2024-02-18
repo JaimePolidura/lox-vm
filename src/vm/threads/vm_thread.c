@@ -1,13 +1,17 @@
 #include "vm_thread.h"
 
+static void init_vm_thread(struct vm_thread * vm_thread);
+
 struct vm_thread * alloc_vm_thread() {
     struct vm_thread * vm_thread = malloc(sizeof(struct vm_thread));
     init_vm_thread(vm_thread);
     return vm_thread;
 }
 
-void init_vm_thread(struct vm_thread * vm_thread) {
+static void init_vm_thread(struct vm_thread * vm_thread) {
     vm_thread->thread_id = -1;
+
+    init_gc_thread_info(&vm_thread->gc_info);
 
     vm_thread->esp = vm_thread->stack;
 

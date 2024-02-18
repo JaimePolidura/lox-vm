@@ -8,8 +8,8 @@
 #include "chunk/chunk_disassembler.h"
 #include "compiler/compiler.h"
 #include "types/native.h"
-#include "native_functions.h"
-#include "memory/gc/gc.h"
+#include "vm/native/native_functions.h"
+#include "memory/gc/gc_global_info.h"
 #include "types/struct_instance_object.h"
 #include "utils/stack_list.h"
 #include "vm/threads/vm_thread.h"
@@ -17,7 +17,7 @@
 
 struct vm {
     struct vm_thread * root;
-    struct gc gc;
+    struct gc_global_info gc;
 
     struct thread_id_pool thread_id_pool;
 

@@ -18,14 +18,14 @@ static void sweep_heap(struct gc_mark_sweep * gc_mark_sweep);
 static void sweep_string_pool();
 static void for_each_package_callback(void * package_ptr);
 
-void setup_gc() {
+void setup_gc_alg() {
     struct gc_mark_sweep * gc_mark_sweep = (struct gc_mark_sweep *) &current_vm.gc;
     gc_mark_sweep->gray_stack = NULL;
     gc_mark_sweep->gray_capacity = 0;
     gc_mark_sweep->gray_count = 0;
 }
 
-void start_gc() {
+void start_gc_alg() {
     struct gc_mark_sweep * gc_mark_sweep = (struct gc_mark_sweep *) &current_vm.gc;
 
     mark_stack();
@@ -123,7 +123,7 @@ static void sweep_heap(struct gc_mark_sweep * gc_mark_sweep) {
             }
 
             //TODO
-//            gc_mark_sweep->gc.bytes_allocated -= unreached;
+//            gc_mark_sweep->gc_global_info.bytes_allocated -= unreached;
             free(unreached);
         }
     }
