@@ -50,6 +50,8 @@ static void copy_stack_from_esp(struct vm_thread * from, struct vm_thread * top,
 static void * run_thread_entrypoint(void * thread_ptr);
 static bool some_child_thread_running(struct vm_thread * thread);
 static void terminate_self_thread();
+static void check_start_gc_signal();
+static void signal_thread_start_gc(void * thread_void_ptr);
 
 #define READ_BYTE(frame) (*frame->pc++)
 #define READ_U16(frame) \
@@ -104,6 +106,8 @@ static void terminate_self_thread() {
         runtime_error("Cannot end execution while some child thread still running");
     }
 
+    atomic_fetch_sub(&current_vm.number_current_threads, 1);
+
     self_thread->state = THREAD_TERMINATED;
 }
 
@@ -122,6 +126,8 @@ static bool some_child_thread_running(struct vm_thread * thread) {
 static interpret_result_t run() {
     struct call_frame * current_frame = get_current_frame();
 
+    check_start_gc_signal();
+
     for(;;) {
         switch (READ_BYTE(current_frame)) {
             case OP_RETURN: return_function(current_frame); current_frame = get_current_frame(); break;
@@ -138,17 +144,17 @@ static interpret_result_t run() {
             case OP_NIL: push_stack_vm(NIL_VALUE()); break;
             case OP_NOT: push_stack_vm(TO_LOX_VALUE_BOOL(!check_boolean())); break;
             case OP_EQUAL: push_stack_vm(values_equal(pop_stack_vm(), pop_stack_vm())); break;
-            case OP_PRINT: print(); break;
+            case OP_PRINT: print(); break; //Checks for start gc signal
             case OP_POP: pop_stack_vm(); break;
-            case OP_DEFINE_GLOBAL: define_global(); break;
+            case OP_DEFINE_GLOBAL: define_global(); break; //Checks for start gc signal
             case OP_GET_GLOBAL: get_global(); break;
             case OP_SET_GLOBAL: set_global(); break;
             case OP_GET_LOCAL: get_local(); break;
-            case OP_JUMP_IF_FALSE: jump_if_false(); break;
-            case OP_JUMP: jump(); break;
+            case OP_JUMP_IF_FALSE: jump_if_false(); break; //Checks for start gc signal
+            case OP_JUMP: jump(); break; //Checks for start gc signal
             case OP_SET_LOCAL: set_local(); break;
-            case OP_LOOP: loop(); break;
-            case OP_CALL: call(); current_frame = get_current_frame(); break;
+            case OP_LOOP: loop(); break; //Checks for start gc signal
+            case OP_CALL: call(); current_frame = get_current_frame(); break; //Checks for start gc signal
             case OP_INITIALIZE_STRUCT: initialize_struct(); break;
             case OP_GET_STRUCT_FIELD: get_struct_field(); break;
             case OP_SET_STRUCT_FIELD: set_struct_field(); break;
@@ -261,7 +267,7 @@ static void adition() {
     push_stack_vm(TO_LOX_VALUE_OBJECT(add_result.string_object));
 
     if(add_result.created_new) {
-        add_object_to_heap(&current_vm.gc, &add_result.string_object->object, sizeof(struct string_object));
+        add_object_to_heap(&self_thread->gc_info, &add_result.string_object->object, sizeof(struct string_object));
     } else {
         free(concatenated);
     }
@@ -270,6 +276,7 @@ static void adition() {
 static void define_global() {
     struct string_object * name = AS_STRING_OBJECT(READ_CONSTANT(get_current_frame()));
     put_hash_table(&self_thread->current_package->global_variables, name, pop_stack_vm());
+    check_start_gc_signal();
 }
 
 static void get_global() {
@@ -335,6 +342,8 @@ static void call() {
         default:
             runtime_error("Cannot call");
     }
+
+    check_start_gc_signal();
 }
 
 static void call_function(struct function_object * function, int n_args, bool is_parallel) {
@@ -360,6 +369,8 @@ static void print() {
 #else
     print_value(value);
 #endif
+
+    check_start_gc_signal();
 }
 
 static void return_function(struct call_frame * function_to_return_frame) {
@@ -375,6 +386,7 @@ static void return_function(struct call_frame * function_to_return_frame) {
 static void jump() {
     struct call_frame * current_frame = get_current_frame();
     current_frame->pc += READ_U16(get_current_frame());
+    check_start_gc_signal();
 }
 
 static void initialize_struct() {
@@ -426,12 +438,15 @@ static void jump_if_false() {
     } else {
         current_frame->pc += 2;
     }
+
+    check_start_gc_signal();
 }
 
 static void loop() {
     struct call_frame * current_frame = get_current_frame();
     uint16_t val = READ_U16(current_frame);
     current_frame->pc -= val;
+    check_start_gc_signal();
 }
 
 static inline lox_value_t peek(int index_from_top) {
@@ -491,7 +506,9 @@ static lox_value_t pop_stack_vm() {
 }
 
 void start_vm() {
-    init_gc_thread_info(&current_vm.gc);
+    init_gc_global_info(&current_vm.gc);
+    current_vm.number_threads_signaled_gc = 0;
+    current_vm.number_current_threads = 0;
 
 #ifdef VM_TEST
     current_vm.log_entries_in_use = 0;
@@ -593,6 +610,8 @@ static void create_root_thread() {
     root_thread->gc_info.gc_global_info = &current_vm.gc;
 
     current_vm.root = root_thread;
+    current_vm.number_current_threads += 1;
+
     self_thread = root_thread;
 }
 
@@ -606,6 +625,8 @@ static void start_child_thread(struct function_object * thread_entry_point_func)
     add_child_to_parent_list(new_thread);
     copy_stack_from_esp(self_thread, new_thread, thread_entry_point_func->n_arguments);
     setup_call_frame_function(new_thread, thread_entry_point_func);
+
+    atomic_fetch_add(&current_vm.number_current_threads, 1);
 
     pthread_create(&new_thread->native_thread, NULL, run_thread_entrypoint, new_thread);
 }
@@ -634,7 +655,51 @@ static void add_child_to_parent_list(struct vm_thread * new_child_thread) {
     runtime_error("Exceeded max number of child threads %i per thread", MAX_CHILD_THREADS_PER_THREAD);
 }
 
+static void await_all_threads_signal_start_gc() {
+    //TODO
+}
+
 //Used by garbage collection
 void signal_threads_start_gc() {
-    
+    self_thread->state = THREAD_WAITING;
+
+    current_vm.number_threads_signaled_gc = 0;
+    for_each_thread(current_vm.root, signal_thread_start_gc);
+    await_all_threads_signal_start_gc();
+
+    self_thread->state = THREAD_RUNNABLE;
+}
+
+static void signal_thread_start_gc(void * thread_void_ptr) {
+    struct vm_thread * thread = thread_void_ptr;
+
+    lock_mutex(&thread->gc_signal_mutex);
+
+    thread->start_gc_pending_signal = true;
+    if(thread->state == THREAD_WAITING){
+        thread->start_gc_pending_signal = false;
+        thread->last_gc_gen_signaled = current_vm.gc.gc_gen;
+        atomic_fetch_add(&current_vm.number_threads_signaled_gc, 1);
+    }
+
+    unlock_mutex(&thread->gc_signal_mutex);
+}
+
+static void check_start_gc_signal() {
+    if(self_thread->start_gc_pending_signal){
+        lock_mutex(&self_thread->gc_signal_mutex);
+
+        if(self_thread->start_gc_pending_signal) {
+            self_thread->start_gc_pending_signal = false;
+            int current_gc_gen = current_vm.gc.gc_gen;
+
+            if(self_thread->last_gc_gen_signaled < current_gc_gen){
+                self_thread->state = THREAD_WAITING;
+                //TODO Await gc finish
+                self_thread->state = THREAD_RUNNABLE;
+            }
+        }
+
+        unlock_mutex(&self_thread->gc_signal_mutex);
+    }
 }

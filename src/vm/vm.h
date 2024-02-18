@@ -21,6 +21,12 @@ struct vm {
 
     struct thread_id_pool thread_id_pool;
 
+    //It includes all states threads except TERMINATED
+    //TODO Pending to update
+    volatile int number_current_threads;
+
+    volatile int number_threads_signaled_gc;
+
 #ifdef VM_TEST
     char * log [256];
     int log_entries_in_use;

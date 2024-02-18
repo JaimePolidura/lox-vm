@@ -46,3 +46,22 @@ void free_vm_thread(struct vm_thread * vm_thread) {
         }
     }
 }
+
+void for_each_thread(struct vm_thread * start_thread, consumer_t callback) {
+    struct stack_list pending;
+    init_stack_list(&pending);
+    push_stack(&pending, start_thread);
+
+    while(!is_empty(&pending)){
+        struct vm_thread * current = pop_stack(&pending);
+
+        for(int i = 0; i < MAX_CHILD_THREADS_PER_THREAD; i++){
+            struct vm_thread * child_of_current = current->children[i];
+
+            if(child_of_current != NULL && child_of_current->state != THREAD_TERMINATED){
+                callback(child_of_current);
+                push_stack(&pending, child_of_current);
+            }
+        }
+    }
+}
