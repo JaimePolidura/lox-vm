@@ -49,11 +49,9 @@ struct vm_thread {
 
     struct vm_thread * children[MAX_CHILD_THREADS_PER_THREAD];
 
-    struct gc_thread_info gc_info;
+    volatile bool signaled_when_sleeping;
 
-    struct mutex gc_signal_mutex;
-    bool start_gc_pending_signal; //Written only by vm.c signal_threads_start_gc
-    int last_gc_gen_signaled;
+    struct gc_thread_info gc_info;
 };
 
 struct vm_thread * alloc_vm_thread();

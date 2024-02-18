@@ -22,10 +22,14 @@ struct vm {
     struct thread_id_pool thread_id_pool;
 
     //It includes all states threads except TERMINATED
-    //TODO Pending to update
     volatile int number_current_threads;
+    volatile int number_waiting_threads;
 
-    volatile int number_threads_signaled_gc;
+    //We need this mutex to solve the race condition if a gc is going to get started and a thread calls a native call
+    //The only way a thread can block is by calling a native function
+    struct rw_mutex start_gc_blocking_native_call_mutex;
+
+    volatile int number_threads_ack_start_gc_signal;
 
 #ifdef VM_TEST
     char * log [256];

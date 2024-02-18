@@ -11,7 +11,6 @@ static void try_start_gc(struct gc_thread_info * gc_thread_info);
 
 void init_gc_global_info(struct gc_global_info * gc) {
     gc->state = GC_NONE;
-    gc->gc_gen = 0;
     setup_gc_alg();
 }
 
@@ -45,8 +44,6 @@ static void try_start_gc(struct gc_thread_info * gc_thread_info) {
     gc_state_t expected = GC_NONE;
 
     if(atomic_compare_exchange_strong(&gc_global_info->state, &expected, GC_WAITING)) {
-        gc_global_info->gc_gen++;
-
         signal_threads_start_gc();
 
         gc_global_info->state = GC_IN_PROGRESS;

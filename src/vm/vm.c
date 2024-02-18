@@ -51,7 +51,6 @@ static void * run_thread_entrypoint(void * thread_ptr);
 static bool some_child_thread_running(struct vm_thread * thread);
 static void terminate_self_thread();
 static void check_start_gc_signal();
-static void signal_thread_start_gc(void * thread_void_ptr);
 
 #define READ_BYTE(frame) (*frame->pc++)
 #define READ_U16(frame) \
@@ -332,10 +331,16 @@ static void call() {
                 runtime_error("Cannot call parallel in native functions");
             }
 
+            //Avoid race condition when a gc is going to be started
+            lock_reader_rw_mutex(&current_vm.start_gc_blocking_native_call_mutex);
+            check_start_gc_signal();
+
             native_fn native_function = TO_NATIVE(callee)->native_fn;
             lox_value_t result = native_function(n_args, self_thread->esp - n_args);
             self_thread->esp -= n_args + 1;
             push_stack_vm(result);
+
+            unlock_reader_rw_mutex(&current_vm.start_gc_blocking_native_call_mutex);
 
             break;
         }
@@ -507,8 +512,10 @@ static lox_value_t pop_stack_vm() {
 
 void start_vm() {
     init_gc_global_info(&current_vm.gc);
-    current_vm.number_threads_signaled_gc = 0;
+    current_vm.number_threads_ack_start_gc_signal = 0;
     current_vm.number_current_threads = 0;
+
+    init_rw_mutex(&current_vm.start_gc_blocking_native_call_mutex);
 
 #ifdef VM_TEST
     current_vm.log_entries_in_use = 0;
@@ -663,43 +670,41 @@ static void await_all_threads_signal_start_gc() {
 void signal_threads_start_gc() {
     self_thread->state = THREAD_WAITING;
 
-    current_vm.number_threads_signaled_gc = 0;
-    for_each_thread(current_vm.root, signal_thread_start_gc);
+    lock_writer_rw_mutex(&current_vm.start_gc_blocking_native_call_mutex);
+
+    //Threads who are waiting, are included as already ack the start gc signal
+    current_vm.number_threads_ack_start_gc_signal = current_vm.number_waiting_threads;
+
+    unlock_writer_rw_mutex(&current_vm.start_gc_blocking_native_call_mutex);
+
     await_all_threads_signal_start_gc();
 
     self_thread->state = THREAD_RUNNABLE;
 }
 
-static void signal_thread_start_gc(void * thread_void_ptr) {
-    struct vm_thread * thread = thread_void_ptr;
+static void await_until_gc_finished() {
 
-    lock_mutex(&thread->gc_signal_mutex);
-
-    thread->start_gc_pending_signal = true;
-    if(thread->state == THREAD_WAITING){
-        thread->start_gc_pending_signal = false;
-        thread->last_gc_gen_signaled = current_vm.gc.gc_gen;
-        atomic_fetch_add(&current_vm.number_threads_signaled_gc, 1);
-    }
-
-    unlock_mutex(&thread->gc_signal_mutex);
 }
 
 static void check_start_gc_signal() {
-    if(self_thread->start_gc_pending_signal){
-        lock_mutex(&self_thread->gc_signal_mutex);
+    gc_state_t current_gc_state = current_vm.gc.state;
 
-        if(self_thread->start_gc_pending_signal) {
-            self_thread->start_gc_pending_signal = false;
-            int current_gc_gen = current_vm.gc.gc_gen;
-
-            if(self_thread->last_gc_gen_signaled < current_gc_gen){
-                self_thread->state = THREAD_WAITING;
-                //TODO Await gc finish
-                self_thread->state = THREAD_RUNNABLE;
-            }
-        }
-
-        unlock_mutex(&self_thread->gc_signal_mutex);
+    switch (current_gc_state) {
+        case GC_NONE: return;
+        case GC_WAITING: atomic_fetch_add(&current_vm.number_threads_ack_start_gc_signal, 1);
+        case GC_IN_PROGRESS:
+            self_thread->state = THREAD_WAITING;
+            await_until_gc_finished();
+            self_thread->state = THREAD_RUNNABLE;
     }
+}
+
+void set_self_thread_runnable() {
+    self_thread->state = THREAD_RUNNABLE;
+    atomic_fetch_sub(&current_vm.number_waiting_threads, 1);
+}
+
+void set_self_thread_waiting() {
+    self_thread->state = THREAD_WAITING;
+    atomic_fetch_add(&current_vm.number_waiting_threads, 1);
 }

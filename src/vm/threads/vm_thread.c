@@ -14,7 +14,7 @@ static void init_vm_thread(struct vm_thread * vm_thread) {
     init_gc_thread_info(&vm_thread->gc_info);
 
     vm_thread->esp = vm_thread->stack;
-
+    vm_thread->signaled_when_sleeping = true;
     vm_thread->current_package = NULL;
     init_stack_list(&vm_thread->package_stack);
 

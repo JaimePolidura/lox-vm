@@ -1,15 +1,17 @@
 #include "native_functions.h"
 
 extern __thread struct vm_thread * self_thread;
+extern void set_self_thread_runnable();
+extern void set_self_thread_waiting();
 
 lox_value_t clock_native(int n_args, lox_value_t * args) {
     return TO_LOX_VALUE_NUMBER(1000000); //TODO Example
 }
 
 lox_value_t join_native(int n_args, lox_value_t * args) {
-    self_thread->state = THREAD_WAITING;
+    set_self_thread_waiting();
     pthread_join(self_thread->native_thread, NULL);
-    self_thread->state = THREAD_RUNNABLE;
+    set_self_thread_runnable();
 
     return TO_LOX_VALUE_NUMBER(0);
 }
@@ -21,9 +23,9 @@ lox_value_t sleep_ms_native(int n_args, lox_value_t * args) {
             .tv_sec = milliseconds * 10000
     };
 
-    self_thread->state = THREAD_WAITING;
+    set_self_thread_waiting();
     nanosleep(&ts, NULL);
-    self_thread->state = THREAD_RUNNABLE;
+    set_self_thread_runnable();
 
     return TO_LOX_VALUE_NUMBER(0);
 }

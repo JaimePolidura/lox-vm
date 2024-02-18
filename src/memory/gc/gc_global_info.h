@@ -22,7 +22,6 @@ typedef enum {
 
 struct gc_global_info {
     volatile gc_state_t state;
-    volatile int gc_gen;
 };
 
 void init_gc_thread_info(struct gc_thread_info * gc_per_thread);
