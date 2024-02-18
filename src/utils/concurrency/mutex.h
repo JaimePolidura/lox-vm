@@ -2,7 +2,6 @@
 
 #include "shared.h"
 
-
 // A wrapper on pthread or any other implementation
 // Mutex is reentrant
 struct mutex {

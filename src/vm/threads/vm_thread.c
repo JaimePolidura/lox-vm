@@ -14,7 +14,6 @@ static void init_vm_thread(struct vm_thread * vm_thread) {
     init_gc_thread_info(&vm_thread->gc_info);
 
     vm_thread->esp = vm_thread->stack;
-    vm_thread->signaled_when_sleeping = true;
     vm_thread->current_package = NULL;
     init_stack_list(&vm_thread->package_stack);
 
@@ -47,10 +46,12 @@ void free_vm_thread(struct vm_thread * vm_thread) {
     }
 }
 
-void for_each_thread(struct vm_thread * start_thread, consumer_t callback) {
+void for_each_thread_inclusive(struct vm_thread * start_thread, consumer_t callback) {
     struct stack_list pending;
     init_stack_list(&pending);
     push_stack(&pending, start_thread);
+
+    callback(start_thread);
 
     while(!is_empty(&pending)){
         struct vm_thread * current = pop_stack(&pending);

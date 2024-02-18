@@ -1,11 +1,11 @@
 #include "vm.h"
 
 extern struct trie_list * compiled_packages;
+extern void check_gc_on_safe_point_alg();
 
-const uint8_t eof = OP_EOF;
-
-struct vm current_vm;
 __thread struct vm_thread * self_thread;
+const uint8_t eof = OP_EOF;
+struct vm current_vm;
 
 static void setup_package_execution(struct package * package);
 static void push_stack_vm(lox_value_t value);
@@ -50,7 +50,7 @@ static void copy_stack_from_esp(struct vm_thread * from, struct vm_thread * top,
 static void * run_thread_entrypoint(void * thread_ptr);
 static bool some_child_thread_running(struct vm_thread * thread);
 static void terminate_self_thread();
-static void check_start_gc_signal();
+static void thread_on_safe_point();
 
 #define READ_BYTE(frame) (*frame->pc++)
 #define READ_U16(frame) \
@@ -125,7 +125,7 @@ static bool some_child_thread_running(struct vm_thread * thread) {
 static interpret_result_t run() {
     struct call_frame * current_frame = get_current_frame();
 
-    check_start_gc_signal();
+    thread_on_safe_point();
 
     for(;;) {
         switch (READ_BYTE(current_frame)) {
@@ -275,7 +275,7 @@ static void adition() {
 static void define_global() {
     struct string_object * name = AS_STRING_OBJECT(READ_CONSTANT(get_current_frame()));
     put_hash_table(&self_thread->current_package->global_variables, name, pop_stack_vm());
-    check_start_gc_signal();
+    thread_on_safe_point();
 }
 
 static void get_global() {
@@ -332,15 +332,15 @@ static void call() {
             }
 
             //Avoid race condition when a gc is going to be started
-            lock_reader_rw_mutex(&current_vm.start_gc_blocking_native_call_mutex);
-            check_start_gc_signal();
+            lock_reader_rw_mutex(&current_vm.blocking_call_mutex);
+            thread_on_safe_point();
 
             native_fn native_function = TO_NATIVE(callee)->native_fn;
             lox_value_t result = native_function(n_args, self_thread->esp - n_args);
             self_thread->esp -= n_args + 1;
             push_stack_vm(result);
 
-            unlock_reader_rw_mutex(&current_vm.start_gc_blocking_native_call_mutex);
+            unlock_reader_rw_mutex(&current_vm.blocking_call_mutex);
 
             break;
         }
@@ -348,7 +348,7 @@ static void call() {
             runtime_error("Cannot call");
     }
 
-    check_start_gc_signal();
+    thread_on_safe_point();
 }
 
 static void call_function(struct function_object * function, int n_args, bool is_parallel) {
@@ -375,7 +375,7 @@ static void print() {
     print_value(value);
 #endif
 
-    check_start_gc_signal();
+    thread_on_safe_point();
 }
 
 static void return_function(struct call_frame * function_to_return_frame) {
@@ -391,7 +391,7 @@ static void return_function(struct call_frame * function_to_return_frame) {
 static void jump() {
     struct call_frame * current_frame = get_current_frame();
     current_frame->pc += READ_U16(get_current_frame());
-    check_start_gc_signal();
+    thread_on_safe_point();
 }
 
 static void initialize_struct() {
@@ -407,7 +407,7 @@ static void initialize_struct() {
     }
 
     int total_bytes_allocated = sizeof(struct struct_instance_object) + n_fields * sizeof(lox_value_t);
-    add_object_to_heap(&current_vm.gc, &struct_instance->object, total_bytes_allocated);
+    add_object_to_heap(&self_thread->gc_info, &struct_instance->object, total_bytes_allocated);
 
     push_stack_vm(TO_LOX_VALUE_OBJECT(struct_instance));
 }
@@ -444,14 +444,14 @@ static void jump_if_false() {
         current_frame->pc += 2;
     }
 
-    check_start_gc_signal();
+    thread_on_safe_point();
 }
 
 static void loop() {
     struct call_frame * current_frame = get_current_frame();
     uint16_t val = READ_U16(current_frame);
     current_frame->pc -= val;
-    check_start_gc_signal();
+    thread_on_safe_point();
 }
 
 static inline lox_value_t peek(int index_from_top) {
@@ -512,10 +512,9 @@ static lox_value_t pop_stack_vm() {
 
 void start_vm() {
     init_gc_global_info(&current_vm.gc);
-    current_vm.number_threads_ack_start_gc_signal = 0;
     current_vm.number_current_threads = 0;
 
-    init_rw_mutex(&current_vm.start_gc_blocking_native_call_mutex);
+    init_rw_mutex(&current_vm.blocking_call_mutex);
 
 #ifdef VM_TEST
     current_vm.log_entries_in_use = 0;
@@ -662,41 +661,8 @@ static void add_child_to_parent_list(struct vm_thread * new_child_thread) {
     runtime_error("Exceeded max number of child threads %i per thread", MAX_CHILD_THREADS_PER_THREAD);
 }
 
-static void await_all_threads_signal_start_gc() {
-    //TODO
-}
-
-//Used by garbage collection
-void signal_threads_start_gc() {
-    self_thread->state = THREAD_WAITING;
-
-    lock_writer_rw_mutex(&current_vm.start_gc_blocking_native_call_mutex);
-
-    //Threads who are waiting, are included as already ack the start gc signal
-    current_vm.number_threads_ack_start_gc_signal = current_vm.number_waiting_threads;
-
-    unlock_writer_rw_mutex(&current_vm.start_gc_blocking_native_call_mutex);
-
-    await_all_threads_signal_start_gc();
-
-    self_thread->state = THREAD_RUNNABLE;
-}
-
-static void await_until_gc_finished() {
-
-}
-
-static void check_start_gc_signal() {
-    gc_state_t current_gc_state = current_vm.gc.state;
-
-    switch (current_gc_state) {
-        case GC_NONE: return;
-        case GC_WAITING: atomic_fetch_add(&current_vm.number_threads_ack_start_gc_signal, 1);
-        case GC_IN_PROGRESS:
-            self_thread->state = THREAD_WAITING;
-            await_until_gc_finished();
-            self_thread->state = THREAD_RUNNABLE;
-    }
+static void thread_on_safe_point() {
+    check_gc_on_safe_point_alg();
 }
 
 void set_self_thread_runnable() {

@@ -9,7 +9,7 @@
 #include "compiler/compiler.h"
 #include "types/native.h"
 #include "vm/native/native_functions.h"
-#include "memory/gc/gc_global_info.h"
+#include "memory/gc/gc.h"
 #include "types/struct_instance_object.h"
 #include "utils/stack_list.h"
 #include "vm/threads/vm_thread.h"
@@ -17,7 +17,7 @@
 
 struct vm {
     struct vm_thread * root;
-    struct gc_global_info gc;
+    struct gc gc;
 
     struct thread_id_pool thread_id_pool;
 
@@ -25,11 +25,9 @@ struct vm {
     volatile int number_current_threads;
     volatile int number_waiting_threads;
 
-    //We need this mutex to solve the race condition if a gc is going to get started and a thread calls a native call
+    //We need this mutex to solve the race condition if a gc is going to get started and a other thread calls a native call
     //The only way a thread can block is by calling a native function
-    struct rw_mutex start_gc_blocking_native_call_mutex;
-
-    volatile int number_threads_ack_start_gc_signal;
+    struct rw_mutex blocking_call_mutex;
 
 #ifdef VM_TEST
     char * log [256];
@@ -45,6 +43,9 @@ typedef enum {
 
 interpret_result_t interpret_vm(struct compilation_result compilation_result);
 void define_native(char * function_name, native_fn native_function);
+
+void set_self_thread_runnable();
+void set_self_thread_waiting();
 
 void start_vm();
 void stop_vm();

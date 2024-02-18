@@ -1,17 +1,18 @@
-#include "gc_global_info.h"
+#include "gc.h"
 
 //Implemented by gc algorithm
 extern void start_gc_alg();
-extern void setup_gc_alg();
+extern void init_gc_alg();
 
 //Implemented by vm. It will block the caller
-extern void signal_threads_start_gc();
+extern void signal_threads_start_gc_alg();
+extern void signal_threads_gc_finished_alg();
 
 static void try_start_gc(struct gc_thread_info * gc_thread_info);
 
-void init_gc_global_info(struct gc_global_info * gc) {
+void init_gc_global_info(struct gc * gc) {
     gc->state = GC_NONE;
-    setup_gc_alg();
+    init_gc_alg();
 }
 
 void init_gc_thread_info(struct gc_thread_info * gc_per_thread) {
@@ -40,14 +41,29 @@ void add_object_to_heap(struct gc_thread_info * gc_thread_info, struct object * 
 }
 
 static void try_start_gc(struct gc_thread_info * gc_thread_info) {
-    struct gc_global_info * gc_global_info = gc_thread_info->gc_global_info;
+    struct gc * gc_global_info = gc_thread_info->gc_global_info;
     gc_state_t expected = GC_NONE;
 
     if(atomic_compare_exchange_strong(&gc_global_info->state, &expected, GC_WAITING)) {
-        signal_threads_start_gc();
+        signal_threads_start_gc_alg();
 
         gc_global_info->state = GC_IN_PROGRESS;
         start_gc_alg();
         gc_global_info->state = GC_NONE;
+
+        signal_threads_gc_finished_alg();
+    }
+}
+
+int sizeof_heap_allocated_lox(struct object * object) {
+    switch (object->type) {
+        case OBJ_STRING: return ((struct string_object *) object)->length + 1;
+        case OBJ_STRUCT_INSTANCE: {
+            struct struct_instance_object * instance = (struct struct_instance_object *) object;
+            struct struct_definition_object * definition = instance->definition;
+            
+            return sizeof(struct struct_instance_object) + definition->n_fields * sizeof(lox_value_t);
+        }
+        default: return 0;
     }
 }

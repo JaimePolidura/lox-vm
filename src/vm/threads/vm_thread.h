@@ -9,10 +9,10 @@
 #include "compiler/compiler.h"
 #include "types/native.h"
 #include "vm/native/native_functions.h"
-#include "memory/gc/gc_global_info.h"
+#include "memory/gc/gc.h"
 #include "types/struct_instance_object.h"
 #include "utils/stack_list.h"
-#include "memory/gc/gc_global_info.h"
+#include "memory/gc/gc.h"
 
 #define STACK_MAX 256
 #define FRAME_MAX (STACK_MAX * 256)
@@ -49,12 +49,10 @@ struct vm_thread {
 
     struct vm_thread * children[MAX_CHILD_THREADS_PER_THREAD];
 
-    volatile bool signaled_when_sleeping;
-
     struct gc_thread_info gc_info;
 };
 
 struct vm_thread * alloc_vm_thread();
 void free_vm_thread(struct vm_thread * vm_thread);
 
-void for_each_thread(struct vm_thread * start_thread, consumer_t callback);
+void for_each_thread_inclusive(struct vm_thread * start_thread, consumer_t callback);
