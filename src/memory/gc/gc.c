@@ -61,7 +61,7 @@ int sizeof_heap_allocated_lox(struct object * object) {
         case OBJ_STRUCT_INSTANCE: {
             struct struct_instance_object * instance = (struct struct_instance_object *) object;
             struct struct_definition_object * definition = instance->definition;
-            
+
             return sizeof(struct struct_instance_object) + definition->n_fields * sizeof(lox_value_t);
         }
         default: return 0;

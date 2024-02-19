@@ -13,6 +13,22 @@ static void reset() {
     compiled_packages = NULL;
 }
 
+TEST(simple_vm_test_threads){
+    struct compilation_result result = compile(
+            "C:\\programacion\\lox-vm\\tst\\resources\\threads\\main.lox",
+            "C:\\programacion\\lox-vm\\tst\\resources\\threads",
+            "main"
+    );
+
+    start_vm();
+
+    interpret_result_t vm_result = interpret_vm(result);
+    ASSERT_NEXT_VM_LOG(current_vm, "300.000000");
+
+    stop_vm();
+    reset();
+}
+
 TEST(vm_global_functions_test){
     struct compilation_result result = compile(
             "C:\\programacion\\lox-vm\\tst\\resources\\global_functions\\main.lox",

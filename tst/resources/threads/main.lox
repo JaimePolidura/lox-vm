@@ -1,0 +1,16 @@
+fun calcular(n) {
+    print n;
+    sleep(n);
+}
+
+var start = clock();
+
+parallel calcular(30000);
+//parallel calcular(300);
+//parallel calcular(300);
+
+join();
+
+var end = clock();
+
+print end - start;

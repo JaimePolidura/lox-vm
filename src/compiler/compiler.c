@@ -257,10 +257,6 @@ static void declaration(struct compiler * compiler) {
 }
 
 static void parallel_declaration(struct compiler * compiler) {
-    if(compiler->current_scope == SCOPE_PACKAGE){
-        report_error(compiler, compiler->parser->previous, "Parallel is only allowed to be called in function code");
-    }
-
     compiler->compiling_parallel_call = true;
     expression_statement(compiler);
     compiler->compiling_parallel_call = false;

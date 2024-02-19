@@ -10,6 +10,7 @@ lox_value_t clock_native(int n_args, lox_value_t * args) {
 
 lox_value_t join_native(int n_args, lox_value_t * args) {
     set_self_thread_waiting();
+
     pthread_join(self_thread->native_thread, NULL);
     set_self_thread_runnable();
 

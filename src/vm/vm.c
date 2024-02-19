@@ -46,7 +46,7 @@ static void restore_prev_call_frame();
 static void create_root_thread();
 static void start_child_thread(struct function_object * thread_entry_point_func);
 static void add_child_to_parent_list(struct vm_thread * new_child_thread);
-static void copy_stack_from_esp(struct vm_thread * from, struct vm_thread * top, int n);
+static void copy_stack_from_esp(struct vm_thread * from, struct vm_thread * to, int n);
 static void * run_thread_entrypoint(void * thread_ptr);
 static bool some_child_thread_running(struct vm_thread * thread);
 static void terminate_self_thread();
@@ -574,12 +574,10 @@ static inline struct call_frame * get_current_frame() {
 }
 
 static void setup_native_functions(struct package * package) {
-    if(package->state == PENDING_INITIALIZATION){
-        define_native("selfThreadId", self_thread_id_native);
-        define_native("sleep", sleep_ms_native);
-        define_native("clock", clock_native);
-        define_native("join", join_native);
-    }
+    define_native("selfThreadId", self_thread_id_native);
+    define_native("sleep", sleep_ms_native);
+    define_native("clock", clock_native);
+    define_native("join", join_native);
 }
 
 void define_native(char * function_name, native_fn native_function) {
@@ -637,10 +635,10 @@ static void start_child_thread(struct function_object * thread_entry_point_func)
     pthread_create(&new_thread->native_thread, NULL, run_thread_entrypoint, new_thread);
 }
 
-static void copy_stack_from_esp(struct vm_thread * from, struct vm_thread * top, int n) {
+static void copy_stack_from_esp(struct vm_thread * from, struct vm_thread * to, int n) {
     for(int i = 0; i < n; i++){
-        top->stack[i] = from->esp[- i - 1];
-        from->esp += 1;
+        to->stack[i] = from->esp[- i - 1];
+        to->esp += 1;
     }
 }
 
