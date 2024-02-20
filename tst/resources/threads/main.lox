@@ -5,7 +5,7 @@ fun calcular(n) {
 
 var start = clock();
 
-parallel calcular(30000);
+parallel calcular(300);
 //parallel calcular(300);
 //parallel calcular(300);
 

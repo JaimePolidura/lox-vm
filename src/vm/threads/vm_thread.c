@@ -46,22 +46,30 @@ void free_vm_thread(struct vm_thread * vm_thread) {
     }
 }
 
-void for_each_thread_inclusive(struct vm_thread * start_thread, consumer_t callback) {
+void for_each_thread(struct vm_thread * start_thread, thread_consumer_t callback, long options) {
     struct stack_list pending;
     init_stack_list(&pending);
     push_stack(&pending, start_thread);
 
-    callback(start_thread);
+    if(!(options & THREADS_OPT_EXCLUSIVE)){
+        callback(NULL, start_thread, 0);
+    }
 
-    while(!is_empty(&pending)){
+    while(!is_empty(&pending)) {
         struct vm_thread * current = pop_stack(&pending);
 
-        for(int i = 0; i < MAX_CHILD_THREADS_PER_THREAD; i++){
+        for(int i = 0; i < MAX_CHILD_THREADS_PER_THREAD; i++) {
             struct vm_thread * child_of_current = current->children[i];
+            bool not_null = child_of_current != NULL;
+            bool is_terminated = not_null && child_of_current->state == THREAD_TERMINATED;
+            bool include_terminated_option = options & THREADS_OPT_INCLUDE_TERMINATED;
 
-            if(child_of_current != NULL && child_of_current->state != THREAD_TERMINATED){
-                callback(child_of_current);
-                push_stack(&pending, child_of_current);
+            if(not_null && (!is_terminated || (include_terminated_option && is_terminated))){
+                callback(current, child_of_current, i);
+
+                if(!(options & THREADS_OPT_NOT_RECURSIVE)){
+                    push_stack(&pending, child_of_current);
+                }
             }
         }
     }

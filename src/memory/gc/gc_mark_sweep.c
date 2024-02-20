@@ -6,6 +6,7 @@ extern struct trie_list * compiled_packages;
 extern struct vm current_vm;
 
 static void for_each_package_callback(void * package_ptr);
+static void mark_thread_stack(struct vm_thread * parent, struct vm_thread * child, int index);
 static void await_all_threads_signal_start_gc();
 static void notify_start_gc_signal_acked();
 static void await_until_gc_finished();
@@ -22,7 +23,7 @@ static void mark_hash_table(struct hash_table * table);
 static void sweep();
 static void sweep_heap();
 static void sweep_string_pool();
-static void sweep_heap_thread(void * thread_ptr);
+static void sweep_heap_thread(struct vm_thread * parent_ignore, struct vm_thread * vm_thread, int index);
 
 void signal_threads_start_gc_alg() {
     struct gc_mark_sweep * gc_mark_sweep = (struct gc_mark_sweep *) &current_vm.gc;
@@ -86,28 +87,17 @@ void start_gc_alg() {
 }
 
 static void mark_stack() {
-    struct stack_list pending_threads;
-    init_stack_list(&pending_threads);
+    for_each_thread(current_vm.root, mark_thread_stack, THREADS_OPT_INCLUDE_TERMINATED | THREADS_OPT_RECURSIVE | THREADS_OPT_INCLUSIVE);
+}
 
-    push_stack(&pending_threads, current_vm.root);
-
-    while(!is_empty(&pending_threads)){
-        struct vm_thread * current_thread = pop_stack(&pending_threads);
-
-        for(lox_value_t * value = current_thread->stack; value < current_thread->esp; value++) {
+static void mark_thread_stack(struct vm_thread * parent, struct vm_thread * child, int index) {
+    if(child->state == THREAD_TERMINATED){
+        free_vm_thread(child);
+        free(child);
+        parent->children[index] = NULL;
+    } else {
+        for(lox_value_t * value = child->stack; value < child->esp; value++) {
             mark_value(value);
-        }
-
-        for(int i = 0; i < MAX_CHILD_THREADS_PER_THREAD; i++){
-            struct vm_thread * child_current_thread = current_thread->children[i];
-
-            if(child_current_thread != NULL && child_current_thread->state != THREAD_TERMINATED) {
-                push_stack(&pending_threads, child_current_thread);
-            } else if (child_current_thread != NULL && child_current_thread->state == THREAD_TERMINATED) {
-                free_vm_thread(child_current_thread);
-                free(child_current_thread);
-                current_thread->children[i] = NULL;
-            }
         }
     }
 }
@@ -155,11 +145,10 @@ static void sweep() {
 }
 
 static void sweep_heap() {
-    for_each_thread_inclusive(current_vm.root, sweep_heap_thread);
+    for_each_thread(current_vm.root, sweep_heap_thread, THREADS_OPT_RECURSIVE | THREADS_OPT_INCLUSIVE);
 }
 
-static void sweep_heap_thread(void * thread_ptr) {
-    struct vm_thread * vm_thread = thread_ptr;
+static void sweep_heap_thread(struct vm_thread * parent_ignore, struct vm_thread * vm_thread, int index) {
     struct gc_thread_info * gc_info = &vm_thread->gc_info;
 
     struct object * object = gc_info->heap;

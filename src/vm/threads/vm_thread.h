@@ -52,7 +52,20 @@ struct vm_thread {
     struct gc_thread_info gc_info;
 };
 
+typedef void (*thread_consumer_t)(struct vm_thread * parent, struct vm_thread * child, int index);
+
 struct vm_thread * alloc_vm_thread();
 void free_vm_thread(struct vm_thread * vm_thread);
 
-void for_each_thread_inclusive(struct vm_thread * start_thread, consumer_t callback);
+enum {
+    THREADS_OPT_NONE = 0,
+    //Useless, enabled by default. This might clarity the intentions of the caller of for_each_thread()
+    THREADS_OPT_RECURSIVE = 0,
+    THREADS_OPT_INCLUSIVE = 0,
+
+    THREADS_OPT_EXCLUSIVE = 1,
+    THREADS_OPT_NOT_RECURSIVE = 1 << 2,
+    THREADS_OPT_INCLUDE_TERMINATED = 1 << 4
+};
+
+void for_each_thread(struct vm_thread * start_thread, thread_consumer_t callback, long options);
