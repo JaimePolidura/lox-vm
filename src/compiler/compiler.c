@@ -76,7 +76,7 @@ static void for_loop_initializer(struct compiler * compiler);
 static int for_loop_condition(struct compiler * compiler);
 static void for_loop_increment(struct compiler * compiler);
 static struct chunk * current_chunk(struct compiler * compiler);
-static void function_declaration(struct compiler * compiler, bool is_public);
+static void function_declaration(struct compiler * compiler, bool is_public, bool is_protected_by_monitor);
 static struct function_object * function(struct compiler * compiler);
 static void function_parameters(struct compiler * function_compiler);
 static void function_call(struct compiler * compiler, bool can_assign);
@@ -99,6 +99,7 @@ static struct struct_definition_object * get_struct_definition(struct package * 
 static struct exported_symbol * get_exported_symbol(struct compiler * compiler, struct package * external_package, struct token variable_name);
 static void string(struct compiler * compiler, bool can_assign);
 static void parallel_declaration(struct compiler * compiler);
+static void sync_statement(struct compiler * compiler);
 
 struct parse_rule rules[] = {
         [TOKEN_OPEN_PAREN] = {grouping, function_call, PREC_CALL},
@@ -243,14 +244,18 @@ static void declaration(struct compiler * compiler) {
 
     if(match(compiler, TOKEN_VAR)) {
         variable_declaration(compiler, is_public);
-    } else if(match(compiler, TOKEN_FUN) && compiler->current_scope == SCOPE_PACKAGE) {
-        function_declaration(compiler, is_public);
-    } else if(match(compiler, TOKEN_FUN) && compiler->current_scope == SCOPE_FUNCTION) {
-        report_error(compiler, compiler->parser->current, "Nested functions are not allowed");
     } else if(match(compiler, TOKEN_STRUCT)) {
         struct_declaration(compiler, is_public);
     } else if(match(compiler, TOKEN_PARALLEL)) {
         parallel_declaration(compiler);
+    } else if(match(compiler, TOKEN_FUN) || match(compiler, TOKEN_SYNC)) {
+        bool is_protected_by_monitor = compiler->parser->previous.type == TOKEN_SYNC;
+
+        if(is_protected_by_monitor){
+            consume(compiler, TOKEN_FUN, "Expect 'fun' after 'sync' keyword when declaring a function");
+        }
+
+        function_declaration(compiler, is_public, is_protected_by_monitor);
     } else {
         statement(compiler);
     }
@@ -349,8 +354,12 @@ static void variable_expression_declaration(struct compiler * compiler) {
     }
 }
 
-static void function_declaration(struct compiler * compiler, bool is_public) {
-    consume(compiler, TOKEN_IDENTIFIER, "Expected current_function_in_compilation name after fun keyword.");
+static void function_declaration(struct compiler * compiler, bool is_public, bool is_protected_by_monitor) {
+    if(compiler->current_scope == SCOPE_FUNCTION){
+        report_error(compiler, compiler->parser->current, "Nested functions are not allowed");
+    }
+
+    consume(compiler, TOKEN_IDENTIFIER, "Expected current_function name after fun keyword.");
     struct token function_name = compiler->parser->previous;
     int function_name_constant_offset = add_string_constant(compiler, function_name);
     function(compiler);
@@ -366,9 +375,9 @@ static struct function_object * function(struct compiler * compiler) {
     init_compiler(&function_compiler, SCOPE_FUNCTION, compiler);
     begin_scope(&function_compiler);
 
-    consume(&function_compiler, TOKEN_OPEN_PAREN, "Expect '(' after current_function_in_compilation name.");
+    consume(&function_compiler, TOKEN_OPEN_PAREN, "Expect '(' after current_function name.");
     function_parameters(&function_compiler);
-    consume(&function_compiler, TOKEN_OPEN_BRACE, "Expect '{' after current_function_in_compilation parenthesis.");
+    consume(&function_compiler, TOKEN_OPEN_BRACE, "Expect '{' after current_function parenthesis.");
 
     block(&function_compiler);
 
@@ -383,13 +392,13 @@ static struct function_object * function(struct compiler * compiler) {
 static void function_parameters(struct compiler * function_compiler) {
     if(!check(function_compiler, TOKEN_CLOSE_PAREN)){
         do {
-            function_compiler->current_function_in_compilation->n_arguments++;
-            consume(function_compiler, TOKEN_IDENTIFIER, "Expect variable name in current_function_in_compilation arguments.");
+            function_compiler->current_function->n_arguments++;
+            consume(function_compiler, TOKEN_IDENTIFIER, "Expect variable name in current_function arguments.");
             add_local_variable(function_compiler, function_compiler->parser->previous);
         } while (match(function_compiler, TOKEN_COMMA));
     }
 
-    consume(function_compiler, TOKEN_CLOSE_PAREN, "Expected ')' after current_function_in_compilation args");
+    consume(function_compiler, TOKEN_CLOSE_PAREN, "Expected ')' after current_function args");
 }
 
 static void function_call(struct compiler * compiler, bool can_assign) {
@@ -422,7 +431,7 @@ static int function_call_number_arguments(struct compiler * compiler) {
         } while (match(compiler, TOKEN_COMMA));
     }
 
-    consume(compiler, TOKEN_CLOSE_PAREN, "Expect ')' after current_function_in_compilation call");
+    consume(compiler, TOKEN_CLOSE_PAREN, "Expect ')' after current_function call");
 
     return n_args;
 }
@@ -442,9 +451,27 @@ static void statement(struct compiler * compiler) {
         if_statement(compiler);
     } else if (match(compiler, TOKEN_RETURN)) {
         return_statement(compiler);
+    } else if(match(compiler, TOKEN_SYNC)) {
+        sync_statement(compiler);
     } else {
         expression_statement(compiler);
     }
+}
+
+static void sync_statement(struct compiler * compiler) {
+    if(compiler->current_scope == SCOPE_PACKAGE){
+        report_error(compiler, compiler->parser->previous, "Only sync can be called at a function level");
+    }
+    if(++compiler->current_function->number_monitors_in_use > MAX_MONITORS_PER_FUNCTION){
+        report_error(compiler, compiler->parser->previous, "Max monitors in function reached");
+    }
+
+    int monitor_number = compiler->current_function->number_monitors_in_use;
+    emit_bytecodes(compiler, OP_ENTER_MONITOR, monitor_number);
+
+    statement(compiler);
+
+    emit_bytecode(compiler, OP_EXIT_MONITOR);
 }
 
 static void return_statement(struct compiler * compiler) {
@@ -559,14 +586,14 @@ static void for_loop(struct compiler * compiler) {
 
     int loop_jump_if_false_index = for_loop_condition(compiler);
 
-    struct chunk_bytecode_context prev_to_increment_ctx = chunk_start_new_context(&compiler->current_function_in_compilation->chunk);
+    struct chunk_bytecode_context prev_to_increment_ctx = chunk_start_new_context(&compiler->current_function->chunk);
     for_loop_increment(compiler);
-    struct chunk_bytecode_context increment_bytecodes = chunk_restore_context(&compiler->current_function_in_compilation->chunk,
+    struct chunk_bytecode_context increment_bytecodes = chunk_restore_context(&compiler->current_function->chunk,
             prev_to_increment_ctx);
 
     statement(compiler);
 
-    chunk_write_context(&compiler->current_function_in_compilation->chunk, increment_bytecodes);
+    chunk_write_context(&compiler->current_function->chunk, increment_bytecodes);
 
     emit_loop(compiler, loop_start_index);
 
@@ -878,7 +905,7 @@ static void report_error(struct compiler * compiler, struct token token, const c
 static struct compiler * alloc_compiler(scope_type_t scope, char * package_name, bool is_standalone_mode) {
     struct compiler * compiler = malloc(sizeof(struct compiler));
     compiler->package = add_package_to_compiled_packages(package_name, strlen(package_name), is_standalone_mode);
-    init_compiler(compiler, scope, NULL); //Parent compiler null, this current_function_in_compilation will be the first one to be called
+    init_compiler(compiler, scope, NULL); //Parent compiler null, this current_function will be the first one to be called
     compiler->scanner = malloc(sizeof(struct scanner));
     compiler->parser = malloc(sizeof(struct parser));
     compiler->parser->has_error = false;
@@ -910,16 +937,16 @@ static struct package * add_package_to_compiled_packages(char * package_import_n
 }
 
 static void init_compiler(struct compiler * compiler, scope_type_t scope_type, struct compiler * parent_compiler) {
-    compiler->current_function_in_compilation = alloc_function();
+    compiler->current_function = alloc_function();
 
     if(scope_type == SCOPE_FUNCTION) {
         compiler->package = parent_compiler->package;
         compiler->scanner = parent_compiler->scanner;
         compiler->parser = parent_compiler->parser;
-        compiler->current_function_in_compilation->name = copy_chars_to_string_object(parent_compiler->parser->previous.start,
-                                                                                                       parent_compiler->parser->previous.length);
+        compiler->current_function->name = copy_chars_to_string_object(parent_compiler->parser->previous.start,
+                                                                       parent_compiler->parser->previous.length);
     } else {
-        compiler->package->main_function = compiler->current_function_in_compilation;
+        compiler->package->main_function = compiler->current_function;
     }
 
     compiler->current_scope = scope_type;
@@ -955,7 +982,7 @@ static void free_compiler(struct compiler * compiler) {
 static struct function_object * end_compiler(struct compiler * compiler) {
     emit_empty_return(compiler);
     compiler->package->state = PENDING_INITIALIZATION;
-    return compiler->current_function_in_compilation;
+    return compiler->current_function;
 }
 
 static bool match(struct compiler * compiler, tokenType_t type) {
@@ -1043,7 +1070,7 @@ static void end_scope(struct compiler * compiler) {
 }
 
 static struct chunk * current_chunk(struct compiler * compiler) {
-    return &compiler->current_function_in_compilation->chunk;
+    return &compiler->current_function->chunk;
 }
 
 static void emit_empty_return(struct compiler * compiler) {

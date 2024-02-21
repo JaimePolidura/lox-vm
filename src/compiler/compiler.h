@@ -14,6 +14,7 @@
 #include "utils/substring.h"
 #include "types/struct_definition_object.h"
 #include "types/struct_instance_object.h"
+#include "utils/stack_list.h"
 
 struct parser {
     struct token current;
@@ -29,7 +30,7 @@ struct local {
 struct compiler {
     struct package * package;
 
-    struct function_object * current_function_in_compilation;
+    struct function_object * current_function;
 
     // Indicates if we are compiling a function or top level code
     scope_type_t current_scope;

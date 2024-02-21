@@ -23,7 +23,7 @@ TEST(simple_vm_test_threads_race_condition){
     start_vm();
 
     interpret_result_t vm_result = interpret_vm(result);
-    
+
     //4 threads, 100000 million increments per each thread. Really unlikely that the final result will be 400000
     ASSERT_TRUE(strtod(current_vm.log[0], NULL) != 4000000);
 

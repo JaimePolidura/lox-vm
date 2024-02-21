@@ -123,7 +123,14 @@ static tokenType_t identifier_type(struct scanner * scanner) {
             }
         }
         case 'r': return check_keyword(scanner, 1, 5, "eturn", TOKEN_RETURN);
-        case 's': return check_keyword(scanner, 1, 5, "truct", TOKEN_STRUCT);
+        case 's':
+            if(scanner->current - scanner->start > 1){
+                switch (scanner->start[1]) {
+                    case 't': check_keyword(scanner, 1, 4, "ruct", TOKEN_STRUCT);
+                    case 'y': check_keyword(scanner, 1, 2, "nc", TOKEN_SYNC);
+                }
+            }
+            return check_keyword(scanner, 1, 5, "truct", TOKEN_STRUCT);
         case 'v': return check_keyword(scanner, 1, 2, "ar", TOKEN_VAR);
         case 'w': return check_keyword(scanner, 1, 4, "hile", TOKEN_WHILE);
         case 'u': return check_keyword(scanner, 1, 2, "se", TOKEN_USE);

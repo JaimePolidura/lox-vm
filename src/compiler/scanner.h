@@ -25,7 +25,8 @@ typedef enum {
     TOKEN_COLON,
     TOKEN_PUB,
     TOKEN_USE,
-    TOKEN_PARALLEL
+    TOKEN_PARALLEL,
+    TOKEN_SYNC
 } tokenType_t;
 
 struct token {

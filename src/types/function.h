@@ -1,15 +1,22 @@
 #pragma once
 
-#include "types.h"
+#include "vm/threads/monitor.h"
 #include "string_object.h"
 #include "chunk/chunk.h"
 #include "utils/trie.h"
+#include "types.h"
+
+#define MAX_MONITORS_PER_FUNCTION 64
 
 struct function_object {
     struct object object;
     int n_arguments; //Number of arguments
     struct chunk chunk;
     struct string_object * name;
+
+    bool protected_by_monitor;
+    int number_monitors_in_use; //Used only on compile time
+    struct monitor monitors[MAX_MONITORS_PER_FUNCTION];
 };
 
 typedef enum {
