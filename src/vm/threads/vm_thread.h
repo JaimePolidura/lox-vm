@@ -16,7 +16,7 @@
 
 #define STACK_MAX 256
 #define FRAME_MAX (STACK_MAX * 256)
-#define MAX_CHILD_THREADS_PER_THREAD 64
+#define MAX_CHILD_THREADS_PER_THREAD 4
 
 struct call_frame {
     struct function_object * function;

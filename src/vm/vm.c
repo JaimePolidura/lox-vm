@@ -108,6 +108,8 @@ static void terminate_self_thread() {
     atomic_fetch_sub(&current_vm.number_current_threads, 1);
 
     self_thread->state = THREAD_TERMINATED;
+
+    pthread_exit(NULL);
 }
 
 static bool some_child_thread_running(struct vm_thread * thread) {
@@ -331,16 +333,25 @@ static void call() {
                 runtime_error("Cannot call parallel in native functions");
             }
 
-            //Avoid race condition when a gc is going to be started
-            lock_reader_rw_mutex(&current_vm.blocking_call_mutex);
+            struct native_object * native_function_object = TO_NATIVE(callee);
+            native_fn native_function = native_function_object->native_fn;
+
+            if(native_function_object->is_blocking) {
+                atomic_fetch_add(&current_vm.number_waiting_threads, 1);
+            }
+
+            //Avoid race condition when garbage collection starts
             thread_on_safe_point();
 
-            native_fn native_function = TO_NATIVE(callee)->native_fn;
             lox_value_t result = native_function(n_args, self_thread->esp - n_args);
             self_thread->esp -= n_args + 1;
             push_stack_vm(result);
 
-            unlock_reader_rw_mutex(&current_vm.blocking_call_mutex);
+            if(native_function_object->is_blocking) {
+                atomic_fetch_sub(&current_vm.number_waiting_threads, 1);
+            }
+
+            thread_on_safe_point();
 
             break;
         }
@@ -514,8 +525,6 @@ void start_vm() {
     init_gc_global_info(&current_vm.gc);
     current_vm.number_current_threads = 0;
 
-    init_rw_mutex(&current_vm.blocking_call_mutex);
-
 #ifdef VM_TEST
     current_vm.log_entries_in_use = 0;
 #endif
@@ -574,15 +583,15 @@ static inline struct call_frame * get_current_frame() {
 }
 
 static void setup_native_functions(struct package * package) {
-    define_native("selfThreadId", self_thread_id_native);
-    define_native("sleep", sleep_ms_native);
-    define_native("clock", clock_native);
-    define_native("join", join_native);
+    define_native("selfThreadId", self_thread_id_native, false);
+    define_native("sleep", sleep_ms_native, true);
+    define_native("clock", clock_native, false);
+    define_native("join", join_native, true);
 }
 
-void define_native(char * function_name, native_fn native_function) {
+void define_native(char * function_name, native_fn native_function, bool is_blocking) {
     struct string_object * function_name_obj = copy_chars_to_string_object(function_name, strlen(function_name));
-    struct native_object * native_object = alloc_native_object(native_function);
+    struct native_object * native_object = alloc_native_object(native_function, is_blocking);
 
     put_hash_table(&self_thread->current_package->global_variables, function_name_obj, TO_LOX_VALUE_OBJECT(native_object));
 }

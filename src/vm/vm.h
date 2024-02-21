@@ -25,10 +25,6 @@ struct vm {
     volatile int number_current_threads;
     volatile int number_waiting_threads;
 
-    //We need this mutex to solve the race condition if a gc is going to get started and a other thread calls a native call
-    //The only way a thread can block is by calling a native function
-    struct rw_mutex blocking_call_mutex;
-
 #ifdef VM_TEST
     char * log [256];
     int log_entries_in_use;
@@ -42,7 +38,7 @@ typedef enum {
 } interpret_result_t;
 
 interpret_result_t interpret_vm(struct compilation_result compilation_result);
-void define_native(char * function_name, native_fn native_function);
+void define_native(char * function_name, native_fn native_function, bool is_blocking);
 
 void set_self_thread_runnable();
 void set_self_thread_waiting();

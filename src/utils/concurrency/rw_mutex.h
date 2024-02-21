@@ -5,6 +5,7 @@
 
 struct rw_mutex {
     struct mutex mutex;
+    struct mutex readers_count_lock;
     int readers_count;
 };
 

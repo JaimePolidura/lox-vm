@@ -1,13 +1,13 @@
 fun calcular(n) {
-    print n;
+    //print selfThreadId();
     sleep(n);
 }
 
 var start = clock();
 
 parallel calcular(300);
-//parallel calcular(300);
-//parallel calcular(300);
+parallel calcular(300);
+parallel calcular(300);
 
 join();
 

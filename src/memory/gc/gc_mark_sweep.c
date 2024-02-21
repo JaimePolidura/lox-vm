@@ -30,10 +30,8 @@ void signal_threads_start_gc_alg() {
 
     self_thread->state = THREAD_WAITING;
 
-    lock_writer_rw_mutex(&current_vm.blocking_call_mutex);
     //Threads who are waiting, are included as already ack the start gc signal
     gc_mark_sweep->number_threads_ack_start_gc_signal = current_vm.number_waiting_threads;
-    unlock_writer_rw_mutex(&current_vm.blocking_call_mutex);
 
     await_all_threads_signal_start_gc();
 
