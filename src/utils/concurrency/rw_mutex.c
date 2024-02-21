@@ -1,40 +1,25 @@
 #include "rw_mutex.h"
 
 void init_rw_mutex(struct rw_mutex * mutex) {
-    init_mutex(&mutex->mutex);
-    init_mutex(&mutex->readers_count_lock);
-    mutex->readers_count = 0;
+    pthread_rwlock_init(&mutex->native_rw_lock, NULL);
 }
 
 void free_rw_mutex(struct rw_mutex * mutex) {
-    mutex->readers_count = 0;
-    free_mutex(&mutex->mutex);
+    pthread_rwlock_destroy(&mutex->native_rw_lock);
 }
 
 void lock_reader_rw_mutex(struct rw_mutex * rw_mutex) {
-    lock_mutex(&rw_mutex->readers_count_lock);
-
-    if(++rw_mutex->readers_count == 1) {
-        lock_mutex(&rw_mutex->mutex);
-    }
-
-    unlock_mutex(&rw_mutex->readers_count_lock);
+    pthread_rwlock_rdlock(&rw_mutex->native_rw_lock);
 }
 
 void unlock_reader_rw_mutex(struct rw_mutex * rw_mutex) {
-    lock_mutex(&rw_mutex->readers_count_lock);
-
-    if(--rw_mutex->readers_count == 0) {
-        unlock_mutex(&rw_mutex->mutex);
-    }
-
-    unlock_mutex(&rw_mutex->readers_count_lock);
+    pthread_rwlock_unlock(&rw_mutex->native_rw_lock);
 }
 
 void lock_writer_rw_mutex(struct rw_mutex * rw_mutex) {
-    lock_mutex(&rw_mutex->mutex);
+    pthread_rwlock_wrlock(&rw_mutex->native_rw_lock);
 }
 
 void unlock_writer_rw_mutex(struct rw_mutex * rw_mutex) {
-    unlock_mutex(&rw_mutex->mutex);
+    pthread_rwlock_unlock(&rw_mutex->native_rw_lock);
 }

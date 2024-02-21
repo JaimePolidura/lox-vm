@@ -8,7 +8,7 @@ extern struct trie_list * compiled_packages;
 
 TEST(compiler_package_global_variables) {
     struct compilation_result result = compile(
-            "C:\\programacion\\lox-vm\\tst\\resources\\global_variables\\main.lox",
+            "C:\\programacion\\lox-vm\\tst\\resources\\global_variables\\join.lox",
             "C:\\programacion\\lox-vm\\tst\\resources\\global_variables",
             "main"
     );

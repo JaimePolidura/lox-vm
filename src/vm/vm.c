@@ -293,6 +293,7 @@ static void get_global() {
 static void set_global() {
     struct string_object * variable_name = AS_STRING_OBJECT(READ_CONSTANT(get_current_frame()));
 
+    //Assigment is an expression
     if(!put_if_present_hash_table(&self_thread->current_package->global_variables, variable_name, peek(0))) {
         runtime_error("Cannot assign value to undeclared variable %s", variable_name->chars);
     }
@@ -301,8 +302,8 @@ static void set_global() {
 static void set_local() {
     struct call_frame * current_frame = get_current_frame();
     uint8_t slot = READ_BYTE(current_frame);
-    lox_value_t value = pop_stack_vm();
-    current_frame->slots[slot] = value;
+    lox_value_t value = peek(0);
+    current_frame->slots[slot] = value; //Assigment is an expression
 }
 
 static void get_local() {
@@ -448,7 +449,7 @@ static void set_struct_field() {
 static void jump_if_false() {
     struct call_frame * current_frame = get_current_frame();
 
-    if(!cast_to_boolean(pop_stack_vm())){
+    if(!cast_to_boolean(peek(0))){
         int total_opcodes_to_jump_if_false = READ_U16(current_frame);
         current_frame->pc += total_opcodes_to_jump_if_false;
     } else {

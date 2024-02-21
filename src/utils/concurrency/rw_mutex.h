@@ -4,6 +4,8 @@
 #include "mutex.h"
 
 struct rw_mutex {
+    pthread_rwlock_t native_rw_lock;
+
     struct mutex mutex;
     struct mutex readers_count_lock;
     int readers_count;

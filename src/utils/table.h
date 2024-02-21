@@ -12,7 +12,7 @@ struct hash_table_entry {
 struct hash_table {
     int size;
     int capacity;
-    struct rw_mutex lock;
+    struct rw_mutex rw_lock;
     struct hash_table_entry * entries;
 };
 

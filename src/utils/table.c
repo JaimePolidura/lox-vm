@@ -12,7 +12,7 @@ void init_hash_table(struct hash_table * table) {
     table->size = 0;
     table->capacity = -1;
     table->entries = NULL;
-    init_rw_mutex(&table->lock);
+    init_rw_mutex(&table->rw_lock);
 }
 
 void add_all_hash_table(struct hash_table * to, struct hash_table * from) {
@@ -29,7 +29,7 @@ struct string_object * get_key_by_hash(struct hash_table * table, uint32_t keyHa
         return NULL;
     }
 
-    lock_reader_rw_mutex(&table->lock);
+    lock_reader_rw_mutex(&table->rw_lock);
 
     struct hash_table_entry * entry = find_entry_by_hash(table->entries, table->capacity, keyHash);
     struct string_object * key_to_return = NULL;
@@ -38,7 +38,7 @@ struct string_object * get_key_by_hash(struct hash_table * table, uint32_t keyHa
         key_to_return = entry->key;
     }
 
-    unlock_reader_rw_mutex(&table->lock);
+    unlock_reader_rw_mutex(&table->rw_lock);
 
     return key_to_return;
 }
@@ -52,19 +52,17 @@ bool get_hash_table(struct hash_table * table, struct string_object * key, lox_v
         return false;
     }
 
-    lock_reader_rw_mutex(&table->lock);
-
+    lock_reader_rw_mutex(&table->rw_lock);
     struct hash_table_entry * entry = find_entry(table->entries, table->capacity, key);
+    unlock_reader_rw_mutex(&table->rw_lock);
+
     if (entry->key == NULL) {
-        unlock_reader_rw_mutex(&table->lock);
         return false;
     }
 
     if(value != NULL){
         *value = entry->value;
     }
-
-    unlock_reader_rw_mutex(&table->lock);
 
     return true;
 }
@@ -75,7 +73,7 @@ bool put_if_absent_hash_table(struct hash_table * table, struct string_object * 
         return true;
     }
 
-    lock_writer_rw_mutex(&table->lock);
+    lock_writer_rw_mutex(&table->rw_lock);
 
     struct hash_table_entry * entry = find_entry(table->entries, table->capacity, key);
     bool element_added = false;
@@ -91,7 +89,7 @@ bool put_if_absent_hash_table(struct hash_table * table, struct string_object * 
         element_added = true;
     }
 
-    unlock_writer_rw_mutex(&table->lock);
+    unlock_writer_rw_mutex(&table->rw_lock);
 
     return element_added;
 }
@@ -101,7 +99,7 @@ bool put_if_present_hash_table(struct hash_table * table, struct string_object *
         return false;
     }
 
-    lock_writer_rw_mutex(&table->lock);
+    lock_writer_rw_mutex(&table->rw_lock);
 
     struct hash_table_entry * entry = find_entry(table->entries, table->capacity, key);
     bool element_added = false;
@@ -111,7 +109,7 @@ bool put_if_present_hash_table(struct hash_table * table, struct string_object *
         element_added = true;
     }
 
-    unlock_writer_rw_mutex(&table->lock);
+    unlock_writer_rw_mutex(&table->rw_lock);
 
     return element_added;
 }
@@ -121,7 +119,7 @@ bool remove_hash_table(struct hash_table * table, struct string_object * key) {
         return false;
     }
 
-    lock_writer_rw_mutex(&table->lock);
+    lock_writer_rw_mutex(&table->rw_lock);
 
     struct hash_table_entry * entry = find_entry(table->entries, table->capacity, key);
     bool element_removed = false;
@@ -131,7 +129,7 @@ bool remove_hash_table(struct hash_table * table, struct string_object * key) {
         element_removed = true;
     }
 
-    unlock_writer_rw_mutex(&table->lock);
+    unlock_writer_rw_mutex(&table->rw_lock);
 
     return element_removed;
 }
@@ -142,7 +140,7 @@ void remove_entry_hash_table(struct hash_table_entry * entry) {
 }
 
 bool put_hash_table(struct hash_table * table, struct string_object * key, lox_value_t value) {
-    lock_writer_rw_mutex(&table->lock);
+    lock_writer_rw_mutex(&table->rw_lock);
 
     if (table->size + 1 > table->capacity * TABLE_MAX_LOAD) {
         adjust_hash_table_capacity(table, GROW_CAPACITY(table->capacity));
@@ -158,7 +156,7 @@ bool put_hash_table(struct hash_table * table, struct string_object * key, lox_v
         table->size++;
     }
 
-    unlock_writer_rw_mutex(&table->lock);
+    unlock_writer_rw_mutex(&table->rw_lock);
 
     return is_new_key;
 }

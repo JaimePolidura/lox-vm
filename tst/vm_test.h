@@ -13,9 +13,9 @@ static void reset() {
     compiled_packages = NULL;
 }
 
-TEST(simple_vm_test_threads){
+TEST(simple_vm_test_threads_race_condition){
     struct compilation_result result = compile(
-            "C:\\programacion\\lox-vm\\tst\\resources\\threads\\main.lox",
+            "C:\\programacion\\lox-vm\\tst\\resources\\threads\\race_condition.lox",
             "C:\\programacion\\lox-vm\\tst\\resources\\threads",
             "main"
     );
@@ -23,7 +23,27 @@ TEST(simple_vm_test_threads){
     start_vm();
 
     interpret_result_t vm_result = interpret_vm(result);
-    ASSERT_NEXT_VM_LOG(current_vm, "300.000000");
+    
+    //4 threads, 100000 million increments per each thread. Really unlikely that the final result will be 400000
+    ASSERT_TRUE(strtod(current_vm.log[0], NULL) != 4000000);
+
+    stop_vm();
+    reset();
+}
+
+
+TEST(simple_vm_test_threads_join){
+    struct compilation_result result = compile(
+            "C:\\programacion\\lox-vm\\tst\\resources\\threads\\join.lox",
+            "C:\\programacion\\lox-vm\\tst\\resources\\threads",
+            "main"
+    );
+
+    start_vm();
+
+    interpret_result_t vm_result = interpret_vm(result);
+
+    ASSERT_TRUE(strtod(current_vm.log[0], NULL) >= 300);
 
     stop_vm();
     reset();
@@ -31,7 +51,7 @@ TEST(simple_vm_test_threads){
 
 TEST(vm_global_functions_test){
     struct compilation_result result = compile(
-            "C:\\programacion\\lox-vm\\tst\\resources\\global_functions\\main.lox",
+            "C:\\programacion\\lox-vm\\tst\\resources\\global_functions\\join.lox",
             "C:\\programacion\\lox-vm\\tst\\resources\\global_functions",
             "main"
     );
@@ -51,7 +71,7 @@ TEST(vm_file_global_structs_test) {
     reset();
 
     struct compilation_result result = compile(
-            "C:\\programacion\\lox-vm\\tst\\resources\\global_structs\\main.lox",
+            "C:\\programacion\\lox-vm\\tst\\resources\\global_structs\\join.lox",
             "C:\\programacion\\lox-vm\\tst\\resources\\global_structs",
             "main"
     );
@@ -68,7 +88,7 @@ TEST(vm_file_global_structs_test) {
 
 TEST(vm_file_global_variables_test) {
     struct compilation_result result = compile(
-            "C:\\programacion\\lox-vm\\tst\\resources\\global_variables\\main.lox",
+            "C:\\programacion\\lox-vm\\tst\\resources\\global_variables\\join.lox",
             "C:\\programacion\\lox-vm\\tst\\resources\\global_variables",
             "main"
     );

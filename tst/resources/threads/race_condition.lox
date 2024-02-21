@@ -1,0 +1,20 @@
+var numero = 0;
+
+fun calcular() {
+    for(var i = 0; i < 100000; i = i + 1) {
+        numero = numero + 1;
+    }
+}
+
+fun empezarHilos() {
+    parallel calcular();
+    parallel calcular();
+    parallel calcular();
+    parallel calcular();
+
+    join();
+
+    print numero;
+}
+
+empezarHilos();

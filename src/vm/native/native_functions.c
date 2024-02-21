@@ -5,7 +5,7 @@ extern void set_self_thread_runnable();
 extern void set_self_thread_waiting();
 
 lox_value_t clock_native(int n_args, lox_value_t * args) {
-    return TO_LOX_VALUE_NUMBER(1000000); //TODO Example
+    return TO_LOX_VALUE_NUMBER(time_millis());
 }
 
 static void join_thread(struct vm_thread * parent_ignored, struct vm_thread * thread, int index_ignored) {

@@ -45,14 +45,15 @@ int main() {
     //vm_file_global_structs_test_outer();
     //vm_file_global_variables_test_outer();
 
-    simple_vm_test_threads_outer();
-    //simple_vm_test_with_structs_outer();
-    //simple_vm_test_with_while_outer();
-    //simple_vm_test_with_ifs_outer();
-    //simple_vm_test_with_scope_variables_outer();
-    //simple_vm_test_with_functions_outer();
-    //simple_vm_test_with_nested_functions_outer();
-    //simple_vm_test_with_for_loops_outer();
+    simple_vm_test_threads_race_condition_outer();
+    simple_vm_test_threads_join_outer();
+    simple_vm_test_with_structs_outer();
+    simple_vm_test_with_while_outer();
+    simple_vm_test_with_ifs_outer();
+    simple_vm_test_with_scope_variables_outer();
+    simple_vm_test_with_functions_outer();
+    simple_vm_test_with_nested_functions_outer();
+    simple_vm_test_with_for_loops_outer();
 //
     //vm_thread_id_pool_same_thread_test_outer();
 #endif
