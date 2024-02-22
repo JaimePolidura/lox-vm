@@ -34,14 +34,16 @@ TEST(simple_compiler_test_with_for) {
                         OP_GET_LOCAL, 1,
                         OP_CONSTANT, 1,
                         OP_LESS,
-                        OP_JUMP_IF_FALSE, 0, 13,
+                        OP_JUMP_IF_FALSE, 0, 15,
+                        OP_POP,
                         OP_GET_LOCAL, 1,
                         OP_PRINT,
                         OP_GET_LOCAL, 1,
                         OP_CONSTANT, 2,
                         OP_ADD,
                         OP_SET_LOCAL, 1,
-                        OP_LOOP, 0, 21);
+                        OP_POP,
+                        OP_LOOP, 0, 23);
 
     clear_trie(compiled_packages);
 }
@@ -101,9 +103,10 @@ TEST(simple_compiler_test_if_while) {
                         OP_CONSTANT, 0,
                         OP_CONSTANT, 1,
                         OP_EQUAL,
-                        OP_JUMP_IF_FALSE, 0, 6,
+                        OP_JUMP_IF_FALSE, 0, 7,
+                        OP_POP,
                         OP_CONSTANT, 2, OP_PRINT,
-                        OP_LOOP, 0, 14);
+                        OP_LOOP, 0, 15);
 
     clear_trie(compiled_packages);
 }
@@ -141,6 +144,7 @@ TEST(simple_compiler_test_with_scope_variables) {
                         OP_SET_LOCAL, 1,
                         OP_CONSTANT, 3, //nombre = 1;
                         OP_SET_LOCAL, 1,
+                        OP_POP,
                         OP_GET_LOCAL, 1, //print nombre;
                         OP_PRINT,
                         OP_POP);
@@ -154,25 +158,19 @@ TEST(simple_compiler_test) {
     ASSERT_TRUE(result.success);
     struct chunk * chunk = &result.compiled_package->main_function->chunk;
 
-    ASSERT_EQ(chunk->code[0], OP_CONSTANT);
-    ASSERT_EQ(chunk->code[1], 1); //Constant offset: nombre
-    ASSERT_EQ(chunk->code[2], OP_DEFINE_GLOBAL);
-    ASSERT_EQ(chunk->code[3], 0); //Constant offset: jaime
-
-    ASSERT_EQ(chunk->code[4], OP_CONSTANT);
-    ASSERT_EQ(chunk->code[5], 3);
-    ASSERT_EQ(chunk->code[6], OP_CONSTANT);
-    ASSERT_EQ(chunk->code[7], 4);
-    ASSERT_EQ(chunk->code[8], OP_CONSTANT);
-    ASSERT_EQ(chunk->code[9], 5);
-    ASSERT_EQ(chunk->code[10], OP_MUL);
-    ASSERT_EQ(chunk->code[11], OP_ADD);
-    ASSERT_EQ(chunk->code[12], OP_SET_GLOBAL);
-    ASSERT_EQ(chunk->code[13], 2);
-
-    ASSERT_EQ(chunk->code[14], OP_GET_GLOBAL);
-    ASSERT_EQ(chunk->code[15], 6);
-    ASSERT_EQ(chunk->code[16], OP_PRINT);
+    ASSERT_BYTECODE_SEQ(chunk->code,
+                        OP_CONSTANT, 1,
+                        OP_DEFINE_GLOBAL, 0,
+                        OP_CONSTANT, 3,
+                        OP_CONSTANT, 4,
+                        OP_CONSTANT, 5,
+                        OP_MUL,
+                        OP_ADD,
+                        OP_SET_GLOBAL, 2,
+                        OP_POP,
+                        OP_GET_GLOBAL, 6,
+                        OP_PRINT
+    );
 
     clear_trie(compiled_packages);
 }

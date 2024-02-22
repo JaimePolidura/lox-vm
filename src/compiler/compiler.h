@@ -50,6 +50,8 @@ struct compiler {
     struct package * package_of_compiling_external_func;
 
     bool compiling_parallel_call;
+    
+    int monitor_depth;
 };
 
 struct compilation_result {

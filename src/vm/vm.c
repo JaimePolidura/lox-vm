@@ -71,12 +71,12 @@ static void thread_on_safe_point();
     }while(false);
 
 interpret_result_t interpret_vm(struct compilation_result compilation_result) {
-    //By doing this, we enforce that no other package can call the main package
-    compilation_result.compiled_package->state = INITIALIZING;
-    
     if(!compilation_result.success){
         return INTERPRET_COMPILE_ERROR;
     }
+
+    //By doing this, we enforce that no other package can call the main package
+    compilation_result.compiled_package->state = INITIALIZING;
 
     create_root_thread();
 
@@ -394,7 +394,7 @@ static void return_function(struct call_frame * function_to_return_frame) {
     lox_value_t returned_value = pop_stack_vm();
 
     restore_prev_call_frame();
-
+    
     self_thread->esp = function_to_return_frame->slots;
 
     push_stack_vm(returned_value);

@@ -51,7 +51,7 @@ TEST(simple_vm_test_threads_join){
 
 TEST(vm_global_functions_test){
     struct compilation_result result = compile(
-            "C:\\programacion\\lox-vm\\tst\\resources\\global_functions\\join.lox",
+            "C:\\programacion\\lox-vm\\tst\\resources\\global_functions\\main.lox",
             "C:\\programacion\\lox-vm\\tst\\resources\\global_functions",
             "main"
     );
@@ -59,6 +59,7 @@ TEST(vm_global_functions_test){
     start_vm();
 
     interpret_result_t vm_result = interpret_vm(result);
+    ASSERT_TRUE(vm_result == INTERPRET_OK);
     ASSERT_NEXT_VM_LOG(current_vm, "Opened file 1.000000");
     ASSERT_NEXT_VM_LOG(current_vm, "reading 10.000000 bytes from file 1.000000");
     ASSERT_NEXT_VM_LOG(current_vm, "closing file 1.000000");
@@ -71,7 +72,7 @@ TEST(vm_file_global_structs_test) {
     reset();
 
     struct compilation_result result = compile(
-            "C:\\programacion\\lox-vm\\tst\\resources\\global_structs\\join.lox",
+            "C:\\programacion\\lox-vm\\tst\\resources\\global_structs\\main.lox",
             "C:\\programacion\\lox-vm\\tst\\resources\\global_structs",
             "main"
     );
@@ -88,7 +89,7 @@ TEST(vm_file_global_structs_test) {
 
 TEST(vm_file_global_variables_test) {
     struct compilation_result result = compile(
-            "C:\\programacion\\lox-vm\\tst\\resources\\global_variables\\join.lox",
+            "C:\\programacion\\lox-vm\\tst\\resources\\global_variables\\main.lox",
             "C:\\programacion\\lox-vm\\tst\\resources\\global_variables",
             "main"
     );

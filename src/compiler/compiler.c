@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include "compiler.h"
 
 // Shared between all compiler
@@ -76,8 +77,8 @@ static void for_loop_initializer(struct compiler * compiler);
 static int for_loop_condition(struct compiler * compiler);
 static void for_loop_increment(struct compiler * compiler);
 static struct chunk * current_chunk(struct compiler * compiler);
-static void function_declaration(struct compiler * compiler, bool is_public, bool is_protected_by_monitor);
-static struct function_object * function(struct compiler * compiler);
+static void function_declaration(struct compiler *compiler, bool is_public, bool is_protected_by_monitor);
+static struct function_object * function(struct compiler * compiler, bool is_protected_by_monitor);
 static void function_parameters(struct compiler * function_compiler);
 static void function_call(struct compiler * compiler, bool can_assign);
 static int function_call_number_arguments(struct compiler * compiler);
@@ -100,6 +101,9 @@ static struct exported_symbol * get_exported_symbol(struct compiler * compiler, 
 static void string(struct compiler * compiler, bool can_assign);
 static void parallel_declaration(struct compiler * compiler);
 static void sync_statement(struct compiler * compiler);
+static void emit_enter_monitor(struct compiler * compiler);
+static void emit_exit_monitor(struct compiler * compiler);
+static void emit_exit_all_monitors(struct compiler * compiler);
 
 struct parse_rule rules[] = {
         [TOKEN_OPEN_PAREN] = {grouping, function_call, PREC_CALL},
@@ -354,7 +358,7 @@ static void variable_expression_declaration(struct compiler * compiler) {
     }
 }
 
-static void function_declaration(struct compiler * compiler, bool is_public, bool is_protected_by_monitor) {
+static void function_declaration(struct compiler *compiler, bool is_public, bool is_protected_by_monitor) {
     if(compiler->current_scope == SCOPE_FUNCTION){
         report_error(compiler, compiler->parser->current, "Nested functions are not allowed");
     }
@@ -362,7 +366,7 @@ static void function_declaration(struct compiler * compiler, bool is_public, boo
     consume(compiler, TOKEN_IDENTIFIER, "Expected current_function name after fun keyword.");
     struct token function_name = compiler->parser->previous;
     int function_name_constant_offset = add_string_constant(compiler, function_name);
-    function(compiler);
+    function(compiler, is_protected_by_monitor);
     define_global_variable(compiler, function_name_constant_offset);
 
     if(is_public){
@@ -370,7 +374,7 @@ static void function_declaration(struct compiler * compiler, bool is_public, boo
     }
 }
 
-static struct function_object * function(struct compiler * compiler) {
+static struct function_object * function(struct compiler * compiler, bool is_protected_by_monitor) {
     struct compiler function_compiler;
     init_compiler(&function_compiler, SCOPE_FUNCTION, compiler);
     begin_scope(&function_compiler);
@@ -379,7 +383,12 @@ static struct function_object * function(struct compiler * compiler) {
     function_parameters(&function_compiler);
     consume(&function_compiler, TOKEN_OPEN_BRACE, "Expect '{' after current_function parenthesis.");
 
+    if(is_protected_by_monitor) 
+        emit_enter_monitor(&function_compiler);
+    
     block(&function_compiler);
+
+    emit_exit_all_monitors(&function_compiler);
 
     struct function_object * function = end_compiler(&function_compiler);
 
@@ -459,15 +468,7 @@ static void statement(struct compiler * compiler) {
 }
 
 static void sync_statement(struct compiler * compiler) {
-    if(compiler->current_scope == SCOPE_PACKAGE){
-        report_error(compiler, compiler->parser->previous, "Only sync can be called at a function level");
-    }
-    if(++compiler->current_function->number_monitors_in_use > MAX_MONITORS_PER_FUNCTION){
-        report_error(compiler, compiler->parser->previous, "Max monitors in function reached");
-    }
-
-    int monitor_number = compiler->current_function->number_monitors_in_use;
-    emit_bytecodes(compiler, OP_ENTER_MONITOR, monitor_number);
+    emit_enter_monitor(compiler);
 
     statement(compiler);
 
@@ -478,11 +479,13 @@ static void return_statement(struct compiler * compiler) {
     if (compiler->current_scope == SCOPE_PACKAGE) {
         report_error(compiler, compiler->parser->previous, "Can't return from top level code");
     }
-
+    
     if (match(compiler, TOKEN_SEMICOLON)) {
+        emit_exit_all_monitors(compiler);
         emit_empty_return(compiler);
     } else {
         expression(compiler);
+        emit_exit_all_monitors(compiler);
         consume(compiler, TOKEN_SEMICOLON, "Expect ';' after return statement");
         emit_bytecode(compiler, OP_RETURN);
     }
@@ -914,6 +917,28 @@ static struct compiler * alloc_compiler(scope_type_t scope, char * package_name,
     return compiler;
 }
 
+static void emit_exit_monitor(struct compiler * compiler) {
+    compiler->monitor_depth--;
+    emit_bytecode(compiler, OP_EXIT_MONITOR);
+}
+
+static void emit_exit_all_monitors(struct compiler * compiler) {
+    for(int i = 0; i < compiler->monitor_depth; i++){
+        emit_bytecode(compiler, OP_EXIT_MONITOR);
+    }
+}
+
+static void emit_enter_monitor(struct compiler * compiler) {
+    if(compiler->current_scope == SCOPE_PACKAGE){
+        report_error(compiler, compiler->parser->previous, "Only sync can be called at a function level");
+    }
+    if(++compiler->monitor_depth > MAX_MONITORS_PER_FUNCTION){
+        report_error(compiler, compiler->parser->previous, "Max monitors in function reached");
+    }
+    
+    emit_bytecodes(compiler, OP_ENTER_MONITOR, compiler->monitor_depth);
+}
+
 static struct package * add_package_to_compiled_packages(char * package_import_name, int package_import_name_length, bool is_stand_alone_mode) {
     struct substring package_substring = read_package_name(package_import_name, package_import_name_length);
     struct package * package_in_compiled_packages = find_trie(compiled_packages, start_substring(package_substring), length_substring(package_substring));
@@ -962,6 +987,7 @@ static void init_compiler(struct compiler * compiler, scope_type_t scope_type, s
     compiler->package_of_compiling_external_func = NULL;
     compiler->compiling_external_function = false;
     compiler->compiling_parallel_call = false;
+    compiler->monitor_depth = 0;
 }
 
 static void string(struct compiler * compiler, bool can_assign) {
