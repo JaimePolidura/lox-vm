@@ -16,12 +16,15 @@
 
 #define STACK_MAX 256
 #define FRAME_MAX (STACK_MAX * 256)
-#define MAX_CHILD_THREADS_PER_THREAD 4
+#define MAX_CHILD_THREADS_PER_THREAD 64
 
 struct call_frame {
     struct function_object * function;
     uint8_t * pc; //Actual instruction
     lox_value_t * slots; //Used for local variables. It points to the gray_stack
+
+    int last_monitor_entered_index;
+    int monitors_entered[MAX_MONITORS_PER_FUNCTION];
 };
 
 typedef enum {

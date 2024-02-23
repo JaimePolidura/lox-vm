@@ -5,5 +5,10 @@ struct function_object * alloc_function() {
     init_chunk(&function_object->chunk);
     function_object->n_arguments = 0;
     function_object->name = NULL;
+
+    for(int i = 0; i < MAX_MONITORS_PER_FUNCTION; i++){
+        init_monitor(&function_object->monitors[i]);
+    }
+
     return function_object;
 }

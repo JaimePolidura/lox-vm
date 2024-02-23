@@ -13,6 +13,25 @@ static void reset() {
     compiled_packages = NULL;
 }
 
+TEST(simple_vm_test_threads_no_race_condition) {
+    struct compilation_result result = compile(
+            "C:\\programacion\\lox-vm\\tst\\resources\\threads\\sync_no_race_condition.lox",
+            "C:\\programacion\\lox-vm\\tst\\resources\\threads",
+            "main"
+    );
+
+    start_vm();
+
+    interpret_result_t vm_result = interpret_vm(result);
+
+    //4 threads, 100000 million increments per each thread. Really unlikely that the final result will be 400000
+    ASSERT_TRUE(strtod(current_vm.log[0], NULL) == 40000);
+    ASSERT_TRUE(strtod(current_vm.log[1], NULL) == 40000);
+
+    stop_vm();
+    reset();
+}
+
 TEST(simple_vm_test_threads_race_condition){
     struct compilation_result result = compile(
             "C:\\programacion\\lox-vm\\tst\\resources\\threads\\race_condition.lox",

@@ -51,6 +51,8 @@ static void * run_thread_entrypoint(void * thread_ptr);
 static bool some_child_thread_running(struct vm_thread * thread);
 static void terminate_self_thread();
 static void thread_on_safe_point();
+static void enter_monitor_vm(struct call_frame * call_frame);
+static void exit_monitor_vm(struct call_frame * call_frame);
 
 #define READ_BYTE(frame) (*frame->pc++)
 #define READ_U16(frame) \
@@ -161,12 +163,37 @@ static interpret_result_t run() {
             case OP_SET_STRUCT_FIELD: set_struct_field(); break;
             case OP_ENTER_PACKAGE: enter_package(); current_frame = get_current_frame(); break;
             case OP_EXIT_PACKAGE: exit_package(); current_frame = get_current_frame(); break;
+            case OP_ENTER_MONITOR: enter_monitor_vm(current_frame); break;
+            case OP_EXIT_MONITOR: exit_monitor_vm(current_frame); break;
             case OP_EOF: return INTERPRET_OK;
             default:
                 perror("Unhandled bytecode op\n");
                 return INTERPRET_RUNTIME_ERROR;
         }
     }
+}
+
+static void enter_monitor_vm(struct call_frame * call_frame) {
+    struct function_object * function = call_frame->function;
+    int monitor_number_to_enter = READ_BYTE(call_frame);
+
+    call_frame->monitors_entered[call_frame->last_monitor_entered_index++] = monitor_number_to_enter;
+
+    struct monitor * monitor_to_enter = &function->monitors[monitor_number_to_enter];
+
+    set_self_thread_waiting();
+
+    enter_monitor(monitor_to_enter);
+
+    set_self_thread_runnable();
+}
+
+static void exit_monitor_vm(struct call_frame * call_frame) {
+    int monitor_number_to_exit = call_frame->monitors_entered[--call_frame->last_monitor_entered_index];
+    struct function_object * function = call_frame->function;
+    struct monitor * monitor_to_exit = &function->monitors[monitor_number_to_exit];
+
+    exit_monitor(monitor_to_exit);
 }
 
 static void enter_package() {
@@ -337,22 +364,9 @@ static void call() {
             struct native_object * native_function_object = TO_NATIVE(callee);
             native_fn native_function = native_function_object->native_fn;
 
-            if(native_function_object->is_blocking) {
-                atomic_fetch_add(&current_vm.number_waiting_threads, 1);
-            }
-
-            //Avoid race condition when garbage collection starts
-            thread_on_safe_point();
-
             lox_value_t result = native_function(n_args, self_thread->esp - n_args);
             self_thread->esp -= n_args + 1;
             push_stack_vm(result);
-
-            if(native_function_object->is_blocking) {
-                atomic_fetch_sub(&current_vm.number_waiting_threads, 1);
-            }
-
-            thread_on_safe_point();
 
             break;
         }
@@ -603,6 +617,7 @@ static void setup_call_frame_function(struct vm_thread * thread, struct function
     new_frame->function = function;
     new_frame->pc = function->chunk.code;
     new_frame->slots = thread->esp - function->n_arguments - 1;
+    new_frame->last_monitor_entered_index = 0;
 }
 
 static void restore_prev_call_frame() {
@@ -673,12 +688,15 @@ static void thread_on_safe_point() {
     check_gc_on_safe_point_alg();
 }
 
+void set_self_thread_waiting() {
+    self_thread->state = THREAD_WAITING;
+    //Avoid race condition when garbage collection starts
+    atomic_fetch_add(&current_vm.number_waiting_threads, 1);
+    thread_on_safe_point();
+}
+
 void set_self_thread_runnable() {
     self_thread->state = THREAD_RUNNABLE;
     atomic_fetch_sub(&current_vm.number_waiting_threads, 1);
-}
-
-void set_self_thread_waiting() {
-    self_thread->state = THREAD_WAITING;
-    atomic_fetch_add(&current_vm.number_waiting_threads, 1);
+    thread_on_safe_point();
 }

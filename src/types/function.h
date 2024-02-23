@@ -6,7 +6,7 @@
 #include "utils/trie.h"
 #include "types.h"
 
-#define MAX_MONITORS_PER_FUNCTION 64
+#define MAX_MONITORS_PER_FUNCTION 8
 
 struct function_object {
     struct object object;

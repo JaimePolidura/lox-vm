@@ -252,12 +252,8 @@ static void declaration(struct compiler * compiler) {
         struct_declaration(compiler, is_public);
     } else if(match(compiler, TOKEN_PARALLEL)) {
         parallel_declaration(compiler);
-    } else if(match(compiler, TOKEN_FUN) || match(compiler, TOKEN_SYNC)) {
-        bool is_protected_by_monitor = compiler->parser->previous.type == TOKEN_SYNC;
-
-        if(is_protected_by_monitor){
-            consume(compiler, TOKEN_FUN, "Expect 'fun' after 'sync' keyword when declaring a function");
-        }
+    } else if(match(compiler, TOKEN_FUN)) {
+        bool is_protected_by_monitor = match(compiler, TOKEN_SYNC);
 
         function_declaration(compiler, is_public, is_protected_by_monitor);
     } else {
@@ -472,7 +468,7 @@ static void sync_statement(struct compiler * compiler) {
 
     statement(compiler);
 
-    emit_bytecode(compiler, OP_EXIT_MONITOR);
+    emit_exit_monitor(compiler);
 }
 
 static void return_statement(struct compiler * compiler) {
@@ -936,7 +932,7 @@ static void emit_enter_monitor(struct compiler * compiler) {
         report_error(compiler, compiler->parser->previous, "Max monitors in function reached");
     }
     
-    emit_bytecodes(compiler, OP_ENTER_MONITOR, compiler->monitor_depth);
+    emit_bytecodes(compiler, OP_ENTER_MONITOR, compiler->monitor_depth - 1);
 }
 
 static struct package * add_package_to_compiled_packages(char * package_import_name, int package_import_name_length, bool is_stand_alone_mode) {

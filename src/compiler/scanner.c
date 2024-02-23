@@ -126,8 +126,8 @@ static tokenType_t identifier_type(struct scanner * scanner) {
         case 's':
             if(scanner->current - scanner->start > 1){
                 switch (scanner->start[1]) {
-                    case 't': check_keyword(scanner, 1, 4, "ruct", TOKEN_STRUCT);
-                    case 'y': check_keyword(scanner, 1, 2, "nc", TOKEN_SYNC);
+                    case 't': return check_keyword(scanner, 2, 4, "ruct", TOKEN_STRUCT);
+                    case 'y': return check_keyword(scanner, 2, 2, "nc", TOKEN_SYNC);
                 }
             }
             return check_keyword(scanner, 1, 5, "truct", TOKEN_STRUCT);
