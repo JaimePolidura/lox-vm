@@ -601,6 +601,7 @@ static void setup_native_functions(struct package * package) {
     define_native("selfThreadId", self_thread_id_native, false);
     define_native("sleep", sleep_ms_native, true);
     define_native("clock", clock_native, false);
+    define_native("forceGC", force_gc, false);
     define_native("join", join_native, true);
 }
 
@@ -681,7 +682,7 @@ static void add_child_to_parent_list(struct vm_thread * new_child_thread) {
         }
     }
 
-    runtime_error("Exceeded max number of child threads %i per thread", MAX_CHILD_THREADS_PER_THREAD);
+    runtime_error("Exceeded max number of child threads_race_conditions %i per thread", MAX_CHILD_THREADS_PER_THREAD);
 }
 
 static void thread_on_safe_point() {

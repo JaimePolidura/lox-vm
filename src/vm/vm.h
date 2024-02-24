@@ -21,7 +21,7 @@ struct vm {
 
     struct thread_id_pool thread_id_pool;
 
-    //It includes all states threads except TERMINATED
+    //It includes all states threads_race_conditions except TERMINATED
     volatile int number_current_threads;
     volatile int number_waiting_threads;
 

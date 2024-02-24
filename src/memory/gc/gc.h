@@ -21,7 +21,7 @@ struct gc_thread_info {
 
 typedef enum {
     GC_NONE, //No gc is being performed
-    GC_WAITING, //Waiting to all threads to stop
+    GC_WAITING, //Waiting to all threads_race_conditions to stop
     GC_IN_PROGRESS, //Performing GC
 } gc_state_t;
 
@@ -37,3 +37,6 @@ void init_gc_global_info(struct gc * gc);
 void add_object_to_heap(struct gc_thread_info * gc_thread_info, struct object * object, size_t size);
 
 int sizeof_heap_allocated_lox(struct object * object);
+
+//Starts gc. Only used to manually force gc
+void try_start_gc(struct gc_thread_info * gc_thread_info);

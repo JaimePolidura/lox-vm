@@ -8,8 +8,6 @@ extern void init_gc_alg();
 extern void signal_threads_start_gc_alg();
 extern void signal_threads_gc_finished_alg();
 
-static void try_start_gc(struct gc_thread_info * gc_thread_info);
-
 void init_gc_global_info(struct gc * gc) {
     gc->state = GC_NONE;
     init_gc_alg();
@@ -40,7 +38,7 @@ void add_object_to_heap(struct gc_thread_info * gc_thread_info, struct object * 
     }
 }
 
-static void try_start_gc(struct gc_thread_info * gc_thread_info) {
+void try_start_gc(struct gc_thread_info * gc_thread_info) {
     struct gc * gc_global_info = gc_thread_info->gc_global_info;
     gc_state_t expected = GC_NONE;
 

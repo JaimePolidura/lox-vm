@@ -13,10 +13,23 @@ static void reset() {
     compiled_packages = NULL;
 }
 
+TEST(simple_vm_test_threads_gc){
+    struct compilation_result result = compile(
+            "C:\\programacion\\lox-vm\\tst\\resources\\gc\\main.lox",
+            "C:\\programacion\\lox-vm\\tst\\resources\\gc",
+            "main"
+    );
+
+    start_vm();
+
+    interpret_result_t vm_result = interpret_vm(result);
+    ASSERT_TRUE(vm_result == INTERPRET_OK);
+}
+
 TEST(simple_vm_test_threads_no_race_condition) {
     struct compilation_result result = compile(
-            "C:\\programacion\\lox-vm\\tst\\resources\\threads\\sync_no_race_condition.lox",
-            "C:\\programacion\\lox-vm\\tst\\resources\\threads",
+            "C:\\programacion\\lox-vm\\tst\\resources\\threads_race_conditions\\sync_no_race_condition.lox",
+            "C:\\programacion\\lox-vm\\tst\\resources\\threads_race_conditions",
             "main"
     );
 
@@ -24,7 +37,8 @@ TEST(simple_vm_test_threads_no_race_condition) {
 
     interpret_result_t vm_result = interpret_vm(result);
 
-    //4 threads, 100000 million increments per each thread. Really unlikely that the final result will be 400000
+    ASSERT_TRUE(vm_result == INTERPRET_OK);
+    //4 threads_race_conditions, 100000 million increments per each thread. Really unlikely that the final result will be 400000
     ASSERT_TRUE(strtod(current_vm.log[0], NULL) == 40000);
     ASSERT_TRUE(strtod(current_vm.log[1], NULL) == 40000);
 
@@ -34,8 +48,8 @@ TEST(simple_vm_test_threads_no_race_condition) {
 
 TEST(simple_vm_test_threads_race_condition){
     struct compilation_result result = compile(
-            "C:\\programacion\\lox-vm\\tst\\resources\\threads\\race_condition.lox",
-            "C:\\programacion\\lox-vm\\tst\\resources\\threads",
+            "C:\\programacion\\lox-vm\\tst\\resources\\threads_race_conditions\\race_condition.lox",
+            "C:\\programacion\\lox-vm\\tst\\resources\\threads_race_conditions",
             "main"
     );
 
@@ -43,7 +57,8 @@ TEST(simple_vm_test_threads_race_condition){
 
     interpret_result_t vm_result = interpret_vm(result);
 
-    //4 threads, 100000 million increments per each thread. Really unlikely that the final result will be 400000
+    ASSERT_TRUE(vm_result == INTERPRET_OK);
+    //4 threads_race_conditions, 100000 million increments per each thread. Really unlikely that the final result will be 400000
     ASSERT_TRUE(strtod(current_vm.log[0], NULL) != 4000000);
 
     stop_vm();
@@ -53,8 +68,8 @@ TEST(simple_vm_test_threads_race_condition){
 
 TEST(simple_vm_test_threads_join){
     struct compilation_result result = compile(
-            "C:\\programacion\\lox-vm\\tst\\resources\\threads\\join.lox",
-            "C:\\programacion\\lox-vm\\tst\\resources\\threads",
+            "C:\\programacion\\lox-vm\\tst\\resources\\threads_join\\join.lox",
+            "C:\\programacion\\lox-vm\\tst\\resources\\threads_join",
             "main"
     );
 
@@ -62,6 +77,7 @@ TEST(simple_vm_test_threads_join){
 
     interpret_result_t vm_result = interpret_vm(result);
 
+    ASSERT_TRUE(vm_result == INTERPRET_OK);
     ASSERT_TRUE(strtod(current_vm.log[0], NULL) >= 300);
 
     stop_vm();

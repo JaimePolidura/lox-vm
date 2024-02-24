@@ -45,7 +45,8 @@ int main() {
 //    vm_file_global_structs_test_outer();
 //    vm_file_global_variables_test_outer();
 
-    simple_vm_test_threads_no_race_condition_outer();
+    simple_vm_test_threads_gc_outer();
+//    simple_vm_test_threads_no_race_condition_outer();
 //    simple_vm_test_threads_race_condition_outer();
 //    simple_vm_test_threads_join_outer();
 //    simple_vm_test_with_structs_outer();

@@ -1,0 +1,24 @@
+struct Child {
+    name;
+}
+
+struct Parent {
+    child;
+}
+
+fun createHeap(willStartGc) {
+    for(var i = 0; i < 1000; i = i + 1) {
+        var structObject = Parent{Child{selfThreadId() + " " + i}};
+    }
+
+    if(willStartGc){
+        forceGC();
+    }
+}
+
+parallel createHeap(false);
+parallel createHeap(false);
+parallel createHeap(false);
+parallel createHeap(true);
+
+join();

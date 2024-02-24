@@ -4,6 +4,8 @@ extern __thread struct vm_thread * self_thread;
 extern void set_self_thread_runnable();
 extern void set_self_thread_waiting();
 
+#define VOID_NATIVE_RETURN TO_LOX_VALUE_NUMBER(0)
+
 lox_value_t clock_native(int n_args, lox_value_t * args) {
     return TO_LOX_VALUE_NUMBER(time_millis());
 }
@@ -19,7 +21,7 @@ lox_value_t join_native(int n_args, lox_value_t * args) {
 
     set_self_thread_runnable();
 
-    return TO_LOX_VALUE_NUMBER(0);
+    return VOID_NATIVE_RETURN;
 }
 
 lox_value_t sleep_ms_native(int n_args, lox_value_t * args) {
@@ -35,9 +37,15 @@ lox_value_t sleep_ms_native(int n_args, lox_value_t * args) {
 
     set_self_thread_runnable();
 
-    return TO_LOX_VALUE_NUMBER(0);
+    return VOID_NATIVE_RETURN;
 }
 
 lox_value_t self_thread_id_native(int n_args, lox_value_t * args) {
     return TO_LOX_VALUE_NUMBER(self_thread->thread_id);
+}
+
+lox_value_t force_gc(int n_args, lox_value_t * args) {
+    try_start_gc(&self_thread->gc_info);
+
+    return VOID_NATIVE_RETURN;
 }
