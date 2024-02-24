@@ -53,6 +53,7 @@ static void terminate_self_thread();
 static void thread_on_safe_point();
 static void enter_monitor_vm(struct call_frame * call_frame);
 static void exit_monitor_vm(struct call_frame * call_frame);
+static bool try_add_child_to_parent_list(struct vm_thread * new_child_thread);
 
 #define READ_BYTE(frame) (*frame->pc++)
 #define READ_U16(frame) \
@@ -107,9 +108,11 @@ static void terminate_self_thread() {
         runtime_error("Cannot end execution while some child thread still running");
     }
 
+    self_thread->state = THREAD_TERMINATED;
+
     atomic_fetch_sub(&current_vm.number_current_threads, 1);
 
-    self_thread->state = THREAD_TERMINATED;
+    thread_on_safe_point();
 
     pthread_exit(NULL);
 }
@@ -669,20 +672,31 @@ static void copy_stack_from_esp(struct vm_thread * from, struct vm_thread * to, 
 }
 
 static void add_child_to_parent_list(struct vm_thread * new_child_thread) {
+    if(try_add_child_to_parent_list(new_child_thread)){
+        return;
+    }
+
+    try_start_gc(&self_thread->gc_info);
+
+    //The gc will remove termianted threads
+    if(try_add_child_to_parent_list(new_child_thread)) {
+        return;
+    }
+
+    runtime_error("Exceeded max number of child threads_race_conditions %i per thread", MAX_CHILD_THREADS_PER_THREAD);
+}
+
+static bool try_add_child_to_parent_list(struct vm_thread * new_child_thread) {
     for(int i = 0; i < MAX_CHILD_THREADS_PER_THREAD; i++){
         struct vm_thread * current_thread_slot = self_thread->children[i];
 
         if(current_thread_slot == NULL) {
             self_thread->children[i] = new_child_thread;
-            return;
-        } else if(current_thread_slot != NULL && current_thread_slot->state == THREAD_TERMINATED){
-            free_vm_thread(current_thread_slot);
-            free(current_thread_slot);
-            self_thread->children[i] = NULL;
+            return true;
         }
     }
 
-    runtime_error("Exceeded max number of child threads_race_conditions %i per thread", MAX_CHILD_THREADS_PER_THREAD);
+    return false;
 }
 
 static void thread_on_safe_point() {

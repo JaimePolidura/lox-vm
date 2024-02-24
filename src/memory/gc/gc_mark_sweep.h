@@ -6,6 +6,17 @@
 #include "memory/string_pool.h"
 #include "memory/gc/gc_algorithm.h"
 
+#define HEAP_GROW_AFTER_GC_FACTOR 2
+
+struct gc_mark_sweep_thread_info {
+    struct gc_thread_info gc_thread_info;
+
+    size_t next_gc;
+
+    //Linked list of heap allocated objects
+    struct object * heap;
+};
+
 struct gc_mark_sweep {
     struct gc gc;
 

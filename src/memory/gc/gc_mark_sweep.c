@@ -25,17 +25,38 @@ static void sweep_heap();
 static void sweep_string_pool();
 static void sweep_heap_thread(struct vm_thread * parent_ignore, struct vm_thread * vm_thread, int index);
 
-void signal_threads_start_gc_alg() {
+static void finish_gc();
+
+void add_object_to_heap_gc_alg(struct gc_thread_info * gc_thread_info, struct object * object, size_t size) {
+    struct gc_mark_sweep_thread_info * gc_mark_sweep_thread_info = (struct gc_mark_sweep_thread_info *) gc_thread_info;
+
+    object->next = gc_mark_sweep_thread_info->heap;
+    gc_mark_sweep_thread_info->heap = object;
+
+    gc_thread_info->bytes_allocated += size;
+
+    if (gc_thread_info->bytes_allocated >= gc_mark_sweep_thread_info->next_gc) {
+        size_t before_gc_heap_size = gc_thread_info->bytes_allocated;
+        try_start_gc(gc_thread_info);
+        size_t after_gc_heap_size = gc_thread_info->bytes_allocated;
+
+        gc_mark_sweep_thread_info->next_gc = gc_thread_info->bytes_allocated * HEAP_GROW_AFTER_GC_FACTOR;
+
+        printf("Collected %zu bytes (from %zu to %zu) next at %zu\n", before_gc_heap_size - after_gc_heap_size,
+               before_gc_heap_size, after_gc_heap_size, gc_mark_sweep_thread_info->next_gc);
+    }
+}
+
+void signal_threads_start_gc_alg_and_await() {
     struct gc_mark_sweep * gc_mark_sweep = (struct gc_mark_sweep *) &current_vm.gc;
 
-    self_thread->state = THREAD_WAITING;
-
     //Threads who are waiting, are included as already ack the start gc signal
-    gc_mark_sweep->number_threads_ack_start_gc_signal = current_vm.number_waiting_threads;
+    // + 1 to count self thread44
+    gc_mark_sweep->number_threads_ack_start_gc_signal = current_vm.number_waiting_threads + 1;
 
     await_all_threads_signal_start_gc();
 
-    self_thread->state = THREAD_RUNNABLE;
+    current_vm.gc.state = GC_IN_PROGRESS;
 }
 
 void signal_threads_gc_finished_alg() {
@@ -50,14 +71,22 @@ void check_gc_on_safe_point_alg() {
 
     switch (current_gc_state) {
         case GC_NONE: return;
-        case GC_WAITING: atomic_fetch_add(&gc_mark_sweep->number_threads_ack_start_gc_signal, 1);
-        case GC_IN_PROGRESS:
-            set_self_thread_waiting();
-
+        case GC_WAITING: {
+            //There is a race condition if a thread terminates and the gc starts.
+            //The gc started thread might have read a stale value of the number_current_threads and if other thread
+            //has termianted, the gc thread will block forever
+            //To solve this we want to wake up the gc thread to revaluate its waiting condition.
+            //This might work because calling this method number_current_threads have been decreased (see vm code)
+            atomic_fetch_add(&gc_mark_sweep->number_threads_ack_start_gc_signal, 1);
             notify_start_gc_signal_acked();
-            await_until_gc_finished();
 
-            set_self_thread_runnable();
+            if(self_thread->state != THREAD_TERMINATED) {
+                await_until_gc_finished();
+            }
+        }
+        //If this gets run this means we have been sleeping
+        case GC_IN_PROGRESS:
+            await_until_gc_finished();
     }
 }
 
@@ -67,7 +96,7 @@ void init_gc_alg() {
     gc_mark_sweep->gray_capacity = 0;
     gc_mark_sweep->gray_count = 0;
 
-    gc_mark_sweep->number_threads_ack_start_gc_signal = 0;
+    gc_mark_sweep->number_threads_ack_start_gc_signal = 440;
     pthread_cond_init(&gc_mark_sweep->await_ack_start_gc_signal_cond, NULL);
     init_mutex(&gc_mark_sweep->await_ack_start_gc_signal_mutex);
     pthread_cond_init(&gc_mark_sweep->await_gc_cond, NULL);
@@ -77,19 +106,27 @@ void init_gc_alg() {
 void start_gc_alg() {
     struct gc_mark_sweep * gc_mark_sweep = (struct gc_mark_sweep *) &current_vm.gc;
 
+    signal_threads_start_gc_alg_and_await();
+
     mark_stack();
     mark_globals();
     traverse_root_dependences(gc_mark_sweep);
 
     sweep();
+
+    finish_gc();
+    signal_threads_gc_finished_alg();
 }
 
 static void mark_stack() {
-    for_each_thread(current_vm.root, mark_thread_stack, THREADS_OPT_INCLUDE_TERMINATED | THREADS_OPT_RECURSIVE | THREADS_OPT_INCLUSIVE);
+    for_each_thread(current_vm.root, mark_thread_stack,
+                    THREADS_OPT_INCLUDE_TERMINATED |
+                    THREADS_OPT_RECURSIVE |
+                    THREADS_OPT_INCLUSIVE);
 }
 
 static void mark_thread_stack(struct vm_thread * parent, struct vm_thread * child, int index) {
-    if(child->state == THREAD_TERMINATED){
+    if(child->state == THREAD_TERMINATED) {
         free_vm_thread(child);
         free(child);
         parent->children[index] = NULL;
@@ -147,7 +184,7 @@ static void sweep_heap() {
 }
 
 static void sweep_heap_thread(struct vm_thread * parent_ignore, struct vm_thread * vm_thread, int index) {
-    struct gc_thread_info * gc_info = &vm_thread->gc_info;
+    struct gc_mark_sweep_thread_info * gc_info = (struct gc_mark_sweep_thread_info *) &vm_thread->gc_info;
 
     struct object * object = gc_info->heap;
     struct object * previous = NULL;
@@ -166,7 +203,7 @@ static void sweep_heap_thread(struct vm_thread * parent_ignore, struct vm_thread
                 gc_info->heap = object;
             }
 
-            gc_info->bytes_allocated -= sizeof_heap_allocated_lox(object);
+            gc_info->gc_thread_info.bytes_allocated -= sizeof_heap_allocated_lox(object);
             free(unreached);
         }
     }
@@ -222,7 +259,7 @@ static void await_all_threads_signal_start_gc() {
 
     lock_mutex(&gc_mark_sweep->await_ack_start_gc_signal_mutex);
 
-    while(current_vm.number_current_threads > gc_mark_sweep->number_threads_ack_start_gc_signal ){
+    while(current_vm.number_current_threads > gc_mark_sweep->number_threads_ack_start_gc_signal){
         pthread_cond_wait(&gc_mark_sweep->await_ack_start_gc_signal_cond,
                           &gc_mark_sweep->await_ack_start_gc_signal_mutex.native_mutex);
     }
@@ -250,4 +287,15 @@ static void notify_start_gc_signal_acked() {
     pthread_cond_signal(&gc_mark_sweep->await_ack_start_gc_signal_cond);
 
     unlock_mutex(&gc_mark_sweep->await_ack_start_gc_signal_mutex);
+}
+
+static void finish_gc() {
+    struct gc_mark_sweep * gc_mark_sweep = (struct gc_mark_sweep *) &current_vm.gc;
+
+    gc_mark_sweep->number_threads_ack_start_gc_signal = 0;
+    gc_mark_sweep->gray_stack = NULL;
+    gc_mark_sweep->gray_capacity = 0;
+    gc_mark_sweep->gray_count = 0;
+
+    current_vm.gc.state = GC_NONE;
 }

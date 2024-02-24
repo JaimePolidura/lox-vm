@@ -6,15 +6,12 @@
 #include "types/struct_instance_object.h"
 #include "types/struct_definition_object.h"
 
-#define HEAP_GROW_AFTER_GC_FACTOR 2
+//This serves as a wrapper around the specific tc algorithm
 
-//Structure maintained by every thread, it wil hold data about heap allocated objects, bytes allocated etc
+//Generic structure maintained by every thread. The gc algorithm will implement its own per thread structure.
 struct gc_thread_info {
-    //Linked list of heap allocated objects
-    struct object * heap;
-
+    //Bytes allocated
     size_t bytes_allocated;
-    size_t next_gc;
 
     struct gc * gc_global_info;
 };
