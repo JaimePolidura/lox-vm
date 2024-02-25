@@ -11,7 +11,8 @@ fun createHeap(willStartGc) {
         var structObject = Parent{Child{selfThreadId() + " " + i}};
     }
 
-    if(willStartGc){
+    if(willStartGc) {
+        sleep(100);
         forceGC();
     }
 }

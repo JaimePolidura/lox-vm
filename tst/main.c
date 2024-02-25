@@ -6,7 +6,6 @@
 #include "stack_test.h"
 #include "utils_test.h"
 #include "package_test.h"
-#include "vm_thread_id_pool_test.h"
 
 //#define RUN_HASH_TABLE_TEST
 //#define RUN_COMPILER_TEST
@@ -56,8 +55,6 @@ int main() {
 //    simple_vm_test_with_functions_outer();
 //    simple_vm_test_with_nested_functions_outer();
 //    simple_vm_test_with_for_loops_outer();
-
-//    vm_thread_id_pool_same_thread_test_outer();
 #endif
 
 #ifdef RUN_HASH_TABLE_TEST

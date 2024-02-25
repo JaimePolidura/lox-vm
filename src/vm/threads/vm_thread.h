@@ -16,7 +16,7 @@
 
 #define STACK_MAX 256
 #define FRAME_MAX (STACK_MAX * 256)
-#define MAX_CHILD_THREADS_PER_THREAD 64
+#define MAX_THREADS_PER_THREAD 64
 
 struct call_frame {
     struct function_object * function;
@@ -35,27 +35,28 @@ typedef enum {
 } vm_thread_tate_t;
 
 struct vm_thread {
-    volatile vm_thread_tate_t state;
-
     lox_thread_id thread_id;
+
+    volatile vm_thread_tate_t state;
 
     pthread_t native_thread;
 
+    struct vm_thread * children[MAX_THREADS_PER_THREAD];
+    struct vm_thread * parent;
+    int parent_child_index;
+
     lox_value_t stack[STACK_MAX];
     lox_value_t * esp; //Top of stack_list
+    struct call_frame frames[FRAME_MAX];
+    int frames_in_use;
 
     struct package * current_package;
     struct stack_list package_stack;
 
-    struct call_frame frames[FRAME_MAX];
-    int frames_in_use;
-
-    struct vm_thread * children[MAX_CHILD_THREADS_PER_THREAD];
-
-    struct gc_thread_info gc_info;
+    struct gc_thread_info * gc_info;
 };
 
-typedef void (*thread_consumer_t)(struct vm_thread * parent, struct vm_thread * child, int index);
+typedef void (*thread_consumer_t)(struct vm_thread * parent, struct vm_thread * child, int index, void * extra);
 
 struct vm_thread * alloc_vm_thread();
 void free_vm_thread(struct vm_thread * vm_thread);
@@ -71,4 +72,4 @@ enum {
     THREADS_OPT_INCLUDE_TERMINATED = 1 << 4
 };
 
-void for_each_thread(struct vm_thread * start_thread, thread_consumer_t callback, long options);
+void for_each_thread(struct vm_thread * start_thread, thread_consumer_t callback, void * extra, long options);

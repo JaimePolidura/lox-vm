@@ -39,13 +39,13 @@ static void enter_package();
 static void initialize_package(struct package * package_to_initialize);
 static void exit_package();
 static void restore_prev_package_execution();
-static void setup_native_functions(struct package * package);
+static void setup_native_functions();
 static void setup_call_frame_function(struct vm_thread * thread, struct function_object * function);
 static void setup_enter_package(struct package * package_to_enter);
 static void restore_prev_call_frame();
 static void create_root_thread();
 static void start_child_thread(struct function_object * thread_entry_point_func);
-static void add_child_to_parent_list(struct vm_thread * new_child_thread);
+static int add_child_to_parent_list(struct vm_thread * new_child_thread);
 static void copy_stack_from_esp(struct vm_thread * from, struct vm_thread * to, int n);
 static void * run_thread_entrypoint(void * thread_ptr);
 static bool some_child_thread_running(struct vm_thread * thread);
@@ -53,7 +53,7 @@ static void terminate_self_thread();
 static void thread_on_safe_point();
 static void enter_monitor_vm(struct call_frame * call_frame);
 static void exit_monitor_vm(struct call_frame * call_frame);
-static bool try_add_child_to_parent_list(struct vm_thread * new_child_thread);
+static int try_add_child_to_parent_list(struct vm_thread * new_child_thread);
 
 #define READ_BYTE(frame) (*frame->pc++)
 #define READ_U16(frame) \
@@ -118,7 +118,7 @@ static void terminate_self_thread() {
 }
 
 static bool some_child_thread_running(struct vm_thread * thread) {
-    for(int i = 0; i < MAX_CHILD_THREADS_PER_THREAD; i++) {
+    for(int i = 0; i < MAX_THREADS_PER_THREAD; i++) {
         struct vm_thread * current_thread = thread->children[i];
 
         if(current_thread != NULL && current_thread->state < THREAD_TERMINATED) { //They are in order
@@ -255,7 +255,7 @@ static void setup_package_execution(struct package * package) {
 
     if(package->state != READY_TO_USE) {
         init_hash_table(&package->global_variables);
-        setup_native_functions(package);
+        setup_native_functions();
 
         setup_call_frame_function(self_thread, package->main_function);
     }
@@ -298,7 +298,7 @@ static void adition() {
     push_stack_vm(TO_LOX_VALUE_OBJECT(add_result.string_object));
 
     if(add_result.created_new) {
-        add_object_to_heap(&self_thread->gc_info, &add_result.string_object->object, sizeof(struct string_object));
+        add_object_to_heap(self_thread->gc_info, &add_result.string_object->object, sizeof(struct string_object));
     } else {
         free(concatenated);
     }
@@ -411,7 +411,7 @@ static void return_function(struct call_frame * function_to_return_frame) {
     lox_value_t returned_value = pop_stack_vm();
 
     restore_prev_call_frame();
-    
+
     self_thread->esp = function_to_return_frame->slots;
 
     push_stack_vm(returned_value);
@@ -436,7 +436,7 @@ static void initialize_struct() {
     }
 
     int total_bytes_allocated = sizeof(struct struct_instance_object) + n_fields * sizeof(lox_value_t);
-    add_object_to_heap(&self_thread->gc_info, &struct_instance->object, total_bytes_allocated);
+    add_object_to_heap(self_thread->gc_info, &struct_instance->object, total_bytes_allocated);
 
     push_stack_vm(TO_LOX_VALUE_OBJECT(struct_instance));
 }
@@ -540,8 +540,9 @@ static lox_value_t pop_stack_vm() {
 }
 
 void start_vm() {
-    init_gc_global_info(&current_vm.gc);
+    current_vm.gc = alloc_gc();
     current_vm.number_current_threads = 0;
+    current_vm.last_thread_id = 0;
 
 #ifdef VM_TEST
     current_vm.log_entries_in_use = 0;
@@ -600,7 +601,7 @@ static inline struct call_frame * get_current_frame() {
     return &self_thread->frames[self_thread->frames_in_use - 1];
 }
 
-static void setup_native_functions(struct package * package) {
+static void setup_native_functions() {
     define_native("selfThreadId", self_thread_id_native, false);
     define_native("sleep", sleep_ms_native, true);
     define_native("clock", clock_native, false);
@@ -636,11 +637,12 @@ static void restore_prev_call_frame() {
 
 static void create_root_thread() {
     struct vm_thread * root_thread = alloc_vm_thread();
-    root_thread->thread_id = acquire_thread_id_pool(&current_vm.thread_id_pool);
+    root_thread->thread_id = atomic_fetch_add(&current_vm.last_thread_id, 1);
     root_thread->native_thread = pthread_self();
     root_thread->esp = root_thread->stack;
     root_thread->state = THREAD_RUNNABLE;
-    root_thread->gc_info.gc_global_info = &current_vm.gc;
+    root_thread->gc_info = alloc_gc_thread_info();
+    root_thread->gc_info->gc_global_info = current_vm.gc;
 
     current_vm.root = root_thread;
     current_vm.number_current_threads += 1;
@@ -650,12 +652,14 @@ static void create_root_thread() {
 
 static void start_child_thread(struct function_object * thread_entry_point_func) {
     struct vm_thread * new_thread = alloc_vm_thread();
-    new_thread->thread_id = acquire_thread_id_pool(&current_vm.thread_id_pool);
+    new_thread->thread_id = atomic_fetch_add(&current_vm.last_thread_id, 1);
     new_thread->state = THREAD_NEW;
     new_thread->current_package = self_thread->current_package;
-    new_thread->gc_info.gc_global_info = &current_vm.gc;
+    new_thread->gc_info = alloc_gc_thread_info();
+    new_thread->gc_info->gc_global_info = current_vm.gc;
+    new_thread->parent = self_thread;
 
-    add_child_to_parent_list(new_thread);
+    new_thread->parent_child_index = add_child_to_parent_list(new_thread);
     copy_stack_from_esp(self_thread, new_thread, thread_entry_point_func->n_arguments);
     setup_call_frame_function(new_thread, thread_entry_point_func);
 
@@ -671,32 +675,36 @@ static void copy_stack_from_esp(struct vm_thread * from, struct vm_thread * to, 
     }
 }
 
-static void add_child_to_parent_list(struct vm_thread * new_child_thread) {
-    if(try_add_child_to_parent_list(new_child_thread)){
-        return;
+static int add_child_to_parent_list(struct vm_thread * new_child_thread) {
+    int index;
+
+    if((index = try_add_child_to_parent_list(new_child_thread)) != -1){
+        return index;
     }
 
-    try_start_gc(&self_thread->gc_info);
+    try_start_gc(self_thread->gc_info);
 
     //The gc will remove termianted threads
-    if(try_add_child_to_parent_list(new_child_thread)) {
-        return;
+    if((index = try_add_child_to_parent_list(new_child_thread)) != -1) {
+        return index;
     }
 
-    runtime_error("Exceeded max number of child threads_race_conditions %i per thread", MAX_CHILD_THREADS_PER_THREAD);
+    runtime_error("Exceeded max number of child threads_race_conditions %i per thread", MAX_THREADS_PER_THREAD);
+
+    return -1;
 }
 
-static bool try_add_child_to_parent_list(struct vm_thread * new_child_thread) {
-    for(int i = 0; i < MAX_CHILD_THREADS_PER_THREAD; i++){
+static int try_add_child_to_parent_list(struct vm_thread * new_child_thread) {
+    for(int i = 0; i < MAX_THREADS_PER_THREAD; i++){
         struct vm_thread * current_thread_slot = self_thread->children[i];
 
         if(current_thread_slot == NULL) {
             self_thread->children[i] = new_child_thread;
-            return true;
+            return i;
         }
     }
 
-    return false;
+    return -1;
 }
 
 static void thread_on_safe_point() {

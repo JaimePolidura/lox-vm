@@ -13,13 +13,12 @@
 #include "types/struct_instance_object.h"
 #include "utils/stack_list.h"
 #include "vm/threads/vm_thread.h"
-#include "vm/threads/vm_thread_id_pool.h"
 
 struct vm {
     struct vm_thread * root;
-    struct gc gc;
+    struct gc * gc;
 
-    struct thread_id_pool thread_id_pool;
+    lox_thread_id last_thread_id;
 
     //It includes all states threads_race_conditions except TERMINATED
     volatile int number_current_threads;

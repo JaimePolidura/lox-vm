@@ -35,6 +35,14 @@ struct string_pool_add_result add_to_global_string_pool(char * string_ptr, int l
     }
 }
 
+void remove_entry_string_pool(struct string_object * key) {
+    lock_mutex(&global_string_pool.lock);
+
+    remove_hash_table(&global_string_pool.strings, key);
+
+    unlock_mutex(&global_string_pool.lock);
+}
+
 void init_global_string_pool() {
     init_hash_table(&global_string_pool.strings);
     init_mutex(&global_string_pool.lock);

@@ -43,3 +43,4 @@ bool contains_hash_table(struct hash_table * table, struct string_object * key);
 struct string_object * get_key_by_hash(struct hash_table * table, uint32_t keyHash);
 
 void init_hash_table(struct hash_table * table);
+void free_hash_table(struct hash_table * table);

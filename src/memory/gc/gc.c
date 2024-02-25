@@ -2,17 +2,17 @@
 
 //Implemented by gc algorithm
 extern void add_object_to_heap_gc_alg(struct gc_thread_info *, struct object *, size_t);
+extern void check_gc_on_safe_point_alg();
+extern struct gc_thread_info * alloc_gc_thread_info_alg();
+extern struct gc * alloc_gc_alg();
 extern void start_gc_alg();
-extern void init_gc_alg();
 
-void init_gc_global_info(struct gc * gc) {
-    gc->state = GC_NONE;
-    init_gc_alg();
+struct gc_thread_info * alloc_gc_thread_info() {
+    return alloc_gc_thread_info_alg();
 }
 
-void init_gc_thread_info(struct gc_thread_info * gc_per_thread) {
-    gc_per_thread->bytes_allocated = 0;
-    gc_per_thread->gc_global_info = NULL;
+struct gc * alloc_gc() {
+    return alloc_gc_alg();
 }
 
 void add_object_to_heap(struct gc_thread_info * gc_thread_info, struct object * object, size_t size) {
@@ -28,10 +28,12 @@ void try_start_gc(struct gc_thread_info * gc_thread_info) {
         gc_global_info->state = GC_WAITING;
         start_gc_alg();
         gc_global_info->state = GC_NONE;
+    } else { //Someone else has started a gc
+        check_gc_on_safe_point_alg();
     }
 }
 
-int sizeof_heap_allocated_lox(struct object * object) {
+int sizeof_heap_allocated_lox_object(struct object * object) {
     switch (object->type) {
         case OBJ_STRING: return ((struct string_object *) object)->length + 1;
         case OBJ_STRUCT_INSTANCE: {
@@ -42,4 +44,20 @@ int sizeof_heap_allocated_lox(struct object * object) {
         }
         default: return 0;
     }
+}
+
+void free_heap_allocated_lox_object(struct object * object) {
+    switch (object->type) {
+        case OBJ_STRING: {
+            free(((struct string_object *) object)->chars);
+            break;
+        };
+        case OBJ_STRUCT_INSTANCE: {
+            struct struct_instance_object * struct_instance = (struct struct_instance_object *) object;
+            free_hash_table(&struct_instance->fields);
+            break;
+        };
+    }
+
+    free(object);
 }

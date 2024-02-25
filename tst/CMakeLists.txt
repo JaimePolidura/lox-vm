@@ -11,7 +11,6 @@ set(SOURCES ${SOURCES}
         stack_test.h
         utils_test.h
         package_test.h
-        vm_thread_id_pool_test.h
 )
 
 include_directories(${PROJECT_SOURCE_DIR}/src)

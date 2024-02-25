@@ -15,6 +15,11 @@ void init_hash_table(struct hash_table * table) {
     init_rw_mutex(&table->rw_lock);
 }
 
+void free_hash_table(struct hash_table * table) {
+    free(table->entries);
+    free_rw_mutex(&table->rw_lock);
+}
+
 void add_all_hash_table(struct hash_table * to, struct hash_table * from) {
     for (int i = 0; i < from->capacity; i++) {
         struct hash_table_entry* entry = &from->entries[i];

@@ -10,7 +10,8 @@ void add_object_to_heap_gc_alg(struct gc_thread_info * gc_thread_info, struct ob
 void check_gc_on_safe_point_alg();
 
 //Init all struct fields for the gc algorithm. Only called once at boot time
-void init_gc_alg();
+struct gc_thread_info * alloc_gc_thread_info_alg();
+struct gc * alloc_gc_alg();
 
 //Starting a gc
 void start_gc_alg();

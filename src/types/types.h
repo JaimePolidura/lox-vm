@@ -20,7 +20,7 @@ typedef enum {
 
 struct object {
     object_type_t type;
-    bool gc_marked;
+    bool gc_marked; //TODO Replace this with specific gc algorithm custom struct
     struct object * next; //Next object heap allocated
 };
 
