@@ -25,6 +25,8 @@ struct vm {
     volatile int number_waiting_threads;
 
 #ifdef VM_TEST
+    struct gc_result last_gc_result;
+
     char * log [256];
     int log_entries_in_use;
 #endif

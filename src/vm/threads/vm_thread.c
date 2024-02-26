@@ -11,11 +11,11 @@ struct vm_thread * alloc_vm_thread() {
 static void init_vm_thread(struct vm_thread * vm_thread) {
     vm_thread->thread_id = -1;
     vm_thread->parent = NULL;
-    vm_thread->parent_child_index = 0;
     vm_thread->gc_info = NULL;
     vm_thread->esp = vm_thread->stack;
     vm_thread->current_package = NULL;
     vm_thread->frames_in_use = 0;
+    vm_thread->terminated_state = THREAD_TERMINATED_NONE;
 
     init_stack_list(&vm_thread->package_stack);
 

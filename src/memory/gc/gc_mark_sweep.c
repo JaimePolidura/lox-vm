@@ -11,7 +11,7 @@ static void await_all_threads_signal_start_gc();
 static void notify_start_gc_signal_acked();
 static void await_until_gc_finished();
 
-static void traverse_root_dependences(struct gc_mark_sweep * gc_mark_sweep);
+static void mark_root_dependences(struct gc_mark_sweep * gc_mark_sweep);
 static void add_value_gc_info(struct object * value);
 static void mark_globals();
 static void mark_stack(struct stack_list * terminated_threads);
@@ -20,7 +20,7 @@ static void mark_object(struct object * object);
 static void mark_array(struct lox_array * array);
 static void mark_hash_table(struct hash_table * table);
 
-static void sweep_heap();
+static void sweep_heap(struct gc_result * gc_result);
 static void sweep_string_pool();
 static void sweep_heap_thread(struct vm_thread * parent_ignore, struct vm_thread * vm_thread, int index, void * ignore);
 
@@ -116,23 +116,27 @@ struct gc * alloc_gc_alg() {
     return (struct gc *) gc_mark_sweep;
 }
 
-void start_gc_alg() {
+struct gc_result start_gc_alg() {
     struct gc_mark_sweep * gc_mark_sweep = (struct gc_mark_sweep *) current_vm.gc;
     struct stack_list terminated_threads;
     init_stack_list(&terminated_threads);
+    struct gc_result gc_result;
+    init_gc_result(&gc_result);
 
     signal_threads_start_gc_alg_and_await();
 
     mark_stack(&terminated_threads);
     mark_globals();
-    traverse_root_dependences(gc_mark_sweep);
+    mark_root_dependences(gc_mark_sweep);
 
-    sweep_heap();
+    sweep_heap(&gc_result);
 
     remove_terminated_threads(&terminated_threads);
     finish_gc();
 
     signal_threads_gc_finished_alg();
+
+    return gc_result;
 }
 
 static void mark_stack(struct stack_list * terminated_threads) {
@@ -146,14 +150,13 @@ static void remove_terminated_threads(struct stack_list * terminated_threads) {
     while(!is_empty(terminated_threads)){
         struct vm_thread * terminated_thread = pop_stack(terminated_threads);
 
-        terminated_thread->parent->children[terminated_thread->parent_child_index] = NULL;
         free_vm_thread(terminated_thread);
-        free(terminated_thread);
+        terminated_thread->terminated_state = THREAD_TERMINATED_GC_DONE;
     }
 }
 
 static void mark_thread_stack(struct vm_thread * parent, struct vm_thread * child, int index, void * terminated_threads_ptr) {
-    if(child->state == THREAD_TERMINATED) {
+    if(child->state == THREAD_TERMINATED && child->terminated_state == THREAD_TERMINATED_PENDING_GC) {
         struct stack_list * terminated_threads = terminated_threads_ptr;
 
         push_stack(terminated_threads, child);
@@ -178,7 +181,7 @@ static void for_each_package_callback(void * package_ptr) {
     }
 }
 
-static void traverse_root_dependences(struct gc_mark_sweep * gc_mark_sweep) {
+static void mark_root_dependences(struct gc_mark_sweep * gc_mark_sweep) {
     while(gc_mark_sweep->gray_count > 0){
         struct object * object = gc_mark_sweep->gray_stack[--gc_mark_sweep->gray_count];
 
@@ -201,15 +204,18 @@ static void traverse_root_dependences(struct gc_mark_sweep * gc_mark_sweep) {
     }
 }
 
-static void sweep_heap() {
-    for_each_thread(current_vm.root, sweep_heap_thread, NULL,
+static void sweep_heap(struct gc_result * gc_result) {
+    for_each_thread(current_vm.root, sweep_heap_thread, gc_result,
                     THREADS_OPT_RECURSIVE |
                     THREADS_OPT_INCLUSIVE |
                     THREADS_OPT_INCLUDE_TERMINATED);
 }
 
-static void sweep_heap_thread(struct vm_thread * parent_ignore, struct vm_thread * vm_thread, int index, void * ignore) {
-    struct gc_mark_sweep_thread_info * gc_info = (struct gc_mark_sweep_thread_info *) &vm_thread->gc_info;
+static void sweep_heap_thread(struct vm_thread * parent_ignore, struct vm_thread * vm_thread, int index, void * gc_result_ptr) {
+    struct gc_mark_sweep_thread_info * gc_info = (struct gc_mark_sweep_thread_info *) vm_thread->gc_info;
+    struct gc_result * gc_result = gc_result_ptr;
+
+    gc_result->bytes_allocated_before_gc += gc_info->gc_thread_info.bytes_allocated;
 
     struct object * object = gc_info->heap;
     struct object * previous = NULL;
@@ -237,6 +243,8 @@ static void sweep_heap_thread(struct vm_thread * parent_ignore, struct vm_thread
             free_heap_allocated_lox_object(unreached);
         }
     }
+
+    gc_result->bytes_allocated_after_gc += gc_info->gc_thread_info.bytes_allocated;
 }
 
 static void mark_hash_table_entry(lox_value_t value) {

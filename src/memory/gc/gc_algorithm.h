@@ -14,4 +14,4 @@ struct gc_thread_info * alloc_gc_thread_info_alg();
 struct gc * alloc_gc_alg();
 
 //Starting a gc
-void start_gc_alg();
+struct gc_result start_gc_alg();

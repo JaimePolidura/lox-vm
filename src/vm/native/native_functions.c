@@ -1,6 +1,8 @@
 #include "native_functions.h"
 
 extern __thread struct vm_thread * self_thread;
+extern struct vm current_vm;
+
 extern void set_self_thread_runnable();
 extern void set_self_thread_waiting();
 

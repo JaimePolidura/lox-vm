@@ -24,6 +24,7 @@ TEST(simple_vm_test_threads_gc){
 
     interpret_result_t vm_result = interpret_vm(result);
     ASSERT_TRUE(vm_result == INTERPRET_OK);
+    ASSERT_TRUE(current_vm.last_gc_result.bytes_allocated_before_gc > current_vm.last_gc_result.bytes_allocated_after_gc);
 }
 
 TEST(simple_vm_test_threads_no_race_condition) {

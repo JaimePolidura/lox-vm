@@ -42,7 +42,7 @@ static void restore_prev_package_execution();
 static void setup_native_functions();
 static void setup_call_frame_function(struct vm_thread * thread, struct function_object * function);
 static void setup_enter_package(struct package * package_to_enter);
-static void restore_prev_call_frame();
+static bool restore_prev_call_frame();
 static void create_root_thread();
 static void start_child_thread(struct function_object * thread_entry_point_func);
 static int add_child_to_parent_list(struct vm_thread * new_child_thread);
@@ -108,6 +108,7 @@ static void terminate_self_thread() {
         runtime_error("Cannot end execution while some child thread still running");
     }
 
+    self_thread->terminated_state = THREAD_TERMINATED_PENDING_GC;
     self_thread->state = THREAD_TERMINATED;
 
     atomic_fetch_sub(&current_vm.number_current_threads, 1);
@@ -410,9 +411,11 @@ static void print() {
 static void return_function(struct call_frame * function_to_return_frame) {
     lox_value_t returned_value = pop_stack_vm();
 
-    restore_prev_call_frame();
+    bool last_frame = restore_prev_call_frame();
 
-    self_thread->esp = function_to_return_frame->slots;
+    if(!last_frame) {
+        self_thread->esp = function_to_return_frame->slots;
+    }
 
     push_stack_vm(returned_value);
 }
@@ -625,14 +628,18 @@ static void setup_call_frame_function(struct vm_thread * thread, struct function
     new_frame->last_monitor_entered_index = 0;
 }
 
-static void restore_prev_call_frame() {
+static bool restore_prev_call_frame() {
     self_thread->frames_in_use--;
 
+    bool last_frame = self_thread->frames_in_use == 0;
+
     //We have hit end of execution of a thread (thread entrypoint are functions)
-    if(self_thread->frames_in_use == 0) {
+    if(last_frame) {
         struct call_frame * eof_call_frame = &self_thread->frames[self_thread->frames_in_use++];
         eof_call_frame->pc = &eof;
     }
+
+    return last_frame;
 }
 
 static void create_root_thread() {
@@ -659,7 +666,7 @@ static void start_child_thread(struct function_object * thread_entry_point_func)
     new_thread->gc_info->gc_global_info = current_vm.gc;
     new_thread->parent = self_thread;
 
-    new_thread->parent_child_index = add_child_to_parent_list(new_thread);
+    add_child_to_parent_list(new_thread);
     copy_stack_from_esp(self_thread, new_thread, thread_entry_point_func->n_arguments);
     setup_call_frame_function(new_thread, thread_entry_point_func);
 
@@ -701,6 +708,11 @@ static int try_add_child_to_parent_list(struct vm_thread * new_child_thread) {
         if(current_thread_slot == NULL) {
             self_thread->children[i] = new_child_thread;
             return i;
+        } else if(current_thread_slot != NULL &&
+                current_thread_slot->state == THREAD_TERMINATED &&
+                current_thread_slot->terminated_state == THREAD_TERMINATED_GC_DONE) {
+            self_thread->children[i] = NULL;
+            free(current_thread_slot);
         }
     }
 
@@ -722,4 +734,10 @@ void set_self_thread_runnable() {
     self_thread->state = THREAD_RUNNABLE;
     atomic_fetch_sub(&current_vm.number_waiting_threads, 1);
     thread_on_safe_point();
+}
+
+void on_gc_finished_vm(struct gc_result result) {
+#ifdef VM_TEST
+    current_vm.last_gc_result = result;
+#endif
 }

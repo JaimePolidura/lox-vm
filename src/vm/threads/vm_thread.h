@@ -32,18 +32,24 @@ typedef enum {
     THREAD_RUNNABLE,
     THREAD_WAITING,
     THREAD_TERMINATED
-} vm_thread_tate_t;
+} vm_thread_state_t;
+
+typedef enum {
+    THREAD_TERMINATED_NONE,
+    THREAD_TERMINATED_PENDING_GC,
+    THREAD_TERMINATED_GC_DONE,
+} vm_thread_terminated_state_t;
 
 struct vm_thread {
     lox_thread_id thread_id;
 
-    volatile vm_thread_tate_t state;
+    volatile vm_thread_state_t state;
+    volatile vm_thread_terminated_state_t terminated_state;
 
     pthread_t native_thread;
 
     struct vm_thread * children[MAX_THREADS_PER_THREAD];
     struct vm_thread * parent;
-    int parent_child_index;
 
     lox_value_t stack[STACK_MAX];
     lox_value_t * esp; //Top of stack_list

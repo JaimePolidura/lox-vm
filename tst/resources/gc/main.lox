@@ -12,7 +12,7 @@ fun createHeap(willStartGc) {
     }
 
     if(willStartGc) {
-        sleep(100);
+        sleep(1000);
         forceGC();
     }
 }
