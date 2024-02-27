@@ -62,7 +62,7 @@ void signal_threads_start_gc_alg_and_await() {
 void signal_threads_gc_finished_alg() {
     struct gc_mark_sweep * gc_mark_sweep = (struct gc_mark_sweep *) current_vm.gc;
 
-    pthread_cond_signal(&gc_mark_sweep->await_gc_cond);
+    pthread_cond_broadcast(&gc_mark_sweep->await_gc_cond);
 }
 
 void check_gc_on_safe_point_alg() {
@@ -87,6 +87,7 @@ void check_gc_on_safe_point_alg() {
         //If this gets run this means we have been sleeping
         case GC_IN_PROGRESS:
             await_until_gc_finished();
+            break;
     }
 }
 
@@ -301,7 +302,7 @@ static void await_until_gc_finished() {
 
     lock_mutex(&gc_mark_sweep->await_gc_cond_mutex);
 
-    while(current_vm.gc->state != GC_NONE){
+    while(current_vm.gc->state != GC_NONE) {
         pthread_cond_wait(&gc_mark_sweep->await_gc_cond, &gc_mark_sweep->await_gc_cond_mutex.native_mutex);
     }
 
@@ -325,6 +326,5 @@ static void finish_gc() {
     gc_mark_sweep->gray_stack = NULL;
     gc_mark_sweep->gray_capacity = 0;
     gc_mark_sweep->gray_count = 0;
-
     current_vm.gc->state = GC_NONE;
 }
