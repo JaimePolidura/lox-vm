@@ -4,12 +4,12 @@
 
 #include "types/types.h"
 #include "types/string_object.h"
-#include "types/array.h"
-#include "utils/table.h"
+#include "utils/collections/lox/lox_array_list.h"
+#include "utils/collections/lox/lox_hash_table.h"
 
 struct struct_instance_object {
     struct object object;
-    struct hash_table fields;
+    struct lox_hash_table fields;
     struct struct_definition_object * definition;
 };
 

@@ -2,7 +2,7 @@
 
 #include "shared.h"
 #include "chunk/chunk.h"
-#include "utils/trie.h"
+#include "utils/collections/trie.h"
 #include "scanner.h"
 #include "utils/substring.h"
 #include "utils/utils.h"
@@ -26,7 +26,7 @@ struct package {
     // Maintains mapping of names with global variables, this might include functions, packages, variables etc.
     // Only modified by the vm when executing instruction OP_DEFINE_GLOBAL in scope SCOPE_PACKAGE (top level code)
     // This might be modified concurrently
-    struct hash_table global_variables;
+    struct lox_hash_table global_variables;
 
     // Used at vm & compiler
     // This might be modified concurrently by vm Protected by state_mutex

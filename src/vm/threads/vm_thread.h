@@ -1,17 +1,17 @@
 #pragma once
 
 #include "memory/string_pool.h"
-#include "utils/table.h"
+#include "utils/collections/lox/lox_hash_table.h"
 #include "chunk/chunk.h"
-#include "types/function.h"
+#include "types/function_object.h"
 #include "shared.h"
 #include "chunk/chunk_disassembler.h"
 #include "compiler/compiler.h"
-#include "types/native.h"
+#include "types/native_object.h"
 #include "vm/native/native_functions.h"
 #include "memory/gc/gc.h"
 #include "types/struct_instance_object.h"
-#include "utils/stack_list.h"
+#include "utils/collections/stack_list.h"
 #include "memory/gc/gc.h"
 
 #define STACK_MAX 256

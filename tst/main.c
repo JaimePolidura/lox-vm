@@ -44,7 +44,7 @@ int main() {
 //    vm_file_global_structs_test_outer();
 //    vm_file_global_variables_test_outer();
 
-    simple_vm_test_threads_gc_outer();
+//    simple_vm_test_threads_gc_outer();
 //    simple_vm_test_threads_no_race_condition_outer();
 //    simple_vm_test_threads_race_condition_outer();
 //    simple_vm_test_threads_join_outer();
@@ -55,6 +55,7 @@ int main() {
 //    simple_vm_test_with_functions_outer();
 //    simple_vm_test_with_nested_functions_outer();
 //    simple_vm_test_with_for_loops_outer();
+    simple_vm_test_empty_array_outer();
 #endif
 
 #ifdef RUN_HASH_TABLE_TEST

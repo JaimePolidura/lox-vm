@@ -21,12 +21,15 @@ typedef enum {
     TOKEN_ERROR,
     TOKEN_EOF,
 
+    //My own tokens
     TOKEN_STRUCT,
     TOKEN_COLON,
     TOKEN_PUB,
     TOKEN_USE,
     TOKEN_PARALLEL,
-    TOKEN_SYNC
+    TOKEN_SYNC,
+    TOKEN_OPEN_SQUARE,
+    TOKEN_CLOSE_SQUARE,
 } tokenType_t;
 
 struct token {

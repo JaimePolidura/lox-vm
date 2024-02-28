@@ -44,6 +44,8 @@ struct token next_token_scanner(struct scanner * scanner) {
         case ')': return create_token(scanner, TOKEN_CLOSE_PAREN);
         case '{': return create_token(scanner, TOKEN_OPEN_BRACE);
         case '}': return create_token(scanner, TOKEN_CLOSE_BRACE);
+        case '[': return create_token(scanner, TOKEN_OPEN_SQUARE);
+        case ']': return create_token(scanner, TOKEN_CLOSE_SQUARE);
         case ';': return create_token(scanner, TOKEN_SEMICOLON);
         case ',': return create_token(scanner, TOKEN_COMMA);
         case '.': return create_token(scanner, TOKEN_DOT);

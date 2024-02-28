@@ -318,10 +318,28 @@ static int struct_fields(struct compiler * compiler, struct token * fields) {
     return current_field_index;
 }
 
+static void emtpy_array_initialization(struct compiler * compiler) {
+    consume(compiler, TOKEN_NUMBER, "Expect array size after '['");
+    struct token number_elements_token = compiler->parser->previous;
+    consume(compiler, TOKEN_CLOSE_SQUARE, "Expect ']' after array initialization");
+
+    struct array_object * array_object = alloc_array_object();
+    int n_elements = strtod(number_elements_token.start, NULL);
+
+    empty_initialization(array_object, n_elements);
+
+    emit_constant(compiler, TO_LOX_VALUE_OBJECT(array_object));
+}
+
 static void variable_declaration(struct compiler * compiler, bool is_public) {
     consume(compiler, TOKEN_IDENTIFIER, "Expected variable name.");
-
     struct token variable_name = compiler->parser->previous;
+    bool is_array_empty_initialization = false;
+
+    if(match(compiler, TOKEN_OPEN_SQUARE)) {
+        emtpy_array_initialization(compiler);
+        is_array_empty_initialization = true;
+    }
 
     bool is_local_variable = compiler->local_depth > 0;
 
@@ -329,18 +347,22 @@ static void variable_declaration(struct compiler * compiler, bool is_public) {
         report_error(compiler, compiler->parser->previous, "Cannot declare local variables as public");
     }
 
-    if(is_local_variable) { // Local current_scope
-        int local_variable = add_local_variable(compiler, compiler->parser->previous);
-        variable_expression_declaration(compiler);
-        emit_bytecodes(compiler, OP_SET_LOCAL, local_variable);
-    } else { //Global current_scope
-        int variable_identifier_constant = add_string_constant(compiler, compiler->parser->previous);
-        variable_expression_declaration(compiler);
-        define_global_variable(compiler, variable_identifier_constant);
+    int variable_identifier = is_local_variable ?
+        add_local_variable(compiler, compiler->parser->previous) :
+        add_string_constant(compiler, compiler->parser->previous);
 
-        if(is_public) {
-            add_exported_symbol(compiler, to_exported_symbol(variable_identifier_constant, EXPORTED_VAR), variable_name);
-        }
+    if(!is_array_empty_initialization){
+        variable_expression_declaration(compiler);
+    }
+
+    if(is_local_variable) { // Local current_scope
+        emit_bytecodes(compiler, OP_SET_LOCAL, variable_identifier);
+    } else {
+        define_global_variable(compiler, variable_identifier);
+    }
+
+    if(is_public) {
+        add_exported_symbol(compiler, to_exported_symbol(variable_identifier, EXPORTED_VAR), variable_name);
     }
 
     consume(compiler, TOKEN_SEMICOLON, "Expected ';' after variable declaration.");

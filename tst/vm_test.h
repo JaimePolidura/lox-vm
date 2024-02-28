@@ -143,6 +143,20 @@ TEST(vm_file_global_variables_test) {
     reset();
 }
 
+TEST(simple_vm_test_empty_array) {
+    struct compilation_result compilation_result = compile_standalone(
+            "var array[10]; "
+    );
+
+    start_vm();
+    interpret_result_t vm_result = interpret_vm(compilation_result);
+
+    ASSERT_TRUE(vm_result == INTERPRET_OK);
+
+    stop_vm();
+    reset();
+}
+
 TEST(simple_vm_test_with_structs){
     struct compilation_result compilation_result = compile_standalone(
             "struct Persona{ nombre; edad; } var jaime = Persona{\"Jaime\", 21}; print jaime.nombre; jaime.edad = 21 + 1; print jaime.edad;"

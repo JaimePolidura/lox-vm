@@ -7,7 +7,7 @@ add_executable(${BINARY}_run ${SOURCES}
 
 add_library(${BINARY}_lib STATIC ${SOURCES}
         main.c
-        types/native.c
+        types/native_object.c
         ../tst/main.c)
 
 target_link_libraries(${BINARY}_run PRIVATE ${BINARY}_lib)

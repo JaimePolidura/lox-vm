@@ -1,7 +1,7 @@
 #pragma once
 
 #include "test.h"
-#include "../src/utils/table.h"
+#include "utils/collections/lox/lox_hash_table.h"
 
 #define STRING_TO_OBJ(string_chars) { \
     .length = strlen(string_chars), \
@@ -13,7 +13,7 @@
     }}
 
 TEST(hash_table_put_if_absent){
-    struct hash_table table;
+    struct lox_hash_table table;
     init_hash_table(&table);
     struct string_object key1 = STRING_TO_OBJ("key1");
 
@@ -35,7 +35,7 @@ TEST(hash_table_put_if_absent){
 }
 
 TEST(hash_table_put_if_present){
-    struct hash_table table;
+    struct lox_hash_table table;
     init_hash_table(&table);
     struct string_object key1 = STRING_TO_OBJ("key1");
 
@@ -53,7 +53,7 @@ TEST(hash_table_put_if_present){
 }
 
 TEST(hash_table_multiple_put_test) {
-    struct hash_table table;
+    struct lox_hash_table table;
     init_hash_table(&table);
 
     struct string_object key1 = STRING_TO_OBJ("key1");
@@ -71,7 +71,7 @@ TEST(hash_table_multiple_put_test) {
 }
 
 TEST(hash_table_put_contains_remove_get_test) {
-    struct hash_table table;
+    struct lox_hash_table table;
     init_hash_table(&table);
 
     struct string_object key1 = STRING_TO_OBJ("key1-1");

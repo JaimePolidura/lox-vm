@@ -15,7 +15,8 @@ typedef enum {
     OBJ_NATIVE,
     OBJ_STRUCT_INSTANCE,
     OBJ_STRUCT_DEFINITION,
-    OBJ_PACKAGE
+    OBJ_PACKAGE,
+    OBJ_ARRAY
 } object_type_t;
 
 struct object {
@@ -87,6 +88,8 @@ typedef struct {
 #endif
 
 typedef void (*lox_type_consumer_t)(lox_value_t);
+
+void init_object(struct object * object, object_type_t type);
 
 bool cast_to_boolean(lox_value_t value);
 

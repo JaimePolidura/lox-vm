@@ -8,7 +8,6 @@ struct struct_instance_object * alloc_struct_instance_object() {
 
 void init_struct_instance_object(struct struct_instance_object * struct_object) {
     init_hash_table(&struct_object->fields);
-    struct_object->object.gc_marked = false;
-    struct_object->object.type = OBJ_STRUCT_INSTANCE;
     struct_object->definition = NULL;
+    init_object(&struct_object->object, OBJ_STRUCT_INSTANCE);
 }

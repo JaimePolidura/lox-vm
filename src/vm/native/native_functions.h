@@ -1,7 +1,7 @@
 #pragma once
 
 #include "vm/threads/vm_thread.h"
-#include "types/native.h"
+#include "types/native_object.h"
 #include "utils/os/os_utils.h"
 #include "memory/gc/gc.h"
 

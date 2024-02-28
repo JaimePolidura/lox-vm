@@ -2,11 +2,11 @@
 
 #include "memory/string_pool.h"
 #include "../types/types.h"
-#include "../types/array.h"
+#include "utils/collections/lox/lox_array_list.h"
 #include "../shared.h"
 
 struct chunk {
-    struct lox_array constants;
+    struct lox_array_list constants;
     uint8_t * code;
     int capacity; //nº of code allocated
     int in_use; //nº of code used

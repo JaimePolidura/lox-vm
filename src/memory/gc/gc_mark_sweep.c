@@ -17,8 +17,8 @@ static void mark_globals();
 static void mark_stack(struct stack_list * terminated_threads);
 static void mark_value(lox_value_t * value);
 static void mark_object(struct object * object);
-static void mark_array(struct lox_array * array);
-static void mark_hash_table(struct hash_table * table);
+static void mark_array(struct lox_array_list * array);
+static void mark_hash_table(struct lox_hash_table * table);
 
 static void sweep_heap(struct gc_result * gc_result);
 static void sweep_string_pool();
@@ -252,11 +252,11 @@ static void mark_hash_table_entry(lox_value_t value) {
     mark_value(&value);
 }
 
-static void mark_hash_table(struct hash_table * table) {
+static void mark_hash_table(struct lox_hash_table * table) {
     for_each_value_hash_table(table, mark_hash_table_entry);
 }
 
-static void mark_array(struct lox_array * array) {
+static void mark_array(struct lox_array_list * array) {
     for(int i = 0; i < array->in_use; i++){
         mark_value(&array->values[i]);
     }

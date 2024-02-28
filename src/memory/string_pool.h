@@ -1,12 +1,12 @@
 #pragma once
 
 #include "shared.h"
-#include "utils/table.h"
+#include "utils/collections/lox/lox_hash_table.h"
 #include "utils/substring.h"
 #include "utils/concurrency/mutex.h"
 
 struct string_pool {
-    struct hash_table strings;
+    struct lox_hash_table strings;
     struct mutex lock;
 };
 

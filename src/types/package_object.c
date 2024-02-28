@@ -2,8 +2,7 @@
 
 void init_package_object(struct package_object * package_object) {
     package_object->package = NULL;
-    package_object->object.gc_marked = false;
-    package_object->object.type = OBJ_PACKAGE;
+    init_object(&package_object->object, OBJ_PACKAGE);
 }
 
 lox_value_t to_lox_package(struct package * package) {

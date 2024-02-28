@@ -1,7 +1,7 @@
 #pragma once
 
 #include "test.h"
-#include "utils/trie.h"
+#include "utils/collections/trie.h"
 
 int trie_test_for_each_counter = 0;
 

@@ -1,4 +1,4 @@
-#include "table.h"
+#include "lox_hash_table.h"
 
 #define TABLE_MAX_LOAD 0.75
 
@@ -6,21 +6,21 @@ static inline bool is_tombstone(struct hash_table_entry * entry);
 
 static struct hash_table_entry * find_entry(struct hash_table_entry * entries, int capacity, struct string_object * key);
 static struct hash_table_entry * find_entry_by_hash(struct hash_table_entry * entries, int capacity, uint32_t key_hash);
-static void adjust_hash_table_capacity(struct hash_table * table, int new_capacity);
+static void adjust_hash_table_capacity(struct lox_hash_table * table, int new_capacity);
 
-void init_hash_table(struct hash_table * table) {
+void init_hash_table(struct lox_hash_table * table) {
     table->size = 0;
     table->capacity = -1;
     table->entries = NULL;
     init_rw_mutex(&table->rw_lock);
 }
 
-void free_hash_table(struct hash_table * table) {
+void free_hash_table(struct lox_hash_table * table) {
     free(table->entries);
     free_rw_mutex(&table->rw_lock);
 }
 
-void add_all_hash_table(struct hash_table * to, struct hash_table * from) {
+void add_all_hash_table(struct lox_hash_table * to, struct lox_hash_table * from) {
     for (int i = 0; i < from->capacity; i++) {
         struct hash_table_entry* entry = &from->entries[i];
         if (entry->key != NULL) {
@@ -29,7 +29,7 @@ void add_all_hash_table(struct hash_table * to, struct hash_table * from) {
     }
 }
 
-struct string_object * get_key_by_hash(struct hash_table * table, uint32_t keyHash) {
+struct string_object * get_key_by_hash(struct lox_hash_table * table, uint32_t keyHash) {
     if (table->size == 0) {
         return NULL;
     }
@@ -48,11 +48,11 @@ struct string_object * get_key_by_hash(struct hash_table * table, uint32_t keyHa
     return key_to_return;
 }
 
-bool contains_hash_table(struct hash_table * table, struct string_object * key){
+bool contains_hash_table(struct lox_hash_table * table, struct string_object * key){
     return get_hash_table(table, key, NULL);
 }
 
-bool get_hash_table(struct hash_table * table, struct string_object * key, lox_value_t *value){
+bool get_hash_table(struct lox_hash_table * table, struct string_object * key, lox_value_t *value){
     if (table->size == 0) {
         return false;
     }
@@ -72,7 +72,7 @@ bool get_hash_table(struct hash_table * table, struct string_object * key, lox_v
     return true;
 }
 
-bool put_if_absent_hash_table(struct hash_table * table, struct string_object * key, lox_value_t value) {
+bool put_if_absent_hash_table(struct lox_hash_table * table, struct string_object * key, lox_value_t value) {
     if(table->size == 0){
         put_hash_table(table, key, value);
         return true;
@@ -99,7 +99,7 @@ bool put_if_absent_hash_table(struct hash_table * table, struct string_object * 
     return element_added;
 }
 
-bool put_if_present_hash_table(struct hash_table * table, struct string_object * key, lox_value_t value) {
+bool put_if_present_hash_table(struct lox_hash_table * table, struct string_object * key, lox_value_t value) {
     if(table->size == 0){
         return false;
     }
@@ -119,7 +119,7 @@ bool put_if_present_hash_table(struct hash_table * table, struct string_object *
     return element_added;
 }
 
-bool remove_hash_table(struct hash_table * table, struct string_object * key) {
+bool remove_hash_table(struct lox_hash_table * table, struct string_object * key) {
     if (table->size == 0) {
         return false;
     }
@@ -144,7 +144,7 @@ void remove_entry_hash_table(struct hash_table_entry * entry) {
     entry->value = TO_LOX_VALUE_BOOL(true); //Tombstone, marked as deleted
 }
 
-bool put_hash_table(struct hash_table * table, struct string_object * key, lox_value_t value) {
+bool put_hash_table(struct lox_hash_table * table, struct string_object * key, lox_value_t value) {
     lock_writer_rw_mutex(&table->rw_lock);
 
     if (table->size + 1 > table->capacity * TABLE_MAX_LOAD) {
@@ -166,7 +166,7 @@ bool put_hash_table(struct hash_table * table, struct string_object * key, lox_v
     return is_new_key;
 }
 
-static void adjust_hash_table_capacity(struct hash_table * table, int new_capacity) {
+static void adjust_hash_table_capacity(struct lox_hash_table * table, int new_capacity) {
     struct hash_table_entry * new_entries = malloc(sizeof(struct hash_table_entry) * new_capacity);
 
     for (int i = 0; i < new_capacity; i++) {
@@ -190,7 +190,7 @@ static void adjust_hash_table_capacity(struct hash_table * table, int new_capaci
     table->capacity = new_capacity;
 }
 
-void for_each_value_hash_table(struct hash_table * table, lox_type_consumer_t consumer) {
+void for_each_value_hash_table(struct lox_hash_table * table, lox_type_consumer_t consumer) {
     for(int i = 0; i < table->capacity; i++){
         struct hash_table_entry * entry = &table->entries[i];
 

@@ -4,17 +4,18 @@
 #include "scanner.h"
 #include "bytecode.h"
 #include "types/string_object.h"
-#include "types/function.h"
+#include "types/function_object.h"
 #include "chunk/chunk_disassembler.h"
 #include "utils/utils.h"
-#include "utils/trie.h"
+#include "utils/collections/trie.h"
 #include "exported_symbol.h"
 #include "package.h"
 #include "types/package_object.h"
 #include "utils/substring.h"
 #include "types/struct_definition_object.h"
 #include "types/struct_instance_object.h"
-#include "utils/stack_list.h"
+#include "utils/collections/stack_list.h"
+#include "types/array_object.h"
 
 struct parser {
     struct token current;

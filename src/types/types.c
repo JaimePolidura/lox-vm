@@ -9,11 +9,15 @@ bool cast_to_boolean(lox_value_t value) {
 #endif
 }
 
+void init_object(struct object * object, object_type_t type) {
+    object->type = type;
+    object->next = NULL;
+    object->gc_marked = false;
+}
+
 struct object * allocate_object(size_t size, object_type_t type) {
     struct object * object = (struct object *) malloc(size);
-    object->gc_marked = false;
-    object->type = type;
-    object->next = NULL; //Should be linked in vm
+    init_object(object, type);
 
     return object;
 }

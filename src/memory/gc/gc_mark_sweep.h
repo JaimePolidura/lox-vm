@@ -2,7 +2,7 @@
 
 #include "shared.h"
 #include "vm/vm.h"
-#include "types/function.h"
+#include "types/function_object.h"
 #include "memory/string_pool.h"
 #include "memory/gc/gc_algorithm.h"
 

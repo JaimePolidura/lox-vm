@@ -3,7 +3,7 @@
 #include "vm/threads/monitor.h"
 #include "string_object.h"
 #include "chunk/chunk.h"
-#include "utils/trie.h"
+#include "utils/collections/trie.h"
 #include "types.h"
 
 #define MAX_MONITORS_PER_FUNCTION 8
@@ -22,5 +22,4 @@ typedef enum {
     SCOPE_PACKAGE,
 } scope_type_t;
 
-struct struct_instance * alloc_struct_compilation_instance();
 struct function_object * alloc_function();
