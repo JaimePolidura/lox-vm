@@ -5,28 +5,6 @@
 struct trie_list * compiled_packages = NULL;
 const char * compiling_base_dir = NULL;
 
-//Lowest to highest
-typedef enum {
-    PREC_NONE,
-    PREC_ASSIGNMENT,  // =
-    PREC_OR,          // or
-    PREC_AND,         // and
-    PREC_EQUALITY,    // == !=
-    PREC_COMPARISON,  // < > <= >=
-    PREC_TERM,        // + -
-    PREC_FACTOR,      // * /
-    PREC_UNARY,       // ! -
-    PREC_CALL,        // . ()
-    PREC_PRIMARY
-} precedence_t;
-
-typedef void(* parse_fn_t)(struct compiler *, bool);
-
-struct parse_rule {
-    parse_fn_t prefix;
-    parse_fn_t suffix;
-    precedence_t precedence;
-};
 
 static void report_error(struct compiler * compiler, struct token token, const char * message);
 static void advance(struct compiler * compiler);
@@ -42,7 +20,6 @@ static void expression(struct compiler * compiler);
 static void number(struct compiler * compiler, bool can_assign);
 static void grouping(struct compiler * compiler, bool can_assign);
 static void unary(struct compiler * compiler, bool can_assign);
-static void parse_precedence(struct compiler * compiler, precedence_t precedence);
 static struct parse_rule * get_rule(tokenType_t type);
 static void binary(struct compiler * compiler, bool can_assign);
 static void literal(struct compiler * compiler, bool can_assign);
@@ -104,12 +81,40 @@ static void sync_statement(struct compiler * compiler);
 static void emit_enter_monitor(struct compiler * compiler);
 static void emit_exit_monitor(struct compiler * compiler);
 static void emit_exit_all_monitors(struct compiler * compiler);
+static void array_inline_initialization(struct compiler * compiler, bool can_assign);
+static int array_inline_initialization_elements(struct compiler * compiler);
+
+//Lowest to highest
+typedef enum {
+    PREC_NONE,
+    PREC_ASSIGNMENT,  // =
+    PREC_OR,          // or
+    PREC_AND,         // and
+    PREC_EQUALITY,    // == !=
+    PREC_COMPARISON,  // < > <= >=
+    PREC_TERM,        // + -
+    PREC_FACTOR,      // * /
+    PREC_UNARY,       // ! -
+    PREC_CALL,        // . ()
+    PREC_PRIMARY
+} precedence_t;
+
+typedef void(* parse_fn_t)(struct compiler *, bool);
+
+struct parse_rule {
+    parse_fn_t prefix;
+    parse_fn_t suffix;
+    precedence_t precedence;
+};
+
+static void parse_precedence(struct compiler * compiler, precedence_t precedence);
 
 struct parse_rule rules[] = {
         [TOKEN_OPEN_PAREN] = {grouping, function_call, PREC_CALL},
         [TOKEN_CLOSE_PAREN] = {NULL, NULL, PREC_NONE},
         [TOKEN_OPEN_BRACE] = {NULL, NULL, PREC_NONE},
         [TOKEN_CLOSE_BRACE] = {NULL, NULL, PREC_NONE},
+        [TOKEN_OPEN_SQUARE] = {array_inline_initialization, NULL, PREC_NONE},
         [TOKEN_COMMA] = {NULL, NULL, PREC_NONE},
         [TOKEN_DOT] = {NULL, dot, PREC_CALL},
         [TOKEN_MINUS] = {unary, binary, PREC_TERM},
@@ -323,10 +328,9 @@ static void emtpy_array_initialization(struct compiler * compiler) {
     struct token number_elements_token = compiler->parser->previous;
     consume(compiler, TOKEN_CLOSE_SQUARE, "Expect ']' after array initialization");
 
-    struct array_object * array_object = alloc_array_object();
     int n_elements = strtod(number_elements_token.start, NULL);
 
-    empty_initialization(array_object, n_elements);
+    struct array_object * array_object = alloc_array_object(n_elements);
 
     emit_constant(compiler, TO_LOX_VALUE_OBJECT(array_object));
 }
@@ -763,9 +767,7 @@ static void named_variable(struct compiler * compiler, struct token variable_nam
     }
     if (is_global && is_from_external_package) {
         struct exported_symbol * exported_symbol = get_exported_symbol(compiler, external_package, variable_name);
-        exported_symbol_type_t expected_exported_type = is_function_call ?
-                                                        EXPORTED_FUNCTION :
-                                                        EXPORTED_VAR;
+        exported_symbol_type_t expected_exported_type = is_function_call ? EXPORTED_FUNCTION : EXPORTED_VAR;
 
         if(exported_symbol->type != expected_exported_type) {
             report_error(compiler, variable_name, "Exported type is invalid in this context");
@@ -810,6 +812,25 @@ static void literal(struct compiler * compiler, bool can_assign) {
         case TOKEN_TRUE: emit_bytecode(compiler, OP_TRUE); break;
         case TOKEN_NIL: emit_bytecode(compiler, OP_NIL); break;
     }
+}
+
+static void array_inline_initialization(struct compiler * compiler, bool can_assign) {
+    int n_elements = array_inline_initialization_elements(compiler);
+
+    emit_bytecodes(compiler, OP_INITIALIZE_ARRAY, n_elements);
+}
+
+static int array_inline_initialization_elements(struct compiler * compiler) {
+    int n_elements = 0;
+
+    do {
+        n_elements++;
+        expression(compiler);
+    }while(match(compiler, TOKEN_COMMA));
+
+    consume(compiler, TOKEN_CLOSE_SQUARE, "Expect ']' after array initialization");
+
+    return n_elements;
 }
 
 static void unary(struct compiler * compiler, bool can_assign) {

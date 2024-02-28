@@ -17,7 +17,7 @@ static void mark_globals();
 static void mark_stack(struct stack_list * terminated_threads);
 static void mark_value(lox_value_t * value);
 static void mark_object(struct object * object);
-static void mark_array(struct lox_array_list * array);
+static void mark_lox_arraylist(struct lox_arraylist * array);
 static void mark_hash_table(struct lox_hash_table * table);
 
 static void sweep_heap(struct gc_result * gc_result);
@@ -196,8 +196,12 @@ static void mark_root_dependences(struct gc_mark_sweep * gc_mark_sweep) {
             case OBJ_FUNCTION: {
                 struct function_object * function = (struct function_object *) object;
                 mark_object((struct object *) function->name);
-                mark_array(&function->chunk.constants);
+                mark_lox_arraylist(&function->chunk.constants);
                 break;
+            }
+            case OBJ_ARRAY: {
+                struct array_object * array_object = (struct array_object *) object;
+                mark_lox_arraylist(&array_object->values);
             }
             default: //The rest of objects doesn't contain any dependencies
                 break;
@@ -256,7 +260,7 @@ static void mark_hash_table(struct lox_hash_table * table) {
     for_each_value_hash_table(table, mark_hash_table_entry);
 }
 
-static void mark_array(struct lox_array_list * array) {
+static void mark_lox_arraylist(struct lox_arraylist * array) {
     for(int i = 0; i < array->in_use; i++){
         mark_value(&array->values[i]);
     }

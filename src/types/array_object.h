@@ -1,13 +1,14 @@
 #pragma once
 
-#include "utils/collections/lox/lox_array_list.h"
+#include "utils/collections/lox/lox_arraylist.h"
 #include "types.h"
 
 struct array_object {
     struct object object;
-    lox_value_t * values;
-    int n_elements;
+    struct lox_arraylist values;
 };
 
-struct array_object * alloc_array_object();
-void empty_initialization(struct array_object *, int);
+struct array_object * alloc_array_object(int size);
+
+//Returns true if successful (not out of bounds)
+bool set_element_array(struct array_object * array, int index, lox_value_t value);

@@ -9,7 +9,7 @@ struct chunk * alloc_chunk() {
 }
 
 int add_constant_to_chunk(struct chunk * chunk_to_write, lox_value_t constant) {
-    write_lox_array(&chunk_to_write->constants, constant);
+    append_lox_arraylist(&chunk_to_write->constants, constant);
     return chunk_to_write->constants.in_use - 1;
 }
 
@@ -29,7 +29,7 @@ void write_chunk(struct chunk * chunk_to_write, uint8_t byte, int line) {
 }
 
 void init_chunk(struct chunk * chunk) {
-    init_lox_array(&chunk->constants);
+    init_lox_arraylist(&chunk->constants);
     chunk->lines = NULL;
     chunk->capacity = 0;
     chunk->code = NULL;

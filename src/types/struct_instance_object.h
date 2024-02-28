@@ -4,7 +4,7 @@
 
 #include "types/types.h"
 #include "types/string_object.h"
-#include "utils/collections/lox/lox_array_list.h"
+#include "utils/collections/lox/lox_arraylist.h"
 #include "utils/collections/lox/lox_hash_table.h"
 
 struct struct_instance_object {

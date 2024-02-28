@@ -5,6 +5,7 @@
 #include "types/string_object.h"
 #include "types/struct_instance_object.h"
 #include "types/struct_definition_object.h"
+#include "types/array_object.h"
 
 //This serves as a wrapper around the specific tc algorithm
 

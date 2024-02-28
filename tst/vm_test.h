@@ -143,7 +143,21 @@ TEST(vm_file_global_variables_test) {
     reset();
 }
 
-TEST(simple_vm_test_empty_array) {
+TEST(simple_vm_test_inline_array_initilization) {
+    struct compilation_result compilation_result = compile_standalone(
+            "var array = [1, 2, 3, 4]; var array2 = [\"hola\", true]; "
+    );
+
+    start_vm();
+    interpret_result_t vm_result = interpret_vm(compilation_result);
+
+    ASSERT_TRUE(vm_result == INTERPRET_OK);
+
+    stop_vm();
+    reset();
+}
+
+TEST(simple_vm_test_empty_array_initilization) {
     struct compilation_result compilation_result = compile_standalone(
             "var array[10]; "
     );

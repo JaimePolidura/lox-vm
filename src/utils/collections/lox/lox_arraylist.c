@@ -1,12 +1,20 @@
-#include "lox_array_list.h"
+#include "lox_arraylist.h"
 
-void init_lox_array(struct lox_array_list * array) {
+void init_lox_arraylist(struct lox_arraylist * array) {
     array->values = NULL;
     array->capacity = 0;
     array->in_use = 0;
 }
 
-void write_lox_array(struct lox_array_list * array, lox_value_t value) {
+void init_lox_arraylist_with_size(struct lox_arraylist * array, int size) {
+    init_lox_arraylist(array);
+    array->capacity = size;
+    array->in_use = size;
+    array->values = GROW_ARRAY(lox_value_t, array->values, 0, size);
+    memset(array->values, 0, size * sizeof(lox_value_t));
+}
+
+void append_lox_arraylist(struct lox_arraylist * array, lox_value_t value) {
     if(array->in_use + 1 > array->capacity) {
         const int new_capacity = GROW_CAPACITY(array->capacity);
         const int old_capacity = array->capacity;
@@ -18,7 +26,7 @@ void write_lox_array(struct lox_array_list * array, lox_value_t value) {
     array->values[array->in_use++] = value;
 }
 
-void flip_lox_array(struct lox_array_list * array) {
+void flip_lox_arraylist(struct lox_arraylist * array) {
     for(int i = 0; i < array->in_use / 2; i++){
         int a_index = i;
         int b_index = array->in_use - a_index - 1;
@@ -31,6 +39,6 @@ void flip_lox_array(struct lox_array_list * array) {
     }
 }
 
-void free_lox_array(struct lox_array_list * array){
+void free_lox_arraylist(struct lox_arraylist * array){
     free(array->values);
 }

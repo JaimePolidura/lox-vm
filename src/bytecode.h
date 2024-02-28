@@ -36,6 +36,8 @@ typedef enum {
     OP_ENTER_PACKAGE,     // 29
     OP_EXIT_PACKAGE,      // 30
     OP_ENTER_MONITOR,     // 31
-    OP_EXIT_MONITOR       // 32
+    OP_EXIT_MONITOR,      // 32
+    OP_INITIALIZE_ARRAY,  // 33
+
 } op_code;
 

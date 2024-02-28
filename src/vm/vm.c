@@ -31,7 +31,7 @@ static void call();
 static void return_function(struct call_frame * function_to_return_frame);
 static void call_function(struct function_object * function, int n_args, bool is_parallel);
 static void print_frame_stack_trace();
-static void initialize_struct();
+static void initialize_struct(struct call_frame * call_frame);
 static void get_struct_field();
 static void set_struct_field();
 static void print();
@@ -54,6 +54,7 @@ static void thread_on_safe_point();
 static void enter_monitor_vm(struct call_frame * call_frame);
 static void exit_monitor_vm(struct call_frame * call_frame);
 static int try_add_child_to_parent_list(struct vm_thread * new_child_thread);
+static void initialize_array(struct call_frame * call_frame);
 
 #define READ_BYTE(frame) (*frame->pc++)
 #define READ_U16(frame) \
@@ -162,7 +163,8 @@ static interpret_result_t run() {
             case OP_SET_LOCAL: set_local(); break;
             case OP_LOOP: loop(); break; //Checks for start gc signal
             case OP_CALL: call(); current_frame = get_current_frame(); break; //Checks for start gc signal
-            case OP_INITIALIZE_STRUCT: initialize_struct(); break;
+            case OP_INITIALIZE_STRUCT: initialize_struct(current_frame); break;
+            case OP_INITIALIZE_ARRAY: initialize_array(current_frame); break;
             case OP_GET_STRUCT_FIELD: get_struct_field(); break;
             case OP_SET_STRUCT_FIELD: set_struct_field(); break;
             case OP_ENTER_PACKAGE: enter_package(); current_frame = get_current_frame(); break;
@@ -296,10 +298,12 @@ static void adition() {
     }
 
     struct string_pool_add_result add_result = add_to_global_string_pool(concatenated, new_length);
+
     push_stack_vm(TO_LOX_VALUE_OBJECT(add_result.string_object));
 
     if(add_result.created_new) {
-        add_object_to_heap(self_thread->gc_info, &add_result.string_object->object, sizeof(struct string_object));
+        int total_bytes_allocated = sizeof_heap_allocated_lox_object(&add_result.string_object->object);
+        add_object_to_heap(self_thread->gc_info, &add_result.string_object->object, total_bytes_allocated);
     } else {
         free(concatenated);
     }
@@ -426,9 +430,26 @@ static void jump() {
     thread_on_safe_point();
 }
 
-static void initialize_struct() {
+static void initialize_array(struct call_frame * call_frame) {
+    uint8_t n_elements = READ_BYTE(call_frame);
+    struct array_object * array = alloc_array_object(n_elements);
+
+    for(int i = 0; i < n_elements; i++) {
+        lox_value_t value = pop_stack_vm();
+        int index = n_elements - i - 1;
+
+        set_element_array(array, index, value);
+    }
+
+    int total_bytes_allocated = sizeof_heap_allocated_lox_object(&array->object);
+    add_object_to_heap(self_thread->gc_info, &array->object, total_bytes_allocated);
+
+    push_stack_vm(TO_LOX_VALUE_OBJECT(array));
+}
+
+static void initialize_struct(struct call_frame * call_frame) {
     struct struct_instance_object * struct_instance = alloc_struct_instance_object();
-    struct struct_definition_object * struct_definition = (struct struct_definition_object *) AS_OBJECT(READ_CONSTANT(get_current_frame()));
+    struct struct_definition_object * struct_definition = (struct struct_definition_object *) AS_OBJECT(READ_CONSTANT(call_frame));
     int n_fields = struct_definition->n_fields;
 
     struct_instance->definition = struct_definition;
@@ -438,10 +459,10 @@ static void initialize_struct() {
         put_hash_table(&struct_instance->fields, field_name, pop_stack_vm());
     }
 
-    int total_bytes_allocated = sizeof(struct struct_instance_object) + n_fields * sizeof(lox_value_t);
-    add_object_to_heap(self_thread->gc_info, &struct_instance->object, total_bytes_allocated);
-
     push_stack_vm(TO_LOX_VALUE_OBJECT(struct_instance));
+
+    int total_bytes_allocated = sizeof_heap_allocated_lox_object(&struct_instance->object);
+    add_object_to_heap(self_thread->gc_info, &struct_instance->object, total_bytes_allocated);
 }
 
 static void get_struct_field() {
