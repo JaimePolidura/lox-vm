@@ -148,6 +148,7 @@ struct parse_rule rules[] = {
         [TOKEN_VAR] = {NULL, NULL, PREC_NONE},
         [TOKEN_WHILE] = {NULL, NULL, PREC_NONE},
         [TOKEN_ERROR] = {NULL, NULL, PREC_NONE},
+        [TOKEN_CLOSE_SQUARE] = {NULL, NULL, PREC_NONE},
         [TOKEN_EOF] = {NULL, NULL, PREC_NONE},};
 
 struct compilation_result compile(char * entrypoint_absolute_path, char * compilation_base_dir_args, char * package_name) {

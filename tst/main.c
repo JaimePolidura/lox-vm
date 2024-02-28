@@ -7,13 +7,13 @@
 #include "utils_test.h"
 #include "package_test.h"
 
-//#define RUN_HASH_TABLE_TEST
-//#define RUN_COMPILER_TEST
-//#define RUN_PACKAGE_TEST
-//#define RUN_TRIE_TEST
+#define RUN_HASH_TABLE_TEST
+#define RUN_COMPILER_TEST
+#define RUN_PACKAGE_TEST
+#define RUN_TRIE_TEST
 #define RUN_VM_TEST
-//#define RUN_STACK_TEST
-//#define RUN_UTILS_TEST
+#define RUN_STACK_TEST
+#define RUN_UTILS_TEST
 
 extern struct trie_list * compiled_packages;
 extern const char * compiling_base_dir;
