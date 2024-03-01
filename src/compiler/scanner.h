@@ -30,6 +30,8 @@ typedef enum {
     TOKEN_SYNC,
     TOKEN_OPEN_SQUARE,
     TOKEN_CLOSE_SQUARE,
+
+    TOKEN_NO_TOKEN, //Used only for compiling internals
 } tokenType_t;
 
 struct token {

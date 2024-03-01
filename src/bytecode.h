@@ -38,6 +38,8 @@ typedef enum {
     OP_ENTER_MONITOR,     // 31
     OP_EXIT_MONITOR,      // 32
     OP_INITIALIZE_ARRAY,  // 33
+    OP_GET_ARRAY_ELEMENT, // 34
+    OP_SET_ARRAY_ELEMENT, // 35
 
 } op_code;
 

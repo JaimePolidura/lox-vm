@@ -55,6 +55,8 @@ static void enter_monitor_vm(struct call_frame * call_frame);
 static void exit_monitor_vm(struct call_frame * call_frame);
 static int try_add_child_to_parent_list(struct vm_thread * new_child_thread);
 static void initialize_array(struct call_frame * call_frame);
+static void get_array_element(struct call_frame * call_frame);
+static void set_array_element(struct call_frame * call_frame);
 
 #define READ_BYTE(frame) (*frame->pc++)
 #define READ_U16(frame) \
@@ -164,13 +166,15 @@ static interpret_result_t run() {
             case OP_LOOP: loop(); break; //Checks for start gc signal
             case OP_CALL: call(); current_frame = get_current_frame(); break; //Checks for start gc signal
             case OP_INITIALIZE_STRUCT: initialize_struct(current_frame); break;
-            case OP_INITIALIZE_ARRAY: initialize_array(current_frame); break;
             case OP_GET_STRUCT_FIELD: get_struct_field(); break;
             case OP_SET_STRUCT_FIELD: set_struct_field(); break;
             case OP_ENTER_PACKAGE: enter_package(); current_frame = get_current_frame(); break;
             case OP_EXIT_PACKAGE: exit_package(); current_frame = get_current_frame(); break;
             case OP_ENTER_MONITOR: enter_monitor_vm(current_frame); break;
             case OP_EXIT_MONITOR: exit_monitor_vm(current_frame); break;
+            case OP_INITIALIZE_ARRAY: initialize_array(current_frame); break;
+            case OP_GET_ARRAY_ELEMENT: get_array_element(current_frame); break;
+            case OP_SET_ARRAY_ELEMENT: set_array_element(current_frame); break;
             case OP_EOF: return INTERPRET_OK;
             default:
                 perror("Unhandled bytecode op\n");
@@ -445,6 +449,29 @@ static void initialize_array(struct call_frame * call_frame) {
     add_object_to_heap(self_thread->gc_info, &array->object, total_bytes_allocated);
 
     push_stack_vm(TO_LOX_VALUE_OBJECT(array));
+}
+
+static void get_array_element(struct call_frame * call_frame) {
+    uint16_t array_index = READ_U16(call_frame);
+    struct array_object * array = (struct array_object *) AS_OBJECT(pop_stack_vm());
+
+    if(array_index >= array->values.in_use) {
+        runtime_error("Index out of bounds");
+    }
+
+    push_stack_vm(array->values.values[array_index]);
+}
+
+static void set_array_element(struct call_frame * call_frame) {
+    uint16_t array_index = READ_U16(call_frame);
+    struct array_object * array = (struct array_object *) AS_OBJECT(pop_stack_vm());
+    lox_value_t new_value = pop_stack_vm();
+
+    if(array_index >= array->values.in_use) {
+        runtime_error("Index out of bounds");
+    }
+
+    array->values.values[array_index] = new_value;
 }
 
 static void initialize_struct(struct call_frame * call_frame) {

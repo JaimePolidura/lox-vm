@@ -5,7 +5,6 @@
 struct trie_list * compiled_packages = NULL;
 const char * compiling_base_dir = NULL;
 
-
 static void report_error(struct compiler * compiler, struct token token, const char * message);
 static void advance(struct compiler * compiler);
 static struct compiler * alloc_compiler(scope_type_t scope, char * package_name, bool is_standalone_mode);
@@ -33,7 +32,8 @@ static void variable_declaration(struct compiler * compiler, bool is_public);
 static uint8_t add_string_constant(struct compiler * compiler, struct token string_token);
 static void define_global_variable(struct compiler * compiler, uint8_t global_constant_offset);
 static void variable(struct compiler * compiler, bool can_assign);
-static void named_variable(struct compiler * compiler, struct token variable_name, bool can_assign, struct package * external_package);
+static void named_variable(struct compiler * compiler, struct token variable_name, struct token array_index,
+        bool can_assign, struct package * external_package);
 static void begin_scope(struct compiler * compiler);
 static void end_scope(struct compiler * compiler);
 static void block(struct compiler * compiler);
@@ -672,20 +672,33 @@ static void print_statement(struct compiler * compiler) {
 }
 
 static void variable(struct compiler * compiler, bool can_assign) {
+    bool is_from_function = check(compiler, TOKEN_OPEN_PAREN);
+    bool is_from_array = check(compiler, TOKEN_OPEN_SQUARE);
     bool is_from_package = check(compiler, TOKEN_COLON);
     struct package * external_package = NULL;
+    struct token variable_name;
+    struct token array_index;
+    array_index.type = TOKEN_NO_TOKEN;
 
     if (is_from_package) {
         external_package = load_package(compiler);
         consume(compiler, TOKEN_COLON, "Expect ':' after : when accessing a package symbol");
         consume(compiler, TOKEN_COLON, "Expect ':' after : when accessing a package symbol");
         advance(compiler); //As we are accessing the variable name with the previous token, we need to advance
+        variable_name = compiler->parser->previous;
+    } else if(is_from_array) {
+        variable_name = compiler->parser->previous;
+        consume(compiler, TOKEN_NUMBER, "Expect number when accessing array");
+        array_index = compiler->parser->previous;
+        consume(compiler, TOKEN_CLOSE_SQUARE, "Expect `]` when accessing array");
+    } else {
+        variable_name = compiler->parser->previous;
     }
 
     if (check(compiler, TOKEN_OPEN_BRACE)) {
         struct_initialization(compiler, external_package);
     } else {
-        named_variable(compiler, compiler->parser->previous, can_assign, external_package);
+        named_variable(compiler, variable_name, array_index, can_assign, external_package);
     }
 }
 
@@ -751,14 +764,20 @@ static int struct_initialization_fields(struct compiler * compiler) {
     return n_fields;
 }
 
-static void named_variable(struct compiler * compiler, struct token variable_name, bool can_assign, struct package * external_package) {
-    bool is_from_external_package = external_package != NULL;
-    bool is_function_call = compiler->parser->current.type == TOKEN_OPEN_PAREN;
+static void named_variable(struct compiler * compiler,
+        struct token variable_name,
+        struct token array_index,
+        bool can_assign,
+        struct package * external_package) {
 
     int variable_identifier = resolve_local_variable(compiler, &variable_name);
+
+    bool is_from_external_package = external_package != NULL;
     bool is_local = variable_identifier != -1;
     bool is_global = !is_local;
     bool is_set_op = can_assign && match(compiler, TOKEN_EQUAL);
+    bool is_array = array_index.type != TOKEN_NO_TOKEN;
+
     uint8_t op = is_set_op ?
             (is_local ? OP_SET_LOCAL : OP_SET_GLOBAL) :
             (is_local ? OP_GET_LOCAL : OP_GET_GLOBAL);
@@ -768,7 +787,8 @@ static void named_variable(struct compiler * compiler, struct token variable_nam
     }
     if (is_global && is_from_external_package) {
         struct exported_symbol * exported_symbol = get_exported_symbol(compiler, external_package, variable_name);
-        exported_symbol_type_t expected_exported_type = is_function_call ? EXPORTED_FUNCTION : EXPORTED_VAR;
+        exported_symbol_type_t expected_exported_type = compiler->parser->current.type == TOKEN_OPEN_PAREN ?
+                EXPORTED_FUNCTION : EXPORTED_VAR;
 
         if(exported_symbol->type != expected_exported_type) {
             report_error(compiler, variable_name, "Exported type is invalid in this context");
@@ -776,7 +796,7 @@ static void named_variable(struct compiler * compiler, struct token variable_nam
 
         variable_identifier = exported_symbol->constant_identifier;
 
-        if(is_function_call) {
+        if(array_index.type != TOKEN_NO_TOKEN) {
             compiler->package_of_compiling_external_func = external_package;
             compiler->compiling_external_function = true;
         }
@@ -795,6 +815,13 @@ static void named_variable(struct compiler * compiler, struct token variable_nam
 
     if(is_from_external_package) {
         emit_bytecode(compiler, OP_EXIT_PACKAGE);
+    }
+
+    if(is_array) {
+        emit_bytecode(compiler,is_set_op ? OP_SET_ARRAY_ELEMENT : OP_GET_ARRAY_ELEMENT);
+        int index_as_int = atoi(array_index.start);
+        emit_bytecode(compiler, (index_as_int >> 8) & 0xFF);
+        emit_bytecode(compiler, index_as_int & 0xFF);
     }
 }
 
