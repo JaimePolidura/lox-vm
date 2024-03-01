@@ -260,7 +260,6 @@ static void declaration(struct compiler * compiler) {
         parallel_declaration(compiler);
     } else if(match(compiler, TOKEN_FUN)) {
         bool is_protected_by_monitor = match(compiler, TOKEN_SYNC);
-
         function_declaration(compiler, is_public, is_protected_by_monitor);
     } else {
         statement(compiler);
@@ -353,8 +352,8 @@ static void variable_declaration(struct compiler * compiler, bool is_public) {
     }
 
     int variable_identifier = is_local_variable ?
-        add_local_variable(compiler, compiler->parser->previous) :
-        add_string_constant(compiler, compiler->parser->previous);
+        add_local_variable(compiler, variable_name) :
+        add_string_constant(compiler, variable_name);
 
     if(!is_array_empty_initialization){
         variable_expression_declaration(compiler);
@@ -688,6 +687,7 @@ static void variable(struct compiler * compiler, bool can_assign) {
         variable_name = compiler->parser->previous;
     } else if(is_from_array) {
         variable_name = compiler->parser->previous;
+        advance(compiler); //Consume [
         consume(compiler, TOKEN_NUMBER, "Expect number when accessing array");
         array_index = compiler->parser->previous;
         consume(compiler, TOKEN_CLOSE_SQUARE, "Expect `]` when accessing array");
@@ -778,7 +778,8 @@ static void named_variable(struct compiler * compiler,
     bool is_set_op = can_assign && match(compiler, TOKEN_EQUAL);
     bool is_array = array_index.type != TOKEN_NO_TOKEN;
 
-    uint8_t op = is_set_op ?
+    //When setting values of an array we don't use OP_SET_LOCAL/OP_SET_GLOBAL we use OP_SET_ARRAY_ELEMENT
+    uint8_t op = is_set_op && !is_array ?
             (is_local ? OP_SET_LOCAL : OP_SET_GLOBAL) :
             (is_local ? OP_GET_LOCAL : OP_GET_GLOBAL);
 
