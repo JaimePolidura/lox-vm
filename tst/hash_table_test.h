@@ -1,7 +1,8 @@
 #pragma once
 
 #include "test.h"
-#include "utils/collections/lox/lox_hash_table.h"
+#include "shared/utils/collections/lox_hash_table.h"
+#include "shared/utils/utils.h"
 
 #define STRING_TO_OBJ(string_chars) { \
     .length = strlen(string_chars), \

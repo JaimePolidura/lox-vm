@@ -1,8 +1,8 @@
 #pragma once
 
 #include "shared.h"
-#include "utils/collections/trie.h"
-#include "types/function_object.h"
+#include "shared/utils/collections/trie.h"
+#include "shared/types/function_object.h"
 
 typedef enum {
     EXPORTED_FUNCTION,

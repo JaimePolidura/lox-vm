@@ -1,7 +1,7 @@
 #pragma once
 
 #include "test.h"
-#include "../src/vm/vm.h"
+#include "runtime/vm.h"
 #include "compiler/compiler.h"
 
 extern struct vm current_vm;

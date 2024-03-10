@@ -1,7 +1,7 @@
 #pragma once
 
 #include "test.h"
-#include "utils/collections/stack_list.h"
+#include "shared/utils/collections/stack_list.h"
 
 TEST(simple_stack_push_pop_test) {
     struct stack_list * stack = alloc_stack_list();

@@ -2,9 +2,8 @@
 #include <stdlib.h>
 
 #include "shared.h"
-#include "chunk/chunk.h"
-#include "chunk/chunk_disassembler.h"
-#include "vm/vm.h"
+#include "compiler/chunk/chunk.h"
+#include "runtime/vm.h"
 #include "compiler/compiler.h"
 
 void debug_simple_calculation();

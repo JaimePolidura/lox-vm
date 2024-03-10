@@ -1,6 +1,6 @@
 #pragma once
 
-#include "compiler/package.h"
+#include "shared/package.h"
 #include "test.h"
 
 TEST(package_read_package_name_test){
