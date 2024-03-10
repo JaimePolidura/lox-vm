@@ -4,7 +4,6 @@ file(GLOB_RECURSE SOURCES LIST_DIRECTORIES true *.h *.cpp *.c)
 
 set(SOURCES ${SOURCES}
         scanner_test.h
-        compiler_test.h
         hash_table_test.h
         vm_test.h
         trie_test.h

@@ -919,8 +919,24 @@ static void binary(struct compiler * compiler, bool can_assign) {
 }
 
 static void number(struct compiler * compiler, bool can_assign) {
-    double value = strtod(compiler->parser->previous.start, NULL);
-    emit_constant(compiler, TO_LOX_VALUE_NUMBER(value));
+    struct token number_token = compiler->parser->previous;
+    double value_as_double = strtod(number_token.start, NULL);
+
+    bool has_decimal = string_contains(number_token.start, number_token.length, '.');
+    bool is_8 = value_as_double <= INT8_MAX;
+    bool is_16 = !is_8 && value_as_double <= INT16_MAX;
+
+    if(has_decimal || (!is_8 && !is_16)){
+        emit_constant(compiler, TO_LOX_VALUE_NUMBER(value_as_double));
+    } else if(!has_decimal && is_8){
+        emit_bytecodes(compiler, OP_FAST_CONST_8, (int8_t) value_as_double);
+    } else if(!has_decimal && is_16) {
+        int16_t value_as_16 = (int16_t) value_as_double;
+
+        emit_bytecode(compiler, OP_FAST_CONST_16);
+        emit_bytecode(compiler, (value_as_16 >> 8) & 0xFF);
+        emit_bytecode(compiler, value_as_16 & 0xFF);
+    }
 }
 
 static void emit_constant(struct compiler * compiler, lox_value_t value) {

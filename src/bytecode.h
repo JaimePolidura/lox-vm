@@ -40,6 +40,7 @@ typedef enum {
     OP_INITIALIZE_ARRAY,  // 33
     OP_GET_ARRAY_ELEMENT, // 34
     OP_SET_ARRAY_ELEMENT, // 35
-
+    OP_FAST_CONST_8,      // 36
+    OP_FAST_CONST_16,     // 37
 } op_code;
 

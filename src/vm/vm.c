@@ -57,6 +57,7 @@ static int try_add_child_to_parent_list(struct vm_thread * new_child_thread);
 static void initialize_array(struct call_frame * call_frame);
 static void get_array_element(struct call_frame * call_frame);
 static void set_array_element(struct call_frame * call_frame);
+static void fast_16_const(struct call_frame * call_frame);
 
 #define READ_BYTE(frame) (*frame->pc++)
 #define READ_U16(frame) \
@@ -175,6 +176,8 @@ static interpret_result_t run() {
             case OP_INITIALIZE_ARRAY: initialize_array(current_frame); break;
             case OP_GET_ARRAY_ELEMENT: get_array_element(current_frame); break;
             case OP_SET_ARRAY_ELEMENT: set_array_element(current_frame); break;
+            case OP_FAST_CONST_8: push_stack_vm(TO_LOX_VALUE_NUMBER(READ_BYTE(current_frame))); break;
+            case OP_FAST_CONST_16: push_stack_vm(TO_LOX_VALUE_NUMBER(READ_U16(current_frame))); break;
             case OP_EOF: return INTERPRET_OK;
             default:
                 perror("Unhandled bytecode op\n");

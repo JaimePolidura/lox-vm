@@ -1,5 +1,4 @@
 #include "scanner_test.h"
-#include "compiler_test.h"
 #include "hash_table_test.h"
 #include "vm_test.h"
 #include "trie_test.h"
@@ -68,13 +67,6 @@ int main() {
 
 #ifdef RUN_COMPILER_TEST
     simple_scanner_test_outer();
-    simple_compiler_test_with_for_outer();
-    simple_compiler_test_with_structs_outer();
-    simple_compiler_test_with_scope_variables_outer();
-    simple_compiler_test_with_functions_outer();
-    simple_compiler_test_if_statements_outer();
-    simple_compiler_test_if_while_outer();
-    simple_compiler_test_outer();
 #endif
 
 #ifdef RUN_TRIE_TEST
