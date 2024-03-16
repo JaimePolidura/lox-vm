@@ -8,7 +8,7 @@
 #include "compiler/chunk/chunk_disassembler.h"
 #include "compiler/compiler.h"
 #include "shared/types/native_object.h"
-#include "runtime/native/native_functions.h"
+#include "native_functions.h"
 #include "runtime/memory/gc.h"
 #include "shared/types/struct_instance_object.h"
 #include "shared/utils/collections/stack_list.h"
