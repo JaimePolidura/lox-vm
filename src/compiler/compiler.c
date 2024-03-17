@@ -928,9 +928,9 @@ static void number(struct compiler * compiler, bool can_assign) {
 
     if(has_decimal || (!is_8 && !is_16)){
         emit_constant(compiler, TO_LOX_VALUE_NUMBER(value_as_double));
-    } else if (!has_decimal && is_8 && value_as_double == 1){
+    } else if (!has_decimal && value_as_double == 1.0){
         emit_bytecode(compiler, OP_CONST_1);
-    } else if (!has_decimal && is_8 && value_as_double == 2){
+    } else if (!has_decimal && value_as_double == 2.0){
         emit_bytecode(compiler, OP_CONST_2);
     } else if(!has_decimal && is_8){
         emit_bytecodes(compiler, OP_FAST_CONST_8, (int8_t) value_as_double);

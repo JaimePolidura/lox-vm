@@ -176,10 +176,10 @@ static interpret_result_t run() {
             case OP_INITIALIZE_ARRAY: initialize_array(current_frame); break;
             case OP_GET_ARRAY_ELEMENT: get_array_element(current_frame); break;
             case OP_SET_ARRAY_ELEMENT: set_array_element(current_frame); break;
-            case OP_FAST_CONST_8: push_stack_vm(TO_LOX_VALUE_NUMBER(READ_U16(current_frame))); break;
+            case OP_FAST_CONST_8: push_stack_vm(TO_LOX_VALUE_NUMBER(READ_BYTE(current_frame))); break;
             case OP_FAST_CONST_16: push_stack_vm(TO_LOX_VALUE_NUMBER(READ_U16(current_frame))); break;
-            case OP_CONST_1: push_stack_vm(TO_LOX_VALUE_NUMBER(1)) break;
-            case OP_CONST_2: push_stack_vm(TO_LOX_VALUE_NUMBER(2)) break;
+            case OP_CONST_1: push_stack_vm(TO_LOX_VALUE_NUMBER(1)); break;
+            case OP_CONST_2: push_stack_vm(TO_LOX_VALUE_NUMBER(2)); break;
             case OP_EOF: return INTERPRET_OK;
             default:
                 perror("Unhandled bytecode op\n");
