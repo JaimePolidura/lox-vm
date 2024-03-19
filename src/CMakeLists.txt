@@ -9,6 +9,7 @@ add_library(${BINARY}_lib STATIC ${SOURCES}
         main.c
         shared/types/native_object.c
         ../tst/main.c
-        shared/package.c)
+        shared/package.c
+        params.h)
 
 target_link_libraries(${BINARY}_run PRIVATE ${BINARY}_lib)

@@ -8,11 +8,19 @@
 
 #define MAX_MONITORS_PER_FUNCTION 8
 
+typedef enum {
+    BYTECODE,
+    JIT_COMPILING,
+    JIT_COMPILED
+} function_state;
+
 struct function_object {
     struct object object;
     int n_arguments; //Number of arguments
     struct chunk chunk;
     struct string_object * name;
+
+    volatile function_state state;
 
     //Only jit compilation in this function will occur when n_function_calls == n_function_calls_jit_compiled
     int n_function_calls; //Number of different function calls. This includes local functions & package functions

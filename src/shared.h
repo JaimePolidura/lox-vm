@@ -11,5 +11,3 @@
 #include <stdatomic.h>
 
 typedef int lox_thread_id;
-
-//#define NAN_BOXING

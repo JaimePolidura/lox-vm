@@ -13,10 +13,7 @@
 #include "shared/types/struct_instance_object.h"
 #include "shared/utils/collections/stack_list.h"
 #include "runtime/memory/gc.h"
-
-#define STACK_MAX 256
-#define FRAME_MAX (STACK_MAX * 256)
-#define MAX_THREADS_PER_THREAD 64
+#include "params.h"
 
 struct call_frame {
     struct function_object * function;

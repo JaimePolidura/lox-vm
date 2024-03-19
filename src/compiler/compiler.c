@@ -1,4 +1,3 @@
-#include <stdbool.h>
 #include "compiler.h"
 
 // Shared between all compiler
@@ -708,14 +707,14 @@ static void variable(struct compiler * compiler, bool can_assign) {
         char * function_name = NULL;
 
         if(is_from_function && is_from_package) {
-            function_name = copy_string(variable_name.start, variable_name.length);
-        } else if(is_from_function && !is_from_package) {
             function_name_length = variable_name.length + 2 + package_name.length;
-            function_name = copy_string(variable_name.start, function_name_length);
+            function_name = copy_string(package_name.start, function_name_length);
             string_replace(function_name, function_name_length, ':', '_'); //Tris cannot store :, only _
+        } else if(is_from_function && !is_from_package) {
+            function_name = copy_string(variable_name.start, variable_name.length);
         }
 
-        if(!put_trie(&compiler->function_call_list, function_name, variable_name.length, NULL)) {
+        if(!put_trie(&compiler->function_call_list, function_name, function_name_length, NULL)) {
             free(function_name);
         }
     }
