@@ -599,7 +599,7 @@ void start_vm() {
 }
 
 void stop_vm() {
-    clear_trie(compiled_packages);
+    free_trie_list(compiled_packages);
     clear_stack(&self_thread->package_stack);
 }
 

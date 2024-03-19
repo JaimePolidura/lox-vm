@@ -675,6 +675,7 @@ static void variable(struct compiler * compiler, bool can_assign) {
     bool is_from_array = check(compiler, TOKEN_OPEN_SQUARE);
     bool is_from_package = check(compiler, TOKEN_COLON);
     struct package * external_package = NULL;
+    struct token package_name = compiler->parser->previous;
     struct token variable_name;
     struct token array_index;
     array_index.type = TOKEN_NO_TOKEN;
@@ -685,6 +686,7 @@ static void variable(struct compiler * compiler, bool can_assign) {
         consume(compiler, TOKEN_COLON, "Expect ':' after : when accessing a package symbol");
         advance(compiler); //As we are accessing the variable name with the previous token, we need to advance
         variable_name = compiler->parser->previous;
+        is_from_function = check(compiler, TOKEN_OPEN_PAREN);
     } else if(is_from_array) {
         variable_name = compiler->parser->previous;
         advance(compiler); //Consume [
@@ -699,6 +701,23 @@ static void variable(struct compiler * compiler, bool can_assign) {
         struct_initialization(compiler, external_package);
     } else {
         named_variable(compiler, variable_name, array_index, can_assign, external_package);
+    }
+
+    if(is_from_function){
+        int function_name_length = 0;
+        char * function_name = NULL;
+
+        if(is_from_function && is_from_package) {
+            function_name = copy_string(variable_name.start, variable_name.length);
+        } else if(is_from_function && !is_from_package) {
+            function_name_length = variable_name.length + 2 + package_name.length;
+            function_name = copy_string(variable_name.start, function_name_length);
+            string_replace(function_name, function_name_length, ':', '_'); //Tris cannot store :, only _
+        }
+
+        if(!put_trie(&compiler->function_call_list, function_name, variable_name.length, NULL)) {
+            free(function_name);
+        }
     }
 }
 
@@ -1051,6 +1070,7 @@ static struct package * add_package_to_compiled_packages(char * package_import_n
 
 static void init_compiler(struct compiler * compiler, scope_type_t scope_type, struct compiler * parent_compiler) {
     compiler->current_function = alloc_function();
+    init_trie_list(&compiler->function_call_list);
 
     if(scope_type == SCOPE_FUNCTION) {
         compiler->package = parent_compiler->package;
@@ -1086,10 +1106,17 @@ static void string(struct compiler * compiler, bool can_assign) {
     emit_constant(compiler, TO_LOX_VALUE_OBJECT(add_result.string_object));
 }
 
+static void free_trie_node_key_string(void * key) {
+    struct trie_node * trie_node = key;
+    free(trie_node->key);
+}
+
 static void free_compiler(struct compiler * compiler) {
     free_scanner(compiler->scanner);
     free(compiler->parser);
     free(compiler->scanner);
+    for_each_node(&compiler->function_call_list, free_trie_node_key_string);
+    free_trie_list(&compiler->function_call_list);
     free(compiler);
 }
 

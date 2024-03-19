@@ -14,6 +14,13 @@ struct function_object {
     struct chunk chunk;
     struct string_object * name;
 
+    //Only jit compilation in this function will occur when n_function_calls == n_function_calls_jit_compiled
+    int n_function_calls; //Number of different function calls. This includes local functions & package functions
+    int n_function_calls_jit_compiled; //Number of n_function_calls that haven been jit compiled
+
+    //Number of times that this function has been called. Will be incremented atomically by multiple threads
+    int n_times_called;
+
     struct monitor monitors[MAX_MONITORS_PER_FUNCTION];
 };
 

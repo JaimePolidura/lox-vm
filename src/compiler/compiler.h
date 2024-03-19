@@ -16,6 +16,7 @@
 #include "shared/types/struct_instance_object.h"
 #include "shared/utils/collections/stack_list.h"
 #include "shared/types/array_object.h"
+#include "chunk/chunk.h"
 
 struct parser {
     struct token current;
@@ -53,6 +54,11 @@ struct compiler {
     bool compiling_parallel_call;
     
     int monitor_depth;
+
+    //Maintains function call list, so that we know how many different functions have been called
+    //This is used by struct function_object field: n_function_calls
+    //Strings inserted will be new heap allocated
+    struct trie_list function_call_list;
 };
 
 struct compilation_result {

@@ -45,6 +45,7 @@ bool put_trie(struct trie_list * trie, char * new_key, int new_key_length, void 
     prev_node->key = to_upper_case(new_key, new_key_length);
     prev_node->key_length = new_key_length;
     prev_node->data = new_data;
+    trie->size++;
 
     return true;
 }
@@ -79,8 +80,9 @@ void for_each_node(struct trie_list * trie, consumer_t consumer_callback) {
     }
 }
 
-void clear_trie(struct trie_list * trie) {
+void free_trie_list(struct trie_list * trie) {
     clear_trie_recursive(trie->head);
+    trie->size = 0;
 }
 
 struct trie_list * alloc_trie_list() {
@@ -91,6 +93,7 @@ struct trie_list * alloc_trie_list() {
 
 void init_trie_list(struct trie_list * trie_list) {
     trie_list->head = alloc_trie_node();
+    trie_list->size = 0;
 }
 
 static struct trie_node * alloc_trie_node() {

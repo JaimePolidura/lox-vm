@@ -39,3 +39,25 @@ uint32_t hash_string(const char * string_ptr, int length) {
 
     return hash;
 }
+
+char * copy_string(char * source, int length) {
+    char * dst = malloc(sizeof(char) * (length + 1));
+    for(int i = 0; i < length; i++){
+        dst[i] = source[i];
+    }
+    dst[length] = 0x00;
+
+    return dst;
+}
+
+int string_replace(char * string, int length, char old, char new) {
+    int n_replaced = 0;
+    for(int i = 0; i < length; i++){
+        if(string[i] == old){
+            string[i] = new;
+            n_replaced++;
+        }
+    }
+
+    return n_replaced;
+}
