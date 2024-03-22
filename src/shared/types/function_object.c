@@ -5,15 +5,14 @@ struct function_object * alloc_function() {
     init_chunk(&function_object->chunk);
     function_object->n_arguments = 0;
     function_object->name = NULL;
-    function_object->n_function_calls_jit_compiled = 0;
-    function_object->n_function_calls = 0;
-    function_object->n_times_called = 0;
 
     for(int i = 0; i < MAX_MONITORS_PER_FUNCTION; i++){
         init_monitor(&function_object->monitors[i]);
     }
 
     init_object(&function_object->object, OBJ_FUNCTION);
+
+    init_jit_info(&function_object->jit_info);
 
     return function_object;
 }

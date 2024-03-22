@@ -20,3 +20,19 @@ uint64_t time_millis() {
     return ((unsigned long long)tv.tv_sec * 1000 + (unsigned long long)tv.tv_usec / 1000);
 #endif
 }
+
+uint8_t * allocate_executable(size_t size) {
+#ifdef _WIN32
+    return (uint8_t *) VirtualAlloc(NULL,
+        size,
+        MEM_COMMIT | MEM_RESERVE,
+        PAGE_EXECUTE_READWRITE);
+#else
+    return (uint8_t *) mmap(NULL,
+        size,
+        PROT_READ | PROT_WRITE | PROT_EXEC,
+        MAP_PRIVATE | MAP_ANONYMOUS,
+        -1,
+        0);
+#endif
+}

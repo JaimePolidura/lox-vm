@@ -59,10 +59,10 @@ static void get_array_element(struct call_frame * call_frame);
 static void set_array_element(struct call_frame * call_frame);
 static void fast_16_const(struct call_frame * call_frame);
 
-#define READ_BYTE(frame) (*frame->pc++)
+#define READ_BYTECODE(frame) (*frame->pc++)
 #define READ_U16(frame) \
     (frame->pc += 2, (uint16_t)((frame->pc[-2] << 8) | frame->pc[-1]))
-#define READ_CONSTANT(frame) (frame->function->chunk.constants.values[READ_BYTE(frame)])
+#define READ_CONSTANT(frame) (frame->function->chunk.constants.values[READ_BYTECODE(frame)])
 #define BINARY_OP(op) \
     do { \
         double b = pop_and_check_number(); \
@@ -140,7 +140,7 @@ static interpret_result_t run() {
     thread_on_safe_point();
 
     for(;;) {
-        switch (READ_BYTE(current_frame)) {
+        switch (READ_BYTECODE(current_frame)) {
             case OP_RETURN: return_function(current_frame); current_frame = get_current_frame(); break;
             case OP_CONSTANT: push_stack_vm(READ_CONSTANT(current_frame)); break;
             case OP_NEGATE: push_stack_vm(TO_LOX_VALUE_NUMBER(-pop_and_check_number())); break;
@@ -176,7 +176,7 @@ static interpret_result_t run() {
             case OP_INITIALIZE_ARRAY: initialize_array(current_frame); break;
             case OP_GET_ARRAY_ELEMENT: get_array_element(current_frame); break;
             case OP_SET_ARRAY_ELEMENT: set_array_element(current_frame); break;
-            case OP_FAST_CONST_8: push_stack_vm(TO_LOX_VALUE_NUMBER(READ_BYTE(current_frame))); break;
+            case OP_FAST_CONST_8: push_stack_vm(TO_LOX_VALUE_NUMBER(READ_BYTECODE(current_frame))); break;
             case OP_FAST_CONST_16: push_stack_vm(TO_LOX_VALUE_NUMBER(READ_U16(current_frame))); break;
             case OP_CONST_1: push_stack_vm(TO_LOX_VALUE_NUMBER(1)); break;
             case OP_CONST_2: push_stack_vm(TO_LOX_VALUE_NUMBER(2)); break;
@@ -190,7 +190,7 @@ static interpret_result_t run() {
 
 static void enter_monitor_vm(struct call_frame * call_frame) {
     struct function_object * function = call_frame->function;
-    int monitor_number_to_enter = READ_BYTE(call_frame);
+    int monitor_number_to_enter = READ_BYTECODE(call_frame);
 
     call_frame->monitors_entered[call_frame->last_monitor_entered_index++] = monitor_number_to_enter;
 
@@ -344,20 +344,20 @@ static void set_global(struct call_frame * current_frame) {
 }
 
 static void set_local(struct call_frame * current_frame) {
-    uint8_t slot = READ_BYTE(current_frame);
+    uint8_t slot = READ_BYTECODE(current_frame);
     lox_value_t value = peek(0);
     current_frame->slots[slot] = value; //Assigment is an expression
 }
 
 static void get_local(struct call_frame * current_frame) {
-    uint8_t slot = READ_BYTE(current_frame);
+    uint8_t slot = READ_BYTECODE(current_frame);
     lox_value_t value = current_frame->slots[slot];
     push_stack_vm(value);
 }
 
 static void call(struct call_frame * current_frame) {
-    int n_args = READ_BYTE(current_frame);
-    bool is_parallel = READ_BYTE(current_frame);
+    int n_args = READ_BYTECODE(current_frame);
+    bool is_parallel = READ_BYTECODE(current_frame);
 
     lox_value_t callee = peek(n_args);
 
@@ -399,6 +399,10 @@ static void call_function(struct function_object * function, int n_args, bool is
         runtime_error("Stack overflow. Max allowed frames: %i", FRAME_MAX);
     }
 
+    if(increase_call_count_function(&function->jit_info)) {
+        try_jit_compile(function);
+    }
+
     if(!is_parallel) {
         setup_call_frame_function(self_thread, function);
     } else {
@@ -436,7 +440,7 @@ static void jump(struct call_frame * current_frame) {
 }
 
 static void initialize_array(struct call_frame * call_frame) {
-    uint8_t n_elements = READ_BYTE(call_frame);
+    uint8_t n_elements = READ_BYTECODE(call_frame);
     struct array_object * array = alloc_array_object(n_elements);
 
     for(int i = 0; i < n_elements; i++) {

@@ -13,6 +13,7 @@
 #include "shared/types/struct_instance_object.h"
 #include "shared/utils/collections/stack_list.h"
 #include "runtime/threads/vm_thread.h"
+#include "runtime/jit/jit_compiler.h"
 
 struct vm {
     struct vm_thread * root;
