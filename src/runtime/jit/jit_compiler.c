@@ -1,6 +1,8 @@
 #include "jit_compiler.h"
 
 extern jit_compiled jit_compile(struct function_object * function);
+extern struct cpu_regs save_cpu_state();
+extern void restore_cpu_state(struct cpu_regs * regs);
 
 void try_jit_compile(struct function_object * function) {
     jit_state_t expected_state = BYTECODE;
@@ -15,4 +17,14 @@ void try_jit_compile(struct function_object * function) {
     }
 
     function->jit_info.compiled_jit = result;
+}
+
+void run_jit_compiled(struct function_object * function) {
+    struct cpu_regs cpu_state = save_cpu_state();
+
+    function->jit_info.compiled_jit();
+
+    //TODO Save return address
+
+    restore_cpu_state(&cpu_state);
 }

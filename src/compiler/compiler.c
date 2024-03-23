@@ -27,7 +27,7 @@ static void declaration(struct compiler * compiler);
 static void statement(struct compiler * compiler);
 static void print_statement(struct compiler * compiler);
 static void expression_statement(struct compiler * compiler);
-static void variable_declaration(struct compiler * compiler, bool is_public);
+static void var_declaration(struct compiler * compiler, bool is_public);
 static uint8_t add_string_constant(struct compiler * compiler, struct token string_token);
 static void define_global_variable(struct compiler * compiler, uint8_t global_constant_offset);
 static void variable(struct compiler * compiler, bool can_assign);
@@ -252,7 +252,7 @@ static void declaration(struct compiler * compiler) {
     bool is_public = match(compiler, TOKEN_PUB);
 
     if(match(compiler, TOKEN_VAR)) {
-        variable_declaration(compiler, is_public);
+        var_declaration(compiler, is_public);
     } else if(match(compiler, TOKEN_STRUCT)) {
         struct_declaration(compiler, is_public);
     } else if(match(compiler, TOKEN_PARALLEL)) {
@@ -334,7 +334,7 @@ static void emtpy_array_initialization(struct compiler * compiler) {
     emit_constant(compiler, TO_LOX_VALUE_OBJECT(array_object));
 }
 
-static void variable_declaration(struct compiler * compiler, bool is_public) {
+static void var_declaration(struct compiler * compiler, bool is_public) {
     consume(compiler, TOKEN_IDENTIFIER, "Expected variable name.");
     struct token variable_name = compiler->parser->previous;
     bool is_array_empty_initialization = false;
@@ -630,7 +630,7 @@ static void for_loop_initializer(struct compiler * compiler) {
     if(match(compiler, TOKEN_SEMICOLON)){
         //No initializer
     } else if(match(compiler, TOKEN_VAR)){
-        variable_declaration(compiler, false);
+        var_declaration(compiler, false);
     } else {
         expression_statement(compiler);
     }
