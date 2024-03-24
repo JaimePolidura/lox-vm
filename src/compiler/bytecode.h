@@ -8,7 +8,7 @@ typedef enum {
     OP_TRUE,              // Index: 2 Pushes true boolean type
     OP_FALSE,             // Index: 3 Pushes false boolean type
     OP_POP,               // Index: 4 Pops the current element. Used for assignments, end of scopes etc.
-    OP_EQUAL,             // Index: 5 Pops two elements and pushes boolean if they are equal
+    OP_EQUAL,             // Index: 5 Pops two elements and pushes boolean if they are comparation
     OP_GREATER,           // Index: 6 Pops two elements and pushes boolean if the 2º popped element is greater than the 1º popped element
     OP_LESS,              // Index: 7 Pops two elements and pushes boolean if the 2º popped element is less than the 1º popped element
     OP_RETURN,            // Index: 8 Returns from function. Pushes returned value

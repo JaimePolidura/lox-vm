@@ -18,11 +18,14 @@ static void number_const(struct jit_compiler * jit_compiler, int value);
 #define READ_CONSTANT(jit_compiler) (jit_compiler->function_to_compile->chunk.constants.values[READ_BYTECODE(jit_compiler)])
 
 static struct jit_compiler init_jit_compiler(struct function_object * function);
-static void number_const(struct jit_compiler * jit_compiler, int value);
 static void add(struct jit_compiler * jit_compiler);
 static void sub(struct jit_compiler * jit_compiler);
 static void lox_value(struct jit_compiler * jit_compiler, lox_value_t value);
-static void equal(struct jit_compiler * jit_compiler);
+static void comparation(struct jit_compiler * jit_compiler, op_code comparation_opcode);
+static void greater(struct jit_compiler * jit_compiler);
+
+static void cast_to_lox_boolean(struct jit_compiler * jit_compiler);
+static void number_const(struct jit_compiler * jit_compiler, int value);
 
 jit_compiled jit_compile(struct function_object * function) {
     struct jit_compiler jit_compiler = init_jit_compiler(function);
@@ -39,17 +42,49 @@ jit_compiled jit_compile(struct function_object * function) {
             case OP_TRUE: lox_value(&jit_compiler, TRUE_VALUE); break;
             case OP_FALSE: lox_value(&jit_compiler, FALSE_VALUE); break;
             case OP_NIL: lox_value(&jit_compiler, NIL_VALUE()); break;
-            case OP_EQUAL: equal(&jit_compiler); break;
+            case OP_EQUAL: comparation(&jit_compiler, OP_EQUAL); break;
+            case OP_GREATER: comparation(&jit_compiler, OP_GREATER); break;
+            case OP_LESS: comparation(&jit_compiler, OP_LESS); break;
         }
     }
 
     return NULL;
 }
 
-static void equal(struct jit_compiler * jit_compiler) {
+static void greater(struct jit_compiler * jit_compiler)  {
     register_t b = pop_register(&jit_compiler->register_allocator);
     register_t a = pop_register(&jit_compiler->register_allocator);
-    emit_mov()
+}
+
+static void comparation(struct jit_compiler * jit_compiler, op_code comparation_opcode) {
+    register_t b = pop_register(&jit_compiler->register_allocator);
+    register_t a = pop_register(&jit_compiler->register_allocator);
+    emit_cmp(&jit_compiler->compiled_code, REGISTER_TO_OPERAND(a), REGISTER_TO_OPERAND(b));
+
+    uint8_t next_bytecode = *(jit_compiler->pc + 1);
+    if(next_bytecode != OP_JUMP_IF_FALSE && next_bytecode != OP_LOOP){
+        switch (comparation_opcode) {
+            case OP_EQUAL: emit_sete_al(&jit_compiler->compiled_code); break;
+            case OP_GREATER: emit_setg_al(&jit_compiler->compiled_code); break;
+            case OP_LESS: emit_setl_al(&jit_compiler->compiled_code); break;
+            default: //TODO Panic
+        }
+
+        cast_to_lox_boolean(jit_compiler);
+    }
+}
+
+static void cast_to_lox_boolean(struct jit_compiler * jit_compiler) {
+    register_t register_casted_value = push_register(&jit_compiler->register_allocator);
+
+    //If true register_casted_value will hold 1, if false it will hold 0
+    emit_al_movzx(&jit_compiler->compiled_code, REGISTER_TO_OPERAND(register_casted_value));
+
+    //If true, register_casted_value will hold 1, if you add 2, you will get the value of TAG_TRUE defined in types.h
+    //If false, register_casted_value will hold 0, if you add 2, you will get the value of TAG_FALSE defined in types.h
+    emit_add(&jit_compiler->compiled_code, REGISTER_TO_OPERAND(register_casted_value), IMMEDIATE_TO_OPERAND(2));
+
+    emit_or(&jit_compiler->compiled_code, REGISTER_TO_OPERAND(register_casted_value), IMMEDIATE_TO_OPERAND(QUIET_FLOAT_NAN));
 }
 
 static void lox_value(struct jit_compiler * jit_compiler, lox_value_t value) {

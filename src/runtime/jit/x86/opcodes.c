@@ -19,7 +19,9 @@
 
 static void emit_register_to_register_mov(struct u8_arraylist * array, struct operand a, struct operand b);
 static void emit_immediate_to_register_mov(struct u8_arraylist * array, struct operand a, struct operand b);
-static uint8_t get_64_bite_prefix(struct operand a, struct operand b);
+static uint8_t get_64_bit_binary_op_prefix(struct operand a, struct operand b);
+static uint8_t get_64_bit_single_op_prefix(struct operand a);
+static uint8_t get_16_bit_prefix();
 static void emit_immediate_value(struct u8_arraylist * array, uint64_t immediate_value);
 static void emit_register_register_add(struct u8_arraylist * array, struct operand a, struct operand b);
 static void emit_register_immediate_add(struct u8_arraylist * array, struct operand a, struct operand b);
@@ -27,6 +29,50 @@ static void emit_register_register_sub(struct u8_arraylist * array, struct opera
 static void emit_register_immediate_sub(struct u8_arraylist * array, struct operand a, struct operand b);
 static void emit_register_register_cmp(struct u8_arraylist * array, struct operand a, struct operand b);
 static void emit_register_immediate_cmp(struct u8_arraylist * array, struct operand a, struct operand b);
+static void emit_register_register_binary_or(struct u8_arraylist * array, struct operand a, struct operand b);
+static void emit_register_immediate_binary_or(struct u8_arraylist * array, struct operand a, struct operand b);
+
+void emit_or(struct u8_arraylist * array, struct operand a, struct operand b) {
+    if(a.type == REGISTER_OPERAND && b.type == REGISTER_OPERAND){
+        emit_register_register_binary_or(array, a, b);
+    } else {
+        emit_register_immediate_binary_or(array, a, b);
+    }
+}
+
+void emit_al_movzx(struct u8_arraylist * array, struct operand a) {
+    uint8_t prefix = get_64_bit_single_op_prefix(a);
+    uint8_t opcode_1 = 0x0F;
+    uint8_t opcode_2 = 0xB6;
+
+    uint8_t mode = REGISTER_ADDRESSING_MODE;
+    uint8_t reg = TO_32_BIT_REGISTER(a.as.reg) << 3;
+    uint8_t rm = 0; //al register
+    uint8_t mod_reg_rm = mode | reg | rm;
+
+    append_u8_arraylist(array, prefix);
+    append_u8_arraylist(array, opcode_1);
+    append_u8_arraylist(array, opcode_2);
+    append_u8_arraylist(array, mod_reg_rm);
+}
+
+void emit_setl_al(struct u8_arraylist * array) {
+    append_u8_arraylist(array, get_16_bit_prefix());
+    append_u8_arraylist(array, 0x9C); //Opcode
+    append_u8_arraylist(array, 0xC0); //ModRM
+}
+
+void emit_setg_al(struct u8_arraylist * array) {
+    append_u8_arraylist(array, get_16_bit_prefix());
+    append_u8_arraylist(array, 0x9F); //Opcode
+    append_u8_arraylist(array, 0xC0); //ModRM
+}
+
+void emit_sete_al(struct u8_arraylist * array) {
+    append_u8_arraylist(array, get_16_bit_prefix());
+    append_u8_arraylist(array, 0x94); //Opcode
+    append_u8_arraylist(array, 0xC0); //ModRM
+}
 
 void emit_cmp(struct u8_arraylist * array, struct operand a, struct operand b) {
     if(a.type == REGISTER_OPERAND && b.type == REGISTER_OPERAND){
@@ -60,8 +106,36 @@ void emit_sub(struct u8_arraylist * array, struct operand a, struct operand b) {
     }
 }
 
+static void emit_register_register_binary_or(struct u8_arraylist * array, struct operand a, struct operand b) {
+    uint8_t prefix = get_64_bit_binary_op_prefix(a, b);
+    uint8_t opcode = 0x09;
+    uint8_t mode = REGISTER_ADDRESSING_MODE;
+    uint8_t reg = TO_32_BIT_REGISTER(a.as.reg) << 3;
+    uint8_t rm = TO_32_BIT_REGISTER(b.as.reg);
+    uint8_t mod_reg_rm = mode | reg | rm;
+
+    append_u8_arraylist(array, prefix);
+    append_u8_arraylist(array, opcode);
+    append_u8_arraylist(array, mod_reg_rm);
+}
+
+static void emit_register_immediate_binary_or(struct u8_arraylist * array, struct operand a, struct operand b) {
+    uint8_t prefix = get_64_bit_binary_op_prefix(a, b);
+    uint8_t opcode = 0x81;
+
+    uint8_t mode = REGISTER_ADDRESSING_MODE;
+    uint8_t reg = 0x01 << 3;
+    uint8_t rm = TO_32_BIT_REGISTER(a.as.reg);
+    uint8_t mode_reg_rm = mode | reg | rm;
+
+    append_u8_arraylist(array, prefix);
+    append_u8_arraylist(array, opcode);
+    append_u8_arraylist(array, mode_reg_rm);
+    emit_immediate_value(array, b.as.immediate);
+}
+
 static void emit_register_immediate_cmp(struct u8_arraylist * array, struct operand a, struct operand b) {
-    uint8_t prefix = get_64_bite_prefix(a, b);
+    uint8_t prefix = get_64_bit_binary_op_prefix(a, b);
     uint8_t opcode = a.as.reg == RAX && b.as.immediate >= 128 ? 0x3D : 0x81;
 
     append_u8_arraylist(array, prefix);
@@ -80,7 +154,7 @@ static void emit_register_immediate_cmp(struct u8_arraylist * array, struct oper
 }
 
 static void emit_register_register_cmp(struct u8_arraylist * array, struct operand a, struct operand b) {
-    uint8_t prefix = get_64_bite_prefix(a, b);
+    uint8_t prefix = get_64_bit_binary_op_prefix(a, b);
     uint8_t opcode = 0x39;
 
     uint8_t mode = REGISTER_ADDRESSING_MODE;
@@ -94,7 +168,7 @@ static void emit_register_register_cmp(struct u8_arraylist * array, struct opera
 }
 
 static void emit_register_register_sub(struct u8_arraylist * array, struct operand a, struct operand b) {
-    uint8_t prefix = get_64_bite_prefix(a, b);
+    uint8_t prefix = get_64_bit_binary_op_prefix(a, b);
     uint8_t opcode = 0x29;
 
     uint8_t mode = REGISTER_ADDRESSING_MODE;
@@ -108,7 +182,7 @@ static void emit_register_register_sub(struct u8_arraylist * array, struct opera
 }
 
 static void emit_register_immediate_sub(struct u8_arraylist * array, struct operand a, struct operand b) {
-    uint8_t prefix = get_64_bite_prefix(a, b);
+    uint8_t prefix = get_64_bit_binary_op_prefix(a, b);
     uint8_t opcode = a.as.reg == RAX && b.as.immediate >= 128 ? 0x2D : 0x81;
 
     append_u8_arraylist(array, prefix);
@@ -126,7 +200,7 @@ static void emit_register_immediate_sub(struct u8_arraylist * array, struct oper
 }
 
 static void emit_register_immediate_add(struct u8_arraylist * array, struct operand a, struct operand b) {
-    uint8_t prefix = get_64_bite_prefix(a, b);
+    uint8_t prefix = get_64_bit_binary_op_prefix(a, b);
     uint8_t opcode = a.as.reg == RAX && b.as.immediate >= 128 ? 0x05 : 0x81;
 
     append_u8_arraylist(array, prefix);
@@ -145,7 +219,7 @@ static void emit_register_immediate_add(struct u8_arraylist * array, struct oper
 }
 
 static void emit_register_register_add(struct u8_arraylist * array, struct operand a, struct operand b) {
-    uint8_t prefix = get_64_bite_prefix(a, b);
+    uint8_t prefix = get_64_bit_binary_op_prefix(a, b);
     uint8_t opcode = 0x01;
 
     uint8_t mode = REGISTER_ADDRESSING_MODE;
@@ -161,7 +235,7 @@ static void emit_register_register_add(struct u8_arraylist * array, struct opera
 static void emit_immediate_to_register_mov(struct u8_arraylist * array, struct operand a, struct operand b) {
     bool is_immediate_64_bit = (b.as.immediate & 0xFFFFFFFF00000000) != 0;
 
-    uint8_t prefix = get_64_bite_prefix(a, b);
+    uint8_t prefix = get_64_bit_binary_op_prefix(a, b);
     uint8_t opcode = is_immediate_64_bit ? 0xBC : 0xC7;
 
     uint8_t mode = REGISTER_ADDRESSING_MODE;
@@ -176,7 +250,7 @@ static void emit_immediate_to_register_mov(struct u8_arraylist * array, struct o
 }
 
 static void emit_register_to_register_mov(struct u8_arraylist * array, struct operand a, struct operand b) {
-    uint8_t prefix = get_64_bite_prefix(a, b);
+    uint8_t prefix = get_64_bit_binary_op_prefix(a, b);
     uint8_t opcode = 0x89;
 
     uint8_t mode = REGISTER_ADDRESSING_MODE;
@@ -189,14 +263,26 @@ static void emit_register_to_register_mov(struct u8_arraylist * array, struct op
     append_u8_arraylist(array, mod_reg_rm);
 }
 
-static uint8_t get_64_bite_prefix(struct operand a, struct operand b) {
+static uint8_t get_64_bit_single_op_prefix(struct operand a) {
     uint8_t prefix = REX_PREFIX;
+    if(a.type == REGISTER_OPERAND && a.as.reg >= R8)
+        prefix |= FIRST_OPERAND_LARGE_REG_REX_PREFIX; //Final result: 0x4C, otherwise 0x48
+
+    return prefix;
+}
+
+static uint8_t get_64_bit_binary_op_prefix(struct operand a, struct operand b) {
+    uint8_t prefix = REX_PREFIX; // 0x48
     if(a.type == REGISTER_OPERAND && a.as.reg >= R8)
         prefix |= FIRST_OPERAND_LARGE_REG_REX_PREFIX; //Final result: 0x4C
     if(b.type == REGISTER_OPERAND && b.as.reg >= R8)
         prefix |= SECOND_OPERAND_LARGE_REG_REX_PREFIX; //Final result if prev condition false: 0x49, if true: 0x4D
 
     return prefix;
+}
+
+static uint8_t get_16_bit_prefix() {
+    return 0X0F;
 }
 
 /**
