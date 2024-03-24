@@ -5,7 +5,7 @@ void init_register_allocator(struct register_allocator * register_allocation) {
 }
 
 register_t push_register(struct register_allocator * register_allocation) {
-    if(register_allocation->next_free_register < 0){
+    if(register_allocation->next_free_register >= RCX){
         return -1;
     }
 

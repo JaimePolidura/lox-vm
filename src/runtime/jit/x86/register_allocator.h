@@ -4,6 +4,7 @@
 #include "registers.h"
 
 //As VM is stack based, we can treat register allocation as a stack.
+//RAX & RCX registers are not used for allocations
 struct register_allocator {
     register_t next_free_register;
 };

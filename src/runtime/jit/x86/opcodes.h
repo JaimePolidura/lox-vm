@@ -14,3 +14,6 @@ void emit_setg_al(struct u8_arraylist * array);
 void emit_setl_al(struct u8_arraylist * array);
 void emit_al_movzx(struct u8_arraylist * array, struct operand a);
 void emit_or(struct u8_arraylist * array, struct operand a, struct operand b);
+void emit_neg(struct u8_arraylist * array, struct operand a);
+void emit_imul(struct u8_arraylist * array, struct operand a, struct operand b);
+void emit_idiv(struct u8_arraylist * array, struct operand divisor);

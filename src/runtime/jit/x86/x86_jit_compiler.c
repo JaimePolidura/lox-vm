@@ -23,12 +23,17 @@ static void sub(struct jit_compiler * jit_compiler);
 static void lox_value(struct jit_compiler * jit_compiler, lox_value_t value);
 static void comparation(struct jit_compiler * jit_compiler, op_code comparation_opcode);
 static void greater(struct jit_compiler * jit_compiler);
+static void negate(struct jit_compiler * jit_compiler);
+static void multiplication(struct jit_compiler * jit_compiler);
+static void division(struct jit_compiler * jit_compiler);
 
 static void cast_to_lox_boolean(struct jit_compiler * jit_compiler);
 static void number_const(struct jit_compiler * jit_compiler, int value);
+static void set_al_with_cmp_result(struct jit_compiler * jit_compiler, op_code comparation_opcode);
 
 jit_compiled jit_compile(struct function_object * function) {
     struct jit_compiler jit_compiler = init_jit_compiler(function);
+    bool finish_compilation_flag = false;
 
     for(;;) {
         switch (READ_BYTECODE(&jit_compiler)) {
@@ -38,6 +43,7 @@ jit_compiled jit_compile(struct function_object * function) {
             case OP_FAST_CONST_16: number_const(&jit_compiler, READ_U16(&jit_compiler)); break;
             case OP_ADD: add(&jit_compiler); break;
             case OP_SUB: sub(&jit_compiler); break;
+            case OP_NEGATE: negate(&jit_compiler); break;
             case OP_POP: pop_register(&jit_compiler.register_allocator); break;
             case OP_TRUE: lox_value(&jit_compiler, TRUE_VALUE); break;
             case OP_FALSE: lox_value(&jit_compiler, FALSE_VALUE); break;
@@ -45,15 +51,44 @@ jit_compiled jit_compile(struct function_object * function) {
             case OP_EQUAL: comparation(&jit_compiler, OP_EQUAL); break;
             case OP_GREATER: comparation(&jit_compiler, OP_GREATER); break;
             case OP_LESS: comparation(&jit_compiler, OP_LESS); break;
+            case OP_MUL: multiplication(&jit_compiler); break;
+            case OP_DIV: division(&jit_compiler); break;
+            case OP_EOF: finish_compilation_flag = true; break;
+        }
+
+        if(finish_compilation_flag){
+            break;
         }
     }
 
     return NULL;
 }
 
-static void greater(struct jit_compiler * jit_compiler)  {
+static void division(struct jit_compiler * jit_compiler) {
     register_t b = pop_register(&jit_compiler->register_allocator);
     register_t a = pop_register(&jit_compiler->register_allocator);
+
+    emit_mov(&jit_compiler->compiled_code, REGISTER_TO_OPERAND(RAX), IMMEDIATE_TO_OPERAND(b));
+    emit_idiv(&jit_compiler->compiled_code, REGISTER_TO_OPERAND(a));
+
+    register_t result_register = push_register(&jit_compiler->register_allocator);
+
+    emit_mov(&jit_compiler->compiled_code, REGISTER_TO_OPERAND(result_register), REGISTER_TO_OPERAND(RAX));
+}
+
+static void multiplication(struct jit_compiler * jit_compiler) {
+    register_t b = pop_register(&jit_compiler->register_allocator);
+    register_t a = pop_register(&jit_compiler->register_allocator);
+
+    emit_imul(&jit_compiler->compiled_code, REGISTER_TO_OPERAND(a), REGISTER_TO_OPERAND(b));
+
+    push_register(&jit_compiler->register_allocator);
+}
+
+static void negate(struct jit_compiler * jit_compiler) {
+    register_t register_to_negate = pop_register(&jit_compiler->register_allocator);
+    emit_neg(&jit_compiler->compiled_code, REGISTER_TO_OPERAND(register_to_negate));
+    push_register(&jit_compiler->register_allocator);
 }
 
 static void comparation(struct jit_compiler * jit_compiler, op_code comparation_opcode) {
@@ -63,14 +98,17 @@ static void comparation(struct jit_compiler * jit_compiler, op_code comparation_
 
     uint8_t next_bytecode = *(jit_compiler->pc + 1);
     if(next_bytecode != OP_JUMP_IF_FALSE && next_bytecode != OP_LOOP){
-        switch (comparation_opcode) {
-            case OP_EQUAL: emit_sete_al(&jit_compiler->compiled_code); break;
-            case OP_GREATER: emit_setg_al(&jit_compiler->compiled_code); break;
-            case OP_LESS: emit_setl_al(&jit_compiler->compiled_code); break;
-            default: //TODO Panic
-        }
-
+        set_al_with_cmp_result(jit_compiler, comparation_opcode);
         cast_to_lox_boolean(jit_compiler);
+    }
+}
+
+static void set_al_with_cmp_result(struct jit_compiler * jit_compiler, op_code comparation_opcode) {
+    switch (comparation_opcode) {
+        case OP_EQUAL: emit_sete_al(&jit_compiler->compiled_code); break;
+        case OP_GREATER: emit_setg_al(&jit_compiler->compiled_code); break;
+        case OP_LESS: emit_setl_al(&jit_compiler->compiled_code); break;
+        default: //TODO Panic
     }
 }
 
