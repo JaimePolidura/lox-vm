@@ -1,6 +1,7 @@
 #pragma once
 
 #include "shared.h"
+#include "params.h"
 
 typedef enum {
   VAL_BOOL,

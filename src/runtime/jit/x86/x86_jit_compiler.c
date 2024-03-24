@@ -21,10 +21,12 @@ static struct jit_compiler init_jit_compiler(struct function_object * function);
 static void number_const(struct jit_compiler * jit_compiler, int value);
 static void add(struct jit_compiler * jit_compiler);
 static void sub(struct jit_compiler * jit_compiler);
+static void lox_value(struct jit_compiler * jit_compiler, lox_value_t value);
+static void equal(struct jit_compiler * jit_compiler);
 
 jit_compiled jit_compile(struct function_object * function) {
     struct jit_compiler jit_compiler = init_jit_compiler(function);
-    
+
     for(;;) {
         switch (READ_BYTECODE(&jit_compiler)) {
             case OP_CONST_1: number_const(&jit_compiler, 1); break;
@@ -33,10 +35,26 @@ jit_compiled jit_compile(struct function_object * function) {
             case OP_FAST_CONST_16: number_const(&jit_compiler, READ_U16(&jit_compiler)); break;
             case OP_ADD: add(&jit_compiler); break;
             case OP_SUB: sub(&jit_compiler); break;
+            case OP_POP: pop_register(&jit_compiler.register_allocator); break;
+            case OP_TRUE: lox_value(&jit_compiler, TRUE_VALUE); break;
+            case OP_FALSE: lox_value(&jit_compiler, FALSE_VALUE); break;
+            case OP_NIL: lox_value(&jit_compiler, NIL_VALUE()); break;
+            case OP_EQUAL: equal(&jit_compiler); break;
         }
     }
 
     return NULL;
+}
+
+static void equal(struct jit_compiler * jit_compiler) {
+    register_t b = pop_register(&jit_compiler->register_allocator);
+    register_t a = pop_register(&jit_compiler->register_allocator);
+    emit_mov()
+}
+
+static void lox_value(struct jit_compiler * jit_compiler, lox_value_t value) {
+    register_t reg = push_register(&jit_compiler->register_allocator);
+    emit_mov(&jit_compiler->compiled_code, REGISTER_TO_OPERAND(reg), IMMEDIATE_TO_OPERAND(value));
 }
 
 static void number_const(struct jit_compiler * jit_compiler, int value) {

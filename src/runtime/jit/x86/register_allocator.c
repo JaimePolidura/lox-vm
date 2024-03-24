@@ -12,6 +12,6 @@ register_t push_register(struct register_allocator * register_allocation) {
     return register_allocation->next_free_register--;
 }
 
-void pop_register(struct register_allocator * register_allocation) {
-    register_allocation->next_free_register--;
+register_t pop_register(struct register_allocator * register_allocation) {
+    return register_allocation->next_free_register++;
 }

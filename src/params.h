@@ -1,6 +1,6 @@
 #pragma once
 
-//#define NAN_BOXING
+#define NAN_BOXING
 #define HEAP_GROW_AFTER_GC_FACTOR 2
 #define STACK_MAX 256
 #define FRAME_MAX (STACK_MAX * 256)
