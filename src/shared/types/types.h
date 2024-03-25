@@ -40,8 +40,8 @@ typedef uint64_t lox_value_t;
 #define TO_LOX_VALUE_NUMBER(value) (lox_value_t) value
 #define IS_NUMBER(value) ((value & QUIET_FLOAT_NAN) != QUIET_FLOAT_NAN)
 
-#define NIL_VALUE() (TAG_NIL | QUIET_FLOAT_NAN)
-#define IS_NIL(value) (value == (NIL_VALUE()))
+#define NIL_VALUE (TAG_NIL | QUIET_FLOAT_NAN)
+#define IS_NIL(value) (value == (NIL_VALUE))
 
 #define FALSE_VALUE (lox_value_t)(QUIET_FLOAT_NAN | TAG_FALSE)
 #define TRUE_VALUE (lox_value_t)(QUIET_FLOAT_NAN | TAG_TRUE)

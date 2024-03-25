@@ -13,4 +13,5 @@ struct u8_arraylist {
 void init_u8_arraylist(struct u8_arraylist * array);
 void free_u8_arraylist(struct u8_arraylist * array);
 
-void append_u8_arraylist(struct u8_arraylist * array, uint8_t value);
+//Returns the index where it has been added
+uint16_t append_u8_arraylist(struct u8_arraylist * array, uint8_t value);

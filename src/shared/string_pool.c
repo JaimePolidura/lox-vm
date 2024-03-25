@@ -17,7 +17,7 @@ struct string_pool_add_result add_to_global_string_pool(char * string_ptr, int l
         struct string_object * string = copy_chars_to_string_object(string_ptr, length);
         string->hash = string_hash;
 
-        put_hash_table(&global_string_pool.strings, string, NIL_VALUE());
+        put_hash_table(&global_string_pool.strings, string, NIL_VALUE);
 
         unlock_mutex(&global_string_pool.lock);
 

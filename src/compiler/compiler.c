@@ -862,9 +862,12 @@ static void literal(struct compiler * compiler, bool can_assign) {
 }
 
 static void array_inline_initialization(struct compiler * compiler, bool can_assign) {
-    int n_elements = array_inline_initialization_elements(compiler);
+    uint16_t n_elements = (uint16_t) array_inline_initialization_elements(compiler);
 
-    emit_bytecodes(compiler, OP_INITIALIZE_ARRAY, n_elements);
+    emit_bytecode(compiler, OP_INITIALIZE_ARRAY);
+
+    emit_bytecode(compiler, (n_elements >> 8) & 0xFF);
+    emit_bytecode(compiler, n_elements & 0xFF);
 }
 
 static int array_inline_initialization_elements(struct compiler * compiler) {

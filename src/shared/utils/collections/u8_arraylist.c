@@ -12,7 +12,7 @@ void free_u8_arraylist(struct u8_arraylist * array) {
     free(array->values);
 }
 
-void append_u8_arraylist(struct u8_arraylist * array, uint8_t value) {
+uint16_t append_u8_arraylist(struct u8_arraylist * array, uint8_t value) {
     if(array->in_use + 1 > array->capacity) {
         const int new_capacity = GROW_CAPACITY(array->capacity);
         const int old_capacity = array->capacity;
@@ -22,4 +22,6 @@ void append_u8_arraylist(struct u8_arraylist * array, uint8_t value) {
     }
 
     array->values[array->in_use++] = value;
+
+    return array->in_use - 1;
 }

@@ -152,7 +152,7 @@ static interpret_result_t run() {
             case OP_LESS: COMPARATION_OP(<) break;
             case OP_FALSE: push_stack_vm(TO_LOX_VALUE_BOOL(false)); break;
             case OP_TRUE: push_stack_vm(TO_LOX_VALUE_BOOL(true)); break;
-            case OP_NIL: push_stack_vm(NIL_VALUE()); break;
+            case OP_NIL: push_stack_vm(NIL_VALUE); break;
             case OP_NOT: push_stack_vm(TO_LOX_VALUE_BOOL(!check_boolean())); break;
             case OP_EQUAL: push_stack_vm(values_equal(pop_stack_vm(), pop_stack_vm())); break;
             case OP_PRINT: print(); break; //Checks for start gc signal
@@ -440,7 +440,7 @@ static void jump(struct call_frame * current_frame) {
 }
 
 static void initialize_array(struct call_frame * call_frame) {
-    uint8_t n_elements = READ_BYTECODE(call_frame);
+    uint16_t n_elements = READ_U16(call_frame);
     struct array_object * array = alloc_array_object(n_elements);
 
     for(int i = 0; i < n_elements; i++) {
