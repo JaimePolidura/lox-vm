@@ -1,7 +1,8 @@
 #pragma
 
-#include "runtime/jit/x86/pending_path_jump.h"
 #include "runtime/jit/x86/register_allocator.h"
+#include "runtime/jit/x86/pending_path_jump.h"
+#include "runtime/jit/x86/function_calls.h"
 #include "runtime/jit/x86/registers.h"
 #include "runtime/jit/x86/opcodes.h"
 

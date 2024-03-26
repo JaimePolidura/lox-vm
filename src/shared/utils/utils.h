@@ -9,6 +9,16 @@
 #define GROW_ARRAY(type, pointer, oldCount, newCount) \
     (type*)realloc(pointer, sizeof(type) * (newCount))
 
+#define VARARGS_TO_ARRAY(type, arr, count, ...) \
+do { \
+    va_list args; \
+    va_start(args, count); \
+    for (int i = 0; i < count; ++i) { \
+        arr[i] = va_arg(args, type); \
+    } \
+    va_end(args); \
+} while (0)
+
 char * to_upper_case(char * key, int length);
 bool string_contains(char * string, int length, char to_check);
 bool string_equals_ignore_case(char * a, char * b, int length_a);

@@ -34,6 +34,50 @@ static uint16_t emit_register_register_binary_or(struct u8_arraylist * array, st
 static uint16_t emit_register_immediate_binary_or(struct u8_arraylist * array, struct operand a, struct operand b);
 static uint16_t emit_register_register_imul(struct u8_arraylist * array, struct operand a, struct operand b);
 static uint16_t emit_register_immediate_imul(struct u8_arraylist * array, struct operand a, struct operand b);
+static uint16_t emit_push_pop(struct u8_arraylist * array, struct operand a, uint8_t base_opcode);
+
+uint16_t emit_call(struct u8_arraylist * array, struct operand operand) {
+    bool is_extended_register = operand.as.reg >= R8;
+
+    uint16_t instruction_index = array->in_use;
+
+    if(is_extended_register){
+        append_u8_arraylist(array, 0x41); //Prefix
+    }
+
+    append_u8_arraylist(array, 0xFF); //Opcode
+    append_u8_arraylist(array, 0xD0 + operand.as.reg); //Opcode
+
+    return instruction_index;
+}
+
+uint16_t emit_push(struct u8_arraylist * array, struct operand operand) {
+    return emit_push_pop(array, operand, 0x50);
+}
+
+uint16_t emit_pop(struct u8_arraylist * array, struct operand operand) {
+    return emit_push_pop(array, operand, 0x58);
+}
+
+static uint16_t emit_push_pop(struct u8_arraylist * array, struct operand operand, uint8_t base_opcode) {
+    bool is_extended_register = operand.as.reg >= R8;
+
+    if(is_extended_register) {
+        operand.as.reg -= 8;
+    }
+
+    uint16_t instruction_index = 0;
+    uint8_t opcode = base_opcode + operand.as.reg;
+
+    if(is_extended_register){
+        instruction_index = append_u8_arraylist(array, 0x41); //Prefix
+        append_u8_arraylist(array, opcode); //Opcode
+    } else {
+        instruction_index = append_u8_arraylist(array,  opcode); //Opcode
+    }
+
+    return instruction_index;
+}
 
 uint16_t emit_near_je(struct u8_arraylist * array, int offset) {
     uint8_t opcode_1 = 0x0F;

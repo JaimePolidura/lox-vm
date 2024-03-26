@@ -1,5 +1,7 @@
 #include "x86_jit_compiler.h"
 
+extern void print_lox_value(lox_value_t value);
+
 struct cpu_regs_state save_cpu_state() {
     return (struct cpu_regs_state) {
         //TODO
@@ -29,6 +31,7 @@ static void loop(struct jit_compiler * jit_compiler, uint16_t bytecode_backward_
 static void constant(struct jit_compiler * jit_compiler);
 static void jump(struct jit_compiler * jit_compiler, uint16_t offset);
 static void jump_if_false(struct jit_compiler * jit_compiler, uint16_t jump_offset);
+static void print(struct jit_compiler * jit_compiler);
 static void pop(struct jit_compiler * jit_compiler);
 
 static void record_pending_jump_to_patch(struct jit_compiler * jit_compiler, uint16_t jump_instruction_index, uint16_t bytecode_offset);
@@ -49,6 +52,7 @@ jit_compiled jit_compile(struct function_object * function) {
             case OP_CONSTANT: constant(&jit_compiler); break;
             case OP_FAST_CONST_8: number_const(&jit_compiler, READ_BYTECODE(&jit_compiler), OP_FAST_CONST_8_LENGTH); break;
             case OP_FAST_CONST_16: number_const(&jit_compiler, READ_U16(&jit_compiler), OP_FAST_CONST_16_LENGTH); break;
+            case OP_PRINT: print(&jit_compiler);
             case OP_ADD: add(&jit_compiler); break;
             case OP_SUB: sub(&jit_compiler); break;
             case OP_NEGATE: negate(&jit_compiler); break;
@@ -73,6 +77,18 @@ jit_compiled jit_compile(struct function_object * function) {
     }
 
     return NULL;
+}
+
+static void print(struct jit_compiler * jit_compiler) {
+    register_t to_print_register_arg = pop_register(&jit_compiler->register_allocator);
+
+    uint16_t instruction_index = call_external_c_function(
+            &jit_compiler->native_compiled_code,
+            (uint64_t *) &print_lox_value,
+            1,
+            REGISTER_TO_OPERAND(to_print_register_arg));
+
+    record_compiled_bytecode(jit_compiler, instruction_index, OP_PRINT_LENGTH);
 }
 
 static void jump_if_false(struct jit_compiler * jit_compiler, uint16_t jump_offset) {

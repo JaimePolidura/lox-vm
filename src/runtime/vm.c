@@ -2,6 +2,7 @@
 
 extern struct trie_list * compiled_packages;
 extern void check_gc_on_safe_point_alg();
+extern void print_lox_value(lox_value_t value);
 
 __thread struct vm_thread * self_thread;
 const uint8_t eof = OP_EOF;
@@ -416,9 +417,9 @@ static void print() {
 #ifdef VM_TEST
     current_vm.log[current_vm.log_entries_in_use++] = to_string(value);
 #else
-    print_value(value);
+    print_lox_value(value);
 #endif
-
+    
     thread_on_safe_point();
 }
 
@@ -644,7 +645,7 @@ static void print_stack() {
     printf("\t");
     for(lox_value_t * value = self_thread->stack; value < self_thread->esp; value++)  {
         printf("[");
-        print_value(*value);
+        print_lox_value(*value);
         printf("]");
     }
     printf("\n");

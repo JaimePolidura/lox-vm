@@ -9,5 +9,6 @@
 #include <string.h>
 #include <pthread.h>
 #include <stdatomic.h>
+#include <stdarg.h>
 
 typedef int lox_thread_id;

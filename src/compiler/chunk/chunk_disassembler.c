@@ -2,6 +2,8 @@
 
 #include <stdio.h>
 
+extern void print_lox_value(lox_value_t value);
+
 static int constant_instruction(const char * name, const struct chunk * chunk, int offset);
 static int simple_instruction(const char * name, int offset);
 static int byte_instruction(const char * name, struct chunk * chunk, int offset);
@@ -64,7 +66,7 @@ static int byte_instruction(const char * name, struct chunk * chunk, int offset)
 static int constant_instruction(const char * name, const struct chunk * chunk, int offset) {
     const uint8_t constant = chunk->code[offset + 1];
     printf("%s '", name);
-    print_value(chunk->constants.values[constant]);
+    print_lox_value(chunk->constants.values[constant]);
     printf("'\n");
 
     return offset + 2;
@@ -77,34 +79,4 @@ static int jump_instruction(const char* name, int sign,
     printf("%-16s %4d -> %d\n", name, offset,
            offset + 3 + sign * jump);
     return offset + 3;
-}
-
-void print_value(lox_value_t value) {
-#ifdef NAN_BOXING
-    if(IS_NIL(value)) {
-        printf("nil");
-    } else if(IS_OBJECT(value)) {
-        struct object * object = AS_OBJECT(value);
-
-        switch (AS_OBJECT(value)->type) {
-            case OBJ_STRING: printf("%s", ((struct string_object *) AS_OBJECT(value))->chars); break;
-            case OBJ_FUNCTION: printf("fun %s",  ((struct function_object *) AS_OBJECT(value))->name->chars); break;
-        }
-    } else if(IS_BOOL(value)) {
-        printf("%s", AS_OBJECT(value) ? "true" : "false");
-    } else if(IS_NUMBER(value)) {
-        printf("%g", AS_NUMBER(value));
-    }
-#else
-    switch (value.type) {
-        case VAL_NIL: printf("nil"); break;
-        case VAL_NUMBER: printf("%g", value.as.number); break;
-        case VAL_BOOL: printf(value.as.boolean ? "true" : "false"); break;
-        case VAL_OBJ:
-            switch (value.as.object->type) {
-                case OBJ_STRING: printf("%s", AS_STRING_CHARS_OBJECT(value));
-                case OBJ_FUNCTION: printf("fun %s", ((struct function_object *) value.as.object)->name->chars);
-            }
-    }
-#endif
 }
