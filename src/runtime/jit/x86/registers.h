@@ -11,15 +11,15 @@ typedef enum {
     RBP =  5, // 0101
     RSI =  6, // 0110
     RDI =  7, // 0111
-    R8 =   8, // 1000
-    R9 =   9, // 1001
-    R10 = 10, // 1010
-    R11 = 11, // 1101
-    R12 = 12, // 1100
-    R13 = 13, // 1101
-    R14 = 14, // 1110
-    R15 = 15  // 1111
+    R8 =   8, // 1000 Equivalent RAX
+    R9 =   9, // 1001 Equivalent RCX
+    R10 = 10, // 1010 Equivalent RDX
+    R11 = 11, // 1101 Equivalent RBX
+    R12 = 12, // 1100 Equivalent RSP
+    R13 = 13, // 1101 Equivalent RBP
+    R14 = 14, // 1110 Equivalent RSI
+    R15 = 15  // 1111 Equivalent RDI
 } register_t;
 
 //0111
-#define TO_32_BIT_REGISTER(reg) reg & 0x07
+#define TO_32_BIT_REGISTER(reg) (reg & 0x07)

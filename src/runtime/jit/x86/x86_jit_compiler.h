@@ -30,6 +30,9 @@ struct jit_compiler {
     //pending previous forward jump assembly offset to patch.
     struct pending_path_jump ** pending_jumps_to_patch;
 
+    //Keep tracks of the last local slot allocated. Locals will be stored in the stack
+    uint8_t last_local_count_slot;
+
     struct register_allocator register_allocator;
 
     struct u8_arraylist native_compiled_code;

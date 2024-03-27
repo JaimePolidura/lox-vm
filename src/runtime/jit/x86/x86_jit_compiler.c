@@ -33,6 +33,8 @@ static void jump(struct jit_compiler * jit_compiler, uint16_t offset);
 static void jump_if_false(struct jit_compiler * jit_compiler, uint16_t jump_offset);
 static void print(struct jit_compiler * jit_compiler);
 static void pop(struct jit_compiler * jit_compiler);
+static void get_local(struct jit_compiler * jit_compiler);
+static void set_local(struct jit_compiler * jit_compiler);
 
 static void record_pending_jump_to_patch(struct jit_compiler * jit_compiler, uint16_t jump_instruction_index, uint16_t bytecode_offset);
 static void record_compiled_bytecode(struct jit_compiler * jit_compiler, uint16_t native_compiled_index, int bytecode_instruction_length);
@@ -63,6 +65,8 @@ jit_compiled jit_compile(struct function_object * function) {
             case OP_EQUAL: comparation(&jit_compiler, OP_EQUAL, OP_EQUAL_LENGTH); break;
             case OP_GREATER: comparation(&jit_compiler, OP_GREATER, OP_GREATER_LENGTH); break;
             case OP_LESS: comparation(&jit_compiler, OP_LESS, OP_LESS_LENGTH); break;
+            case OP_GET_LOCAL: get_local(&jit_compiler); break;
+            case OP_SET_LOCAL: set_local(&jit_compiler); break;
             case OP_MUL: multiplication(&jit_compiler); break;
             case OP_DIV: division(&jit_compiler); break;
             case OP_JUMP_IF_FALSE: jump_if_false(&jit_compiler, READ_U16(&jit_compiler));
@@ -77,6 +81,38 @@ jit_compiled jit_compile(struct function_object * function) {
     }
 
     return NULL;
+}
+
+static void set_local(struct jit_compiler * jit_compiler) {
+    uint8_t slot = READ_BYTECODE(jit_compiler);
+
+    if(slot > jit_compiler->last_local_count_slot){
+        uint8_t diff = slot - jit_compiler->last_local_count_slot;
+        uint8_t stack_grow = diff * sizeof(lox_value_t);
+        emit_sub(&jit_compiler->native_compiled_code, IMMEDIATE_TO_OPERAND(stack_grow), RSP_OPERAND);
+    }
+
+    register_t register_local_value = pop_register(&jit_compiler->register_allocator);
+    int offset_local_from_rbp = slot * sizeof(lox_value_t);
+
+    uint16_t instruction_index = emit_mov(&jit_compiler->native_compiled_code,
+             DISPLACEMENT_TO_OPERAND(RBP, offset_local_from_rbp),
+             REGISTER_TO_OPERAND(register_local_value));
+
+    record_compiled_bytecode(jit_compiler, instruction_index, OP_SET_LOCAL_LENGTH);
+}
+
+static void get_local(struct jit_compiler * jit_compiler) {
+    uint8_t slot = READ_BYTECODE(jit_compiler);
+
+    register_t register_to_save_local = push_register(&jit_compiler->register_allocator);
+    int offset_local_from_rbp = slot * sizeof(lox_value_t);
+
+    uint16_t instruction_index = emit_mov(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(register_to_save_local),
+             DISPLACEMENT_TO_OPERAND(RBP, - offset_local_from_rbp)); //Stack grows to lower address
+
+    record_compiled_bytecode(jit_compiler, instruction_index, OP_GET_LOCAL_LENGTH);
 }
 
 static void print(struct jit_compiler * jit_compiler) {
@@ -146,7 +182,7 @@ static void division(struct jit_compiler * jit_compiler) {
     register_t a = pop_register(&jit_compiler->register_allocator);
 
     uint16_t mov_index = emit_mov(&jit_compiler->native_compiled_code,
-                                  REGISTER_TO_OPERAND(RAX),
+                                  RAX_OPERAND,
                                   IMMEDIATE_TO_OPERAND(b));
 
     emit_idiv(&jit_compiler->native_compiled_code, REGISTER_TO_OPERAND(a));
@@ -155,7 +191,7 @@ static void division(struct jit_compiler * jit_compiler) {
 
     emit_mov(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(result_register),
-             REGISTER_TO_OPERAND(RAX));
+             RAX_OPERAND);
 
     record_compiled_bytecode(jit_compiler, mov_index, OP_DIV_LENGTH);
 }
@@ -284,6 +320,7 @@ static struct jit_compiler init_jit_compiler(struct function_object * function) 
     compiler.pending_jumps_to_patch = malloc(sizeof(void *) * function->chunk.in_use);
     memset(compiler.pending_jumps_to_patch, 0, sizeof(void *) * function->chunk.in_use);
 
+    compiler.last_local_count_slot = function->n_arguments;
     compiler.function_to_compile = function;
     compiler.pc = function->chunk.code;
 

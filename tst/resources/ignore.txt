@@ -1,0 +1,22 @@
+mov [rax + 8], rax
+mov [rcx + 8], rcx
+mov [rdx + 8], rdx
+mov [rbx + 8], rbx
+mov [rsp + 8], rsp
+mov [rbp + 8], rbp
+mov [rsi + 8], rsi
+mov [rdi + 8], rdi
+mov [r8 + 8], r8
+mov [r9 + 8], r9
+mov [r10 + 8], r10
+mov [r11 + 8], r11
+mov [r12 + 8], r12
+mov [r13 + 8], r13
+mov [r14 + 8], r14
+mov [r15 + 8], r15
+nop
+nop
+mov [r15 + 128], r15
+mov [r15 + 129], r15
+mov [r15 - 128], r15
+mov [r15 - 129], r15

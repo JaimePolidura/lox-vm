@@ -1,11 +1,11 @@
 #include "function_calls.h"
 
-static void restore_caller_register(
+static void restore_caller_registers (
         struct u8_arraylist * native_code,
         int n_operands
 );
 
-static void save_caller_registers(
+static void save_caller_registers (
     struct u8_arraylist * native_code,
     struct operand * operands,
     int n_operands,
@@ -34,9 +34,9 @@ uint16_t call_external_c_function(
 
     save_caller_registers(native_code, arguments, n_arguments, function_address, &instruction_index);
 
-    emit_call(native_code, REGISTER_TO_OPERAND(R9));
+    emit_call(native_code, R9_OPERAND);
 
-    restore_caller_register(native_code, n_arguments);
+    restore_caller_registers(native_code, n_arguments);
 
     return instruction_index;
 }
@@ -44,8 +44,8 @@ uint16_t call_external_c_function(
 static void save_caller_registers(struct u8_arraylist * native_code, struct operand * operands,
         int n_operands, uint64_t * function_ptr, uint16_t * instruction_index) {
 
-    *instruction_index = emit_push(native_code, REGISTER_TO_OPERAND(R9));
-    emit_mov(native_code, REGISTER_TO_OPERAND(R9), IMMEDIATE_TO_OPERAND(* function_ptr));
+    *instruction_index = emit_push(native_code, R9_OPERAND);
+    emit_mov(native_code, R9_OPERAND, IMMEDIATE_TO_OPERAND(* function_ptr));
 
     for(int i = 0; i < n_operands; i++) {
         register_t linux_argument_to_push = linux_args_call_convention[i];
@@ -53,11 +53,11 @@ static void save_caller_registers(struct u8_arraylist * native_code, struct oper
     }
 }
 
-static void restore_caller_register(
+static void restore_caller_registers(
         struct u8_arraylist * native_code,
         int n_operands
 ) {
-    emit_pop(native_code, REGISTER_TO_OPERAND(R9));
+    emit_pop(native_code, R9_OPERAND);
 
     for(int i = n_operands - 1; i >= 0; i--){
         register_t linux_argument_to_pop = linux_args_call_convention[i];

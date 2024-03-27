@@ -2,28 +2,37 @@
 
 #include "opcodes.h"
 
-/*
-0100 1101 mov r10, r8
-0100 1000 mov 0xff, rax
-0100 1001 mov 0xf	f, r8
-0100 1100 mov r10, rax
-*/
+/**
+ * Byte -> 1 byte
+ * Word -> 2 bytes
+ * DWord -> 4 bytes
+ * QWord -> 8 bytes
+ */
+
 #define REX_PREFIX 0x48
 //0100
 #define FIRST_OPERAND_LARGE_REG_REX_PREFIX 0x04
 //0001
 #define SECOND_OPERAND_LARGE_REG_REX_PREFIX 0x01
 
+#define IS_BYTE_SIZE(item) item < 128 || item >= -127
+
 //11000000
 #define REGISTER_ADDRESSING_MODE 0xC0
+//01000000
+#define BYTE_DISPLACEMENT_MODE 0x40
+//10000000
+#define DWORD_DISPLACEMENT_MODE 0x80
 
 static uint8_t get_64_bit_binary_op_prefix(struct operand a, struct operand b);
 static uint8_t get_16_bit_prefix();
 
+static uint16_t emit_register_disp_to_register_mov(struct u8_arraylist * array, struct operand a, struct operand b);
 static uint16_t emit_register_to_register_mov(struct u8_arraylist * array, struct operand a, struct operand b);
+static uint16_t emit_register_to_disp_register_move(struct u8_arraylist * array, struct operand a, struct operand b);
 static uint16_t emit_immediate_to_register_mov(struct u8_arraylist * array, struct operand a, struct operand b);
-static void emit_32_immediate_value(struct u8_arraylist * array, uint64_t immediate_value);
-static void emit_64_immediate_value(struct u8_arraylist * array, uint64_t immediate_value);
+static void emit_dword_immediate_value(struct u8_arraylist * array, uint64_t immediate_value);
+static void emit_qword_immediate_value(struct u8_arraylist * array, uint64_t immediate_value);
 static uint16_t emit_register_register_add(struct u8_arraylist * array, struct operand a, struct operand b);
 static uint16_t emit_register_immediate_add(struct u8_arraylist * array, struct operand a, struct operand b);
 static uint16_t emit_register_register_sub(struct u8_arraylist * array, struct operand a, struct operand b);
@@ -35,6 +44,7 @@ static uint16_t emit_register_immediate_binary_or(struct u8_arraylist * array, s
 static uint16_t emit_register_register_imul(struct u8_arraylist * array, struct operand a, struct operand b);
 static uint16_t emit_register_immediate_imul(struct u8_arraylist * array, struct operand a, struct operand b);
 static uint16_t emit_push_pop(struct u8_arraylist * array, struct operand a, uint8_t base_opcode);
+static uint16_t emit_mov_with_displacement(struct u8_arraylist * array, struct operand a, struct operand b, int disp);
 
 uint16_t emit_call(struct u8_arraylist * array, struct operand operand) {
     bool is_extended_register = operand.as.reg >= R8;
@@ -86,7 +96,7 @@ uint16_t emit_near_je(struct u8_arraylist * array, int offset) {
     uint8_t instruction_offset = append_u8_arraylist(array, opcode_1);
     append_u8_arraylist(array, opcode_2);
 
-    emit_32_immediate_value(array, offset);
+    emit_dword_immediate_value(array, offset);
 
     return instruction_offset;
 }
@@ -96,7 +106,7 @@ uint16_t emit_near_jmp(struct u8_arraylist * array, int offset) {
 
     uint16_t instruction_offset = append_u8_arraylist(array, opcode);
 
-    emit_32_immediate_value(array, offset); //Offset plus instruction size (5)
+    emit_dword_immediate_value(array, offset); //Offset plus instruction size (5)
 
     return instruction_offset;
 }
@@ -199,10 +209,14 @@ uint16_t emit_add(struct u8_arraylist * array, struct operand a, struct operand 
 }
 
 uint16_t emit_mov(struct u8_arraylist * array, struct operand a, struct operand b) {
-    if(a.type == REGISTER_OPERAND && b.type == REGISTER_OPERAND){
-        return emit_register_to_register_mov(array, a, b);
+    if(a.type == REGISTER_OPERAND && b.type == REGISTER_OPERAND) {
+        return emit_register_to_register_mov(array, a, b); //mov a, b
     } else if(a.type == REGISTER_OPERAND && b.type == IMMEDIATE_OPERAND){
-        return emit_immediate_to_register_mov(array, a, b);
+        return emit_immediate_to_register_mov(array, a, b); //mov a, immediate b
+    } else if(a.type == REGISTER_OPERAND && b.type == REGISTER_DISP_OPERAND) {
+        return emit_register_disp_to_register_mov(array, a, b); //mov a, displacement b
+    } else if(a.type == REGISTER_DISP_OPERAND && b.type == REGISTER_OPERAND){
+        return emit_register_to_disp_register_move(array, a, b); //mov displacement a, b
     }
 
     return -1;
@@ -230,7 +244,7 @@ static uint16_t emit_register_immediate_imul(struct u8_arraylist * array, struct
     uint16_t index = append_u8_arraylist(array, prefix);
     append_u8_arraylist(array, opcode);
     append_u8_arraylist(array, mod_reg_rm);
-    emit_32_immediate_value(array, b.as.immediate);
+    emit_dword_immediate_value(array, b.as.immediate);
 
     return index;
 }
@@ -280,7 +294,7 @@ static uint16_t emit_register_immediate_binary_or(struct u8_arraylist * array, s
     uint16_t index = append_u8_arraylist(array, prefix);
     append_u8_arraylist(array, opcode);
     append_u8_arraylist(array, mode_reg_rm);
-    emit_32_immediate_value(array, b.as.immediate);
+    emit_dword_immediate_value(array, b.as.immediate);
 
     return index;
 }
@@ -301,7 +315,7 @@ static uint16_t emit_register_immediate_cmp(struct u8_arraylist * array, struct 
         append_u8_arraylist(array, mod_reg_rm);
     }
 
-    emit_32_immediate_value(array, b.as.immediate);
+    emit_dword_immediate_value(array, b.as.immediate);
 
     return index;
 }
@@ -353,7 +367,7 @@ static uint16_t emit_register_immediate_sub(struct u8_arraylist * array, struct 
         append_u8_arraylist(array, mod_reg_rm);
     }
 
-    emit_32_immediate_value(array, b.as.immediate);
+    emit_dword_immediate_value(array, b.as.immediate);
 
     return index;
 }
@@ -374,7 +388,7 @@ static uint16_t emit_register_immediate_add(struct u8_arraylist * array, struct 
         append_u8_arraylist(array, mod_reg_rm);
     }
 
-    emit_32_immediate_value(array, b.as.immediate);
+    emit_dword_immediate_value(array, b.as.immediate);
 
     return index;
 }
@@ -411,9 +425,9 @@ static uint16_t emit_immediate_to_register_mov(struct u8_arraylist * array, stru
     append_u8_arraylist(array, mod_reg_rm);
 
     if(is_immediate_64_bit){
-        emit_64_immediate_value(array, b.as.immediate);
+        emit_qword_immediate_value(array, b.as.immediate);
     } else {
-        emit_32_immediate_value(array, b.as.immediate);
+        emit_dword_immediate_value(array, b.as.immediate);
     }
 
     return index;
@@ -435,12 +449,49 @@ static uint16_t emit_register_to_register_mov(struct u8_arraylist * array, struc
     return index;
 }
 
+//mov [a +- 8], b
+static uint16_t emit_register_to_disp_register_move(struct u8_arraylist * array, struct operand a, struct operand b) {
+    return emit_mov_with_displacement(array, a, b, a.as.reg_disp.disp);
+}
+
+//mov a, [b +- 8]
+static uint16_t emit_register_disp_to_register_mov(struct u8_arraylist * array, struct operand a, struct operand b) {
+    return emit_mov_with_displacement(array, a, b, b.as.reg_disp.disp);
+}
+
+static uint16_t emit_mov_with_displacement(struct u8_arraylist * array, struct operand a, struct operand b, int disp) {
+    bool is_disp_byte_size = IS_BYTE_SIZE(disp);
+    bool is_a_reg = a.type == REGISTER_OPERAND;
+
+    register_t a_reg = is_a_reg ? a.as.reg : a.as.reg_disp.reg;
+    register_t b_reg = is_a_reg ? b.as.reg_disp.reg : b.as.reg;
+
+    uint16_t instruction_index = append_u8_arraylist(array, get_64_bit_binary_op_prefix(a, b)); //Prefix
+
+    append_u8_arraylist(array, is_a_reg ? 0x0b : 0x89); //Opcode
+
+    uint8_t mode = is_disp_byte_size ? BYTE_DISPLACEMENT_MODE : DWORD_DISPLACEMENT_MODE;
+    uint8_t reg = TO_32_BIT_REGISTER(a_reg) << 4;
+    uint8_t rm = TO_32_BIT_REGISTER(b_reg);
+    append_u8_arraylist(array, mode | reg | rm);
+
+    if(TO_32_BIT_REGISTER(b_reg) == RSP) {
+        append_u8_arraylist(array, 0x24);
+    }
+
+    is_disp_byte_size ?
+    append_u8_arraylist(array, disp) :
+    emit_dword_immediate_value(array, disp);
+
+    return instruction_index;
+}
+
 static uint8_t get_64_bit_binary_op_prefix(struct operand a, struct operand b) {
     uint8_t prefix = REX_PREFIX; // 0x48
     if(a.type == REGISTER_OPERAND && a.as.reg >= R8)
-        prefix |= FIRST_OPERAND_LARGE_REG_REX_PREFIX; //Final result: 0x4C
+        prefix |= FIRST_OPERAND_LARGE_REG_REX_PREFIX; //Final result: 0x4c
     if(b.type == REGISTER_OPERAND && b.as.reg >= R8)
-        prefix |= SECOND_OPERAND_LARGE_REG_REX_PREFIX; //Final result if prev condition false: 0x49, if true: 0x4D
+        prefix |= SECOND_OPERAND_LARGE_REG_REX_PREFIX; //Final result if prev condition false: 0x49, if true: 0x4d
 
     return prefix;
 }
@@ -449,22 +500,15 @@ static uint8_t get_16_bit_prefix() {
     return 0X0F;
 }
 
-/**
- * 0x000000FF
- *
- * 0xFF000000
- */
-
-static void emit_32_immediate_value(struct u8_arraylist * array, uint64_t immediate_value){
+static void emit_dword_immediate_value(struct u8_arraylist * array, uint64_t immediate_value){
     append_u8_arraylist(array, (immediate_value & 0xFF));
     append_u8_arraylist(array, ((immediate_value >> 8) & 0xFF));
     append_u8_arraylist(array, ((immediate_value >> 16) & 0xFF));
     append_u8_arraylist(array, ((immediate_value >> 24) & 0xFF));
-
 }
 
-static void emit_64_immediate_value(struct u8_arraylist * array, uint64_t immediate_value){
-    emit_32_immediate_value(array, immediate_value);
+static void emit_qword_immediate_value(struct u8_arraylist * array, uint64_t immediate_value){
+    emit_dword_immediate_value(array, immediate_value);
 
     append_u8_arraylist(array, ((immediate_value >> 32) & 0xFF));
     append_u8_arraylist(array, ((immediate_value >> 40) & 0xFF));
