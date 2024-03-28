@@ -49,7 +49,7 @@ typedef uint64_t lox_value_t;
 #define IS_BOOL(value) (((value) | 1) == TRUE_VALUE)
 #define TO_LOX_VALUE_BOOL(value) (value ? TRUE_VALUE : FALSE_VALUE)
 
-#define TO_LOX_VALUE_OBJECT(value) (FLOAT_SIGN_BIT | QUIET_FLOAT_NAN | (lox_value_t)value)
+#define TO_LOX_VALUE_OBJECT(value) (FLOAT_SIGN_BIT | QUIET_FLOAT_NAN | (lox_value_t) value)
 #define AS_OBJECT(value) ((struct object *) (uintptr_t)((value) & ~(FLOAT_SIGN_BIT | QUIET_FLOAT_NAN)))
 
 #define IS_OBJECT(value) (((value) & (QUIET_FLOAT_NAN | FLOAT_SIGN_BIT)) == (QUIET_FLOAT_NAN | FLOAT_SIGN_BIT))

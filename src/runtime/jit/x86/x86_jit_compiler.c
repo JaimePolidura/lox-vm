@@ -35,12 +35,13 @@ static void print(struct jit_compiler * jit_compiler);
 static void pop(struct jit_compiler * jit_compiler);
 static void get_local(struct jit_compiler * jit_compiler);
 static void set_local(struct jit_compiler * jit_compiler);
+static void not(struct jit_compiler * jit_compiler);
 
 static void record_pending_jump_to_patch(struct jit_compiler * jit_compiler, uint16_t jump_instruction_index, uint16_t bytecode_offset);
 static void record_compiled_bytecode(struct jit_compiler * jit_compiler, uint16_t native_compiled_index, int bytecode_instruction_length);
 static void set_al_with_cmp_result(struct jit_compiler * jit_compiler, op_code comparation_opcode);
 static void number_const(struct jit_compiler * jit_compiler, int value, int instruction_length);
-static void cast_to_lox_boolean(struct jit_compiler * jit_compiler);
+static void cast_to_lox_boolean(struct jit_compiler * jit_compiler, register_t register_boolean_value);
 static void check_pending_jumps_to_patch(struct jit_compiler * jit_compiler, int bytecode_instruction_length);
 
 jit_compiled jit_compile(struct function_object * function) {
@@ -72,6 +73,7 @@ jit_compiled jit_compile(struct function_object * function) {
             case OP_JUMP_IF_FALSE: jump_if_false(&jit_compiler, READ_U16(&jit_compiler));
             case OP_JUMP: jump(&jit_compiler, READ_U16(&jit_compiler));
             case OP_LOOP: loop(&jit_compiler, READ_U16(&jit_compiler)); break;
+            case OP_NOT: not(&jit_compiler);
             case OP_EOF: finish_compilation_flag = true; break;
         }
 
@@ -83,6 +85,23 @@ jit_compiled jit_compile(struct function_object * function) {
     return NULL;
 }
 
+//True value:  0x7ffc000000000003
+//False value: 0x7ffc000000000002
+//value1 = value0 + ((TRUE - value0) + (FALSE - value0))
+//value1 = - value0 + TRUE + FALSE
+//value1 = (TRUE - value) + FALSE
+//value1 = value0 + d1 + d2
+static void not(struct jit_compiler * jit_compiler) {
+    register_t value_to_negate = pop_register_allocator(&jit_compiler->register_allocator);
+
+    emit_sub(&jit_compiler->native_compiled_code, REGISTER_TO_OPERAND(value_to_negate), IMMEDIATE_TO_OPERAND(TRUE_VALUE));
+    emit_add(&jit_compiler->native_compiled_code, REGISTER_TO_OPERAND(value_to_negate), IMMEDIATE_TO_OPERAND(FALSE_VALUE));
+
+    push_register_allocator(&jit_compiler->register_allocator);
+
+    record_compiled_bytecode(jit_compiler, jit_compiler->native_compiled_code.in_use - 2, OP_NOT_LENGTH);
+}
+
 static void set_local(struct jit_compiler * jit_compiler) {
     uint8_t slot = READ_BYTECODE(jit_compiler);
 
@@ -92,7 +111,7 @@ static void set_local(struct jit_compiler * jit_compiler) {
         emit_sub(&jit_compiler->native_compiled_code, IMMEDIATE_TO_OPERAND(stack_grow), RSP_OPERAND);
     }
 
-    register_t register_local_value = pop_register(&jit_compiler->register_allocator);
+    register_t register_local_value = pop_register_allocator(&jit_compiler->register_allocator);
     int offset_local_from_rbp = slot * sizeof(lox_value_t);
 
     uint16_t instruction_index = emit_mov(&jit_compiler->native_compiled_code,
@@ -105,7 +124,7 @@ static void set_local(struct jit_compiler * jit_compiler) {
 static void get_local(struct jit_compiler * jit_compiler) {
     uint8_t slot = READ_BYTECODE(jit_compiler);
 
-    register_t register_to_save_local = push_register(&jit_compiler->register_allocator);
+    register_t register_to_save_local = push_register_allocator(&jit_compiler->register_allocator);
     int offset_local_from_rbp = slot * sizeof(lox_value_t);
 
     uint16_t instruction_index = emit_mov(&jit_compiler->native_compiled_code,
@@ -116,7 +135,7 @@ static void get_local(struct jit_compiler * jit_compiler) {
 }
 
 static void print(struct jit_compiler * jit_compiler) {
-    register_t to_print_register_arg = pop_register(&jit_compiler->register_allocator);
+    register_t to_print_register_arg = pop_register_allocator(&jit_compiler->register_allocator);
 
     uint16_t instruction_index = call_external_c_function(
             &jit_compiler->native_compiled_code,
@@ -128,7 +147,7 @@ static void print(struct jit_compiler * jit_compiler) {
 }
 
 static void jump_if_false(struct jit_compiler * jit_compiler, uint16_t jump_offset) {
-    register_t lox_boolean_register = pop_register(&jit_compiler->register_allocator);
+    register_t lox_boolean_register = pop_register_allocator(&jit_compiler->register_allocator);
 
     uint16_t cmp_index = emit_cmp(&jit_compiler->native_compiled_code,
                                   REGISTER_TO_OPERAND(lox_boolean_register),
@@ -147,7 +166,7 @@ static void jump(struct jit_compiler * jit_compiler, uint16_t offset) {
 }
 
 static void pop(struct jit_compiler * jit_compiler) {
-    pop_register(&jit_compiler->register_allocator);
+    pop_register_allocator(&jit_compiler->register_allocator);
     record_compiled_bytecode(jit_compiler, -1, OP_POP_LENGTH);
 }
 
@@ -168,7 +187,7 @@ static void loop(struct jit_compiler * jit_compiler, uint16_t bytecode_backward_
 static void constant(struct jit_compiler * jit_compiler) {
     lox_value_t constant = READ_CONSTANT(jit_compiler);
 
-    register_t register_to_store_constant = push_register(&jit_compiler->register_allocator);
+    register_t register_to_store_constant = push_register_allocator(&jit_compiler->register_allocator);
 
     uint16_t mov_index = emit_mov(&jit_compiler->native_compiled_code,
                                   REGISTER_TO_OPERAND(register_to_store_constant),
@@ -178,8 +197,8 @@ static void constant(struct jit_compiler * jit_compiler) {
 }
 
 static void division(struct jit_compiler * jit_compiler) {
-    register_t b = pop_register(&jit_compiler->register_allocator);
-    register_t a = pop_register(&jit_compiler->register_allocator);
+    register_t b = pop_register_allocator(&jit_compiler->register_allocator);
+    register_t a = pop_register_allocator(&jit_compiler->register_allocator);
 
     uint16_t mov_index = emit_mov(&jit_compiler->native_compiled_code,
                                   RAX_OPERAND,
@@ -187,7 +206,7 @@ static void division(struct jit_compiler * jit_compiler) {
 
     emit_idiv(&jit_compiler->native_compiled_code, REGISTER_TO_OPERAND(a));
 
-    register_t result_register = push_register(&jit_compiler->register_allocator);
+    register_t result_register = push_register_allocator(&jit_compiler->register_allocator);
 
     emit_mov(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(result_register),
@@ -197,35 +216,38 @@ static void division(struct jit_compiler * jit_compiler) {
 }
 
 static void multiplication(struct jit_compiler * jit_compiler) {
-    register_t b = pop_register(&jit_compiler->register_allocator);
-    register_t a = pop_register(&jit_compiler->register_allocator);
+    register_t b = pop_register_allocator(&jit_compiler->register_allocator);
+    register_t a = pop_register_allocator(&jit_compiler->register_allocator);
 
     uint16_t native_offset = emit_imul(&jit_compiler->native_compiled_code,
                                        REGISTER_TO_OPERAND(a),
                                        REGISTER_TO_OPERAND(b));
 
-    push_register(&jit_compiler->register_allocator);
+    push_register_allocator(&jit_compiler->register_allocator);
 
     record_compiled_bytecode(jit_compiler, native_offset, OP_MUL_LENGTH);
 }
 
 static void negate(struct jit_compiler * jit_compiler) {
-    register_t register_to_negate = pop_register(&jit_compiler->register_allocator);
+    register_t register_to_negate = pop_register_allocator(&jit_compiler->register_allocator);
     uint16_t native_index = emit_neg(&jit_compiler->native_compiled_code, REGISTER_TO_OPERAND(register_to_negate));
-    push_register(&jit_compiler->register_allocator);
+    push_register_allocator(&jit_compiler->register_allocator);
 
     record_compiled_bytecode(jit_compiler, native_index, OP_NEGATE_LENGTH);
 }
 
 static void comparation(struct jit_compiler * jit_compiler, op_code comparation_opcode, int bytecode_instruction_length) {
-    register_t b = pop_register(&jit_compiler->register_allocator);
-    register_t a = pop_register(&jit_compiler->register_allocator);
+    register_t b = pop_register_allocator(&jit_compiler->register_allocator);
+    register_t a = pop_register_allocator(&jit_compiler->register_allocator);
     uint16_t native_offset = emit_cmp(&jit_compiler->native_compiled_code, REGISTER_TO_OPERAND(a), REGISTER_TO_OPERAND(b));
 
     uint8_t next_bytecode = *(jit_compiler->pc + 1);
     if(next_bytecode != OP_JUMP_IF_FALSE && next_bytecode != OP_LOOP){
         set_al_with_cmp_result(jit_compiler, comparation_opcode);
-        cast_to_lox_boolean(jit_compiler);
+
+        register_t register_casted_value = push_register_allocator(&jit_compiler->register_allocator);
+
+        cast_to_lox_boolean(jit_compiler, register_casted_value);
     }
 
     record_compiled_bytecode(jit_compiler, native_offset, bytecode_instruction_length);
@@ -240,9 +262,7 @@ static void set_al_with_cmp_result(struct jit_compiler * jit_compiler, op_code c
     }
 }
 
-static void cast_to_lox_boolean(struct jit_compiler * jit_compiler) {
-    register_t register_casted_value = push_register(&jit_compiler->register_allocator);
-
+static void cast_to_lox_boolean(struct jit_compiler * jit_compiler, register_t register_casted_value) {
     //If true register_casted_value will hold 1, if false it will hold 0
     emit_al_movzx(&jit_compiler->native_compiled_code, REGISTER_TO_OPERAND(register_casted_value));
 
@@ -258,7 +278,7 @@ static void cast_to_lox_boolean(struct jit_compiler * jit_compiler) {
 }
 
 static void lox_value(struct jit_compiler * jit_compiler, lox_value_t value, int bytecode_instruction_length) {
-    register_t reg = push_register(&jit_compiler->register_allocator);
+    register_t reg = push_register_allocator(&jit_compiler->register_allocator);
     uint16_t mov_index = emit_mov(&jit_compiler->native_compiled_code,
                                   REGISTER_TO_OPERAND(reg),
                                   IMMEDIATE_TO_OPERAND(value));
@@ -267,7 +287,7 @@ static void lox_value(struct jit_compiler * jit_compiler, lox_value_t value, int
 }
 
 static void number_const(struct jit_compiler * jit_compiler, int value, int instruction_length) {
-    register_t reg = push_register(&jit_compiler->register_allocator);
+    register_t reg = push_register_allocator(&jit_compiler->register_allocator);
     uint16_t mov_index = emit_mov(&jit_compiler->native_compiled_code,
                                   REGISTER_TO_OPERAND(reg),
                                   IMMEDIATE_TO_OPERAND(value));
@@ -276,26 +296,26 @@ static void number_const(struct jit_compiler * jit_compiler, int value, int inst
 }
 
 static void sub(struct jit_compiler * jit_compiler) {
-    register_t operandB = pop_register(&jit_compiler->register_allocator);
-    register_t operandA = pop_register(&jit_compiler->register_allocator);
+    register_t operandB = pop_register_allocator(&jit_compiler->register_allocator);
+    register_t operandA = pop_register_allocator(&jit_compiler->register_allocator);
 
     uint16_t sub_index = emit_sub(&jit_compiler->native_compiled_code,
                                   REGISTER_TO_OPERAND(operandA),
                                   REGISTER_TO_OPERAND(operandB));
-    push_register(&jit_compiler->register_allocator);
+    push_register_allocator(&jit_compiler->register_allocator);
 
     record_compiled_bytecode(jit_compiler, sub_index, OP_SUB_LENGTH);
 }
 
 static void add(struct jit_compiler * jit_compiler) {
-    register_t operandB = pop_register(&jit_compiler->register_allocator);
-    register_t operandA = pop_register(&jit_compiler->register_allocator);
+    register_t operandB = pop_register_allocator(&jit_compiler->register_allocator);
+    register_t operandA = pop_register_allocator(&jit_compiler->register_allocator);
 
     uint16_t add_index = emit_add(&jit_compiler->native_compiled_code,
                                   REGISTER_TO_OPERAND(operandA),
                                   REGISTER_TO_OPERAND(operandB));
 
-    push_register(&jit_compiler->register_allocator);
+    push_register_allocator(&jit_compiler->register_allocator);
 
     record_compiled_bytecode(jit_compiler, add_index, OP_ADD_LENGTH);
 }
