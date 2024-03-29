@@ -1,3 +1,5 @@
+#pragma once
+
 #include "shared/utils/utils.h"
 
 #include "test.h"

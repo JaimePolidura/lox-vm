@@ -43,8 +43,9 @@ static void set_al_with_cmp_result(struct jit_compiler * jit_compiler, op_code c
 static void number_const(struct jit_compiler * jit_compiler, int value, int instruction_length);
 static void cast_to_lox_boolean(struct jit_compiler * jit_compiler, register_t register_boolean_value);
 static void check_pending_jumps_to_patch(struct jit_compiler * jit_compiler, int bytecode_instruction_length);
+static void free_jit_compiler(struct jit_compiler * jit_compiler);
 
-jit_compiled jit_compile(struct function_object * function) {
+struct jit_compilation_result jit_compile(struct function_object * function) {
     struct jit_compiler jit_compiler = init_jit_compiler(function);
     bool finish_compilation_flag = false;
 
@@ -75,6 +76,7 @@ jit_compiled jit_compile(struct function_object * function) {
             case OP_LOOP: loop(&jit_compiler, READ_U16(&jit_compiler)); break;
             case OP_NOT: not(&jit_compiler);
             case OP_EOF: finish_compilation_flag = true; break;
+            case OP_NO_OP: break;
         }
 
         if(finish_compilation_flag){
@@ -82,7 +84,12 @@ jit_compiled jit_compile(struct function_object * function) {
         }
     }
 
-    return NULL;
+    free_jit_compiler(&jit_compiler);
+
+    return (struct jit_compilation_result) {
+            .compiled_code = jit_compiler.native_compiled_code,
+            .success = true,
+    };
 }
 
 //True value:  0x7ffc000000000003
@@ -380,4 +387,14 @@ static void check_pending_jumps_to_patch(struct jit_compiler * jit_compiler, int
         jit_compiler->pending_jumps_to_patch[current_bytecode_index] = NULL;
         free(pending_jumps);
     }
+}
+
+static void free_jit_compiler(struct jit_compiler * jit_compiler) {
+    for(int i = 0; i < jit_compiler->function_to_compile->chunk.in_use; i++){
+        if(jit_compiler->pending_jumps_to_patch[i] != NULL){
+            free(jit_compiler->pending_jumps_to_patch[i]);
+        }
+    }
+    free(jit_compiler->pending_jumps_to_patch);
+    free(jit_compiler->compiled_bytecode_to_native_by_index);
 }

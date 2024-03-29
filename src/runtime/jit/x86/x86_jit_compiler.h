@@ -2,6 +2,7 @@
 
 #include "runtime/jit/x86/register_allocator.h"
 #include "runtime/jit/x86/pending_path_jump.h"
+#include "runtime/jit/jit_compilation_result.h"
 #include "runtime/jit/x86/function_calls.h"
 #include "runtime/jit/x86/registers.h"
 #include "runtime/jit/x86/opcodes.h"
@@ -38,7 +39,7 @@ struct jit_compiler {
     struct u8_arraylist native_compiled_code;
 };
 
-jit_compiled jit_compile(struct function_object * function);
+struct jit_compilation_result jit_compile(struct function_object * function);
 
 struct cpu_regs_state save_cpu_state();
 void restore_cpu_state(struct cpu_regs_state * regs);

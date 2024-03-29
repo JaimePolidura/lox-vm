@@ -42,8 +42,9 @@ typedef enum {
     OP_SET_ARRAY_ELEMENT, // Index: 35
     OP_FAST_CONST_8,      // Index: 36
     OP_FAST_CONST_16,     // Index: 37
-    OP_CONST_1,            // Index: 38
-    OP_CONST_2            // Index: 38
+    OP_CONST_1,           // Index: 38
+    OP_CONST_2,           // Index: 38
+    OP_NO_OP              // Index: 39
 } op_code;
 
 #define OP_CONSTANT_LENGTH 2

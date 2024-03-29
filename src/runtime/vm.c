@@ -182,6 +182,7 @@ static interpret_result_t run() {
             case OP_CONST_1: push_stack_vm(TO_LOX_VALUE_NUMBER(1)); break;
             case OP_CONST_2: push_stack_vm(TO_LOX_VALUE_NUMBER(2)); break;
             case OP_EOF: return INTERPRET_OK;
+            case OP_NO_OP: break;
             default:
                 perror("Unhandled bytecode op\n");
                 return INTERPRET_RUNTIME_ERROR;
