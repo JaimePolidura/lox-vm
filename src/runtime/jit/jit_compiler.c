@@ -20,11 +20,5 @@ void try_jit_compile(struct function_object * function) {
 }
 
 void run_jit_compiled(struct function_object * function) {
-    struct cpu_regs_state cpu_state = save_cpu_state();
-
     function->jit_info.compiled_jit();
-
-    //TODO Save return address
-
-    restore_cpu_state(&cpu_state);
 }

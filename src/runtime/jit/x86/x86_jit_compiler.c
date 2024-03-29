@@ -56,7 +56,7 @@ struct jit_compilation_result jit_compile(struct function_object * function) {
             case OP_CONSTANT: constant(&jit_compiler); break;
             case OP_FAST_CONST_8: number_const(&jit_compiler, READ_BYTECODE(&jit_compiler), OP_FAST_CONST_8_LENGTH); break;
             case OP_FAST_CONST_16: number_const(&jit_compiler, READ_U16(&jit_compiler), OP_FAST_CONST_16_LENGTH); break;
-            case OP_PRINT: print(&jit_compiler);
+            case OP_PRINT: print(&jit_compiler);  break;
             case OP_ADD: add(&jit_compiler); break;
             case OP_SUB: sub(&jit_compiler); break;
             case OP_NEGATE: negate(&jit_compiler); break;
@@ -71,12 +71,13 @@ struct jit_compilation_result jit_compile(struct function_object * function) {
             case OP_SET_LOCAL: set_local(&jit_compiler); break;
             case OP_MUL: multiplication(&jit_compiler); break;
             case OP_DIV: division(&jit_compiler); break;
-            case OP_JUMP_IF_FALSE: jump_if_false(&jit_compiler, READ_U16(&jit_compiler));
-            case OP_JUMP: jump(&jit_compiler, READ_U16(&jit_compiler));
+            case OP_JUMP_IF_FALSE: jump_if_false(&jit_compiler, READ_U16(&jit_compiler)); break;
+            case OP_JUMP: jump(&jit_compiler, READ_U16(&jit_compiler)); break;
             case OP_LOOP: loop(&jit_compiler, READ_U16(&jit_compiler)); break;
-            case OP_NOT: not(&jit_compiler);
+            case OP_NOT: not(&jit_compiler); break;
             case OP_EOF: finish_compilation_flag = true; break;
             case OP_NO_OP: break;
+            default:
         }
 
         if(finish_compilation_flag){

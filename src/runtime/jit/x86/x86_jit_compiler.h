@@ -1,4 +1,4 @@
-#pragma
+#pragma once
 
 #include "runtime/jit/x86/register_allocator.h"
 #include "runtime/jit/x86/pending_path_jump.h"
