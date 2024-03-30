@@ -3,6 +3,7 @@
 extern struct trie_list * compiled_packages;
 extern void check_gc_on_safe_point_alg();
 extern void print_lox_value(lox_value_t value);
+extern void runtime_panic(char * format, ...);
 
 __thread struct vm_thread * self_thread;
 const uint8_t eof = OP_EOF;
@@ -15,7 +16,6 @@ static double pop_and_check_number();
 static bool check_boolean();
 static interpret_result_t run();
 static void print_stack();
-static void runtime_error(char * format, ...);
 static lox_value_t values_equal(lox_value_t a, lox_value_t b);
 static inline lox_value_t peek(int index_from_top);
 static void adition();
@@ -110,7 +110,7 @@ static void * run_thread_entrypoint(void * thread_ptr) {
 
 static void terminate_self_thread() {
     if(some_child_thread_running(self_thread)) {
-        runtime_error("Cannot end execution while some child thread still running");
+        runtime_panic("Cannot end execution while some child thread still running");
     }
 
     self_thread->terminated_state = THREAD_TERMINATED_PENDING_GC;
@@ -221,9 +221,11 @@ static void enter_package() {
 
     switch (package->state) {
         case READY_TO_USE: break;
-        case INITIALIZING: runtime_error("Found cyclical dependency with package %s", package->name);
+        case INITIALIZING:
+            runtime_panic("Found cyclical dependency with package %s", package->name);
         case PENDING_INITIALIZATION: initialize_package(package); break;
-        default: runtime_error("Unexpected package state Found bug in VM with package %s", package->name);
+        default:
+            runtime_panic("Unexpected package state Found bug in VM with package %s", package->name);
     }
 
     pthread_mutex_unlock(&package->state_mutex);
@@ -255,7 +257,7 @@ static void initialize_package(struct package * package_to_initialize) {
     package_to_initialize->state = INITIALIZING;
 
     if(run() == INTERPRET_RUNTIME_ERROR) {
-        runtime_error("Error while interpreting package %s", package_to_initialize->name);
+        runtime_panic("Error while interpreting package %s", package_to_initialize->name);
     }
 
     package_to_initialize->state = READY_TO_USE;
@@ -330,7 +332,7 @@ static void get_global(struct call_frame * current_frame) {
     struct string_object * variable_name = AS_STRING_OBJECT(READ_CONSTANT(current_frame));
     lox_value_t variable_value;
     if(!get_hash_table(&self_thread->current_package->global_variables, variable_name, &variable_value)) {
-        runtime_error("Undefined variable %s.", variable_name->chars);
+        runtime_panic("Undefined variable %s.", variable_name->chars);
     }
 
     push_stack_vm(variable_value);
@@ -341,7 +343,7 @@ static void set_global(struct call_frame * current_frame) {
 
     //Assigment is an expression
     if(!put_if_present_hash_table(&self_thread->current_package->global_variables, variable_name, peek(0))) {
-        runtime_error("Cannot assign value to undeclared variable %s", variable_name->chars);
+        runtime_panic("Cannot assign value to undeclared variable %s", variable_name->chars);
     }
 }
 
@@ -365,7 +367,7 @@ static void call(struct call_frame * current_frame) {
     lox_value_t callee = peek(n_args);
 
     if(!IS_OBJECT(callee)){
-        runtime_error("Cannot call");
+        runtime_panic("Cannot call");
     }
 
     switch (AS_OBJECT(callee)->type) {
@@ -375,7 +377,7 @@ static void call(struct call_frame * current_frame) {
         }
         case OBJ_NATIVE: {
             if(is_parallel) {
-                runtime_error("Cannot call parallel in native functions");
+                runtime_panic("Cannot call parallel in native functions");
             }
 
             struct native_object * native_function_object = TO_NATIVE(callee);
@@ -388,7 +390,7 @@ static void call(struct call_frame * current_frame) {
             break;
         }
         default:
-            runtime_error("Cannot call");
+            runtime_panic("Cannot call");
     }
 
     thread_on_safe_point();
@@ -396,10 +398,11 @@ static void call(struct call_frame * current_frame) {
 
 static void call_function(struct function_object * function, int n_args, bool is_parallel) {
     if(n_args != function->n_arguments){
-        runtime_error("Cannot call %s with %i args. Required %i nº args", function->name->chars, n_args, function->n_arguments);
+        runtime_panic("Cannot call %s with %i args. Required %i nº args", function->name->chars, n_args,
+                      function->n_arguments);
     }
     if(self_thread->frames_in_use >= FRAME_MAX){
-        runtime_error("Stack overflow. Max allowed frames: %i", FRAME_MAX);
+        runtime_panic("Stack overflow. Max allowed frames: %i", FRAME_MAX);
     }
 
     if(increase_call_count_function(&function->jit_info)) {
@@ -464,7 +467,7 @@ static void get_array_element(struct call_frame * call_frame) {
     struct array_object * array = (struct array_object *) AS_OBJECT(pop_stack_vm());
 
     if(array_index >= array->values.in_use) {
-        runtime_error("Index out of bounds");
+        runtime_panic("Index out of bounds");
     }
 
     push_stack_vm(array->values.values[array_index]);
@@ -476,7 +479,7 @@ static void set_array_element(struct call_frame * call_frame) {
     lox_value_t new_value = pop_stack_vm();
 
     if(array_index >= array->values.in_use) {
-        runtime_error("Index out of bounds");
+        runtime_panic("Index out of bounds");
     }
 
     array->values.values[array_index] = new_value;
@@ -506,7 +509,7 @@ static void get_struct_field(struct call_frame * call_frame) {
 
     lox_value_t field_value;
     if(!get_hash_table(&instance->fields, field_name, &field_value)) {
-        runtime_error("Undefined field %s", field_name->chars);
+        runtime_panic("Undefined field %s", field_name->chars);
     }
 
     push_stack_vm(field_value);
@@ -518,7 +521,7 @@ static void set_struct_field(struct call_frame * call_frame) {
     struct string_object * field_name = (struct string_object *) AS_OBJECT(READ_CONSTANT(call_frame));
 
     if(!put_if_present_hash_table(&instance->fields, field_name, new_value)) {
-        runtime_error("Undefined field %s", field_name->chars);
+        runtime_panic("Undefined field %s", field_name->chars);
     }
 }
 
@@ -550,7 +553,7 @@ static double pop_and_check_number() {
         double d = AS_NUMBER(value);
         return d;
     } else {
-        runtime_error("Operand must be a number.");
+        runtime_panic("Operand must be a number.");
         return -1; //Unreachable
     }
 }
@@ -560,7 +563,7 @@ static bool check_boolean() {
     if(IS_BOOL(value)) {
         return AS_BOOL(value);
     } else {
-        runtime_error("Operand must be a boolean.");
+        runtime_panic("Operand must be a boolean.");
         return false; //Compiler doest warn me
     }
 }
@@ -580,7 +583,7 @@ static lox_value_t values_equal(lox_value_t a, lox_value_t b) {
         case VAL_OBJ: return TO_LOX_VALUE_BOOL(AS_STRING_OBJECT(a)->chars == AS_STRING_OBJECT(b)->chars);
         default:
             runtime_error("Operator '==' not supported for that type");
-            return TO_LOX_VALUE_BOOL(false); //Unreachable, runtime_error executes exit()
+            return TO_LOX_VALUE_BOOL(false); //Unreachable, runtime_panic executes exit()
     }
 #endif
 }
@@ -608,39 +611,6 @@ void start_vm() {
 void stop_vm() {
     free_trie_list(compiled_packages);
     clear_stack(&self_thread->package_stack);
-}
-
-static void runtime_error(char * format, ...) {
-    va_list args;
-    va_start(args, format);
-    vfprintf(stderr, format, args);
-    va_end(args);
-    fputs("\n", stderr);
-
-    struct call_frame * current_frame = get_current_frame();
-
-    size_t instruction = ((uint8_t *) current_frame->pc) - current_frame->function->chunk.code - 1;
-    int line = current_frame->function->chunk.lines[instruction];
-    fprintf(stderr, "[line %d] in script\n", line);
-    print_frame_stack_trace();
-
-    exit(1);
-}
-
-static void print_frame_stack_trace() {
-    for (int i = self_thread->frames_in_use - 1; i >= 0; i--) {
-        struct call_frame * frame = &self_thread->frames[i];
-        struct function_object * function = frame->function;
-
-        size_t instruction = frame->pc - function->chunk.code - 1;
-        fprintf(stderr, "[line %d] in ",
-                function->chunk.lines[instruction]);
-        if (function->name == NULL) {
-            fprintf(stderr, "script\n");
-        } else {
-            fprintf(stderr, "%s()\n", function->name->chars);
-        }
-    }
 }
 
 static void print_stack() {
@@ -749,7 +719,7 @@ static int add_child_to_parent_list(struct vm_thread * new_child_thread) {
         return index;
     }
 
-    runtime_error("Exceeded max number of child threads_race_conditions %i per thread", MAX_THREADS_PER_THREAD);
+    runtime_panic("Exceeded max number of child threads_race_conditions %i per thread", MAX_THREADS_PER_THREAD);
 
     return -1;
 }

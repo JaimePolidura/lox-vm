@@ -1,6 +1,7 @@
 #include "x86_jit_compiler.h"
 
 extern void print_lox_value(lox_value_t value);
+extern void runtime_panic(char * format, ...);
 
 struct cpu_regs_state save_cpu_state() {
     return (struct cpu_regs_state) {
@@ -56,7 +57,7 @@ struct jit_compilation_result jit_compile(struct function_object * function) {
             case OP_CONSTANT: constant(&jit_compiler); break;
             case OP_FAST_CONST_8: number_const(&jit_compiler, READ_BYTECODE(&jit_compiler), OP_FAST_CONST_8_LENGTH); break;
             case OP_FAST_CONST_16: number_const(&jit_compiler, READ_U16(&jit_compiler), OP_FAST_CONST_16_LENGTH); break;
-            case OP_PRINT: print(&jit_compiler);  break;
+            case OP_PRINT: print(&jit_compiler); break;
             case OP_ADD: add(&jit_compiler); break;
             case OP_SUB: sub(&jit_compiler); break;
             case OP_NEGATE: negate(&jit_compiler); break;
@@ -77,7 +78,7 @@ struct jit_compilation_result jit_compile(struct function_object * function) {
             case OP_NOT: not(&jit_compiler); break;
             case OP_EOF: finish_compilation_flag = true; break;
             case OP_NO_OP: break;
-            default:
+            default: runtime_panic("Unhandled bytecode to compile %u\n", *(--jit_compiler.pc));
         }
 
         if(finish_compilation_flag){
@@ -102,8 +103,13 @@ struct jit_compilation_result jit_compile(struct function_object * function) {
 static void not(struct jit_compiler * jit_compiler) {
     register_t value_to_negate = pop_register_allocator(&jit_compiler->register_allocator);
 
-    emit_sub(&jit_compiler->native_compiled_code, REGISTER_TO_OPERAND(value_to_negate), IMMEDIATE_TO_OPERAND(TRUE_VALUE));
-    emit_add(&jit_compiler->native_compiled_code, REGISTER_TO_OPERAND(value_to_negate), IMMEDIATE_TO_OPERAND(FALSE_VALUE));
+    emit_sub(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(value_to_negate),
+             IMMEDIATE_TO_OPERAND(TRUE_VALUE));
+
+    emit_add(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(value_to_negate),
+             IMMEDIATE_TO_OPERAND(FALSE_VALUE));
 
     push_register_allocator(&jit_compiler->register_allocator);
 

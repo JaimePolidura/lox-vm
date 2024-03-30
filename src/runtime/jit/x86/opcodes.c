@@ -412,7 +412,7 @@ static uint16_t emit_register_register_add(struct u8_arraylist * array, struct o
 static uint16_t emit_immediate_to_register_mov(struct u8_arraylist * array, struct operand a, struct operand b) {
     bool is_immediate_64_bit = (b.as.immediate & 0xFFFFFFFF00000000) != 0;
 
-    uint8_t prefix = get_64_bit_binary_op_prefix(a, b);
+    uint8_t prefix = a.as.reg >= R8 ? 0x49 : 0x48;
     uint8_t opcode = is_immediate_64_bit ? 0xBC : 0xC7;
 
     uint8_t mode = REGISTER_ADDRESSING_MODE;
