@@ -41,7 +41,7 @@
         } \
     }while(false); \
 
-#define ASSERT_BYTECODE_SEQ(actual, ...) \
+#define ASSERT_U8_SEQ(actual, ...) \
     do {                                 \
         n_assertions++; \
         uint8_t bytecode_expected[] = {__VA_ARGS__}; \

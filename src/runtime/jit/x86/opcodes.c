@@ -56,7 +56,7 @@ uint16_t emit_call(struct u8_arraylist * array, struct operand operand) {
     }
 
     append_u8_arraylist(array, 0xFF); //Opcode
-    append_u8_arraylist(array, 0xD0 + operand.as.reg); //Opcode
+    append_u8_arraylist(array, 0xD0 + TO_32_BIT_REGISTER(operand.as.reg)); //Opcode
 
     return instruction_index;
 }
@@ -373,8 +373,8 @@ static uint16_t emit_register_immediate_sub(struct u8_arraylist * array, struct 
 }
 
 static uint16_t emit_register_immediate_add(struct u8_arraylist * array, struct operand a, struct operand b) {
-    uint8_t prefix = get_64_bit_binary_op_prefix(a, b);
-    uint8_t opcode = a.as.reg == RAX && b.as.immediate >= 128 ? 0x05 : 0x81;
+    uint8_t prefix = a.as.reg >= R9 ? 0x49 : 0x48;
+    uint8_t opcode = b.as.immediate >= 128 ? (a.as.reg == RAX ? 0x05 : 0x81) : 0x83 ;
 
     uint16_t index = append_u8_arraylist(array, prefix);
     append_u8_arraylist(array, opcode);
@@ -412,17 +412,16 @@ static uint16_t emit_register_register_add(struct u8_arraylist * array, struct o
 static uint16_t emit_immediate_to_register_mov(struct u8_arraylist * array, struct operand a, struct operand b) {
     bool is_immediate_64_bit = (b.as.immediate & 0xFFFFFFFF00000000) != 0;
 
-    uint8_t prefix = a.as.reg >= R8 ? 0x49 : 0x48;
-    uint8_t opcode = is_immediate_64_bit ? 0xBC : 0xC7;
+    uint16_t index = append_u8_arraylist(array, a.as.reg >= R8 ? 0x49 : 0x48); //Prefix
+    append_u8_arraylist(array, is_immediate_64_bit ? (0xB8 + TO_32_BIT_REGISTER(a.as.reg)) : 0xC7); //Opcode
 
-    uint8_t mode = REGISTER_ADDRESSING_MODE;
-    uint8_t reg = 0;
-    uint8_t rm = TO_32_BIT_REGISTER(a.as.reg);
-    uint8_t mod_reg_rm = mode | reg | rm;
-
-    uint16_t index = append_u8_arraylist(array, prefix);
-    append_u8_arraylist(array, opcode);
-    append_u8_arraylist(array, mod_reg_rm);
+    if (!is_immediate_64_bit) {
+        uint8_t mode = REGISTER_ADDRESSING_MODE;
+        uint8_t reg = 0;
+        uint8_t rm = TO_32_BIT_REGISTER(a.as.reg);
+        uint8_t mod_reg_rm = mode | reg | rm;
+        append_u8_arraylist(array, mod_reg_rm);
+    }
 
     if(is_immediate_64_bit){
         emit_qword_immediate_value(array, b.as.immediate);

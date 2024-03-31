@@ -22,7 +22,8 @@ extern const char * compiling_base_dir;
 //Run in debug mode
 int main() {
 #ifdef JIT_X86_TEST
-    x86_jit_compiler_simple_expression_outer();
+    x86_jit_compiler_negation_outer();
+    //x86_jit_compiler_simple_expression_outer();
 #endif
 
 #ifdef RUN_PACKAGE_TEST

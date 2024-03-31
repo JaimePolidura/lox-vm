@@ -5,16 +5,31 @@
 
 static struct function_object * to_function(op_code first, ...);
 
-// 1 + 2 - 3
-TEST(x86_jit_compiler_simple_expression) {
-    //struct jit_compilation_result result = jit_compile(to_function(OP_CONST_1, OP_CONST_2, OP_ADD, OP_FAST_CONST_8, 3, OP_SUB, OP_EOF));
-
-    struct jit_compilation_result result = jit_compile(to_function(OP_CONST_1, OP_EOF));
+TEST(x86_jit_compiler_negation) {
+    struct jit_compilation_result result = jit_compile(to_function(OP_CONST_1, OP_CONST_2, OP_EQUAL,
+            OP_NEGATE, OP_NOT, OP_EOF));
 
     for(int i = 0; i < result.compiled_code.in_use; i++){
-        printf("%x", result.compiled_code.values[i]);
+        uint8_t a = result.compiled_code.values[i];
+
+        printf("%02X", result.compiled_code.values[i]);
     }
+
     puts("\n");
+}
+
+// 1 + 2 - 3
+TEST(x86_jit_compiler_simple_expression) {
+    struct jit_compilation_result result = jit_compile(to_function(OP_CONST_1, OP_CONST_2, OP_ADD,
+            OP_FAST_CONST_8, 3, OP_SUB, OP_PRINT, OP_EOF));
+
+    ASSERT_U8_SEQ(result.compiled_code.values,
+                  0x49, 0xc7, 0xc7, 0x01, 0x00, 0x00, 0x00, // mov $0x1, %r15
+                  0x49, 0xc7, 0xc6, 0x02, 0x00, 0x00, 0x00, // mov $0x2, %r14
+                  0x4d, 0x01, 0xfe, // add %r15, %r14
+                  0x49, 0xc7, 0xc6, 0x03, 0x00, 0x00, 0x00, // mov $0x3, %r14
+                  0x4d, 0x29, 0xfe, // sub %r15, %r14
+                  );
 }
 
 static struct function_object * to_function(op_code first, ...) {

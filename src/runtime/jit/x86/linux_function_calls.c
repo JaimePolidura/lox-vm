@@ -5,9 +5,14 @@ static void restore_caller_registers (
         int n_operands
 );
 
+static void load_arguments_into_registers(
+    struct u8_arraylist * native_code,
+    struct operand * arguments,
+    int n_operands
+);
+
 static void save_caller_registers (
     struct u8_arraylist * native_code,
-    struct operand * operands,
     int n_operands,
     uint64_t * function_ptr,
     uint16_t * instruction_index
@@ -32,7 +37,9 @@ uint16_t call_external_c_function(
     VARARGS_TO_ARRAY(struct operand, arguments, n_arguments, ...);
     uint16_t instruction_index = 0;
 
-    save_caller_registers(native_code, arguments, n_arguments, function_address, &instruction_index);
+    save_caller_registers(native_code, n_arguments, function_address, &instruction_index);
+
+    load_arguments_into_registers(native_code, arguments, n_arguments);
 
     emit_call(native_code, R9_OPERAND);
 
@@ -41,7 +48,18 @@ uint16_t call_external_c_function(
     return instruction_index;
 }
 
-static void save_caller_registers(struct u8_arraylist * native_code, struct operand * operands,
+static void load_arguments_into_registers(
+        struct u8_arraylist * native_code,
+        struct operand * arguments,
+        int n_operands
+) {
+    for(int i = 0; i < n_operands; i++){
+        register_t linux_argument_to_push = linux_args_call_convention[i];
+        emit_mov(native_code, REGISTER_TO_OPERAND(linux_argument_to_push), arguments[i]);
+    }
+}
+
+static void save_caller_registers(struct u8_arraylist * native_code,
         int n_operands, uint64_t * function_ptr, uint16_t * instruction_index) {
 
     *instruction_index = emit_push(native_code, R9_OPERAND);
@@ -57,10 +75,10 @@ static void restore_caller_registers(
         struct u8_arraylist * native_code,
         int n_operands
 ) {
-    emit_pop(native_code, R9_OPERAND);
-
     for(int i = n_operands - 1; i >= 0; i--){
         register_t linux_argument_to_pop = linux_args_call_convention[i];
         emit_pop(native_code, REGISTER_TO_OPERAND(linux_argument_to_pop));
     }
+
+    emit_pop(native_code, R9_OPERAND);
 }
