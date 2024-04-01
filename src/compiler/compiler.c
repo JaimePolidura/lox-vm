@@ -14,6 +14,7 @@ static void consume(struct compiler * compiler, tokenType_t expected_token_type,
 static void emit_bytecode(struct compiler * compiler, uint8_t bytecode);
 static void emit_bytecodes(struct compiler * compiler, uint8_t bytecodeA, uint8_t bytecodeB);
 static void emit_constant(struct compiler * compiler, lox_value_t value);
+static void emit_package_constant(struct compiler * compiler, lox_value_t value);
 static void expression(struct compiler * compiler);
 static void number(struct compiler * compiler, bool can_assign);
 static void grouping(struct compiler * compiler, bool can_assign);
@@ -731,8 +732,8 @@ static struct package * load_package(struct compiler * compiler) {
     if(package->state == PENDING_COMPILATION){
         compile_package(compiler, package);
     }
-    
-    emit_constant(compiler, to_lox_package(package));
+
+    emit_package_constant(compiler, to_lox_package(package));
 
     return package;
 }
@@ -795,7 +796,7 @@ static void named_variable(struct compiler * compiler,
     bool is_global = !is_local;
     bool is_set_op = can_assign && match(compiler, TOKEN_EQUAL);
     bool is_array = array_index.type != TOKEN_NO_TOKEN;
-    
+
     //When setting values of an array we don't use OP_SET_LOCAL/OP_SET_GLOBAL we use OP_SET_ARRAY_ELEMENT
     uint8_t op = is_set_op && !is_array ?
             (is_local ? OP_SET_LOCAL : OP_SET_GLOBAL) :
@@ -962,6 +963,13 @@ static void number(struct compiler * compiler, bool can_assign) {
         emit_bytecode(compiler, (value_as_16 >> 8) & 0xFF);
         emit_bytecode(compiler, value_as_16 & 0xFF);
     }
+}
+
+static void emit_package_constant(struct compiler * compiler, lox_value_t value) {
+    //TODO Perform content overflow check
+    int constant_offset = add_constant_to_chunk(current_chunk(compiler), value);
+    write_chunk(current_chunk(compiler), OP_PACKAGE_CONST, compiler->parser->previous.line);
+    write_chunk(current_chunk(compiler), constant_offset, compiler->parser->previous.line);
 }
 
 static void emit_constant(struct compiler * compiler, lox_value_t value) {

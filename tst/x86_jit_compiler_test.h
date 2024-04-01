@@ -1,7 +1,7 @@
 #pragma once
 
 #include "test.h"
-#include "runtime/jit/x86/x86_jit_compiler.h"
+#include "runtime/jit/x64/x64_jit_compiler.h"
 
 static struct function_object * to_function(op_code first, ...);
 

@@ -18,7 +18,7 @@ void * peek_stack_list(struct stack_list * stack) {
     return stack->head;
 }
 
-void clear_stack(struct stack_list * stack) {
+void free_stack_list(struct stack_list * stack) {
     struct stack_node * current_node = stack->head;
     while(current_node != NULL){
         struct stack_node * next_to_current = current_node->next;
@@ -33,11 +33,11 @@ void init_stack_list(struct stack_list * stack) {
     stack->head = NULL;
 }
 
-bool is_empty(struct stack_list * stack) {
+bool is_empty_stack_list(struct stack_list * stack) {
     return stack->head == NULL;
 }
 
-void push_stack(struct stack_list * stack, void * to_push) {
+void push_stack_list(struct stack_list * stack, void * to_push) {
     struct stack_node * new_node = alloc_stack_node();
     struct stack_node * prev_node = stack->head;
 
@@ -50,7 +50,7 @@ void push_stack(struct stack_list * stack, void * to_push) {
     stack->head = new_node;
 }
 
-void * pop_stack(struct stack_list * stack) {
+void * pop_stack_list(struct stack_list * stack) {
     if(stack->head == NULL) { //Always return NULL in case the stack is emtpy
         return NULL;
     }

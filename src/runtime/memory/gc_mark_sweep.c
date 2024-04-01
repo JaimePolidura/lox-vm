@@ -148,8 +148,8 @@ static void mark_stack(struct stack_list * terminated_threads) {
 }
 
 static void remove_terminated_threads(struct stack_list * terminated_threads) {
-    while(!is_empty(terminated_threads)){
-        struct vm_thread * terminated_thread = pop_stack(terminated_threads);
+    while(!is_empty_stack_list(terminated_threads)){
+        struct vm_thread * terminated_thread = pop_stack_list(terminated_threads);
 
         free_vm_thread(terminated_thread);
         terminated_thread->terminated_state = THREAD_TERMINATED_GC_DONE;
@@ -160,7 +160,7 @@ static void mark_thread_stack(struct vm_thread * parent, struct vm_thread * chil
     if(child->state == THREAD_TERMINATED && child->terminated_state == THREAD_TERMINATED_PENDING_GC) {
         struct stack_list * terminated_threads = terminated_threads_ptr;
 
-        push_stack(terminated_threads, child);
+        push_stack_list(terminated_threads, child);
     } else {
         for(lox_value_t * value = child->stack; value < child->esp; value++) {
             mark_value(value);

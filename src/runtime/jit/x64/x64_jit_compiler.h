@@ -1,13 +1,13 @@
 #pragma once
 
-#include "runtime/jit/x86/register_allocator.h"
-#include "runtime/jit/x86/pending_path_jump.h"
+#include "runtime/jit/x64/register_allocator.h"
+#include "runtime/jit/x64/pending_path_jump.h"
 #include "runtime/jit/jit_compilation_result.h"
-#include "runtime/jit/x86/function_calls.h"
-#include "runtime/jit/x86/registers.h"
+#include "runtime/jit/x64/function_calls.h"
+#include "runtime/jit/x64/registers.h"
 #include "runtime/threads/vm_thread.h"
-#include "runtime/jit/x86/opcodes.h"
-#include "runtime/jit/x86/stack.h"
+#include "runtime/jit/x64/opcodes.h"
+#include "runtime/jit/x64/x64_stack.h"
 
 #include "shared/utils/collections/u8_arraylist.h"
 #include "shared/utils/collections/stack_list.h"
@@ -29,6 +29,7 @@ struct jit_compiler {
 
     //Mapping of bytecode instructions to its compiled instructions index stored in native_compiled_code
     //This is used for knowing the relative offset when emitting assembly backward jumps
+    //If value is -1, the native index will be in the next slot
     uint16_t * compiled_bytecode_to_native_by_index;
 
     //Mapping of bytecode instructions to pending_path_jump, which will allow us to know if there is some
@@ -36,7 +37,7 @@ struct jit_compiler {
     struct pending_path_jump ** pending_jumps_to_patch;
 
     //Keep tracks of the last local slot allocated. Locals will be stored in the stack
-    uint8_t last_local_count_slot;
+    uint8_t last_stack_slot_allocated;
 
     struct register_allocator register_allocator;
     

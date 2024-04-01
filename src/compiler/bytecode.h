@@ -44,7 +44,8 @@ typedef enum {
     OP_FAST_CONST_16,     // Index: 37
     OP_CONST_1,           // Index: 38
     OP_CONST_2,           // Index: 38
-    OP_NO_OP              // Index: 39
+    OP_NO_OP,             // Index: 39
+    OP_PACKAGE_CONST      // Index: 40. Works the same way as OP_CONST when the const is a package. This is used in jit_compiler to simplify design when deailing with multiple packas
 } op_code;
 
 #define OP_CONSTANT_LENGTH 2
@@ -87,3 +88,4 @@ typedef enum {
 #define OP_FAST_CONST_16_LENGTH 3
 #define OP_CONST_1_LENGTH 1
 #define OP_CONST_2_LENGTH 1
+#define OP_PACKAGE_CONST_LENGTH 3

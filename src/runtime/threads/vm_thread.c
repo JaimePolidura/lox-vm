@@ -31,14 +31,14 @@ void free_vm_thread(struct vm_thread * vm_thread) {
 void for_each_thread(struct vm_thread * start_thread, thread_consumer_t callback, void * extra, long options) {
     struct stack_list pending;
     init_stack_list(&pending);
-    push_stack(&pending, start_thread);
+    push_stack_list(&pending, start_thread);
 
     if(!(options & THREADS_OPT_EXCLUSIVE)){
         callback(NULL, start_thread, 0, extra);
     }
 
-    while(!is_empty(&pending)) {
-        struct vm_thread * current = pop_stack(&pending);
+    while(!is_empty_stack_list(&pending)) {
+        struct vm_thread * current = pop_stack_list(&pending);
 
         for(int i = 0; i < MAX_THREADS_PER_THREAD; i++) {
             struct vm_thread * child_of_current = current->children[i];
@@ -50,7 +50,7 @@ void for_each_thread(struct vm_thread * start_thread, thread_consumer_t callback
                 callback(current, child_of_current, i, extra);
 
                 if(!(options & THREADS_OPT_NOT_RECURSIVE)){
-                    push_stack(&pending, child_of_current);
+                    push_stack_list(&pending, child_of_current);
                 }
             }
         }

@@ -1,8 +1,14 @@
-#include "x86_jit_compiler.h"
+#include "x64_jit_compiler.h"
 
 extern bool get_hash_table(struct lox_hash_table * table, struct string_object * key, lox_value_t *value);
+extern bool put_hash_table(struct lox_hash_table * table, struct string_object * key, lox_value_t value);
+
 extern void print_lox_value(lox_value_t value);
 extern void runtime_panic(char * format, ...);
+
+//Used by jit_compiler::compiled_bytecode_to_native_by_index Some instruction are not compiled to native code, but some jumps bytecode offset
+//will be pointing to that instructions. If in a slot is -1, the native offset will be in the next slot
+#define NATIVE_INDEX_IN_NEXT_SLOT 0xFFFF
 
 extern __thread struct vm_thread * self_thread;
 
@@ -42,8 +48,10 @@ static void set_local(struct jit_compiler * jit_compiler);
 static void not(struct jit_compiler * jit_compiler);
 static void enter_package(struct jit_compiler * jit_compiler);
 static void exit_package(struct jit_compiler * jit_compiler);
-
 static void get_global(struct jit_compiler * jit_compiler);
+static void set_global(struct jit_compiler * jit_compiler);
+static void define_global(struct jit_compiler * jit_compiler);
+static void package_const(struct jit_compiler * jit_compiler);
 
 static void record_pending_jump_to_patch(struct jit_compiler * jit_compiler, uint16_t jump_instruction_index, uint16_t bytecode_offset);
 static void record_compiled_bytecode(struct jit_compiler * jit_compiler, uint16_t native_compiled_index, int bytecode_instruction_length);
@@ -58,7 +66,7 @@ struct jit_compilation_result jit_compile(struct function_object * function) {
     bool finish_compilation_flag = false;
 
     prepare_x64_stack(&jit_compiler.native_compiled_code);
-    push_stack(&jit_compiler.package_stack, self_thread->current_package);
+    push_stack_list(&jit_compiler.package_stack, self_thread->current_package);
 
     for(;;) {
         switch (READ_BYTECODE(&jit_compiler)) {
@@ -88,8 +96,11 @@ struct jit_compilation_result jit_compile(struct function_object * function) {
             case OP_NOT: not(&jit_compiler); break;
             case OP_EOF: finish_compilation_flag = true; break;
             case OP_GET_GLOBAL: get_global(&jit_compiler); break;
+            case OP_SET_GLOBAL: set_global(&jit_compiler); break;
+            case OP_DEFINE_GLOBAL: define_global(&jit_compiler); break;
             case OP_ENTER_PACKAGE: enter_package(&jit_compiler); break;
-            case OP_ENTER_PACKAGE: exit_package(&jit_compiler); break;
+            case OP_EXIT_PACKAGE: exit_package(&jit_compiler); break;
+            case OP_PACKAGE_CONST: package_const(&jit_compiler); break;
             case OP_NO_OP: break;
             default: runtime_panic("Unhandled bytecode to compile %u\n", *(--jit_compiler.pc));
         }
@@ -109,36 +120,79 @@ struct jit_compilation_result jit_compile(struct function_object * function) {
     };
 }
 
-static void enter_package(struct jit_compiler * jit_compiler) {
+static void package_const(struct jit_compiler * jit_compiler) {
+    lox_value_t package_object = READ_CONSTANT(jit_compiler);
+    struct package * package = ((struct package_object *) AS_OBJECT(package_object))->package;
 
+    push_stack_list(&jit_compiler->package_stack, package);
+
+    record_compiled_bytecode(jit_compiler, NATIVE_INDEX_IN_NEXT_SLOT, OP_PACKAGE_CONST_LENGTH);
+}
+
+static void define_global(struct jit_compiler * jit_compiler) {
+    struct string_object * global_name = AS_STRING_OBJECT(READ_CONSTANT(jit_compiler));
+    struct package * current_package = peek_stack_list(&jit_compiler->package_stack);
+
+    register_t new_global_value = peek_register_allocator(&jit_compiler->register_allocator);
+
+    uint16_t instruction_index = call_external_c_function(
+            &jit_compiler->native_compiled_code,
+            (uint64_t *) &put_hash_table,
+            3,
+            IMMEDIATE_TO_OPERAND((uint64_t) &current_package->global_variables),
+            IMMEDIATE_TO_OPERAND((uint64_t) global_name),
+            REGISTER_TO_OPERAND(new_global_value)
+    );
+
+    record_compiled_bytecode(jit_compiler, instruction_index, OP_DEFINE_GLOBAL_LENGTH);
+}
+
+static void enter_package(struct jit_compiler * jit_compiler) {
+    record_compiled_bytecode(jit_compiler, NATIVE_INDEX_IN_NEXT_SLOT, OP_ENTER_PACKAGE_LENGTH);
 }
 
 static void exit_package(struct jit_compiler * jit_compiler) {
+    pop_stack_list(&jit_compiler->package_stack);
+    record_compiled_bytecode(jit_compiler, NATIVE_INDEX_IN_NEXT_SLOT, OP_EXIT_PACKAGE_LENGTH);
+}
 
+static void set_global(struct jit_compiler * jit_compiler) {
+    struct string_object * global_name = AS_STRING_OBJECT(READ_CONSTANT(jit_compiler));
+    struct package * current_package = peek_stack_list(&jit_compiler->package_stack);
+
+    register_t new_global_value = peek_register_allocator(&jit_compiler->register_allocator);
+
+    uint16_t instruction_index = call_external_c_function(
+            &jit_compiler->native_compiled_code,
+            (uint64_t *) &put_hash_table,
+            3,
+            IMMEDIATE_TO_OPERAND((uint64_t) &current_package->global_variables),
+            IMMEDIATE_TO_OPERAND((uint64_t) global_name),
+            REGISTER_TO_OPERAND(new_global_value)
+    );
+
+    record_compiled_bytecode(jit_compiler, instruction_index, OP_SET_GLOBAL_LENGTH);
 }
 
 static void get_global(struct jit_compiler * jit_compiler) {
-    struct package * current_package = peek_stack_list(jit_compiler->package_stack);
+    struct string_object * name = AS_STRING_OBJECT(READ_CONSTANT(jit_compiler));
+    struct package * current_package = peek_stack_list(&jit_compiler->package_stack);
 
-    register_t variable_name_register = peek_register_allocator(&jit_compiler->register_allocator);    
-    register_t package_addr_register = push_register_allocator(&jit_compiler->register_allocator);    
-    register_t package_variable_value = push_register_allocator(&jit_compiler->register_allocator);    
-    
-    emit_mov(&jit_compiler->native_compiled_code, 
-        REGISTER_TO_OPERAND(package_addr_register), 
-        current_package);
+    //The value will be allocated rigth after ESP
+    uint16_t instruction_index = call_external_c_function(
+            &jit_compiler->native_compiled_code,
+            (uint64_t *) &get_hash_table,
+            3,
+            IMMEDIATE_TO_OPERAND((uint64_t) &current_package->global_variables),
+            IMMEDIATE_TO_OPERAND((uint64_t) name),
+            RSP_OPERAND
+    );
 
-    emit_sub(&jit_compiler->native_compiled_code, 
-        RSP_OPERAND, 
-        IMMEDIATE_TO_OPERAND(sizeof(void *)));
+    register_t global_value_reg = push_register_allocator(&jit_compiler->register_allocator);
 
-    call_external_c_function(jit_compiler->native_compiled_code, &get_hash_table, 3, 
-        current_package->global_variables, 
-        variable_name_register, );
+    emit_mov(&jit_compiler->native_compiled_code, REGISTER_TO_OPERAND(global_value_reg), RSP_OPERAND);
 
-    emit_add(&jit_compiler->native_compiled_code, 
-        RSP_OPERAND, 
-        IMMEDIATE_TO_OPERAND(sizeof(void *)));
+    record_compiled_bytecode(jit_compiler, instruction_index, OP_GET_GLOBAL_LENGTH);
 }
 
 //True value:  0x7ffc000000000003
@@ -146,7 +200,6 @@ static void get_global(struct jit_compiler * jit_compiler) {
 //value1 = value0 + ((TRUE - value0) + (FALSE - value0))
 //value1 = - value0 + TRUE + FALSE
 //value1 = (TRUE - value) + FALSE
-//value1 = value0 + d1 + d2
 static void not(struct jit_compiler * jit_compiler) {
     register_t value_to_negate = pop_register_allocator(&jit_compiler->register_allocator);
 
@@ -166,8 +219,8 @@ static void not(struct jit_compiler * jit_compiler) {
 static void set_local(struct jit_compiler * jit_compiler) {
     uint8_t slot = READ_BYTECODE(jit_compiler);
 
-    if(slot > jit_compiler->last_local_count_slot){
-        uint8_t diff = slot - jit_compiler->last_local_count_slot;
+    if(slot > jit_compiler->last_stack_slot_allocated){
+        uint8_t diff = slot - jit_compiler->last_stack_slot_allocated;
         uint8_t stack_grow = diff * sizeof(lox_value_t);
         emit_sub(&jit_compiler->native_compiled_code, IMMEDIATE_TO_OPERAND(stack_grow), RSP_OPERAND);
     }
@@ -228,7 +281,7 @@ static void jump(struct jit_compiler * jit_compiler, uint16_t offset) {
 
 static void pop(struct jit_compiler * jit_compiler) {
     pop_register_allocator(&jit_compiler->register_allocator);
-    record_compiled_bytecode(jit_compiler, -1, OP_POP_LENGTH);
+    record_compiled_bytecode(jit_compiler, NATIVE_INDEX_IN_NEXT_SLOT, OP_POP_LENGTH);
 }
 
 static void loop(struct jit_compiler * jit_compiler, uint16_t bytecode_backward_jump) {
@@ -401,7 +454,7 @@ static struct jit_compiler init_jit_compiler(struct function_object * function) 
     compiler.pending_jumps_to_patch = malloc(sizeof(void *) * function->chunk.in_use);
     memset(compiler.pending_jumps_to_patch, 0, sizeof(void *) * function->chunk.in_use);
 
-    compiler.last_local_count_slot = function->n_arguments;
+    compiler.last_stack_slot_allocated = function->n_arguments;
     compiler.function_to_compile = function;
     compiler.pc = function->chunk.code;
     
@@ -420,6 +473,7 @@ static void record_compiled_bytecode(struct jit_compiler * jit_compiler, uint16_
     check_pending_jumps_to_patch(jit_compiler, bytecode_instruction_length);
 }
 
+//TODO Use NATIVE_INDEX_IN_NEXT_SLOT
 static void check_pending_jumps_to_patch(struct jit_compiler * jit_compiler, int bytecode_instruction_length) {
     uint16_t current_bytecode_index = CURRENT_BYTECODE_INDEX(jit_compiler) - bytecode_instruction_length;
     uint16_t current_compiled_index = jit_compiler->compiled_bytecode_to_native_by_index[current_bytecode_index];
@@ -450,7 +504,7 @@ static void free_jit_compiler(struct jit_compiler * jit_compiler) {
             free(jit_compiler->pending_jumps_to_patch[i]);
         }
     }
-    clear_stack(&jit_compiler->package_stack);
+    free_stack_list(&jit_compiler->package_stack);
     free(jit_compiler->pending_jumps_to_patch);
     free(jit_compiler->compiled_bytecode_to_native_by_index);
 }

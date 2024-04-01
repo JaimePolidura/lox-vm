@@ -181,6 +181,7 @@ static interpret_result_t run() {
             case OP_FAST_CONST_16: push_stack_vm(TO_LOX_VALUE_NUMBER(READ_U16(current_frame))); break;
             case OP_CONST_1: push_stack_vm(TO_LOX_VALUE_NUMBER(1)); break;
             case OP_CONST_2: push_stack_vm(TO_LOX_VALUE_NUMBER(2)); break;
+            case OP_PACKAGE_CONST: push_stack_vm(READ_CONSTANT(current_frame)); break;
             case OP_EOF: return INTERPRET_OK;
             case OP_NO_OP: break;
             default:
@@ -241,8 +242,8 @@ static void setup_enter_package(struct package * package_to_enter) {
     new_frame->pc = prev_frame->pc;
     new_frame->function = package_to_enter->main_function;
     new_frame->slots = prev_frame->slots;
-    
-    push_stack(&self_thread->package_stack, self_thread->current_package);
+
+    push_stack_list(&self_thread->package_stack, self_thread->current_package);
     self_thread->current_package = package_to_enter;
 }
 
@@ -266,7 +267,7 @@ static void initialize_package(struct package * package_to_initialize) {
 }
 
 static void setup_package_execution(struct package * package) {
-    push_stack(&self_thread->package_stack, self_thread->current_package);
+    push_stack_list(&self_thread->package_stack, self_thread->current_package);
     self_thread->current_package = package;
 
     if(package->state != READY_TO_USE) {
@@ -278,7 +279,7 @@ static void setup_package_execution(struct package * package) {
 }
 
 static void restore_prev_package_execution() {
-    self_thread->current_package = pop_stack(&self_thread->package_stack);
+    self_thread->current_package = pop_stack_list(&self_thread->package_stack);
     restore_prev_call_frame();
 }
 
@@ -610,7 +611,7 @@ void start_vm() {
 
 void stop_vm() {
     free_trie_list(compiled_packages);
-    clear_stack(&self_thread->package_stack);
+    free_stack_list(&self_thread->package_stack);
 }
 
 static void print_stack() {
