@@ -275,8 +275,8 @@ static uint16_t emit_register_register_binary_or(struct u8_arraylist * array, st
     uint8_t prefix = get_64_bit_binary_op_prefix(a, b);
     uint8_t opcode = 0x09;
     uint8_t mode = REGISTER_ADDRESSING_MODE;
-    uint8_t reg = TO_32_BIT_REGISTER(a.as.reg) << 3;
-    uint8_t rm = TO_32_BIT_REGISTER(b.as.reg);
+    uint8_t reg = TO_32_BIT_REGISTER(b.as.reg) << 3;
+    uint8_t rm = TO_32_BIT_REGISTER(a.as.reg);
     uint8_t mod_reg_rm = mode | reg | rm;
 
     uint16_t index = append_u8_arraylist(array, prefix);
