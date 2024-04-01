@@ -55,10 +55,11 @@ static void package_const(struct jit_compiler * jit_compiler);
 
 static void record_pending_jump_to_patch(struct jit_compiler * jit_compiler, uint16_t jump_instruction_index, uint16_t bytecode_offset);
 static void record_compiled_bytecode(struct jit_compiler * jit_compiler, uint16_t native_compiled_index, int bytecode_instruction_length);
+static uint16_t get_compiled_bytecode_to_native_by_index(struct jit_compiler * jit_compiler, uint16_t current_bytecode_index);
+static void check_pending_jumps_to_patch(struct jit_compiler * jit_compiler, int bytecode_instruction_length);
+static void cast_to_lox_boolean(struct jit_compiler * jit_compiler, register_t register_boolean_value);
 static void set_al_with_cmp_result(struct jit_compiler * jit_compiler, op_code comparation_opcode);
 static void number_const(struct jit_compiler * jit_compiler, int value, int instruction_length);
-static void cast_to_lox_boolean(struct jit_compiler * jit_compiler, register_t register_boolean_value);
-static void check_pending_jumps_to_patch(struct jit_compiler * jit_compiler, int bytecode_instruction_length);
 static void free_jit_compiler(struct jit_compiler * jit_compiler);
 
 struct jit_compilation_result jit_compile(struct function_object * function) {
@@ -66,7 +67,10 @@ struct jit_compilation_result jit_compile(struct function_object * function) {
     bool finish_compilation_flag = false;
 
     prepare_x64_stack(&jit_compiler.native_compiled_code);
+
+#ifndef VM_TEST
     push_stack_list(&jit_compiler.package_stack, self_thread->current_package);
+#endif
 
     for(;;) {
         switch (READ_BYTECODE(&jit_compiler)) {
@@ -137,7 +141,7 @@ static void define_global(struct jit_compiler * jit_compiler) {
 
     uint16_t instruction_index = call_external_c_function(
             &jit_compiler->native_compiled_code,
-            (uint64_t *) &put_hash_table,
+            (uint64_t) &put_hash_table,
             3,
             IMMEDIATE_TO_OPERAND((uint64_t) &current_package->global_variables),
             IMMEDIATE_TO_OPERAND((uint64_t) global_name),
@@ -164,7 +168,7 @@ static void set_global(struct jit_compiler * jit_compiler) {
 
     uint16_t instruction_index = call_external_c_function(
             &jit_compiler->native_compiled_code,
-            (uint64_t *) &put_hash_table,
+            (uint64_t) &put_hash_table,
             3,
             IMMEDIATE_TO_OPERAND((uint64_t) &current_package->global_variables),
             IMMEDIATE_TO_OPERAND((uint64_t) global_name),
@@ -181,7 +185,7 @@ static void get_global(struct jit_compiler * jit_compiler) {
     //The value will be allocated rigth after ESP
     uint16_t instruction_index = call_external_c_function(
             &jit_compiler->native_compiled_code,
-            (uint64_t *) &get_hash_table,
+            (uint64_t) &get_hash_table,
             3,
             IMMEDIATE_TO_OPERAND((uint64_t) &current_package->global_variables),
             IMMEDIATE_TO_OPERAND((uint64_t) name),
@@ -253,7 +257,7 @@ static void print(struct jit_compiler * jit_compiler) {
 
     uint16_t instruction_index = call_external_c_function(
             &jit_compiler->native_compiled_code,
-            (uint64_t *) &print_lox_value,
+            (uint64_t) &print_lox_value,
             1,
             REGISTER_TO_OPERAND(to_print_register_arg));
 
@@ -473,10 +477,9 @@ static void record_compiled_bytecode(struct jit_compiler * jit_compiler, uint16_
     check_pending_jumps_to_patch(jit_compiler, bytecode_instruction_length);
 }
 
-//TODO Use NATIVE_INDEX_IN_NEXT_SLOT
 static void check_pending_jumps_to_patch(struct jit_compiler * jit_compiler, int bytecode_instruction_length) {
     uint16_t current_bytecode_index = CURRENT_BYTECODE_INDEX(jit_compiler) - bytecode_instruction_length;
-    uint16_t current_compiled_index = jit_compiler->compiled_bytecode_to_native_by_index[current_bytecode_index];
+    uint16_t current_compiled_index = get_compiled_bytecode_to_native_by_index(jit_compiler, current_bytecode_index);
 
     struct pending_path_jump * pending_jumps = jit_compiler->pending_jumps_to_patch[current_bytecode_index];
 
@@ -496,6 +499,14 @@ static void check_pending_jumps_to_patch(struct jit_compiler * jit_compiler, int
         jit_compiler->pending_jumps_to_patch[current_bytecode_index] = NULL;
         free(pending_jumps);
     }
+}
+
+static uint16_t get_compiled_bytecode_to_native_by_index(struct jit_compiler * jit_compiler, uint16_t current_bytecode_index) {
+    uint16_t * current = jit_compiler->compiled_bytecode_to_native_by_index + current_bytecode_index;
+
+    for(; *current == NATIVE_INDEX_IN_NEXT_SLOT; current++);
+
+    return *current;
 }
 
 static void free_jit_compiler(struct jit_compiler * jit_compiler) {

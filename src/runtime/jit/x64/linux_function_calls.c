@@ -11,10 +11,10 @@ static void load_arguments_into_registers(
     int n_operands
 );
 
-static void save_caller_registers (
+static void save_caller_registers(
     struct u8_arraylist * native_code,
     int n_operands,
-    uint64_t * function_ptr,
+    uint64_t function_ptr,
     uint16_t * instruction_index
 );
 
@@ -29,7 +29,7 @@ static register_t linux_args_call_convention[] = {
 
 uint16_t call_external_c_function(
         struct u8_arraylist * native_code,
-        uint64_t * function_address,
+        uint64_t function_address,
         int n_arguments,
         ... //Arguments
 ) {
@@ -60,10 +60,10 @@ static void load_arguments_into_registers(
 }
 
 static void save_caller_registers(struct u8_arraylist * native_code,
-        int n_operands, uint64_t * function_ptr, uint16_t * instruction_index) {
+        int n_operands, uint64_t function_ptr, uint16_t * instruction_index) {
 
     *instruction_index = emit_push(native_code, R9_OPERAND);
-    emit_mov(native_code, R9_OPERAND, IMMEDIATE_TO_OPERAND(* function_ptr));
+    emit_mov(native_code, R9_OPERAND, IMMEDIATE_TO_OPERAND(function_ptr));
 
     for(int i = 0; i < n_operands; i++) {
         register_t linux_argument_to_push = linux_args_call_convention[i];
