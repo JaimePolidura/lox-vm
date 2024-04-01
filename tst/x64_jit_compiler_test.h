@@ -12,6 +12,18 @@ TEST(x64_jit_compiler_negation) {
             OP_NEGATE, OP_NOT, OP_EOF));
 
     print_jit_result(result);
+
+    ASSERT_U8_SEQ(result.compiled_code.values,
+                  0x55, // push rbp
+                  0x48, 0x89, 0xe5, //mov rbp, rsp
+                  0x49, 0xc7, 0xc7, 0x01, 0x00, 0x00, 0x00, //mov r15, 1
+                  0x49, 0xc7, 0xc6, 0x02, 0x00, 0x00, 0x00, //mov r14, 2
+                  0x4d, 0x39, 0xfe, //cmp r14, r15
+                  0x0f, 0x94, 0xc0,  //sete al
+                  0x4c, 0x0f, 0xb6, 0xf8, //movzx r15, al (moving 8 bit register value to 64 bit register)
+                  0x49, 0x83, 0xc7, 0x02, //add r15, 2
+
+    );
 }
 
 // 1 + 2 - 3

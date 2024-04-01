@@ -390,9 +390,20 @@ static void cast_to_lox_boolean(struct jit_compiler * jit_compiler, register_t r
              REGISTER_TO_OPERAND(register_casted_value),
              IMMEDIATE_TO_OPERAND(2));
 
+    register_t register_quiet_float_nan = push_register_allocator(&jit_compiler->register_allocator);
+
+    //In x64 the max size of the immediate is 32 bit, QUIET_FLOAT_NAN is 64 bit.
+    //We need to store QUIET_FLOAT_NAN in 64 bit register to later be able to or with register_casted_value
+    emit_mov(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(register_quiet_float_nan),
+             IMMEDIATE_TO_OPERAND(QUIET_FLOAT_NAN));
+
     emit_or(&jit_compiler->native_compiled_code,
             REGISTER_TO_OPERAND(register_casted_value),
-            IMMEDIATE_TO_OPERAND(QUIET_FLOAT_NAN));
+            REGISTER_TO_OPERAND(register_quiet_float_nan));
+
+    //Dellacate register_quiet_float_nan
+    pop_register_allocator(&jit_compiler->register_allocator);
 }
 
 static void lox_value(struct jit_compiler * jit_compiler, lox_value_t value, int bytecode_instruction_length) {
