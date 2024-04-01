@@ -8,7 +8,7 @@ static struct function_object * to_function(op_code first, ...);
 TEST(x86_jit_compiler_negation) {
     struct jit_compilation_result result = jit_compile(to_function(OP_CONST_1, OP_CONST_2, OP_EQUAL,
             OP_NEGATE, OP_NOT, OP_EOF));
-
+    
     for(int i = 0; i < result.compiled_code.in_use; i++){
         uint8_t a = result.compiled_code.values[i];
 

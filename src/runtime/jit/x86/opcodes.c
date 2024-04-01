@@ -65,6 +65,10 @@ uint16_t emit_push(struct u8_arraylist * array, struct operand operand) {
     return emit_push_pop(array, operand, 0x50);
 }
 
+uint16_t emit_ret(struct u8_arraylist * array) {
+    return append_u8_arraylist(array, 0xc3);
+}
+
 uint16_t emit_pop(struct u8_arraylist * array, struct operand operand) {
     return emit_push_pop(array, operand, 0x58);
 }
@@ -133,7 +137,7 @@ uint16_t emit_imul(struct u8_arraylist * array, struct operand a, struct operand
 uint16_t emit_neg(struct u8_arraylist * array, struct operand a) {
     uint16_t offset = append_u8_arraylist(array, a.as.reg >= R8 ? 0x49 : 0x48);
     append_u8_arraylist(array, 0xF7); //Opcode
-    append_u8_arraylist(array, REGISTER_ADDRESSING_MODE | (0x03 << 3) | TO_32_BIT_REGISTER(a.as.reg)); //ModRM
+    append_u8_arraylist(array, (0xD8 + TO_32_BIT_REGISTER(a.as.reg)));
 
     return offset;
 }
@@ -353,28 +357,28 @@ static uint16_t emit_register_register_sub(struct u8_arraylist * array, struct o
 }
 
 static uint16_t emit_register_immediate_sub(struct u8_arraylist * array, struct operand a, struct operand b) {
-    uint8_t prefix = get_64_bit_binary_op_prefix(a, b);
-    uint8_t opcode = a.as.reg == RAX && b.as.immediate >= 128 ? 0x2D : 0x81;
+    uint8_t prefix = a.as.reg >= R8 ? 0x49 : 0x48;
+    uint8_t opcode = b.as.immediate >= 128 ? (a.as.reg == RAX ? 0x2d : 0x81) : 0x83;
 
     uint16_t index = append_u8_arraylist(array, prefix);
     append_u8_arraylist(array, opcode);
 
-    if(a.as.reg != RAX){
-        uint8_t mode = REGISTER_ADDRESSING_MODE;
-        uint8_t reg = 0x20;
-        uint8_t rm = TO_32_BIT_REGISTER(a.as.reg);
-        uint8_t mod_reg_rm = mode | reg | rm;
-        append_u8_arraylist(array, mod_reg_rm);
+    if(a.as.reg != RAX || b.as.immediate < 128){
+        append_u8_arraylist(array, 0xe8 + TO_32_BIT_REGISTER(a.as.reg));
     }
-
-    emit_dword_immediate_value(array, b.as.immediate);
+    
+    if(b.as.immediate >= 128) {
+        emit_dword_immediate_value(array, b.as.immediate);
+    } else {
+        append_u8_arraylist(array, b.as.immediate);
+    }
 
     return index;
 }
 
 static uint16_t emit_register_immediate_add(struct u8_arraylist * array, struct operand a, struct operand b) {
     uint8_t prefix = a.as.reg >= R9 ? 0x49 : 0x48;
-    uint8_t opcode = b.as.immediate >= 128 ? (a.as.reg == RAX ? 0x05 : 0x81) : 0x83 ;
+    uint8_t opcode = b.as.immediate >= 128 ? (a.as.reg == RAX ? 0x05 : 0x81) : 0x83;
 
     uint16_t index = append_u8_arraylist(array, prefix);
     append_u8_arraylist(array, opcode);

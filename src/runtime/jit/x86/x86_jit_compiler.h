@@ -5,11 +5,15 @@
 #include "runtime/jit/jit_compilation_result.h"
 #include "runtime/jit/x86/function_calls.h"
 #include "runtime/jit/x86/registers.h"
+#include "runtime/threads/vm_thread.h"
 #include "runtime/jit/x86/opcodes.h"
+#include "runtime/jit/x86/stack.h"
 
 #include "shared/utils/collections/u8_arraylist.h"
+#include "shared/utils/collections/stack_list.h"
 #include "shared/types/function_object.h"
 #include "shared/os/os_utils.h"
+#include "shared/package.h"
 
 #include "compiler/bytecode.h"
 
@@ -35,8 +39,12 @@ struct jit_compiler {
     uint8_t last_local_count_slot;
 
     struct register_allocator register_allocator;
-
+    
     struct u8_arraylist native_compiled_code;
+
+    //Keep tracks of which package we are compiling. This is used for being able to get the correct global variables
+    //It works the same same way as vm.h
+    struct stack_list package_stack;
 };
 
 struct jit_compilation_result jit_compile(struct function_object * function);

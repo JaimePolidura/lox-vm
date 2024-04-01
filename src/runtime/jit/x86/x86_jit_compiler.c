@@ -1,7 +1,10 @@
 #include "x86_jit_compiler.h"
 
+extern bool get_hash_table(struct lox_hash_table * table, struct string_object * key, lox_value_t *value);
 extern void print_lox_value(lox_value_t value);
 extern void runtime_panic(char * format, ...);
+
+extern __thread struct vm_thread * self_thread;
 
 struct cpu_regs_state save_cpu_state() {
     return (struct cpu_regs_state) {
@@ -37,6 +40,10 @@ static void pop(struct jit_compiler * jit_compiler);
 static void get_local(struct jit_compiler * jit_compiler);
 static void set_local(struct jit_compiler * jit_compiler);
 static void not(struct jit_compiler * jit_compiler);
+static void enter_package(struct jit_compiler * jit_compiler);
+static void exit_package(struct jit_compiler * jit_compiler);
+
+static void get_global(struct jit_compiler * jit_compiler);
 
 static void record_pending_jump_to_patch(struct jit_compiler * jit_compiler, uint16_t jump_instruction_index, uint16_t bytecode_offset);
 static void record_compiled_bytecode(struct jit_compiler * jit_compiler, uint16_t native_compiled_index, int bytecode_instruction_length);
@@ -49,6 +56,9 @@ static void free_jit_compiler(struct jit_compiler * jit_compiler);
 struct jit_compilation_result jit_compile(struct function_object * function) {
     struct jit_compiler jit_compiler = init_jit_compiler(function);
     bool finish_compilation_flag = false;
+
+    prepare_x64_stack(&jit_compiler.native_compiled_code);
+    push_stack(&jit_compiler.package_stack, self_thread->current_package);
 
     for(;;) {
         switch (READ_BYTECODE(&jit_compiler)) {
@@ -77,6 +87,9 @@ struct jit_compilation_result jit_compile(struct function_object * function) {
             case OP_LOOP: loop(&jit_compiler, READ_U16(&jit_compiler)); break;
             case OP_NOT: not(&jit_compiler); break;
             case OP_EOF: finish_compilation_flag = true; break;
+            case OP_GET_GLOBAL: get_global(&jit_compiler); break;
+            case OP_ENTER_PACKAGE: enter_package(&jit_compiler); break;
+            case OP_ENTER_PACKAGE: exit_package(&jit_compiler); break;
             case OP_NO_OP: break;
             default: runtime_panic("Unhandled bytecode to compile %u\n", *(--jit_compiler.pc));
         }
@@ -85,6 +98,8 @@ struct jit_compilation_result jit_compile(struct function_object * function) {
             break;
         }
     }
+    
+    end_x64_stack(&jit_compiler.native_compiled_code);
 
     free_jit_compiler(&jit_compiler);
 
@@ -92,6 +107,38 @@ struct jit_compilation_result jit_compile(struct function_object * function) {
             .compiled_code = jit_compiler.native_compiled_code,
             .success = true,
     };
+}
+
+static void enter_package(struct jit_compiler * jit_compiler) {
+
+}
+
+static void exit_package(struct jit_compiler * jit_compiler) {
+
+}
+
+static void get_global(struct jit_compiler * jit_compiler) {
+    struct package * current_package = peek_stack_list(jit_compiler->package_stack);
+
+    register_t variable_name_register = peek_register_allocator(&jit_compiler->register_allocator);    
+    register_t package_addr_register = push_register_allocator(&jit_compiler->register_allocator);    
+    register_t package_variable_value = push_register_allocator(&jit_compiler->register_allocator);    
+    
+    emit_mov(&jit_compiler->native_compiled_code, 
+        REGISTER_TO_OPERAND(package_addr_register), 
+        current_package);
+
+    emit_sub(&jit_compiler->native_compiled_code, 
+        RSP_OPERAND, 
+        IMMEDIATE_TO_OPERAND(sizeof(void *)));
+
+    call_external_c_function(jit_compiler->native_compiled_code, &get_hash_table, 3, 
+        current_package->global_variables, 
+        variable_name_register, );
+
+    emit_add(&jit_compiler->native_compiled_code, 
+        RSP_OPERAND, 
+        IMMEDIATE_TO_OPERAND(sizeof(void *)));
 }
 
 //True value:  0x7ffc000000000003
@@ -357,9 +404,10 @@ static struct jit_compiler init_jit_compiler(struct function_object * function) 
     compiler.last_local_count_slot = function->n_arguments;
     compiler.function_to_compile = function;
     compiler.pc = function->chunk.code;
-
+    
     init_register_allocator(&compiler.register_allocator);
     init_u8_arraylist(&compiler.native_compiled_code);
+    init_stack_list(&compiler.package_stack);
 
     return compiler;
 }
@@ -402,6 +450,7 @@ static void free_jit_compiler(struct jit_compiler * jit_compiler) {
             free(jit_compiler->pending_jumps_to_patch[i]);
         }
     }
+    clear_stack(&jit_compiler->package_stack);
     free(jit_compiler->pending_jumps_to_patch);
     free(jit_compiler->compiled_bytecode_to_native_by_index);
 }

@@ -18,7 +18,7 @@ static void init_vm_thread(struct vm_thread * vm_thread) {
     vm_thread->terminated_state = THREAD_TERMINATED_NONE;
 
     init_stack_list(&vm_thread->package_stack);
-
+    
     for(int i = 0; i < MAX_THREADS_PER_THREAD; i++){
         vm_thread->children[i] = NULL;
     }

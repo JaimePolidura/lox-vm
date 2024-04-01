@@ -795,7 +795,7 @@ static void named_variable(struct compiler * compiler,
     bool is_global = !is_local;
     bool is_set_op = can_assign && match(compiler, TOKEN_EQUAL);
     bool is_array = array_index.type != TOKEN_NO_TOKEN;
-
+    
     //When setting values of an array we don't use OP_SET_LOCAL/OP_SET_GLOBAL we use OP_SET_ARRAY_ELEMENT
     uint8_t op = is_set_op && !is_array ?
             (is_local ? OP_SET_LOCAL : OP_SET_GLOBAL) :

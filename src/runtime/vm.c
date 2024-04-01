@@ -241,7 +241,7 @@ static void setup_enter_package(struct package * package_to_enter) {
     new_frame->pc = prev_frame->pc;
     new_frame->function = package_to_enter->main_function;
     new_frame->slots = prev_frame->slots;
-
+    
     push_stack(&self_thread->package_stack, self_thread->current_package);
     self_thread->current_package = package_to_enter;
 }

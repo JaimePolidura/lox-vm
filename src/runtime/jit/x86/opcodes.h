@@ -23,3 +23,4 @@ uint16_t emit_near_je(struct u8_arraylist * array, int offset);
 uint16_t emit_push(struct u8_arraylist * array, struct operand operand);
 uint16_t emit_pop(struct u8_arraylist * array, struct operand operand);
 uint16_t emit_call(struct u8_arraylist * array, struct operand operand);
+uint16_t emit_ret(struct u8_arraylist * array);

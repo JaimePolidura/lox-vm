@@ -3,7 +3,6 @@
 #include "shared.h"
 #include "registers.h"
 
-//As VM is stack based, we can treat register allocation as a stack.
 struct register_allocator {
     register_t next_free_register;
 };

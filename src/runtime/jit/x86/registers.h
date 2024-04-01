@@ -2,6 +2,12 @@
 
 #define N_MAX_REGISTERS 16
 
+/**
+ * RAX used for storing the division result, we use low bytes AL, to store the boolean result of a comparation
+ * 
+ * RBP, RSP used for stack managment
+ * RSI to R15 are used for register allocation
+*/
 typedef enum {
     RAX =  0, // 0000
     RCX =  1, // 0001

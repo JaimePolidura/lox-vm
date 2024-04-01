@@ -14,6 +14,10 @@ struct stack_list * alloc_stack_list() {
     return stack;
 }
 
+void * peek_stack_list(struct stack_list * stack) {
+    return stack->head;
+}
+
 void clear_stack(struct stack_list * stack) {
     struct stack_node * current_node = stack->head;
     while(current_node != NULL){
