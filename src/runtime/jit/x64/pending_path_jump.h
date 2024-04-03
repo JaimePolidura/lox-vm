@@ -12,6 +12,6 @@ struct pending_path_jump {
     uint16_t compiled_native_jmp_offset_index[MAX_JUMPS_REFERENCES_TO_LINE];
 };
 
-void init_pending_path_jump(struct pending_path_jump *);
+struct pending_path_jump * alloc_pending_path_jump();
 
 bool add_pending_path_jump(struct pending_path_jump *, uint16_t);

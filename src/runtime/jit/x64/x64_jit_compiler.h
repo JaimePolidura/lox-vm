@@ -37,14 +37,14 @@ struct jit_compiler {
     struct pending_path_jump ** pending_jumps_to_patch;
 
     //Keep tracks of the last local slot allocated. Locals will be stored in the stack
-    uint8_t last_stack_slot_allocated;
+    int8_t last_stack_slot_allocated;
 
     struct register_allocator register_allocator;
     
     struct u8_arraylist native_compiled_code;
 
     //Keep tracks of which package we are compiling. This is used for being able to get the correct global variables
-    //It works the same same way as vm.h
+    //It works the same way as vm.h
     struct stack_list package_stack;
 };
 

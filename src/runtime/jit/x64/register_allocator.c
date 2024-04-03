@@ -30,5 +30,5 @@ register_t pop_register_allocator(struct register_allocator * register_allocatio
 }
 
 register_t peek_register_allocator(struct register_allocator * register_allocation) {
-    return register_allocation->next_free_register - 1;
+    return register_allocation->next_free_register + 1;
 }

@@ -53,20 +53,22 @@ static void set_global(struct jit_compiler * jit_compiler);
 static void define_global(struct jit_compiler * jit_compiler);
 static void package_const(struct jit_compiler * jit_compiler);
 
-static void record_pending_jump_to_patch(struct jit_compiler * jit_compiler, uint16_t jump_instruction_index, uint16_t bytecode_offset);
+static void record_pending_jump_to_patch(struct jit_compiler * jit_compiler, uint16_t jump_instruction_index,
+        uint16_t bytecode_offset, uint16_t x64_jump_instruction_body_length);
 static void record_compiled_bytecode(struct jit_compiler * jit_compiler, uint16_t native_compiled_index, int bytecode_instruction_length);
-static uint16_t get_compiled_bytecode_to_native_by_index(struct jit_compiler * jit_compiler, uint16_t current_bytecode_index);
+static uint16_t get_compiled_native_index_by_bytecode_index(struct jit_compiler * jit_compiler, uint16_t current_bytecode_index);
 static void check_pending_jumps_to_patch(struct jit_compiler * jit_compiler, int bytecode_instruction_length);
 static void cast_to_lox_boolean(struct jit_compiler * jit_compiler, register_t register_boolean_value);
 static void set_al_with_cmp_result(struct jit_compiler * jit_compiler, op_code comparation_opcode);
 static void number_const(struct jit_compiler * jit_compiler, int value, int instruction_length);
 static void free_jit_compiler(struct jit_compiler * jit_compiler);
+static void nop(struct jit_compiler * jit_compiler);
 
 struct jit_compilation_result jit_compile(struct function_object * function) {
     struct jit_compiler jit_compiler = init_jit_compiler(function);
     bool finish_compilation_flag = false;
 
-    prepare_x64_stack(&jit_compiler.native_compiled_code);
+    prepare_x64_stack(&jit_compiler.native_compiled_code, function);
 
 #ifndef VM_TEST
     push_stack_list(&jit_compiler.package_stack, self_thread->current_package);
@@ -105,7 +107,7 @@ struct jit_compilation_result jit_compile(struct function_object * function) {
             case OP_ENTER_PACKAGE: enter_package(&jit_compiler); break;
             case OP_EXIT_PACKAGE: exit_package(&jit_compiler); break;
             case OP_PACKAGE_CONST: package_const(&jit_compiler); break;
-            case OP_NO_OP: break;
+            case OP_NO_OP: nop(&jit_compiler); break;
             default: runtime_panic("Unhandled bytecode to compile %u\n", *(--jit_compiler.pc));
         }
 
@@ -122,6 +124,11 @@ struct jit_compilation_result jit_compile(struct function_object * function) {
             .compiled_code = jit_compiler.native_compiled_code,
             .success = true,
     };
+}
+
+static void nop(struct jit_compiler * jit_compiler) {
+    uint16_t instruction_index = emit_nop(&jit_compiler->native_compiled_code);
+    record_compiled_bytecode(jit_compiler, instruction_index, OP_NO_OP_LENGTH);
 }
 
 static void package_const(struct jit_compiler * jit_compiler) {
@@ -229,7 +236,7 @@ static void set_local(struct jit_compiler * jit_compiler) {
         emit_sub(&jit_compiler->native_compiled_code, IMMEDIATE_TO_OPERAND(stack_grow), RSP_OPERAND);
     }
 
-    register_t register_local_value = pop_register_allocator(&jit_compiler->register_allocator);
+    register_t register_local_value = peek_register_allocator(&jit_compiler->register_allocator);
     int offset_local_from_rbp = slot * sizeof(lox_value_t);
 
     uint16_t instruction_index = emit_mov(&jit_compiler->native_compiled_code,
@@ -265,21 +272,31 @@ static void print(struct jit_compiler * jit_compiler) {
 }
 
 static void jump_if_false(struct jit_compiler * jit_compiler, uint16_t jump_offset) {
-    register_t lox_boolean_register = pop_register_allocator(&jit_compiler->register_allocator);
+    register_t lox_boolean_value = peek_register_allocator(&jit_compiler->register_allocator);
+    register_t register_true_lox_value = push_register_allocator(&jit_compiler->register_allocator);
 
-    uint16_t cmp_index = emit_cmp(&jit_compiler->native_compiled_code,
-                                  REGISTER_TO_OPERAND(lox_boolean_register),
-                                  IMMEDIATE_TO_OPERAND(TRUE_VALUE));
-    uint16_t jmp_index = emit_near_je(&jit_compiler->native_compiled_code, 0);
+    uint16_t first_instructino_index = emit_mov(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(register_true_lox_value),
+             IMMEDIATE_TO_OPERAND(TRUE_VALUE));
 
-    record_pending_jump_to_patch(jit_compiler, jmp_index, jump_offset);
-    record_compiled_bytecode(jit_compiler, cmp_index, OP_JUMP_IF_FALSE_LENGTH);
+    emit_cmp(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(lox_boolean_value),
+             REGISTER_TO_OPERAND(register_true_lox_value));
+
+    uint16_t jmp_index = emit_near_jne(&jit_compiler->native_compiled_code, 0);
+
+    //deallocate lox_boolean_value & register_true_lox_value
+    pop_register_allocator(&jit_compiler->register_allocator);
+    pop_register_allocator(&jit_compiler->register_allocator);
+
+    record_pending_jump_to_patch(jit_compiler, jmp_index, jump_offset, 2); //JNE takes two bytes as opcode
+    record_compiled_bytecode(jit_compiler, first_instructino_index, OP_JUMP_IF_FALSE_LENGTH);
 }
 
 static void jump(struct jit_compiler * jit_compiler, uint16_t offset) {
     uint16_t jmp_index = emit_near_jmp(&jit_compiler->native_compiled_code, 0); //We don't know the offset of where to jump
 
-    record_pending_jump_to_patch(jit_compiler, jmp_index, offset);
+    record_pending_jump_to_patch(jit_compiler, jmp_index, offset, 1); //jmp takes only 1 byte as opcode
     record_compiled_bytecode(jit_compiler, jmp_index, OP_JUMP_LENGTH);
 }
 
@@ -289,7 +306,7 @@ static void pop(struct jit_compiler * jit_compiler) {
 }
 
 static void loop(struct jit_compiler * jit_compiler, uint16_t bytecode_backward_jump) {
-    uint16_t bytecode_index_to_jump = CURRENT_BYTECODE_INDEX(jit_compiler) - bytecode_backward_jump - OP_LOOP_LENGTH;
+    uint16_t bytecode_index_to_jump = CURRENT_BYTECODE_INDEX(jit_compiler) - bytecode_backward_jump;
     uint16_t native_index_to_jump = jit_compiler->compiled_bytecode_to_native_by_index[bytecode_index_to_jump];
     uint16_t current_native_index = jit_compiler->native_compiled_code.in_use;
 
@@ -357,16 +374,15 @@ static void negate(struct jit_compiler * jit_compiler) {
 static void comparation(struct jit_compiler * jit_compiler, op_code comparation_opcode, int bytecode_instruction_length) {
     register_t b = pop_register_allocator(&jit_compiler->register_allocator);
     register_t a = pop_register_allocator(&jit_compiler->register_allocator);
-    uint16_t native_offset = emit_cmp(&jit_compiler->native_compiled_code, REGISTER_TO_OPERAND(a), REGISTER_TO_OPERAND(b));
+    uint16_t native_offset = emit_cmp(&jit_compiler->native_compiled_code,
+                                      REGISTER_TO_OPERAND(a),
+                                      REGISTER_TO_OPERAND(b));
 
-    uint8_t next_bytecode = *(jit_compiler->pc + 1);
-    if(next_bytecode != OP_JUMP_IF_FALSE && next_bytecode != OP_LOOP){
-        set_al_with_cmp_result(jit_compiler, comparation_opcode);
+    set_al_with_cmp_result(jit_compiler, comparation_opcode);
 
-        register_t register_casted_value = push_register_allocator(&jit_compiler->register_allocator);
+    register_t register_casted_value = push_register_allocator(&jit_compiler->register_allocator);
 
-        cast_to_lox_boolean(jit_compiler, register_casted_value);
-    }
+    cast_to_lox_boolean(jit_compiler, register_casted_value);
 
     record_compiled_bytecode(jit_compiler, native_offset, bytecode_instruction_length);
 }
@@ -449,15 +465,17 @@ static void add(struct jit_compiler * jit_compiler) {
     record_compiled_bytecode(jit_compiler, add_index, OP_ADD_LENGTH);
 }
 
-static void record_pending_jump_to_patch(struct jit_compiler * jit_compiler, uint16_t jump_instruction_index, uint16_t bytecode_offset) {
+static void record_pending_jump_to_patch(struct jit_compiler * jit_compiler, uint16_t jump_instruction_index,
+        uint16_t bytecode_offset,
+        uint16_t x64_jump_instruction_body_length) {
     uint16_t bytecode_instruction_to_jump = CURRENT_BYTECODE_INDEX(jit_compiler) + bytecode_offset;
 
     if(jit_compiler->pending_jumps_to_patch[bytecode_instruction_to_jump] == NULL) {
-        jit_compiler->pending_jumps_to_patch[bytecode_instruction_to_jump] = malloc(sizeof(struct pending_path_jump));
+        jit_compiler->pending_jumps_to_patch[bytecode_instruction_to_jump] = alloc_pending_path_jump();
     }
 
-    //Near jump instruction: (opcode 1 byte) + (offset 4 bytes) TODO check return value
-    add_pending_path_jump(jit_compiler->pending_jumps_to_patch[bytecode_instruction_to_jump], jump_instruction_index + 1);
+    //Near jump instruction: (opcode 2 byte) + (offset 4 bytes) TODO check return value
+    add_pending_path_jump(jit_compiler->pending_jumps_to_patch[bytecode_instruction_to_jump], jump_instruction_index + x64_jump_instruction_body_length);
 }
 
 static struct jit_compiler init_jit_compiler(struct function_object * function) {
@@ -469,7 +487,7 @@ static struct jit_compiler init_jit_compiler(struct function_object * function) 
     compiler.pending_jumps_to_patch = malloc(sizeof(void *) * function->chunk.in_use);
     memset(compiler.pending_jumps_to_patch, 0, sizeof(void *) * function->chunk.in_use);
 
-    compiler.last_stack_slot_allocated = function->n_arguments;
+    compiler.last_stack_slot_allocated = function->n_arguments > 0 ? function->n_arguments : -1;
     compiler.function_to_compile = function;
     compiler.pc = function->chunk.code;
     
@@ -490,7 +508,7 @@ static void record_compiled_bytecode(struct jit_compiler * jit_compiler, uint16_
 
 static void check_pending_jumps_to_patch(struct jit_compiler * jit_compiler, int bytecode_instruction_length) {
     uint16_t current_bytecode_index = CURRENT_BYTECODE_INDEX(jit_compiler) - bytecode_instruction_length;
-    uint16_t current_compiled_index = get_compiled_bytecode_to_native_by_index(jit_compiler, current_bytecode_index);
+    uint16_t current_compiled_index = get_compiled_native_index_by_bytecode_index(jit_compiler, current_bytecode_index);
 
     struct pending_path_jump * pending_jumps = jit_compiler->pending_jumps_to_patch[current_bytecode_index];
 
@@ -500,7 +518,8 @@ static void check_pending_jumps_to_patch(struct jit_compiler * jit_compiler, int
 
             if (compiled_native_jmp_offset_index != 0) {
                 //compiled_native_jmp_offset_index points to native jmp offset part of the instruction
-                uint16_t native_jmp_offset = current_compiled_index - (compiled_native_jmp_offset_index - 1);
+                //-4 to substract the jmp offset since it takes 4 bytes
+                uint16_t native_jmp_offset = current_compiled_index - (compiled_native_jmp_offset_index + 4);
                 uint16_t * compiled_native_jmp_offset_index_ptr = (uint16_t *) (jit_compiler->native_compiled_code.values + compiled_native_jmp_offset_index);
 
                 *compiled_native_jmp_offset_index_ptr = native_jmp_offset;
@@ -512,7 +531,7 @@ static void check_pending_jumps_to_patch(struct jit_compiler * jit_compiler, int
     }
 }
 
-static uint16_t get_compiled_bytecode_to_native_by_index(struct jit_compiler * jit_compiler, uint16_t current_bytecode_index) {
+static uint16_t get_compiled_native_index_by_bytecode_index(struct jit_compiler * jit_compiler, uint16_t current_bytecode_index) {
     uint16_t * current = jit_compiler->compiled_bytecode_to_native_by_index + current_bytecode_index;
 
     for(; *current == NATIVE_INDEX_IN_NEXT_SLOT; current++);

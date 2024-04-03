@@ -7,6 +7,54 @@ static struct function_object * to_function(op_code first, ...);
 static void print_jit_result(struct jit_compilation_result result);
 extern void print_lox_value(lox_value_t value);
 
+TEST(x64_jit_compiler_for_loop) {
+    struct function_object * function = to_function(
+            OP_FAST_CONST_8, 0, OP_SET_LOCAL, 0, OP_POP, //i = 0
+            OP_GET_LOCAL, 0, OP_FAST_CONST_8, 5, OP_LESS, OP_JUMP_IF_FALSE, 0, 15, //i < 5 jump to OP_NO_OP (note we start counting from OP_GET_LOCAL)
+            OP_GET_LOCAL, 0, OP_SET_LOCAL, 1, OP_POP,  //var = i;
+            OP_GET_LOCAL, 0, OP_CONST_1, OP_ADD, OP_SET_LOCAL, 0, OP_POP, //i++
+            OP_LOOP, 0, 23, //Jump to i < 5 OP_GET_LOCAL (2º line) (we start counting from OP_NO_OP)
+            OP_NO_OP,
+            OP_EOF
+    );
+    function->n_arguments = 2; //Adjust rsp to the number of locals
+
+    struct jit_compilation_result result = jit_compile(function);
+
+    ASSERT_U8_SEQ(result.compiled_code.values,
+                  0x55, // push rbp
+                  0x48, 0x89, 0xe5, //mov rbp, rsp
+                  0x48, 0x83, 0xec, 0x10, //sub rsp, 16 Increase stack size by 2
+
+                  0x49, 0xc7, 0xc7, 0x00, 0x00, 0x00, 0x00, //mov r15, 0 (OP_FAST_CONST_8, 0)
+                  0x4c, 0x89, 0x7d, 0x00, //mov [rbp+0x0], r15 (OP_SET_LOCAL, 0)
+                  0x4c, 0x8b, 0x7d, 0x00, //mov r15, [rbp+0x0] (OP_GET_LOCAL, 0)
+                  0x49, 0xc7, 0xc6, 0x05, 0x00, 0x00, 0x00, //mov r14, 0x05 (OP_FAST_CONST_8, 5) 29
+
+                  //(OP_LESS) We compare both values and cast it to lox boolean
+                  0x4d, 0x39, 0xfe, //cmp r14, r15
+                  0x0f, 0x9c, 0xc0, //sete al
+                  0x4c, 0x0f, 0xb6, 0xf8, //movzx r15, al
+                  0x49, 0x83, 0xc7, 0x02, //add r15, 0x2
+                  0x49, 0xbe, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfc, 0x7f, //movabs r14, TRUE_VALUE
+                  0x4d, 0x09, 0xf7, //or r15, r14 56
+
+                  //(OP_JUMP_IF_FALSE)
+                  0x49, 0xbe, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfc, 0x7f, //movabs r14, TRUE_VALUE
+                  0x4d, 0x39, 0xfe, //cmp r14, r15
+                  0x0f, 0x85, 0x1f, 0x00, 0x00, 0x00, //jne <offset> index: 75
+
+                  0x4c, 0x8b, 0x7d, 0x00, // mov r15, [rbp] (OP_GET_LOCAL, 0)
+                  0x4c, 0x89, 0x7d, 0x08, // mov [rbp + 8], r15 (OP_SET_LOCAL, 1) 83
+                  0x4c, 0x8b, 0x7d, 0x00, // mov r15, [rbp] (OP_GET_LOCAL, 0)
+                  0x49, 0xc7, 0xc6, 0x01, 0x00, 0x00, 0x00, //mov r14, 1, (OP_CONST_1)
+                  0x4d, 0x01, 0xf7, //add r15, r14 (OP_ADD)
+                  0x4c, 0x89, 0x7d, 0x00, //mov [rbp], r15 (OP_SET_LOCAL, 0)
+                  0xe9, 0xa8, 0xff, 0xff, 0xff, //jmp -88 (OP_LOOP, 0, 23)
+                  0x90 //nop (107)
+    );
+}
+
 TEST(x64_jit_compiler_negation) {
     struct jit_compilation_result result = jit_compile(to_function(OP_CONST_1, OP_CONST_2, OP_EQUAL,
             OP_NEGATE, OP_NOT, OP_EOF));
@@ -17,15 +65,6 @@ TEST(x64_jit_compiler_negation) {
                   0x49, 0xc7, 0xc7, 0x01, 0x00, 0x00, 0x00, //mov r15, 1
                   0x49, 0xc7, 0xc6, 0x02, 0x00, 0x00, 0x00, //mov r14, 2
                   0x4d, 0x39, 0xfe, //cmp r14, r15 OP_EQUAL
-                  0x0f, 0x94, 0xc0,  //sete al
-                  0x4c, 0x0f, 0xb6, 0xf8, //movzx r15, al (moving 8 bit register value to 64 bit register).
-                  0x49, 0x83, 0xc7, 0x02, //add r15, 2
-                  0x49, 0xbe, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfc, 0x7f, //movabs r14, QUIET_FLOAT_NAN
-                  0x4d, 0x09, 0xf7, //or r15, r14
-                  0x49, 0xf7, 0xdf, //neg r15 OP_NEGATE OP_NEGATE
-                  0x49, 0x81, 0xef, 0x03, 0x00, 0x00, 0x00, //sub r15, TAG_TRUE OP_NOT
-                  0x49, 0x81, 0xc7, 0x02, 0x00, 0x00, 0x00, //add r15, TAG_FALSE
-                  0x5d, 0xc3 //pop rbp, ret
     );
 }
 
@@ -34,7 +73,7 @@ TEST(x64_jit_compiler_simple_expression) {
     struct jit_compilation_result result = jit_compile(to_function(OP_CONST_1, OP_CONST_2, OP_ADD,
             OP_FAST_CONST_8, 3, OP_SUB, OP_PRINT, OP_EOF));
 
-    uint64_t print_ptr = (uint64_t)  &print_lox_value;
+    uint64_t print_ptr = (uint64_t) &print_lox_value;
 
     ASSERT_U8_SEQ(result.compiled_code.values,
                   0x55, // push rbp

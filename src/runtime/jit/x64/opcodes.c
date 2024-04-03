@@ -23,6 +23,8 @@
 #define BYTE_DISPLACEMENT_MODE 0x40
 //10000000
 #define DWORD_DISPLACEMENT_MODE 0x80
+//00000000
+#define ZERO_DISPLACEMENT_MODE 0x00
 
 static uint8_t get_64_bit_binary_op_prefix(struct operand a, struct operand b);
 static uint8_t get_16_bit_prefix();
@@ -44,7 +46,10 @@ static uint16_t emit_register_immediate_binary_or(struct u8_arraylist * array, s
 static uint16_t emit_register_register_imul(struct u8_arraylist * array, struct operand a, struct operand b);
 static uint16_t emit_register_immediate_imul(struct u8_arraylist * array, struct operand a, struct operand b);
 static uint16_t emit_push_pop(struct u8_arraylist * array, struct operand a, uint8_t base_opcode);
-static uint16_t emit_mov_with_displacement(struct u8_arraylist * array, struct operand a, struct operand b, int disp);
+
+uint16_t emit_nop(struct u8_arraylist * array) {
+    return append_u8_arraylist(array, 0x90); //Opcode
+}
 
 uint16_t emit_call(struct u8_arraylist * array, struct operand operand) {
     bool is_extended_register = operand.as.reg >= R8;
@@ -93,9 +98,9 @@ static uint16_t emit_push_pop(struct u8_arraylist * array, struct operand operan
     return instruction_index;
 }
 
-uint16_t emit_near_je(struct u8_arraylist * array, int offset) {
+uint16_t emit_near_jne(struct u8_arraylist * array, int offset) {
     uint8_t opcode_1 = 0x0F;
-    uint8_t opcode_2 = 0x84;
+    uint8_t opcode_2 = 0x85;
 
     uint8_t instruction_offset = append_u8_arraylist(array, opcode_1);
     append_u8_arraylist(array, opcode_2);
@@ -464,37 +469,63 @@ static uint16_t emit_register_to_register_mov(struct u8_arraylist * array, struc
 
 //mov [a +- 8], b
 static uint16_t emit_register_to_disp_register_move(struct u8_arraylist * array, struct operand a, struct operand b) {
-    return emit_mov_with_displacement(array, a, b, a.as.reg_disp.disp);
+    register_t a_reg = a.as.reg_disp.reg;
+    int disp = a.as.reg_disp.disp;
+    register_t b_reg = b.as.reg;
+
+    //Prefix
+    uint16_t instruction_index = append_u8_arraylist(array, b_reg < R8 ?
+                                                            (a_reg < R8 ? 0x48 : 0x49) :
+                                                            (a_reg < R8 ? 0x4c : 0x4d));
+
+    append_u8_arraylist(array, 0x89); //Opcode
+
+    uint8_t mode = IS_BYTE_SIZE(b.as.reg_disp.disp) ?
+                   (b.as.reg_disp.disp >= 0 ? BYTE_DISPLACEMENT_MODE : ZERO_DISPLACEMENT_MODE)
+                   : DWORD_DISPLACEMENT_MODE;
+    append_u8_arraylist(array, mode | TO_32_BIT_REGISTER(b_reg) << 3 | TO_32_BIT_REGISTER(a_reg));
+
+    if(TO_32_BIT_REGISTER(a_reg) == RSP) {
+        append_u8_arraylist(array, 0x24);
+    }
+    if(TO_32_BIT_REGISTER(a_reg) == RBP && mode == ZERO_DISPLACEMENT_MODE) {
+        append_u8_arraylist(array, 0x00);
+    }
+
+    if(mode == BYTE_DISPLACEMENT_MODE){
+        append_u8_arraylist(array, disp);
+    } else if(mode == DWORD_DISPLACEMENT_MODE){
+        emit_dword_immediate_value(array, disp);
+    }
+
+    return instruction_index;
 }
 
 //mov a, [b +- 8]
 static uint16_t emit_register_disp_to_register_mov(struct u8_arraylist * array, struct operand a, struct operand b) {
-    return emit_mov_with_displacement(array, a, b, b.as.reg_disp.disp);
-}
+    register_t b_reg = b.as.reg_disp.reg;
+    int disp = b.as.reg_disp.disp;
+    register_t a_reg = a.as.reg;
 
-static uint16_t emit_mov_with_displacement(struct u8_arraylist * array, struct operand a, struct operand b, int disp) {
-    bool is_disp_byte_size = IS_BYTE_SIZE(disp);
-    bool is_a_reg = a.type == REGISTER_OPERAND;
+    //Prefix
+    uint16_t instruction_index = append_u8_arraylist(array, a_reg >= R8 ?
+        (b_reg >= R8 ? 0x4d : 0x4c) :
+        (b_reg >= R8 ? 0x49 : 0x48));
 
-    register_t a_reg = is_a_reg ? a.as.reg : a.as.reg_disp.reg;
-    register_t b_reg = is_a_reg ? b.as.reg_disp.reg : b.as.reg;
+    append_u8_arraylist(array, 0x8b); //Opcode
 
-    uint16_t instruction_index = append_u8_arraylist(array, get_64_bit_binary_op_prefix(a, b)); //Prefix
-
-    append_u8_arraylist(array, is_a_reg ? 0x0b : 0x89); //Opcode
-
-    uint8_t mode = is_disp_byte_size ? BYTE_DISPLACEMENT_MODE : DWORD_DISPLACEMENT_MODE;
-    uint8_t reg = TO_32_BIT_REGISTER(a_reg) << 4;
-    uint8_t rm = TO_32_BIT_REGISTER(b_reg);
-    append_u8_arraylist(array, mode | reg | rm);
+    uint8_t mode = IS_BYTE_SIZE(b.as.reg_disp.disp) ?
+            (b.as.reg_disp.disp >= 0 ? BYTE_DISPLACEMENT_MODE : ZERO_DISPLACEMENT_MODE)
+            : DWORD_DISPLACEMENT_MODE;
+    append_u8_arraylist(array, mode | TO_32_BIT_REGISTER(a_reg) << 3 | TO_32_BIT_REGISTER(b_reg));
 
     if(TO_32_BIT_REGISTER(b_reg) == RSP) {
         append_u8_arraylist(array, 0x24);
     }
 
-    is_disp_byte_size ?
-    append_u8_arraylist(array, disp) :
-    emit_dword_immediate_value(array, disp);
+    IS_BYTE_SIZE(b.as.reg_disp.disp) ?
+        append_u8_arraylist(array, disp) :
+        emit_dword_immediate_value(array, disp);
 
     return instruction_index;
 }
@@ -503,7 +534,12 @@ static uint8_t get_64_bit_binary_op_prefix(struct operand a, struct operand b) {
     uint8_t prefix = REX_PREFIX; // 0x48
     if(a.type == REGISTER_OPERAND && a.as.reg >= R8)
         prefix |= FIRST_OPERAND_LARGE_REG_REX_PREFIX; //Final result: 0x4c
+    if(a.type == REGISTER_DISP_OPERAND && a.as.reg_disp.reg >= R8)
+        prefix |= FIRST_OPERAND_LARGE_REG_REX_PREFIX; //Final result: 0x4c
+
     if(b.type == REGISTER_OPERAND && b.as.reg >= R8)
+        prefix |= SECOND_OPERAND_LARGE_REG_REX_PREFIX; //Final result if prev condition false: 0x49, if true: 0x4d
+    if(b.type == REGISTER_DISP_OPERAND && b.as.reg_disp.reg >= R8)
         prefix |= SECOND_OPERAND_LARGE_REG_REX_PREFIX; //Final result if prev condition false: 0x49, if true: 0x4d
 
     return prefix;

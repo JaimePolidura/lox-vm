@@ -350,7 +350,7 @@ static void set_global(struct call_frame * current_frame) {
 
 static void set_local(struct call_frame * current_frame) {
     uint8_t slot = READ_BYTECODE(current_frame);
-    //TODO stack leak
+    //TODO stack leak, compiler never emits OP_POP after assigment
     lox_value_t value = peek(0);
     current_frame->slots[slot] = value; //Assigment is an expression
 }
