@@ -55,6 +55,24 @@ TEST(x64_jit_compiler_for_loop) {
     );
 }
 
+TEST(x64_jit_compiler_division_multiplication){
+    //(1 * 2) / 1
+    struct jit_compilation_result result = jit_compile(to_function(OP_CONST_1, OP_CONST_2, OP_MUL, OP_CONST_1, OP_DIV, OP_EOF));
+    print_jit_result(result);
+
+    ASSERT_U8_SEQ(result.compiled_code.values,
+                  0x55, // push rbp
+                  0x48, 0x89, 0xe5, //mov rbp, rsp
+                  0x49, 0xc7, 0xc7, 0x01, 0x00, 0x00, 0x00, //mov r15, 1
+                  0x49, 0xc7, 0xc6, 0x02, 0x00, 0x00, 0x00, //mov r14, 2
+                  0x4d, 0x0f, 0xaf, 0xfe, // imul r15, r14
+                  0x49, 0xc7, 0xc6, 0x01, 0x00, 0x00, 0x00, //mov r14, 1
+                  0x4c, 0x89, 0xf8, //mov rax, r15
+                  0x49, 0xf7, 0xfe, //idiv r14
+                  0x49, 0x89, 0xc7, //mov r15,rax
+    );
+}
+
 TEST(x64_jit_compiler_negation) {
     struct jit_compilation_result result = jit_compile(to_function(OP_CONST_1, OP_CONST_2, OP_EQUAL,
             OP_NEGATE, OP_NOT, OP_EOF));
@@ -75,6 +93,8 @@ TEST(x64_jit_compiler_simple_expression) {
 
     uint64_t print_ptr = (uint64_t) &print_lox_value;
 
+    print_jit_result(result);
+
     ASSERT_U8_SEQ(result.compiled_code.values,
                   0x55, // push rbp
                   0x48, 0x89, 0xe5, //mov rbp, rsp
@@ -94,7 +114,7 @@ TEST(x64_jit_compiler_simple_expression) {
                     (print_ptr >> 48) & 0xFF,
                     (print_ptr >> 56) & 0xFF, //movabs r9, <print function address>
                   0x57, //push rdi
-                  0x49, 0x89, 0xff, //mov r15, rdi
+                  0x4c, 0x89, 0xff, //mov rdi, r15
                   0x41, 0xff, 0xd1, //call r9
                   0x5f, //pop rdi
                   0x41, 0x59, //pop r9

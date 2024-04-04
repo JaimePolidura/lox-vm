@@ -22,6 +22,7 @@ extern const char * compiling_base_dir;
 //Run in debug mode
 int main() {
 #ifdef JIT_X64_TEST
+    x64_jit_compiler_division_multiplication_outer();
     x64_jit_compiler_simple_expression_outer();
     x64_jit_compiler_for_loop_outer();
     x64_jit_compiler_negation_outer();

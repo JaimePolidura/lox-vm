@@ -11,11 +11,13 @@
 
 #define REX_PREFIX 0x48
 //0100
-#define FIRST_OPERAND_LARGE_REG_REX_PREFIX 0x04
+#define FIRST_OPERAND_LARGE_REG_REX_PREFIX 0x01
 //0001
-#define SECOND_OPERAND_LARGE_REG_REX_PREFIX 0x01
+#define SECOND_OPERAND_LARGE_REG_REX_PREFIX 0x04
 
 #define IS_BYTE_SIZE(item) item < 128 || item >= -127
+
+#define IS_QWORD_SIZE(item) ((item & 0xFFFFFFFF00000000) != 0)
 
 //11000000
 #define REGISTER_ADDRESSING_MODE 0xC0
@@ -456,8 +458,8 @@ static uint16_t emit_register_to_register_mov(struct u8_arraylist * array, struc
     uint8_t opcode = 0x89;
 
     uint8_t mode = REGISTER_ADDRESSING_MODE;
-    uint8_t reg = TO_32_BIT_REGISTER(a.as.reg) << 3;
-    uint8_t rm = TO_32_BIT_REGISTER(b.as.reg);
+    uint8_t reg = TO_32_BIT_REGISTER(b.as.reg) << 3;
+    uint8_t rm = TO_32_BIT_REGISTER(a.as.reg);
     uint8_t mod_reg_rm = mode | reg | rm;
 
     uint16_t index = append_u8_arraylist(array, prefix);

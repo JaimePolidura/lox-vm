@@ -331,15 +331,16 @@ static void constant(struct jit_compiler * jit_compiler) {
     record_compiled_bytecode(jit_compiler, mov_index, OP_CONSTANT_LENGTH);
 }
 
+// a / b
 static void division(struct jit_compiler * jit_compiler) {
     register_t b = pop_register_allocator(&jit_compiler->register_allocator);
     register_t a = pop_register_allocator(&jit_compiler->register_allocator);
 
     uint16_t mov_index = emit_mov(&jit_compiler->native_compiled_code,
                                   RAX_OPERAND,
-                                  IMMEDIATE_TO_OPERAND(b));
+                                  REGISTER_TO_OPERAND(a));
 
-    emit_idiv(&jit_compiler->native_compiled_code, REGISTER_TO_OPERAND(a));
+    emit_idiv(&jit_compiler->native_compiled_code, REGISTER_TO_OPERAND(b));
 
     register_t result_register = push_register_allocator(&jit_compiler->register_allocator);
 
