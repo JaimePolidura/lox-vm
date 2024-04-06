@@ -48,6 +48,8 @@ static uint16_t emit_register_immediate_binary_or(struct u8_arraylist * array, s
 static uint16_t emit_register_register_imul(struct u8_arraylist * array, struct operand a, struct operand b);
 static uint16_t emit_register_immediate_imul(struct u8_arraylist * array, struct operand a, struct operand b);
 static uint16_t emit_push_pop(struct u8_arraylist * array, struct operand a, uint8_t base_opcode);
+static uint16_t emit_register_register_binary_and(struct u8_arraylist * array, struct operand a, struct operand b);
+static uint16_t emit_register_immediate_binary_and(struct u8_arraylist * array, struct operand a, struct operand b);
 
 uint16_t emit_nop(struct u8_arraylist * array) {
     return append_u8_arraylist(array, 0x90); //Opcode
@@ -154,6 +156,14 @@ uint16_t emit_or(struct u8_arraylist * array, struct operand a, struct operand b
         return emit_register_register_binary_or(array, a, b);
     } else {
         return emit_register_immediate_binary_or(array, a, b);
+    }
+}
+
+uint16_t emit_and(struct u8_arraylist * array, struct operand a, struct operand b) {
+    if(a.type == REGISTER_OPERAND && b.type == REGISTER_OPERAND){
+        return emit_register_register_binary_and(array, a, b);
+    } else {
+        return emit_register_immediate_binary_and(array, a, b);
     }
 }
 
@@ -293,24 +303,70 @@ static uint16_t emit_register_register_binary_or(struct u8_arraylist * array, st
     return index;
 }
 
-static uint16_t emit_register_immediate_binary_or(struct u8_arraylist * array, struct operand a, struct operand b) {
+static uint16_t emit_register_immediate_binary_and(struct u8_arraylist * array, struct operand a, struct operand b) {
     uint8_t prefix = a.as.reg >= R8 ? 0x49 : 0x48;
-    uint8_t opcode = b.as.immediate >= 128 ? (a.as.reg == RAX ? 0x0d : 0x81) : 0x83;
-
-    uint8_t mode = REGISTER_ADDRESSING_MODE;
-    uint8_t reg = 0x01 << 3;
-    uint8_t rm = TO_32_BIT_REGISTER(a.as.reg);
-    uint8_t mode_reg_rm = mode | reg | rm;
+    uint8_t opcode = b.as.immediate >= 128 ? (a.as.reg == RAX ? 0x25 : 0x81) : 0x83;
 
     uint16_t index = append_u8_arraylist(array, prefix);
     append_u8_arraylist(array, opcode);
-    append_u8_arraylist(array, mode_reg_rm);
+
+    if(b.as.immediate < 128 || a.as.reg != RAX) {
+        uint8_t mode = REGISTER_ADDRESSING_MODE;
+        uint8_t reg = 0x01 << 5;
+        uint8_t rm = TO_32_BIT_REGISTER(a.as.reg);
+        uint8_t mode_reg_rm = mode | reg | rm;
+
+        append_u8_arraylist(array, mode_reg_rm);
+    }
 
     if(b.as.immediate >= 128){
         emit_dword_immediate_value(array, b.as.immediate);
     } else {
         append_u8_arraylist(array, b.as.immediate);
     }
+
+    return index;
+}
+
+static uint16_t emit_register_immediate_binary_or(struct u8_arraylist * array, struct operand a, struct operand b) {
+    uint8_t prefix = a.as.reg >= R8 ? 0x49 : 0x48;
+    uint8_t opcode = b.as.immediate >= 128 ? (a.as.reg == RAX ? 0x0d : 0x81) : 0x83;
+
+    uint16_t index = append_u8_arraylist(array, prefix);
+    append_u8_arraylist(array, opcode);
+
+    if(b.as.immediate < 128 || a.as.reg != RAX) {
+        uint8_t mode = REGISTER_ADDRESSING_MODE;
+        uint8_t reg = 0x01 << 3;
+        uint8_t rm = TO_32_BIT_REGISTER(a.as.reg);
+        uint8_t mode_reg_rm = mode | reg | rm;
+
+        append_u8_arraylist(array, mode_reg_rm);
+    }
+
+    if(b.as.immediate >= 128){
+        emit_dword_immediate_value(array, b.as.immediate);
+    } else {
+        append_u8_arraylist(array, b.as.immediate);
+    }
+
+    return index;
+}
+
+static uint16_t emit_register_register_binary_and(struct u8_arraylist * array, struct operand a, struct operand b) {
+    uint8_t prefix = a.as.reg >= R8 ?
+            (b.as.reg >= R8 ? 0x4d : 0x49) :
+            (b.as.reg >= R8 ? 0x4c : 0x48);
+
+    uint16_t index = append_u8_arraylist(array, prefix);
+    append_u8_arraylist(array, 0x21);
+
+    uint8_t mode = REGISTER_ADDRESSING_MODE;
+    uint8_t reg = TO_32_BIT_REGISTER(b.as.reg) << 3;
+    uint8_t rm = TO_32_BIT_REGISTER(a.as.reg);
+    uint8_t mode_reg_rm = mode | reg | rm;
+
+    append_u8_arraylist(array, mode_reg_rm);
 
     return index;
 }
@@ -395,7 +451,7 @@ static uint16_t emit_register_immediate_add(struct u8_arraylist * array, struct 
     uint16_t index = append_u8_arraylist(array, prefix);
     append_u8_arraylist(array, opcode);
 
-    if(a.as.reg != RAX) {
+    if(a.as.reg != RAX || b.as.immediate <= 128) {
         uint8_t mode = REGISTER_ADDRESSING_MODE;
         uint8_t reg = 0;
         uint8_t rm = TO_32_BIT_REGISTER(a.as.reg);

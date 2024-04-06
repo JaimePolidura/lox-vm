@@ -2,6 +2,7 @@
 
 #include "shared.h"
 
+#include "shared/utils/utils.h"
 #include "types.h"
 
 struct string_object {
@@ -12,6 +13,8 @@ struct string_object {
 };
 
 struct string_object * copy_chars_to_string_object(const char * chars, int length);
+//Only used for testing
+struct string_object * alloc_string_object(char *);
 
 #define AS_STRING_OBJECT(value) ((struct string_object *)AS_OBJECT(value))
 #define AS_STRING_CHARS_OBJECT(value) (((struct string_object *) AS_OBJECT(value))->chars)

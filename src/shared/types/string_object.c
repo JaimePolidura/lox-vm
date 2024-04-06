@@ -8,7 +8,9 @@ struct string_object * copy_chars_to_string_object(const char * chars, int lengt
     memcpy(string_object->chars, chars, length);
     string_object->chars[length] = '\0';
 
-    init_object(&string_object->object, OBJ_STRING);
-
     return string_object;
+}
+
+struct string_object * alloc_string_object(char * str) {
+    return copy_chars_to_string_object(str, strlen(str));
 }

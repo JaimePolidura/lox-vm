@@ -3,9 +3,88 @@
 #include "test.h"
 #include "runtime/jit/x64/x64_jit_compiler.h"
 
+#define CONTAINS_DWORD(function_ptr) \
+    (function_ptr >> 0) & 0xFF,  \
+    (function_ptr >> 8) & 0xFF,  \
+    (function_ptr >> 16) & 0xFF, \
+    (function_ptr >> 24) & 0xFF \
+
+#define CONTAINS_QWORD(function_ptr) \
+    (function_ptr >> 0) & 0xFF,  \
+    (function_ptr >> 8) & 0xFF,  \
+    (function_ptr >> 16) & 0xFF, \
+    (function_ptr >> 24) & 0xFF, \
+    (function_ptr >> 32) & 0xFF, \
+    (function_ptr >> 40) & 0xFF, \
+    (function_ptr >> 48) & 0xFF, \
+    (function_ptr >> 56) & 0xFF \
+
 static struct function_object * to_function(op_code first, ...);
 static void print_jit_result(struct jit_compilation_result result);
+
+extern struct struct_instance_object * alloc_struct_instance_object();
 extern void print_lox_value(lox_value_t value);
+
+TEST(x64_jit_compiler_structs_get) {
+    struct struct_instance_object * instance = alloc_struct_instance_object();
+    struct string_object * field_name = alloc_string_object("x");
+
+    struct function_object * function = to_function(OP_CONSTANT, 0, OP_CONST_1, OP_SET_STRUCT_FIELD, 1, OP_EOF);
+    add_constant_to_chunk(&function->chunk, TO_LOX_VALUE_OBJECT(instance)); //Constant 0
+    add_constant_to_chunk(&function->chunk, TO_LOX_VALUE_OBJECT(field_name)); //Constant 1
+
+    struct jit_compilation_result result = jit_compile(function);
+    print_jit_result(result);
+
+    ASSERT_U8_SEQ(result.compiled_code.values,
+                  0x55, // push rbp
+                  0x48, 0x89, 0xe5, //mov rbp, rsp
+                  0x49, 0xbf, CONTAINS_QWORD(TO_LOX_VALUE_OBJECT(instance)), //OP_CONST 0 instance pointer
+
+                  );
+}
+
+TEST(x64_jit_compiler_structs_initialize) {
+    struct struct_definition_object * struct_definition = alloc_struct_definition_object();
+    struct_definition->n_fields = 2;
+    struct_definition->field_names = malloc(sizeof(struct token) * 2);
+    struct_definition->field_names[0] = alloc_string_object("x");
+    struct_definition->field_names[1] = alloc_string_object("y");
+
+    struct function_object * function = to_function(
+            OP_CONST_1, OP_CONST_2, OP_INITIALIZE_STRUCT, 0, OP_SET_LOCAL, 0, //Initilizae struct var = struct{1, 2}
+            OP_EOF
+            );
+    function->n_arguments = 1;
+    add_constant_to_chunk(&function->chunk, TO_LOX_VALUE_OBJECT(struct_definition));
+
+    struct jit_compilation_result result = jit_compile(function);
+    print_jit_result(result);
+
+    ASSERT_U8_SEQ(result.compiled_code.values,
+                  0x55, // push rbp
+                  0x48, 0x89, 0xe5, //mov rbp, rsp
+                  0x48, 0x83, 0xec, 0x08, //sub rsp, 16 Increase stack size by 1
+                  0x49, 0xc7, 0xc7, 0x01, 0x00, 0x00, 0x00, //mov r15, 1
+                  0x49, 0xc7, 0xc6, 0x02, 0x00, 0x00, 0x00, //mov r14, 2 (OP_CONST_1, OP_CONST_2) Struct initialization fields
+                  0x41, 0x51, //push r9
+                  0x49, 0xb9, CONTAINS_QWORD((uint64_t) &alloc_struct_instance_object), //movabs r9, alloc_struct_instance_object
+                  0x41, 0xff, 0xd1, //call r9
+                  0x41, 0x59, //pop r9 (call to alloc_struct_instance_object)
+                  0x48, 0x83, 0xc0, (uint8_t) offsetof(struct struct_instance_object, fields), // add rax, <field names offset>
+                  0x50, //push rax
+                  //CODE FOR SETTING ONE FIELD OF STRUCT
+                  0x41, 0x51, //push r9 prepare call to put_hash_table
+                  0x49, 0xb9, CONTAINS_QWORD((uint64_t) &put_hash_table), //movabs r9, put_hash_table
+                  0x57, 0x56, 0x52, //push rdi, rsi, rdx
+                  0x48, 0x89, 0xc7, //push rdi, rax load first argument (struct_instance fields member address)
+                  0x48, 0xc7, 0xc6, CONTAINS_DWORD((uint64_t) struct_definition->field_names[1]),
+                  0x4c, 0x89, 0xf2, //mov rdx, r14 // y value 2
+                  0x41, 0xff, 0xd1, //call r9 (call to put_hash_table)
+                  0x5a, 0x5e, 0x5f, 0x41, 0x59, //pop rdx, rsi, rdi, r9
+                  0x58 //pop rax
+                  );
+}
 
 TEST(x64_jit_compiler_for_loop) {
     struct function_object * function = to_function(
@@ -58,7 +137,6 @@ TEST(x64_jit_compiler_for_loop) {
 TEST(x64_jit_compiler_division_multiplication){
     //(1 * 2) / 1
     struct jit_compilation_result result = jit_compile(to_function(OP_CONST_1, OP_CONST_2, OP_MUL, OP_CONST_1, OP_DIV, OP_EOF));
-    print_jit_result(result);
 
     ASSERT_U8_SEQ(result.compiled_code.values,
                   0x55, // push rbp
@@ -93,8 +171,6 @@ TEST(x64_jit_compiler_simple_expression) {
 
     uint64_t print_ptr = (uint64_t) &print_lox_value;
 
-    print_jit_result(result);
-
     ASSERT_U8_SEQ(result.compiled_code.values,
                   0x55, // push rbp
                   0x48, 0x89, 0xe5, //mov rbp, rsp
@@ -104,15 +180,7 @@ TEST(x64_jit_compiler_simple_expression) {
                   0x49, 0xc7, 0xc6, 0x03, 0x00, 0x00, 0x00, // mov r14, 3
                   0x4d, 0x29, 0xf7, // sub r15, r14
                   0x41, 0x51, //push r9
-                  0x49, 0xb9,
-                    (print_ptr >> 0) & 0xFF,
-                    (print_ptr >> 8) & 0xFF,
-                    (print_ptr >> 16) & 0xFF,
-                    (print_ptr >> 24) & 0xFF,
-                    (print_ptr >> 32) & 0xFF,
-                    (print_ptr >> 40) & 0xFF,
-                    (print_ptr >> 48) & 0xFF,
-                    (print_ptr >> 56) & 0xFF, //movabs r9, <print function address>
+                  0x49, 0xb9, CONTAINS_QWORD(print_ptr), //movabs r9, <print function address>
                   0x57, //push rdi
                   0x4c, 0x89, 0xff, //mov rdi, r15
                   0x41, 0xff, 0xd1, //call r9

@@ -15,6 +15,7 @@ uint16_t emit_setg_al(struct u8_arraylist * array);
 uint16_t emit_setl_al(struct u8_arraylist * array);
 uint16_t emit_al_movzx(struct u8_arraylist * array, struct operand a);
 uint16_t emit_or(struct u8_arraylist * array, struct operand a, struct operand b);
+uint16_t emit_and(struct u8_arraylist * array, struct operand a, struct operand b);
 uint16_t emit_neg(struct u8_arraylist * array, struct operand a);
 uint16_t emit_imul(struct u8_arraylist * array, struct operand a, struct operand b);
 uint16_t emit_idiv(struct u8_arraylist * array, struct operand divisor);
