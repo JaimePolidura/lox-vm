@@ -2,12 +2,12 @@
 
 extern bool get_hash_table(struct lox_hash_table * table, struct string_object * key, lox_value_t *value);
 extern bool put_hash_table(struct lox_hash_table * table, struct string_object * key, lox_value_t value);
-
+extern struct struct_instance_object * alloc_struct_instance_object();
 extern void print_lox_value(lox_value_t value);
 extern void runtime_panic(char * format, ...);
 
-//Used by jit_compiler::compiled_bytecode_to_native_by_index Some instruction are not compiled to native code, but some jumps bytecode offset
-//will be pointing to that instructions. If in a slot is -1, the native offset will be in the next slot
+//Used by jit_compiler::compiled_bytecode_to_native_by_index Some instructions are not compiled to native code, but some jumps bytecode offset
+//will be pointing to those instructions. If in a slot is -1, the native offset will be in the next slot
 #define NATIVE_INDEX_IN_NEXT_SLOT 0xFFFF
 
 extern __thread struct vm_thread * self_thread;
@@ -52,6 +52,9 @@ static void get_global(struct jit_compiler * jit_compiler);
 static void set_global(struct jit_compiler * jit_compiler);
 static void define_global(struct jit_compiler * jit_compiler);
 static void package_const(struct jit_compiler * jit_compiler);
+static void initialize_struct(struct jit_compiler * jit_compiler);
+static void get_struct_field(struct jit_compiler * jit_compiler);
+static void set_struct_field(struct jit_compiler * jit_compiler);
 
 static void record_pending_jump_to_patch(struct jit_compiler * jit_compiler, uint16_t jump_instruction_index,
         uint16_t bytecode_offset, uint16_t x64_jump_instruction_body_length);
@@ -107,6 +110,9 @@ struct jit_compilation_result jit_compile(struct function_object * function) {
             case OP_ENTER_PACKAGE: enter_package(&jit_compiler); break;
             case OP_EXIT_PACKAGE: exit_package(&jit_compiler); break;
             case OP_PACKAGE_CONST: package_const(&jit_compiler); break;
+            case OP_INITIALIZE_STRUCT: initialize_struct(&jit_compiler); break;
+            case OP_GET_STRUCT_FIELD: get_struct_field(&jit_compiler); break;
+            case OP_SET_STRUCT_FIELD: set_struct_field(&jit_compiler); break;
             case OP_NO_OP: nop(&jit_compiler); break;
             default: runtime_panic("Unhandled bytecode to compile %u\n", *(--jit_compiler.pc));
         }
@@ -124,6 +130,102 @@ struct jit_compilation_result jit_compile(struct function_object * function) {
             .compiled_code = jit_compiler.native_compiled_code,
             .success = true,
     };
+}
+
+static void set_struct_field(struct jit_compiler * jit_compiler) {
+    struct string_object * field_name = (struct string_object *) AS_OBJECT(READ_CONSTANT(jit_compiler));
+    register_t new_value_reg = pop_register_allocator(&jit_compiler->register_allocator);
+    register_t struct_instance_addr_reg = pop_register_allocator(&jit_compiler->register_allocator);
+
+    uint16_t first_instruction_index = emit_add(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(struct_instance_addr_reg),
+             IMMEDIATE_TO_OPERAND(offsetof(struct struct_instance_object, fields)));
+
+    call_external_c_function(
+            &jit_compiler->native_compiled_code,
+            (uint64_t) &put_hash_table,
+            3,
+            REGISTER_TO_OPERAND(struct_instance_addr_reg),
+            IMMEDIATE_TO_OPERAND((uint64_t) field_name),
+            REGISTER_TO_OPERAND(new_value_reg)
+            );
+
+    record_compiled_bytecode(jit_compiler, first_instruction_index, OP_SET_STRUCT_FIELD_LENGTH);
+}
+
+static void get_struct_field(struct jit_compiler * jit_compiler) {
+    register_t struct_instance_addr_reg = pop_register_allocator(&jit_compiler->register_allocator);
+    struct string_object * field_name = (struct string_object *) AS_OBJECT(READ_CONSTANT(jit_compiler));
+
+    uint16_t first_instruction_index = emit_add(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(struct_instance_addr_reg),
+             IMMEDIATE_TO_OPERAND(offsetof(struct struct_instance_object, fields)));
+
+    //The value will be allocated rigth after ESP
+    call_external_c_function(
+            &jit_compiler->native_compiled_code,
+            (uint64_t) &get_hash_table,
+            3,
+            REGISTER_TO_OPERAND(struct_instance_addr_reg),
+            IMMEDIATE_TO_OPERAND((uint64_t) field_name),
+            RSP_OPERAND);
+
+    register_t field_value_reg = push_register_allocator(&jit_compiler->register_allocator);
+
+    emit_mov(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(field_value_reg),
+             RSP_OPERAND);
+
+    record_compiled_bytecode(jit_compiler, first_instruction_index, OP_GET_STRUCT_FIELD_LENGTH);
+}
+
+static void initialize_struct(struct jit_compiler * jit_compiler) {
+    struct struct_definition_object * struct_definition = (struct struct_definition_object *) AS_OBJECT(READ_CONSTANT(jit_compiler));
+    int n_fields = struct_definition->n_fields;
+
+    uint16_t first_instruction_index = call_external_c_function(
+            &jit_compiler->native_compiled_code,
+            (uint64_t) &alloc_struct_instance_object,
+            0
+    );
+
+    emit_add(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(RAX),
+             IMMEDIATE_TO_OPERAND(offsetof(struct struct_instance_object, fields))
+    );
+
+    //RAX will get overrided by call_external_c_function because it is where the return address will be stored
+    emit_push(&jit_compiler->native_compiled_code, RAX_OPERAND);
+
+    //structs will always have to contain atleast one argument, so this for loop will get executed -> RAX will get popped
+    for(int i = 0; i < n_fields; i++) {
+        struct string_object * field_name = struct_definition->field_names[struct_definition->n_fields - i - 1];
+        register_t struct_field_value_reg = pop_register_allocator(&jit_compiler->register_allocator);
+
+        call_external_c_function(
+                &jit_compiler->native_compiled_code,
+                (uint64_t) &put_hash_table,
+                3,
+                RAX_OPERAND,
+                IMMEDIATE_TO_OPERAND((uint64_t) field_name),
+                REGISTER_TO_OPERAND(struct_field_value_reg)
+        );
+
+        //So that we can reuse it in the next call_external_c_function
+        emit_pop(&jit_compiler->native_compiled_code, RAX_OPERAND);
+    }
+
+    emit_sub(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(RAX),
+             IMMEDIATE_TO_OPERAND(offsetof(struct struct_instance_object, fields)));
+    
+    //Store struct instance address
+    register_t register_to_store_address = push_register_allocator(&jit_compiler->register_allocator);
+    emit_mov(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(register_to_store_address),
+             REGISTER_TO_OPERAND(RAX));
+
+    record_compiled_bytecode(jit_compiler, first_instruction_index, OP_INITIALIZE_STRUCT_LENGTH);
 }
 
 static void nop(struct jit_compiler * jit_compiler) {

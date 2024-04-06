@@ -276,7 +276,7 @@ static void struct_declaration(struct compiler * compiler, bool is_public) {
     consume(compiler, TOKEN_IDENTIFIER, "Expect struct name");
 
     struct token struct_name = compiler->parser->previous;
-    if(contains_trie(&compiler->package->struct_definitions, struct_name.start, struct_name.length)){
+    if(contains_trie(&compiler->package->struct_definitions, struct_name.start, struct_name.length)) {
         report_error(compiler, compiler->parser->previous, "Struct already defined");
     }
 
