@@ -16,3 +16,5 @@ register_t push_register_allocator(struct register_allocator * register_allocati
 register_t pop_register_allocator(struct register_allocator * register_allocation);
 
 register_t peek_register_allocator(struct register_allocator * register_allocation);
+
+register_t peek_at_register_allocator(struct register_allocator * register_allocation, int index);

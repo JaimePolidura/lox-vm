@@ -25,7 +25,38 @@ static void print_jit_result(struct jit_compilation_result result);
 extern struct struct_instance_object * alloc_struct_instance_object();
 extern void print_lox_value(lox_value_t value);
 
-TEST(x64_jit_compiler_structs_get) {
+TEST(x64_jit_compiler_structs_get){
+    struct struct_instance_object * instance = alloc_struct_instance_object();
+    struct string_object * field_name = alloc_string_object("x");
+
+    struct function_object * function = to_function(OP_CONSTANT, 0, OP_GET_STRUCT_FIELD, 1, OP_EOF);
+    add_constant_to_chunk(&function->chunk, TO_LOX_VALUE_OBJECT(instance)); //Constant 0
+    add_constant_to_chunk(&function->chunk, TO_LOX_VALUE_OBJECT(field_name)); //Constant 1
+
+    struct jit_compilation_result result = jit_compile(function);
+
+    ASSERT_U8_SEQ(result.compiled_code.values,
+                  0x55, // push rbp
+                  0x48, 0x89, 0xe5, //mov rbp, rsp
+                  0x49, 0xbf, CONTAINS_QWORD(TO_LOX_VALUE_OBJECT(instance)), // movabs r15, instance pointer OP_CONST 0 instance pointers
+                  0x49, 0xbe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x03, 0x00, //movabs r14, 0x3ffffffffffff (~(FLOAT_SIGN_BIT | QUIET_FLOAT_NAN)) cast instance ptr to lox
+                  0x4d, 0x21, 0xf7, //and r15, r14
+                  0x49, 0x83, 0xc7, 0x10, //add r15, 10
+                  0x48, 0x83, 0xec, 0x08, //sub rsp, 8 (allocate space for get_hash_table 3rd param)
+                  0x41, 0x51, //push r9 36
+                  0x49, 0xb9, CONTAINS_QWORD((uint64_t) &get_hash_table),
+                  0x57, 0x56, 0x52, //push rdi, rsi, rdx
+                  0x4c, 0x89, 0xff, //mov rdi, r15
+                  0x48, 0xc7, 0xc6, CONTAINS_DWORD((uint64_t) field_name),
+                  0x48, 0x8b, 0x55, 0xf8, //mov rdx, [rbp - 8]
+                  0x41, 0xff, 0xd1, //call r9
+                  0x5a, 0x5e, 0x5f, 0x41, 0x59, //pop rdx, rsi, rdi, ri
+                  0x4c, 0x8b, 0x7d, 0xf8, //mov r15, [rbp - 8]
+                  0x48, 0x83, 0xc4, 0x08, //add rsp, 8
+    );
+}
+
+TEST(x64_jit_compiler_structs_set) {
     struct struct_instance_object * instance = alloc_struct_instance_object();
     struct string_object * field_name = alloc_string_object("x");
 
@@ -34,13 +65,22 @@ TEST(x64_jit_compiler_structs_get) {
     add_constant_to_chunk(&function->chunk, TO_LOX_VALUE_OBJECT(field_name)); //Constant 1
 
     struct jit_compilation_result result = jit_compile(function);
-    print_jit_result(result);
 
     ASSERT_U8_SEQ(result.compiled_code.values,
                   0x55, // push rbp
                   0x48, 0x89, 0xe5, //mov rbp, rsp
-                  0x49, 0xbf, CONTAINS_QWORD(TO_LOX_VALUE_OBJECT(instance)), //OP_CONST 0 instance pointer
-
+                  0x49, 0xbf, CONTAINS_QWORD(TO_LOX_VALUE_OBJECT(instance)), // movabs r15, instance pointer OP_CONST 0 instance pointers
+                  0x49, 0xc7, 0xc6, 0x01, 0x00, 0x00, 0x00, //mov r14, 1 (OP_CONST 1)
+                  0x49, 0xbd, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x03, 0x00, //movabs r13, 0x3ffffffffffff (~(FLOAT_SIGN_BIT | QUIET_FLOAT_NAN)) cast instance ptr to lox
+                  0x4d, 0x21, 0xef, // and r15, r13
+                  0x49, 0x83, 0xc7, (uint8_t) offsetof(struct struct_instance_object, fields), //add r15, <field names offset>
+                  0x41, 0x51, //push r9
+                  0x49, 0xb9, CONTAINS_QWORD((uint64_t) &put_hash_table), //movabs r9, put_hash_table (function ptr)
+                  0x57, 0x56, 0x52, //push rdi, rsi, rdx
+                  0x4c, 0x89, 0xff, //mov rdi, r15
+                  0x48, 0xc7, 0xc6, CONTAINS_DWORD((uint64_t) field_name), //mov  rsi, field_name
+                  0x4c, 0x89, 0xf2, // mov rdx,r14
+                  0x41, 0xff, 0xd1, //call r9
                   );
 }
 
@@ -59,7 +99,6 @@ TEST(x64_jit_compiler_structs_initialize) {
     add_constant_to_chunk(&function->chunk, TO_LOX_VALUE_OBJECT(struct_definition));
 
     struct jit_compilation_result result = jit_compile(function);
-    print_jit_result(result);
 
     ASSERT_U8_SEQ(result.compiled_code.values,
                   0x55, // push rbp

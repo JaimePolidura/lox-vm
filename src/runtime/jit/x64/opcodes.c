@@ -538,9 +538,9 @@ static uint16_t emit_register_to_disp_register_move(struct u8_arraylist * array,
 
     append_u8_arraylist(array, 0x89); //Opcode
 
-    uint8_t mode = IS_BYTE_SIZE(b.as.reg_disp.disp) ?
-                   (b.as.reg_disp.disp >= 0 ? BYTE_DISPLACEMENT_MODE : ZERO_DISPLACEMENT_MODE)
-                   : DWORD_DISPLACEMENT_MODE;
+    uint8_t mode = IS_BYTE_SIZE(a.as.reg_disp.disp) ?
+            BYTE_DISPLACEMENT_MODE :
+            DWORD_DISPLACEMENT_MODE;
     append_u8_arraylist(array, mode | TO_32_BIT_REGISTER(b_reg) << 3 | TO_32_BIT_REGISTER(a_reg));
 
     if(TO_32_BIT_REGISTER(a_reg) == RSP) {
@@ -562,8 +562,8 @@ static uint16_t emit_register_to_disp_register_move(struct u8_arraylist * array,
 //mov a, [b +- 8]
 static uint16_t emit_register_disp_to_register_mov(struct u8_arraylist * array, struct operand a, struct operand b) {
     register_t b_reg = b.as.reg_disp.reg;
-    int disp = b.as.reg_disp.disp;
     register_t a_reg = a.as.reg;
+    int disp = b.as.reg_disp.disp;
 
     //Prefix
     uint16_t instruction_index = append_u8_arraylist(array, a_reg >= R8 ?
@@ -572,9 +572,7 @@ static uint16_t emit_register_disp_to_register_mov(struct u8_arraylist * array, 
 
     append_u8_arraylist(array, 0x8b); //Opcode
 
-    uint8_t mode = IS_BYTE_SIZE(b.as.reg_disp.disp) ?
-            (b.as.reg_disp.disp >= 0 ? BYTE_DISPLACEMENT_MODE : ZERO_DISPLACEMENT_MODE)
-            : DWORD_DISPLACEMENT_MODE;
+    uint8_t mode = IS_BYTE_SIZE(b.as.reg_disp.disp) ? BYTE_DISPLACEMENT_MODE : DWORD_DISPLACEMENT_MODE;
     append_u8_arraylist(array, mode | TO_32_BIT_REGISTER(a_reg) << 3 | TO_32_BIT_REGISTER(b_reg));
 
     if(TO_32_BIT_REGISTER(b_reg) == RSP) {

@@ -136,10 +136,14 @@ struct jit_compilation_result jit_compile(struct function_object * function) {
 
 static void set_struct_field(struct jit_compiler * jit_compiler) {
     struct string_object * field_name = (struct string_object *) AS_OBJECT(READ_CONSTANT(jit_compiler));
-    register_t new_value_reg = pop_register_allocator(&jit_compiler->register_allocator);
-    register_t struct_instance_addr_reg = pop_register_allocator(&jit_compiler->register_allocator);
+    register_t new_value_reg = peek_at_register_allocator(&jit_compiler->register_allocator, 0);
+    register_t struct_instance_addr_reg = peek_at_register_allocator(&jit_compiler->register_allocator, 1);
 
     uint16_t first_instruction_index = cast_lox_object_to_ptr(jit_compiler, struct_instance_addr_reg);
+
+    //Deallocate new_value_reg & struct_instance_addr_reg
+    pop_register_allocator(&jit_compiler->register_allocator);
+    pop_register_allocator(&jit_compiler->register_allocator);
 
     emit_add(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(struct_instance_addr_reg),
@@ -158,14 +162,21 @@ static void set_struct_field(struct jit_compiler * jit_compiler) {
 }
 
 static void get_struct_field(struct jit_compiler * jit_compiler) {
-    register_t struct_instance_addr_reg = pop_register_allocator(&jit_compiler->register_allocator);
+    register_t struct_instance_addr_reg = peek_register_allocator(&jit_compiler->register_allocator);
     struct string_object * field_name = (struct string_object *) AS_OBJECT(READ_CONSTANT(jit_compiler));
 
     uint16_t first_instruction_index = cast_lox_object_to_ptr(jit_compiler, struct_instance_addr_reg);
 
+    //pop struct_instance_addr_reg
+    pop_register_allocator(&jit_compiler->register_allocator);
+
     emit_add(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(struct_instance_addr_reg),
              IMMEDIATE_TO_OPERAND(offsetof(struct struct_instance_object, fields)));
+
+    int return_value_disp = jit_compiler->last_stack_slot_allocated * sizeof(lox_value_t);
+
+    emit_sub(&jit_compiler->native_compiled_code, RSP_OPERAND, IMMEDIATE_TO_OPERAND(sizeof(lox_value_t)));
 
     //The value will be allocated rigth after ESP
     call_external_c_function(
@@ -174,13 +185,15 @@ static void get_struct_field(struct jit_compiler * jit_compiler) {
             3,
             REGISTER_TO_OPERAND(struct_instance_addr_reg),
             IMMEDIATE_TO_OPERAND((uint64_t) field_name),
-            RSP_OPERAND);
+            DISPLACEMENT_TO_OPERAND(RBP, return_value_disp));
 
     register_t field_value_reg = push_register_allocator(&jit_compiler->register_allocator);
 
     emit_mov(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(field_value_reg),
-             RSP_OPERAND);
+             DISPLACEMENT_TO_OPERAND(RBP, return_value_disp));
+
+    emit_add(&jit_compiler->native_compiled_code, RSP_OPERAND, IMMEDIATE_TO_OPERAND(sizeof(lox_value_t)));
 
     record_compiled_bytecode(jit_compiler, first_instruction_index, OP_GET_STRUCT_FIELD_LENGTH);
 }
@@ -196,7 +209,7 @@ static void initialize_struct(struct jit_compiler * jit_compiler) {
     );
 
     emit_add(&jit_compiler->native_compiled_code,
-             REGISTER_TO_OPERAND(RAX),
+             RAX_OPERAND,
              IMMEDIATE_TO_OPERAND(offsetof(struct struct_instance_object, fields))
     );
 
@@ -227,9 +240,10 @@ static void initialize_struct(struct jit_compiler * jit_compiler) {
     
     //Store struct instance address
     register_t register_to_store_address = push_register_allocator(&jit_compiler->register_allocator);
+
     emit_mov(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(register_to_store_address),
-             REGISTER_TO_OPERAND(RAX));
+             RAX_OPERAND);
 
     cast_ptr_to_lox_object(jit_compiler, register_to_store_address);
 
@@ -298,20 +312,29 @@ static void set_global(struct jit_compiler * jit_compiler) {
 static void get_global(struct jit_compiler * jit_compiler) {
     struct string_object * name = AS_STRING_OBJECT(READ_CONSTANT(jit_compiler));
     struct package * current_package = peek_stack_list(&jit_compiler->package_stack);
+    int return_value_dips = jit_compiler->last_stack_slot_allocated * sizeof(lox_value_t);
+
+    uint16_t instruction_index = emit_sub(&jit_compiler->native_compiled_code,
+            RSP_OPERAND,
+            IMMEDIATE_TO_OPERAND(sizeof(lox_value_t)));
 
     //The value will be allocated rigth after ESP
-    uint16_t instruction_index = call_external_c_function(
+    call_external_c_function(
             &jit_compiler->native_compiled_code,
             (uint64_t) &get_hash_table,
             3,
             IMMEDIATE_TO_OPERAND((uint64_t) &current_package->global_variables),
             IMMEDIATE_TO_OPERAND((uint64_t) name),
-            RSP_OPERAND
+            DISPLACEMENT_TO_OPERAND(RBP, return_value_dips)
     );
 
     register_t global_value_reg = push_register_allocator(&jit_compiler->register_allocator);
 
-    emit_mov(&jit_compiler->native_compiled_code, REGISTER_TO_OPERAND(global_value_reg), RSP_OPERAND);
+    emit_mov(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(global_value_reg),
+             DISPLACEMENT_TO_OPERAND(RBP, return_value_dips));
+
+    emit_add(&jit_compiler->native_compiled_code, RSP_OPERAND, IMMEDIATE_TO_OPERAND(sizeof(lox_value_t)));
 
     record_compiled_bytecode(jit_compiler, instruction_index, OP_GET_GLOBAL_LENGTH);
 }
@@ -619,6 +642,7 @@ static void record_compiled_bytecode(struct jit_compiler * jit_compiler, uint16_
 
 //Assembly implementation of AS_OBJECT defined in types.h
 //AS_OBJECT(value) ((struct object *) (uintptr_t)((value) & ~(FLOAT_SIGN_BIT | QUIET_FLOAT_NAN)))
+//Allocates & deallocates new register
 static uint16_t cast_lox_object_to_ptr(struct jit_compiler * jit_compiler, register_t lox_object_ptr) {
     //~(FLOAT_SIGN_BIT | QUIET_FLOAT_NAN)
     register_t not_fsb_qfn_reg = push_register_allocator(&jit_compiler->register_allocator);
@@ -638,6 +662,7 @@ static uint16_t cast_lox_object_to_ptr(struct jit_compiler * jit_compiler, regis
 
 //Assembly implementation of TO_LOX_VALUE_OBJECT defined in types.h
 //TO_LOX_VALUE_OBJECT(value) (FLOAT_SIGN_BIT | QUIET_FLOAT_NAN | (lox_value_t) value)
+//Allocates & deallocates new register
 static uint16_t cast_ptr_to_lox_object(struct jit_compiler * jit_compiler, register_t lox_object_ptr) {
     //FLOAT_SIGN_BIT | QUIET_FLOAT_NAN
     register_t or_fsb_qfn_reg = push_register_allocator(&jit_compiler->register_allocator);
