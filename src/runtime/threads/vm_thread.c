@@ -56,3 +56,11 @@ void for_each_thread(struct vm_thread * start_thread, thread_consumer_t callback
         }
     }
 }
+
+struct call_frame * get_current_frame_vm_thread(struct vm_thread * thread) {
+    return &thread->frames[thread->frames_in_use - 1];
+}
+
+struct function_object * get_current_function_vm_thread(struct vm_thread * self) {
+    return self->frames[self->frames_in_use - 1].function;
+}

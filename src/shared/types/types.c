@@ -28,13 +28,15 @@ char * to_string(lox_value_t value) {
     if(IS_NIL(value)) {
         return "nil";
     } else if(IS_OBJECT(value)) {
+        struct object * object = AS_OBJECT(value);
+
         switch (AS_OBJECT(value)->type) {
             case OBJ_STRING: {
                 return ((struct string_object *) AS_OBJECT(value))->chars;
             }
         }
     } else if(IS_BOOL(value)) {
-        return  AS_OBJECT(value) ? "true" : "false";
+        return AS_OBJECT(value) ? "true" : "false";
     } else if(IS_NUMBER(value)) {
         char * string_as_double = malloc(sizeof(char) * 20);
         sprintf(string_as_double, "%f", AS_NUMBER(value));
@@ -55,6 +57,6 @@ char * to_string(lox_value_t value) {
             }
     };
 #endif
-    perror("Cannot print to key");
+    perror("Cannot print");
     exit(-1);
 }

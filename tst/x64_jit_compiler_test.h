@@ -39,7 +39,7 @@ TEST(x64_jit_compiler_structs_get){
                   0x55, // push rbp
                   0x48, 0x89, 0xe5, //mov rbp, rsp
                   0x49, 0xbf, CONTAINS_QWORD(TO_LOX_VALUE_OBJECT(instance)), // movabs r15, instance pointer OP_CONST 0 instance pointers
-                  0x49, 0xbe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x03, 0x00, //movabs r14, 0x3ffffffffffff (~(FLOAT_SIGN_BIT | QUIET_FLOAT_NAN)) cast instance ptr to lox
+                  0x49, 0xbe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x03, 0x00, //movabs r14, 0x3ffffffffffff (~(FLOAT_SIGN_BIT | FLOAT_QNAN)) cast instance ptr to lox
                   0x4d, 0x21, 0xf7, //and r15, r14
                   0x49, 0x83, 0xc7, 0x10, //add r15, 10
                   0x48, 0x83, 0xec, 0x08, //sub rsp, 8 (allocate space for get_hash_table 3rd param)
@@ -71,7 +71,7 @@ TEST(x64_jit_compiler_structs_set) {
                   0x48, 0x89, 0xe5, //mov rbp, rsp
                   0x49, 0xbf, CONTAINS_QWORD(TO_LOX_VALUE_OBJECT(instance)), // movabs r15, instance pointer OP_CONST 0 instance pointers
                   0x49, 0xc7, 0xc6, 0x01, 0x00, 0x00, 0x00, //mov r14, 1 (OP_CONST 1)
-                  0x49, 0xbd, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x03, 0x00, //movabs r13, 0x3ffffffffffff (~(FLOAT_SIGN_BIT | QUIET_FLOAT_NAN)) cast instance ptr to lox
+                  0x49, 0xbd, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x03, 0x00, //movabs r13, 0x3ffffffffffff (~(FLOAT_SIGN_BIT | FLOAT_QNAN)) cast instance ptr to lox
                   0x4d, 0x21, 0xef, // and r15, r13
                   0x49, 0x83, 0xc7, (uint8_t) offsetof(struct struct_instance_object, fields), //add r15, <field names offset>
                   0x41, 0x51, //push r9

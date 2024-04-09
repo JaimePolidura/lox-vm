@@ -1,7 +1,7 @@
 #include "struct_instance_object.h"
 
 struct struct_instance_object * alloc_struct_instance_object() {
-    struct struct_instance_object * struct_object = malloc(sizeof(struct struct_instance_object));
+    struct struct_instance_object * struct_object = ALLOCATE_OBJ(struct struct_instance_object, OBJ_STRUCT_INSTANCE);
     init_struct_instance_object(struct_object);
     return struct_object;
 }

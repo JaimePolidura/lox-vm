@@ -193,11 +193,10 @@ static interpret_result_t run() {
 
 static void enter_monitor_vm(struct call_frame * call_frame) {
     struct function_object * function = call_frame->function;
-    int monitor_number_to_enter = READ_BYTECODE(call_frame);
+    int64_t monitor_number_to_enter = (int64_t) READ_BYTECODE(call_frame);
+    struct monitor * monitor_to_enter = &function->monitors[monitor_number_to_enter];
 
     call_frame->monitors_entered[call_frame->last_monitor_entered_index++] = monitor_number_to_enter;
-
-    struct monitor * monitor_to_enter = &function->monitors[monitor_number_to_enter];
 
     set_self_thread_waiting();
 

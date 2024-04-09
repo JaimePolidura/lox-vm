@@ -183,11 +183,11 @@ TEST(simple_vm_test_empty_array_initilization) {
     reset();
 }
 
-TEST(simple_vm_test_with_structs){
+TEST(simple_vm_test_with_structs) {
     struct compilation_result compilation_result = compile_standalone(
             "struct Persona{ "
                 "nombre;"
-                " edad; "
+                "edad;"
             "}"
             "var jaime = Persona{\"Jaime\", 21}; "
             "print jaime.nombre; "

@@ -1,7 +1,7 @@
 #include "struct_definition_object.h"
 
 struct struct_definition_object * alloc_struct_definition_object() {
-    struct struct_definition_object * struct_object = malloc(sizeof(struct struct_definition_object));
+    struct struct_definition_object * struct_object = ALLOCATE_OBJ(struct struct_definition_object, OBJ_STRUCT_DEFINITION);
     init_struct_definition_object(struct_object);
     return struct_object;
 }

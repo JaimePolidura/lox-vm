@@ -1113,6 +1113,7 @@ static void string(struct compiler * compiler, bool can_assign) {
     int string_length = compiler->parser->previous.length - 2;
 
     struct string_pool_add_result add_result = add_to_global_string_pool(string_ptr, string_length);
+
     emit_constant(compiler, TO_LOX_VALUE_OBJECT(add_result.string_object));
 }
 

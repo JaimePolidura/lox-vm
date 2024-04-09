@@ -20,8 +20,8 @@ struct call_frame {
     uint8_t * pc; //Actual instruction
     lox_value_t * slots; //Used for local variables. It points to the gray_stack
 
-    int last_monitor_entered_index;
-    int monitors_entered[MAX_MONITORS_PER_FUNCTION];
+    int64_t last_monitor_entered_index;
+    int64_t monitors_entered[MAX_MONITORS_PER_FUNCTION];
 };
 
 typedef enum {
@@ -76,3 +76,7 @@ enum {
 };
 
 void for_each_thread(struct vm_thread * start_thread, thread_consumer_t callback, void * extra, long options);
+
+struct function_object * get_current_function_vm_thread(struct vm_thread *);
+
+struct call_frame * get_current_frame_vm_thread(struct vm_thread *);

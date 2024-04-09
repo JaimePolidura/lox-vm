@@ -41,7 +41,7 @@ uint16_t call_external_c_function(
 
     load_arguments_into_registers(native_code, arguments, n_arguments);
 
-    emit_call(native_code, R9_OPERAND);
+    emit_call(native_code, R9_REGISTER_OPERAND);
 
     restore_caller_registers(native_code, n_arguments);
 
@@ -62,8 +62,8 @@ static void load_arguments_into_registers(
 static void save_caller_registers(struct u8_arraylist * native_code,
         int n_operands, uint64_t function_ptr, uint16_t * instruction_index) {
 
-    *instruction_index = emit_push(native_code, R9_OPERAND);
-    emit_mov(native_code, R9_OPERAND, IMMEDIATE_TO_OPERAND(function_ptr));
+    *instruction_index = emit_push(native_code, R9_REGISTER_OPERAND);
+    emit_mov(native_code, R9_REGISTER_OPERAND, IMMEDIATE_TO_OPERAND(function_ptr));
 
     for(int i = 0; i < n_operands; i++) {
         register_t linux_argument_to_push = linux_args_call_convention[i];
@@ -80,5 +80,5 @@ static void restore_caller_registers(
         emit_pop(native_code, REGISTER_TO_OPERAND(linux_argument_to_pop));
     }
 
-    emit_pop(native_code, R9_OPERAND);
+    emit_pop(native_code, R9_REGISTER_OPERAND);
 }

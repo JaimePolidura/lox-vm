@@ -59,7 +59,6 @@ typedef enum {
 #define OP_RETURN_LENGTH 1
 #define OP_NEGATE_LENGTH 1
 #define OP_PRINT_LENGTH 1
-#define OP_EOF_LENGTH 1
 #define OP_ADD_LENGTH 1
 #define OP_SUB_LENGTH 1
 #define OP_DEFINE_GLOBAL_LENGTH 2

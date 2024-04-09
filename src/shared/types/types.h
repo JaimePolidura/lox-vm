@@ -30,7 +30,7 @@ struct object {
 
 typedef uint64_t lox_value_t;
 
-#define QUIET_FLOAT_NAN ((uint64_t) 0x7ffc000000000000)
+#define FLOAT_QNAN ((uint64_t) 0x7ffc000000000000)
 #define FLOAT_SIGN_BIT ((uint64_t) 0x8000000000000000)
 #define TAG_NIL 1
 #define TAG_FALSE 2
@@ -38,21 +38,21 @@ typedef uint64_t lox_value_t;
 
 #define AS_NUMBER(value) (double) value
 #define TO_LOX_VALUE_NUMBER(value) (lox_value_t) value
-#define IS_NUMBER(value) ((value & QUIET_FLOAT_NAN) != QUIET_FLOAT_NAN)
+#define IS_NUMBER(value) ((value & FLOAT_QNAN) != FLOAT_QNAN)
 
-#define NIL_VALUE (TAG_NIL | QUIET_FLOAT_NAN)
+#define NIL_VALUE (TAG_NIL | FLOAT_QNAN)
 #define IS_NIL(value) (value == (NIL_VALUE))
 
-#define FALSE_VALUE (lox_value_t)(QUIET_FLOAT_NAN | TAG_FALSE)
-#define TRUE_VALUE (lox_value_t)(QUIET_FLOAT_NAN | TAG_TRUE)
+#define FALSE_VALUE (lox_value_t)(FLOAT_QNAN | TAG_FALSE)
+#define TRUE_VALUE (lox_value_t)(FLOAT_QNAN | TAG_TRUE)
 #define AS_BOOL(value) (value == TRUE_VALUE)
 #define IS_BOOL(value) (((value) | 1) == TRUE_VALUE)
 #define TO_LOX_VALUE_BOOL(value) (value ? TRUE_VALUE : FALSE_VALUE)
 
-#define TO_LOX_VALUE_OBJECT(value) (FLOAT_SIGN_BIT | QUIET_FLOAT_NAN | (lox_value_t) value)
-#define AS_OBJECT(value) ((struct object *) (uintptr_t)((value) & ~(FLOAT_SIGN_BIT | QUIET_FLOAT_NAN)))
+#define TO_LOX_VALUE_OBJECT(value) (lox_value_t)(FLOAT_SIGN_BIT | FLOAT_QNAN | (uint64_t)(uintptr_t)(value))
+#define AS_OBJECT(value) ((struct object *) (uintptr_t) ((value) & ~(FLOAT_SIGN_BIT | FLOAT_QNAN)))
 
-#define IS_OBJECT(value) (((value) & (QUIET_FLOAT_NAN | FLOAT_SIGN_BIT)) == (QUIET_FLOAT_NAN | FLOAT_SIGN_BIT))
+#define IS_OBJECT(value) (((value) & (FLOAT_QNAN | FLOAT_SIGN_BIT)) == (FLOAT_QNAN | FLOAT_SIGN_BIT))
 
 #define AS_FUNCTION(value) (struct function_object *) AS_OBJECT(value)
 

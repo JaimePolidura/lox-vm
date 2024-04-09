@@ -2,9 +2,15 @@
 
 extern bool get_hash_table(struct lox_hash_table * table, struct string_object * key, lox_value_t *value);
 extern bool put_hash_table(struct lox_hash_table * table, struct string_object * key, lox_value_t value);
+extern struct call_frame * get_current_frame_vm_thread(struct vm_thread *);
+extern bool set_element_array(struct array_object * array, int index, lox_value_t value);
 extern struct struct_instance_object * alloc_struct_instance_object();
+extern struct array_object * alloc_array_object(int size);
+extern void enter_monitor(struct monitor * monitor);
 extern void print_lox_value(lox_value_t value);
 extern void runtime_panic(char * format, ...);
+extern void set_self_thread_runnable();
+extern void set_self_thread_waiting();
 
 //Used by jit_compiler::compiled_bytecode_to_native_by_index Some instructions are not compiled to native code, but some jumps bytecode offset
 //will be pointing to those instructions. If in a slot is -1, the native offset will be in the next slot
@@ -56,6 +62,10 @@ static void initialize_struct(struct jit_compiler * jit_compiler);
 static void get_struct_field(struct jit_compiler * jit_compiler);
 static void set_struct_field(struct jit_compiler * jit_compiler);
 static void nop(struct jit_compiler * jit_compiler);
+static void initialize_array(struct jit_compiler * jit_compiler);
+static void get_array_element(struct jit_compiler * jit_compiler);
+static void set_array_element(struct jit_compiler * jit_compiler);
+static void enter_monitor_jit(struct jit_compiler * jit_compiler);
 
 static void record_pending_jump_to_patch(struct jit_compiler * jit_compiler, uint16_t jump_instruction_index,
         uint16_t bytecode_offset, uint16_t x64_jump_instruction_body_length);
@@ -68,6 +78,8 @@ static void number_const(struct jit_compiler * jit_compiler, int value, int inst
 static void free_jit_compiler(struct jit_compiler * jit_compiler);
 static uint16_t cast_lox_object_to_ptr(struct jit_compiler * jit_compiler, register_t lox_object_ptr);
 static uint16_t cast_ptr_to_lox_object(struct jit_compiler * jit_compiler, register_t lox_object_ptr);
+static void update_monitors_entered_array(struct jit_compiler * jit_compiler, register_t register_call_frame, int64_t monitor_to_enter);
+static void update_last_monitor_entered_index(struct jit_compiler * jit_compiler, register_t register_call_frame);
 
 struct jit_compilation_result jit_compile(struct function_object * function) {
     struct jit_compiler jit_compiler = init_jit_compiler(function);
@@ -116,6 +128,11 @@ struct jit_compilation_result jit_compile(struct function_object * function) {
             case OP_GET_STRUCT_FIELD: get_struct_field(&jit_compiler); break;
             case OP_SET_STRUCT_FIELD: set_struct_field(&jit_compiler); break;
             case OP_NO_OP: nop(&jit_compiler); break;
+            case OP_INITIALIZE_ARRAY: initialize_array(&jit_compiler); break;
+            case OP_GET_ARRAY_ELEMENT: get_array_element(&jit_compiler); break;
+            case OP_SET_ARRAY_ELEMENT: set_array_element(&jit_compiler); break;
+            case OP_ENTER_MONITOR:
+                enter_monitor_jit(&jit_compiler); break;
             default: runtime_panic("Unhandled bytecode to compile %u\n", *(--jit_compiler.pc));
         }
 
@@ -132,6 +149,176 @@ struct jit_compilation_result jit_compile(struct function_object * function) {
             .compiled_code = jit_compiler.native_compiled_code,
             .success = true,
     };
+}
+
+// C equivalent: call_frame->monitors_entered[call_frame->last_monitor_entered_index++] = monitor_number_to_enter;
+// mov rax, get_current_frame_vm_thread()
+// mov r15, rax
+// mov r14, rax 
+//
+// add r15, offset(struct callframe, monitors_entered)
+// add r15, [r15 + offset(struct callframe, last_monitor_entered_index)] 
+// mov [r15], monitor_number_to_enter
+//
+// add r14, offset(struct call_frame, last_monitor_entered_index)
+// mov r13, [r14]
+// inc r13
+// mov [r14 + offset(struct callframe, monitors_entered)], r14
+static void enter_monitor_jit(struct jit_compiler * jit_compiler) {
+    struct function_object * current_function = get_current_function_vm_thread(self_thread);
+    int monitor_number_to_enter = READ_BYTECODE(jit_compiler);
+    struct monitor * monitor_to_enter = &current_function->monitors[monitor_number_to_enter];
+    
+    register_t current_frame_addr_reg_a = push_register_allocator(&jit_compiler->register_allocator);
+    register_t current_frame_addr_reg_b = push_register_allocator(&jit_compiler->register_allocator);
+
+    uint16_t instruction_index = call_external_c_function(
+        &jit_compiler->native_compiled_code,
+        (uint64_t) &get_current_frame_vm_thread,
+        1,
+        IMMEDIATE_TO_OPERAND((uint64_t) self_thread)
+    );
+
+    emit_mov(&jit_compiler->native_compiled_code, 
+        REGISTER_TO_OPERAND(current_frame_addr_reg_a), 
+        RAX_REGISTER_OPERAND);
+    
+    emit_mov(&jit_compiler->native_compiled_code, 
+        REGISTER_TO_OPERAND(current_frame_addr_reg_b), 
+        RAX_REGISTER_OPERAND);
+
+    update_monitors_entered_array(jit_compiler, current_frame_addr_reg_a, monitor_number_to_enter);
+    update_last_monitor_entered_index(jit_compiler, current_frame_addr_reg_b);
+    
+    //Deallocate current_frame_addr_reg_a & current_frame_addr_reg_b
+    pop_register_allocator(&jit_compiler->register_allocator);
+    pop_register_allocator(&jit_compiler->register_allocator);
+
+    record_compiled_bytecode(jit_compiler, instruction_index, OP_ENTER_MONITOR_LENGTH);
+}
+
+// call_frame->monitors_entered[call_frame->last_monitor_entered_index] = monitor_number_to_enter
+// add r15, offset(struct callframe, monitors_entered)
+// add r15, [r15 + offset(struct callframe, last_monitor_entered_index)] 
+// mov [r15], monitor_number_to_enter
+static void update_monitors_entered_array(struct jit_compiler * jit_compiler, register_t register_call_frame, int64_t monitor_to_enter) {
+    emit_add(&jit_compiler->native_compiled_code, 
+        REGISTER_TO_OPERAND(register_call_frame), 
+        IMMEDIATE_TO_OPERAND(offsetof(struct call_frame, monitors_entered)));
+
+    emit_add(&jit_compiler->native_compiled_code,
+        REGISTER_TO_OPERAND(register_call_frame),
+        DISPLACEMENT_TO_OPERAND(register_call_frame, offsetof(struct call_frame, last_monitor_entered_index)));
+
+    emit_mov(&jit_compiler->native_compiled_code,
+        DISPLACEMENT_TO_OPERAND(register_call_frame, 0),
+        IMMEDIATE_TO_OPERAND(monitor_to_enter));
+}
+
+// call_frame->last_monitor_entered_index++
+// add r14, offset(struct call_frame, last_monitor_entered_index)
+// mov r13, [r14]
+// inc r13
+// mov [r14], r13
+static void update_last_monitor_entered_index(struct jit_compiler * jit_compiler, register_t register_call_frame) {
+    emit_add(&jit_compiler->native_compiled_code,
+        REGISTER_TO_OPERAND(register_call_frame),
+        IMMEDIATE_TO_OPERAND(offsetof(struct call_frame, last_monitor_entered_index)));
+
+    register_t count_register_value = push_register_allocator(&jit_compiler->register_allocator);
+
+    emit_mov(&jit_compiler->native_compiled_code, 
+        REGISTER_TO_OPERAND(count_register_value), 
+        DISPLACEMENT_TO_OPERAND(count_register_value, 0));    
+
+    emit_inc(&jit_compiler->native_compiled_code, 
+        REGISTER_TO_OPERAND(count_register_value));
+
+    emit_mov(&jit_compiler->native_compiled_code, 
+        DISPLACEMENT_TO_OPERAND(register_call_frame, 0), 
+        REGISTER_TO_OPERAND(count_register_value));
+
+    pop_register_allocator(&jit_compiler->native_compiled_code);
+}
+
+static void set_array_element(struct jit_compiler * jit_compiler) {
+    uint16_t array_index = READ_U16(jit_compiler);
+
+    register_t element_addr_reg = peek_register_allocator(&jit_compiler->register_allocator);
+    register_t new_element = peek_register_allocator(&jit_compiler->register_allocator);
+
+    uint16_t instruction_index = cast_lox_object_to_ptr(jit_compiler, element_addr_reg);
+
+    emit_add(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(element_addr_reg),
+             IMMEDIATE_TO_OPERAND(offsetof(struct array_object, values)));
+
+    emit_mov(&jit_compiler->native_compiled_code,
+             DISPLACEMENT_TO_OPERAND(element_addr_reg, array_index * sizeof(lox_value_t)),
+             REGISTER_TO_OPERAND(new_element));
+
+    //pop element_addr_reg & new_element
+    pop_register_allocator(&jit_compiler->register_allocator);
+    pop_register_allocator(&jit_compiler->register_allocator);
+
+    record_compiled_bytecode(jit_compiler, instruction_index, OP_SET_ARRAY_ELEMENT_LENGTH);
+}
+
+static void get_array_element(struct jit_compiler * jit_compiler) {
+    uint16_t array_index = READ_U16(jit_compiler);
+
+    register_t element_addr_reg = peek_register_allocator(&jit_compiler->register_allocator);
+
+    uint16_t instruction_index = cast_lox_object_to_ptr(jit_compiler, element_addr_reg);
+
+    emit_add(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(element_addr_reg),
+             IMMEDIATE_TO_OPERAND(offsetof(struct array_object, values)));
+
+    emit_mov(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(element_addr_reg),
+             DISPLACEMENT_TO_OPERAND(element_addr_reg, array_index * sizeof(lox_value_t)));
+
+    record_compiled_bytecode(jit_compiler, instruction_index, OP_GET_ARRAY_ELEMENT_LENGTH);
+}
+
+static void initialize_array(struct jit_compiler * jit_compiler) {
+    int n_elements = READ_U16(jit_compiler);
+
+    uint16_t instruction_index = call_external_c_function(
+            &jit_compiler->native_compiled_code,
+            (uint64_t) &alloc_array_object,
+            1,
+            IMMEDIATE_TO_OPERAND((uint64_t) n_elements));
+
+    if(n_elements > 0){
+        emit_push(&jit_compiler->native_compiled_code, RAX_REGISTER_OPERAND);
+    }
+
+    for(int i = 0; i < n_elements; i++){
+        register_t array_value_reg = pop_register_allocator(&jit_compiler->register_allocator);
+        int index_array_value = n_elements - 1 - i;
+
+        call_external_c_function(
+                &jit_compiler->native_compiled_code,
+                (uint64_t) &set_element_array,
+                3,
+                RAX_REGISTER_OPERAND,
+                IMMEDIATE_TO_OPERAND(index_array_value),
+                REGISTER_TO_OPERAND(array_value_reg));
+
+        emit_pop(&jit_compiler->native_compiled_code, RAX_REGISTER_OPERAND);
+    }
+
+    register_t register_array_address = push_register_allocator(&jit_compiler->register_allocator);
+
+    emit_mov(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(register_array_address),
+             RAX_REGISTER_OPERAND);
+
+    cast_ptr_to_lox_object(jit_compiler, register_array_address);
+
+    record_compiled_bytecode(jit_compiler, instruction_index, OP_INITIALIZE_ARRAY_LENGTH);
 }
 
 static void set_struct_field(struct jit_compiler * jit_compiler) {
@@ -155,8 +342,7 @@ static void set_struct_field(struct jit_compiler * jit_compiler) {
             3,
             REGISTER_TO_OPERAND(struct_instance_addr_reg),
             IMMEDIATE_TO_OPERAND((uint64_t) field_name),
-            REGISTER_TO_OPERAND(new_value_reg)
-            );
+            REGISTER_TO_OPERAND(new_value_reg));
 
     record_compiled_bytecode(jit_compiler, first_instruction_index, OP_SET_STRUCT_FIELD_LENGTH);
 }
@@ -176,7 +362,7 @@ static void get_struct_field(struct jit_compiler * jit_compiler) {
 
     int return_value_disp = jit_compiler->last_stack_slot_allocated * sizeof(lox_value_t);
 
-    emit_sub(&jit_compiler->native_compiled_code, RSP_OPERAND, IMMEDIATE_TO_OPERAND(sizeof(lox_value_t)));
+    emit_sub(&jit_compiler->native_compiled_code, RSP_REGISTER_OPERAND, IMMEDIATE_TO_OPERAND(sizeof(lox_value_t)));
 
     //The value will be allocated rigth after ESP
     call_external_c_function(
@@ -193,7 +379,7 @@ static void get_struct_field(struct jit_compiler * jit_compiler) {
              REGISTER_TO_OPERAND(field_value_reg),
              DISPLACEMENT_TO_OPERAND(RBP, return_value_disp));
 
-    emit_add(&jit_compiler->native_compiled_code, RSP_OPERAND, IMMEDIATE_TO_OPERAND(sizeof(lox_value_t)));
+    emit_add(&jit_compiler->native_compiled_code, RSP_REGISTER_OPERAND, IMMEDIATE_TO_OPERAND(sizeof(lox_value_t)));
 
     record_compiled_bytecode(jit_compiler, first_instruction_index, OP_GET_STRUCT_FIELD_LENGTH);
 }
@@ -209,12 +395,12 @@ static void initialize_struct(struct jit_compiler * jit_compiler) {
     );
 
     emit_add(&jit_compiler->native_compiled_code,
-             RAX_OPERAND,
+             RAX_REGISTER_OPERAND,
              IMMEDIATE_TO_OPERAND(offsetof(struct struct_instance_object, fields))
     );
 
     //RAX will get overrided by call_external_c_function because it is where the return address will be stored
-    emit_push(&jit_compiler->native_compiled_code, RAX_OPERAND);
+    emit_push(&jit_compiler->native_compiled_code, RAX_REGISTER_OPERAND);
 
     //structs will always have to contain atleast one argument, so this for loop will get executed -> RAX will get popped
     for(int i = 0; i < n_fields; i++) {
@@ -225,13 +411,13 @@ static void initialize_struct(struct jit_compiler * jit_compiler) {
                 &jit_compiler->native_compiled_code,
                 (uint64_t) &put_hash_table,
                 3,
-                RAX_OPERAND,
+                RAX_REGISTER_OPERAND,
                 IMMEDIATE_TO_OPERAND((uint64_t) field_name),
                 REGISTER_TO_OPERAND(struct_field_value_reg)
         );
 
         //So that we can reuse it in the next call_external_c_function
-        emit_pop(&jit_compiler->native_compiled_code, RAX_OPERAND);
+        emit_pop(&jit_compiler->native_compiled_code, RAX_REGISTER_OPERAND);
     }
 
     emit_sub(&jit_compiler->native_compiled_code,
@@ -243,7 +429,7 @@ static void initialize_struct(struct jit_compiler * jit_compiler) {
 
     emit_mov(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(register_to_store_address),
-             RAX_OPERAND);
+             RAX_REGISTER_OPERAND);
 
     cast_ptr_to_lox_object(jit_compiler, register_to_store_address);
 
@@ -315,8 +501,8 @@ static void get_global(struct jit_compiler * jit_compiler) {
     int return_value_dips = jit_compiler->last_stack_slot_allocated * sizeof(lox_value_t);
 
     uint16_t instruction_index = emit_sub(&jit_compiler->native_compiled_code,
-            RSP_OPERAND,
-            IMMEDIATE_TO_OPERAND(sizeof(lox_value_t)));
+                                          RSP_REGISTER_OPERAND,
+                                          IMMEDIATE_TO_OPERAND(sizeof(lox_value_t)));
 
     //The value will be allocated rigth after ESP
     call_external_c_function(
@@ -334,7 +520,7 @@ static void get_global(struct jit_compiler * jit_compiler) {
              REGISTER_TO_OPERAND(global_value_reg),
              DISPLACEMENT_TO_OPERAND(RBP, return_value_dips));
 
-    emit_add(&jit_compiler->native_compiled_code, RSP_OPERAND, IMMEDIATE_TO_OPERAND(sizeof(lox_value_t)));
+    emit_add(&jit_compiler->native_compiled_code, RSP_REGISTER_OPERAND, IMMEDIATE_TO_OPERAND(sizeof(lox_value_t)));
 
     record_compiled_bytecode(jit_compiler, instruction_index, OP_GET_GLOBAL_LENGTH);
 }
@@ -366,7 +552,7 @@ static void set_local(struct jit_compiler * jit_compiler) {
     if(slot > jit_compiler->last_stack_slot_allocated){
         uint8_t diff = slot - jit_compiler->last_stack_slot_allocated;
         uint8_t stack_grow = diff * sizeof(lox_value_t);
-        emit_sub(&jit_compiler->native_compiled_code, IMMEDIATE_TO_OPERAND(stack_grow), RSP_OPERAND);
+        emit_sub(&jit_compiler->native_compiled_code, IMMEDIATE_TO_OPERAND(stack_grow), RSP_REGISTER_OPERAND);
     }
 
     register_t register_local_value = peek_register_allocator(&jit_compiler->register_allocator);
@@ -470,7 +656,7 @@ static void division(struct jit_compiler * jit_compiler) {
     register_t a = pop_register_allocator(&jit_compiler->register_allocator);
 
     uint16_t mov_index = emit_mov(&jit_compiler->native_compiled_code,
-                                  RAX_OPERAND,
+                                  RAX_REGISTER_OPERAND,
                                   REGISTER_TO_OPERAND(a));
 
     emit_idiv(&jit_compiler->native_compiled_code, REGISTER_TO_OPERAND(b));
@@ -479,7 +665,7 @@ static void division(struct jit_compiler * jit_compiler) {
 
     emit_mov(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(result_register),
-             RAX_OPERAND);
+             RAX_REGISTER_OPERAND);
 
     record_compiled_bytecode(jit_compiler, mov_index, OP_DIV_LENGTH);
 }
@@ -542,11 +728,11 @@ static void cast_to_lox_boolean(struct jit_compiler * jit_compiler, register_t r
 
     register_t register_quiet_float_nan = push_register_allocator(&jit_compiler->register_allocator);
 
-    //In x64 the max size of the immediate is 32 bit, QUIET_FLOAT_NAN is 64 bit.
-    //We need to store QUIET_FLOAT_NAN in 64 bit register to later be able to or with register_casted_value
+    //In x64 the max size of the immediate is 32 bit, FLOAT_QNAN is 64 bit.
+    //We need to store FLOAT_QNAN in 64 bit register to later be able to or with register_casted_value
     emit_mov(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(register_quiet_float_nan),
-             IMMEDIATE_TO_OPERAND(QUIET_FLOAT_NAN));
+             IMMEDIATE_TO_OPERAND(FLOAT_QNAN));
 
     emit_or(&jit_compiler->native_compiled_code,
             REGISTER_TO_OPERAND(register_casted_value),
@@ -641,15 +827,15 @@ static void record_compiled_bytecode(struct jit_compiler * jit_compiler, uint16_
 }
 
 //Assembly implementation of AS_OBJECT defined in types.h
-//AS_OBJECT(value) ((struct object *) (uintptr_t)((value) & ~(FLOAT_SIGN_BIT | QUIET_FLOAT_NAN)))
+//AS_OBJECT(value) ((struct object *) (uintptr_t)((value) & ~(FLOAT_SIGN_BIT | FLOAT_QNAN)))
 //Allocates & deallocates new register
 static uint16_t cast_lox_object_to_ptr(struct jit_compiler * jit_compiler, register_t lox_object_ptr) {
-    //~(FLOAT_SIGN_BIT | QUIET_FLOAT_NAN)
+    //~(FLOAT_SIGN_BIT | FLOAT_QNAN)
     register_t not_fsb_qfn_reg = push_register_allocator(&jit_compiler->register_allocator);
 
     uint16_t instruction_index = emit_mov(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(not_fsb_qfn_reg),
-             IMMEDIATE_TO_OPERAND(~(FLOAT_SIGN_BIT | QUIET_FLOAT_NAN)));
+             IMMEDIATE_TO_OPERAND(~(FLOAT_SIGN_BIT | FLOAT_QNAN)));
 
     emit_and(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(lox_object_ptr),
@@ -661,15 +847,15 @@ static uint16_t cast_lox_object_to_ptr(struct jit_compiler * jit_compiler, regis
 }
 
 //Assembly implementation of TO_LOX_VALUE_OBJECT defined in types.h
-//TO_LOX_VALUE_OBJECT(value) (FLOAT_SIGN_BIT | QUIET_FLOAT_NAN | (lox_value_t) value)
+//TO_LOX_VALUE_OBJECT(value) (FLOAT_SIGN_BIT | FLOAT_QNAN | (lox_value_t) value)
 //Allocates & deallocates new register
 static uint16_t cast_ptr_to_lox_object(struct jit_compiler * jit_compiler, register_t lox_object_ptr) {
-    //FLOAT_SIGN_BIT | QUIET_FLOAT_NAN
+    //FLOAT_SIGN_BIT | FLOAT_QNAN
     register_t or_fsb_qfn_reg = push_register_allocator(&jit_compiler->register_allocator);
 
     uint16_t instruction_index = emit_mov(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(or_fsb_qfn_reg),
-             IMMEDIATE_TO_OPERAND(FLOAT_SIGN_BIT | QUIET_FLOAT_NAN));
+             IMMEDIATE_TO_OPERAND(FLOAT_SIGN_BIT | FLOAT_QNAN));
 
     emit_or(&jit_compiler->native_compiled_code,
             REGISTER_TO_OPERAND(lox_object_ptr),
