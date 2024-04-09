@@ -51,10 +51,16 @@ static uint16_t emit_push_pop(struct u8_arraylist * array, struct operand a, uin
 static uint16_t emit_register_register_binary_and(struct u8_arraylist * array, struct operand a, struct operand b);
 static uint16_t emit_register_immediate_binary_and(struct u8_arraylist * array, struct operand a, struct operand b);
 
-uint16_t emit_inc(struct u8_arraylist * array, struct operand operand) {
-    uint8_t prefix = operand.as.reg >= R8 ? 0x49 : 0x48;    
+uint16_t emit_dec(struct u8_arraylist * array, struct operand operand) {
+    uint16_t instruction_index = append_u8_arraylist(array, operand.as.reg >= R8 ? 0x49 : 0x48);
+    append_u8_arraylist(array, 0xFF);
+    append_u8_arraylist(array, 0xc8 + TO_32_BIT_REGISTER(operand.as.reg));
 
-    uint16_t instruction_index = append_u8_arraylist(array, prefix);
+    return instruction_index;
+}
+
+uint16_t emit_inc(struct u8_arraylist * array, struct operand operand) {
+    uint16_t instruction_index = append_u8_arraylist(array, operand.as.reg >= R8 ? 0x49 : 0x48);
     append_u8_arraylist(array, 0xFF);
     append_u8_arraylist(array, 0xc0 + TO_32_BIT_REGISTER(operand.as.reg));
 
