@@ -8,6 +8,8 @@ extern struct gc * alloc_gc_alg();
 extern struct gc_result start_gc_alg();
 extern void on_gc_finished_vm(struct gc_result result);
 
+extern __thread struct vm_thread * self_thread;
+
 struct gc_thread_info * alloc_gc_thread_info() {
     return alloc_gc_thread_info_alg();
 }
@@ -21,7 +23,8 @@ void init_gc_result(struct gc_result * gc_result) {
     gc_result->bytes_allocated_after_gc = 0;
 }
 
-void add_object_to_heap(struct gc_thread_info * gc_thread_info, struct object * object) {
+void add_object_to_heap(struct object * object) {
+    struct gc_thread_info * gc_thread_info = self_thread->gc_info;
     size_t allocated_heap_size = sizeof_heap_allocated_lox_object(object);
     gc_thread_info->bytes_allocated += allocated_heap_size;
     add_object_to_heap_gc_alg(gc_thread_info, object, allocated_heap_size);

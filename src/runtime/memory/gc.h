@@ -1,5 +1,7 @@
 #pragma once
 
+#include "runtime/threads/vm_thread.h"
+
 #include "shared.h"
 #include "shared/types/types.h"
 #include "shared/types/string_object.h"
@@ -38,7 +40,7 @@ struct gc_thread_info * alloc_gc_thread_info();
 struct gc * alloc_gc();
 void init_gc_result(struct gc_result * gc_result);
 
-void add_object_to_heap(struct gc_thread_info * gc_thread_info, struct object * object);
+void add_object_to_heap(struct object * object);
 
 int sizeof_heap_allocated_lox_object(struct object * object);
 void free_heap_allocated_lox_object(struct object * object);

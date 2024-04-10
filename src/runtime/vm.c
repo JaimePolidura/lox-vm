@@ -381,7 +381,7 @@ static void initialize_array(struct call_frame * call_frame) {
         set_element_array(array, index, value);
     }
 
-    add_object_to_heap(self_thread->gc_info, &array->object);
+    add_object_to_heap(&array->object);
 
     push_stack_vm(TO_LOX_VALUE_OBJECT(array));
 }
@@ -423,7 +423,7 @@ static void initialize_struct(struct call_frame * call_frame) {
 
     push_stack_vm(TO_LOX_VALUE_OBJECT(struct_instance));
 
-    add_object_to_heap(self_thread->gc_info, &struct_instance->object);
+    add_object_to_heap(&struct_instance->object);
 }
 
 static void get_struct_field(struct call_frame * call_frame) {
