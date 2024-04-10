@@ -4,19 +4,19 @@
 
 typedef enum {
     OP_CONSTANT,          // Index: 0
-    OP_NIL,               // Index: 1 Pushes NULL type
-    OP_TRUE,              // Index: 2 Pushes true boolean type
-    OP_FALSE,             // Index: 3 Pushes false boolean type
-    OP_POP,               // Index: 4 Pops the current element. Used for assignments, end of scopes etc.
-    OP_EQUAL,             // Index: 5 Pops two elements and pushes boolean if they are comparation
-    OP_GREATER,           // Index: 6 Pops two elements and pushes boolean if the 2º popped element is greater than the 1º popped element
-    OP_LESS,              // Index: 7 Pops two elements and pushes boolean if the 2º popped element is less than the 1º popped element
-    OP_RETURN,            // Index: 8 Returns from function. Pushes returned value
-    OP_NEGATE,            // Index: 9 Pops the element of the stack, and pushes the negation of it
-    OP_PRINT,             // Index: 10 Prints the popped value of the stack
-    OP_EOF,               // Index: 11 End of execution, might terminate the thread
-    OP_ADD,               // Index: 12 Pops two values and pushes the adition
-    OP_SUB,               // Index: 13 Pops two values and pushes the subtraction
+    OP_NIL,               // Index: 1
+    OP_TRUE,              // Index: 2
+    OP_FALSE,             // Index: 3
+    OP_POP,               // Index: 4
+    OP_EQUAL,             // Index: 5
+    OP_GREATER,           // Index: 6
+    OP_LESS,              // Index: 7
+    OP_RETURN,            // Index: 8
+    OP_NEGATE,            // Index: 9
+    OP_PRINT,             // Index: 10
+    OP_EOF,               // Index: 11
+    OP_ADD,               // Index: 12
+    OP_SUB,               // Index: 13
     OP_DEFINE_GLOBAL,     // Index: 14
     OP_GET_GLOBAL,        // Index: 15
     OP_SET_GLOBAL,        // Index: 16
@@ -45,7 +45,7 @@ typedef enum {
     OP_CONST_1,           // Index: 38
     OP_CONST_2,           // Index: 38
     OP_NO_OP,             // Index: 39
-    OP_PACKAGE_CONST      // Index: 40. Works the same way as OP_CONST when the const is a package. This is used in jit_compiler to simplify design when deailing with multiple packas
+    OP_PACKAGE_CONST      // Index: 40
 } op_code;
 
 #define OP_CONSTANT_LENGTH 2

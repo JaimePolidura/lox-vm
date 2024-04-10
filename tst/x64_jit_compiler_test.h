@@ -33,7 +33,7 @@ TEST(x64_jit_compiler_structs_get){
     add_constant_to_chunk(&function->chunk, TO_LOX_VALUE_OBJECT(instance)); //Constant 0
     add_constant_to_chunk(&function->chunk, TO_LOX_VALUE_OBJECT(field_name)); //Constant 1
 
-    struct jit_compilation_result result = jit_compile(function);
+    struct jit_compilation_result result = jit_compile_arch(function);
 
     ASSERT_U8_SEQ(result.compiled_code.values,
                   0x55, // push rbp
@@ -64,7 +64,7 @@ TEST(x64_jit_compiler_structs_set) {
     add_constant_to_chunk(&function->chunk, TO_LOX_VALUE_OBJECT(instance)); //Constant 0
     add_constant_to_chunk(&function->chunk, TO_LOX_VALUE_OBJECT(field_name)); //Constant 1
 
-    struct jit_compilation_result result = jit_compile(function);
+    struct jit_compilation_result result = jit_compile_arch(function);
 
     ASSERT_U8_SEQ(result.compiled_code.values,
                   0x55, // push rbp
@@ -98,7 +98,7 @@ TEST(x64_jit_compiler_structs_initialize) {
     function->n_arguments = 1;
     add_constant_to_chunk(&function->chunk, TO_LOX_VALUE_OBJECT(struct_definition));
 
-    struct jit_compilation_result result = jit_compile(function);
+    struct jit_compilation_result result = jit_compile_arch(function);
 
     ASSERT_U8_SEQ(result.compiled_code.values,
                   0x55, // push rbp
@@ -137,7 +137,7 @@ TEST(x64_jit_compiler_for_loop) {
     );
     function->n_arguments = 2; //Adjust rsp to the number of locals
 
-    struct jit_compilation_result result = jit_compile(function);
+    struct jit_compilation_result result = jit_compile_arch(function);
 
     ASSERT_U8_SEQ(result.compiled_code.values,
                   0x55, // push rbp
@@ -175,7 +175,7 @@ TEST(x64_jit_compiler_for_loop) {
 
 TEST(x64_jit_compiler_division_multiplication){
     //(1 * 2) / 1
-    struct jit_compilation_result result = jit_compile(to_function(OP_CONST_1, OP_CONST_2, OP_MUL, OP_CONST_1, OP_DIV, OP_EOF));
+    struct jit_compilation_result result = jit_compile_arch(to_function(OP_CONST_1, OP_CONST_2, OP_MUL, OP_CONST_1, OP_DIV, OP_EOF));
 
     ASSERT_U8_SEQ(result.compiled_code.values,
                   0x55, // push rbp
@@ -191,7 +191,7 @@ TEST(x64_jit_compiler_division_multiplication){
 }
 
 TEST(x64_jit_compiler_negation) {
-    struct jit_compilation_result result = jit_compile(to_function(OP_CONST_1, OP_CONST_2, OP_EQUAL,
+    struct jit_compilation_result result = jit_compile_arch(to_function(OP_CONST_1, OP_CONST_2, OP_EQUAL,
             OP_NEGATE, OP_NOT, OP_EOF));
 
     ASSERT_U8_SEQ(result.compiled_code.values,
@@ -205,7 +205,7 @@ TEST(x64_jit_compiler_negation) {
 
 // 1 + 2 - 3
 TEST(x64_jit_compiler_simple_expression) {
-    struct jit_compilation_result result = jit_compile(to_function(OP_CONST_1, OP_CONST_2, OP_ADD,
+    struct jit_compilation_result result = jit_compile_arch(to_function(OP_CONST_1, OP_CONST_2, OP_ADD,
             OP_FAST_CONST_8, 3, OP_SUB, OP_PRINT, OP_EOF));
 
     uint64_t print_ptr = (uint64_t) &print_lox_value;

@@ -1,5 +1,3 @@
-#pragma once
-
 #include "u8_arraylist.h"
 
 void init_u8_arraylist(struct u8_arraylist * array) {

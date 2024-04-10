@@ -13,6 +13,7 @@ extern void enter_monitor(struct monitor * monitor);
 extern void exit_monitor(struct monitor * monitor);
 extern void print_lox_value(lox_value_t value);
 extern void runtime_panic(char * format, ...);
+extern void check_gc_on_safe_point_alg();
 extern void set_self_thread_runnable();
 extern void set_self_thread_waiting();
 
@@ -21,16 +22,6 @@ extern void set_self_thread_waiting();
 #define NATIVE_INDEX_IN_NEXT_SLOT 0xFFFF
 
 extern __thread struct vm_thread * self_thread;
-
-struct cpu_regs_state save_cpu_state() {
-    return (struct cpu_regs_state) {
-        //TODO
-    };
-}
-
-void restore_cpu_state(struct cpu_regs_state * regs) {
-    //TODO
-}
 
 #define READ_BYTECODE(jit_compiler) (*(jit_compiler)->pc++)
 #define READ_U16(jit_compiler) \
@@ -87,8 +78,9 @@ static void update_monitors_entered_array(struct jit_compiler * jit_compiler, re
 static void update_last_monitor_entered_count(struct jit_compiler * jit_compiler, register_t register_call_frame, bool increase);
 static void exit_monitor_jit(struct jit_compiler * jit_compiler);
 static void read_last_monitor_entered(struct jit_compiler * jit_compiler, register_t register_call_frame_addr, struct function_object * function);
+static uint16_t call_safepoint(struct jit_compiler * jit_compiler);
 
-struct jit_compilation_result jit_compile(struct function_object * function) {
+struct jit_compilation_result jit_compile_arch(struct function_object * function) {
     struct jit_compiler jit_compiler = init_jit_compiler(function);
     bool finish_compilation_flag = false;
 
@@ -581,6 +573,8 @@ static void define_global(struct jit_compiler * jit_compiler) {
             REGISTER_TO_OPERAND(new_global_value)
     );
 
+    call_safepoint(jit_compiler);
+
     record_compiled_bytecode(jit_compiler, instruction_index, OP_DEFINE_GLOBAL_LENGTH);
 }
 
@@ -703,14 +697,18 @@ static void print(struct jit_compiler * jit_compiler) {
             1,
             REGISTER_TO_OPERAND(to_print_register_arg));
 
+    call_safepoint(jit_compiler);
+
     record_compiled_bytecode(jit_compiler, instruction_index, OP_PRINT_LENGTH);
 }
 
 static void jump_if_false(struct jit_compiler * jit_compiler, uint16_t jump_offset) {
+    uint16_t instruction_index = call_safepoint(jit_compiler);
+
     register_t lox_boolean_value = peek_register_allocator(&jit_compiler->register_allocator);
     register_t register_true_lox_value = push_register_allocator(&jit_compiler->register_allocator);
 
-    uint16_t first_instructino_index = emit_mov(&jit_compiler->native_compiled_code,
+    emit_mov(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(register_true_lox_value),
              IMMEDIATE_TO_OPERAND(TRUE_VALUE));
 
@@ -725,14 +723,16 @@ static void jump_if_false(struct jit_compiler * jit_compiler, uint16_t jump_offs
     pop_register_allocator(&jit_compiler->register_allocator);
 
     record_pending_jump_to_patch(jit_compiler, jmp_index, jump_offset, 2); //JNE takes two bytes as opcode
-    record_compiled_bytecode(jit_compiler, first_instructino_index, OP_JUMP_IF_FALSE_LENGTH);
+    record_compiled_bytecode(jit_compiler, instruction_index, OP_JUMP_IF_FALSE_LENGTH);
 }
 
 static void jump(struct jit_compiler * jit_compiler, uint16_t offset) {
+    uint16_t instruction_index = call_safepoint(jit_compiler);
+
     uint16_t jmp_index = emit_near_jmp(&jit_compiler->native_compiled_code, 0); //We don't know the offset of where to jump
 
     record_pending_jump_to_patch(jit_compiler, jmp_index, offset, 1); //jmp takes only 1 byte as opcode
-    record_compiled_bytecode(jit_compiler, jmp_index, OP_JUMP_LENGTH);
+    record_compiled_bytecode(jit_compiler, instruction_index, OP_JUMP_LENGTH);
 }
 
 static void pop(struct jit_compiler * jit_compiler) {
@@ -741,6 +741,8 @@ static void pop(struct jit_compiler * jit_compiler) {
 }
 
 static void loop(struct jit_compiler * jit_compiler, uint16_t bytecode_backward_jump) {
+    uint16_t instruction_index = call_safepoint(jit_compiler);
+
     uint16_t bytecode_index_to_jump = CURRENT_BYTECODE_INDEX(jit_compiler) - bytecode_backward_jump;
     uint16_t native_index_to_jump = jit_compiler->compiled_bytecode_to_native_by_index[bytecode_index_to_jump];
     uint16_t current_native_index = jit_compiler->native_compiled_code.in_use;
@@ -749,9 +751,9 @@ static void loop(struct jit_compiler * jit_compiler, uint16_t bytecode_backward_
     uint16_t jmp_offset = (current_native_index - native_index_to_jump) + 5;
 
     //Loop bytecode instruction always jumps backward
-    uint16_t jmp_index = emit_near_jmp(&jit_compiler->native_compiled_code, -((int) jmp_offset));
+    emit_near_jmp(&jit_compiler->native_compiled_code, -((int) jmp_offset));
 
-    record_compiled_bytecode(jit_compiler, jmp_index, OP_LOOP_LENGTH);
+    record_compiled_bytecode(jit_compiler, instruction_index, OP_LOOP_LENGTH);
 }
 
 static void constant(struct jit_compiler * jit_compiler) {
@@ -888,6 +890,7 @@ static void sub(struct jit_compiler * jit_compiler) {
     record_compiled_bytecode(jit_compiler, sub_index, OP_SUB_LENGTH);
 }
 
+//TODO Call lox addition
 static void add(struct jit_compiler * jit_compiler) {
     register_t operandB = pop_register_allocator(&jit_compiler->register_allocator);
     register_t operandA = pop_register_allocator(&jit_compiler->register_allocator);
@@ -1005,6 +1008,13 @@ static void check_pending_jumps_to_patch(struct jit_compiler * jit_compiler, int
         jit_compiler->pending_jumps_to_patch[current_bytecode_index] = NULL;
         free(pending_jumps);
     }
+}
+
+static uint16_t call_safepoint(struct jit_compiler * jit_compiler) {
+    return call_external_c_function(
+            &jit_compiler->native_compiled_code,
+            (uint64_t) &check_gc_on_safe_point_alg,
+            0);
 }
 
 static uint16_t get_compiled_native_index_by_bytecode_index(struct jit_compiler * jit_compiler, uint16_t current_bytecode_index) {

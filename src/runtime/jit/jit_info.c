@@ -1,7 +1,7 @@
 #include "jit_info.h"
 
 void init_jit_info(struct jit_info * jit_info) {
-    jit_info->state = BYTECODE;
+    jit_info->state = JIT_BYTECODE;
     jit_info->n_function_calls = 0;
     jit_info->n_function_calls_jit_compiled = 0;
     jit_info->n_times_called = 0;

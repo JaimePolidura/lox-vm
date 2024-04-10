@@ -4,6 +4,7 @@ extern struct trie_list * compiled_packages;
 extern void check_gc_on_safe_point_alg();
 extern void print_lox_value(lox_value_t value);
 extern void runtime_panic(char * format, ...);
+extern lox_value_t addition_lox(lox_value_t a, lox_value_t b);
 
 __thread struct vm_thread * self_thread;
 const uint8_t eof = OP_EOF;
@@ -18,7 +19,7 @@ static interpret_result_t run();
 static void print_stack();
 static lox_value_t values_equal(lox_value_t a, lox_value_t b);
 static inline lox_value_t peek(int index_from_top);
-static void adition();
+static void addition_vm();
 static inline struct call_frame * get_current_frame();
 static void define_global(struct call_frame * current_callframe);
 static void get_global(struct call_frame * current_frame);
@@ -95,46 +96,6 @@ interpret_result_t interpret_vm(struct compilation_result compilation_result) {
     return run();
 }
 
-static void * run_thread_entrypoint(void * thread_ptr) {
-    struct vm_thread * thread = (struct vm_thread *) thread_ptr;
-    thread->native_thread = pthread_self();
-    self_thread = thread;
-    self_thread->state = THREAD_RUNNABLE;
-
-    run();
-
-    terminate_self_thread();
-
-    return NULL;
-}
-
-static void terminate_self_thread() {
-    if(some_child_thread_running(self_thread)) {
-        runtime_panic("Cannot end execution while some child thread still running");
-    }
-
-    self_thread->terminated_state = THREAD_TERMINATED_PENDING_GC;
-    self_thread->state = THREAD_TERMINATED;
-
-    atomic_fetch_sub(&current_vm.number_current_threads, 1);
-
-    thread_on_safe_point();
-
-    pthread_exit(NULL);
-}
-
-static bool some_child_thread_running(struct vm_thread * thread) {
-    for(int i = 0; i < MAX_THREADS_PER_THREAD; i++) {
-        struct vm_thread * current_thread = thread->children[i];
-
-        if(current_thread != NULL && current_thread->state < THREAD_TERMINATED) { //They are in order
-            return true;
-        }
-    }
-
-    return false;
-}
-
 static interpret_result_t run() {
     struct call_frame * current_frame = get_current_frame();
 
@@ -145,7 +106,7 @@ static interpret_result_t run() {
             case OP_RETURN: return_function(current_frame); current_frame = get_current_frame(); break;
             case OP_CONSTANT: push_stack_vm(READ_CONSTANT(current_frame)); break;
             case OP_NEGATE: push_stack_vm(TO_LOX_VALUE_NUMBER(-pop_and_check_number())); break;
-            case OP_ADD: adition(); break;
+            case OP_ADD: addition_vm(); break;
             case OP_SUB: BINARY_OP(-) break;
             case OP_MUL: BINARY_OP(*) break;
             case OP_DIV: BINARY_OP(/) break;
@@ -282,44 +243,8 @@ static void restore_prev_package_execution() {
     restore_prev_call_frame();
 }
 
-static void adition() {
-    if(IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
-        double a = AS_NUMBER(pop_stack_vm());
-        double b = AS_NUMBER(pop_stack_vm());
-        push_stack_vm(TO_LOX_VALUE_NUMBER(a + b));
-        return;
-    }
-
-    lox_value_t b_value = pop_stack_vm();
-    lox_value_t a_value = pop_stack_vm();
-    char * a_chars = to_string(a_value);
-    char * b_chars = to_string(b_value);
-    size_t a_length = strlen(a_chars);
-    size_t b_length = strlen(b_chars);
-
-    size_t new_length = a_length + b_length; //Include \0
-    char * concatenated = malloc(sizeof(char) * (new_length + 1));
-    memcpy(concatenated, a_chars, a_length);
-    memcpy(concatenated + a_length, b_chars, b_length);
-    concatenated[new_length] = '\0';
-
-    if(IS_NUMBER(a_value)){
-        free(a_chars);
-    }
-    if(IS_NUMBER(b_value)){
-        free(b_chars);
-    }
-
-    struct string_pool_add_result add_result = add_to_global_string_pool(concatenated, new_length);
-
-    push_stack_vm(TO_LOX_VALUE_OBJECT(add_result.string_object));
-
-    if(add_result.created_new) {
-        int total_bytes_allocated = sizeof_heap_allocated_lox_object(&add_result.string_object->object);
-        add_object_to_heap(self_thread->gc_info, &add_result.string_object->object, total_bytes_allocated);
-    } else {
-        free(concatenated);
-    }
+static void addition_vm() {
+    push_stack_vm(addition_lox(pop_stack_vm(), pop_stack_vm()));
 }
 
 static void define_global(struct call_frame * current_callframe) {
@@ -456,8 +381,7 @@ static void initialize_array(struct call_frame * call_frame) {
         set_element_array(array, index, value);
     }
 
-    int total_bytes_allocated = sizeof_heap_allocated_lox_object(&array->object);
-    add_object_to_heap(self_thread->gc_info, &array->object, total_bytes_allocated);
+    add_object_to_heap(self_thread->gc_info, &array->object);
 
     push_stack_vm(TO_LOX_VALUE_OBJECT(array));
 }
@@ -499,8 +423,7 @@ static void initialize_struct(struct call_frame * call_frame) {
 
     push_stack_vm(TO_LOX_VALUE_OBJECT(struct_instance));
 
-    int total_bytes_allocated = sizeof_heap_allocated_lox_object(&struct_instance->object);
-    add_object_to_heap(self_thread->gc_info, &struct_instance->object, total_bytes_allocated);
+    add_object_to_heap(self_thread->gc_info, &struct_instance->object);
 }
 
 static void get_struct_field(struct call_frame * call_frame) {
@@ -623,6 +546,18 @@ static void print_stack() {
     printf("\n");
 }
 
+static bool some_child_thread_running(struct vm_thread * thread) {
+    for(int i = 0; i < MAX_THREADS_PER_THREAD; i++) {
+        struct vm_thread * current_thread = thread->children[i];
+
+        if(current_thread != NULL && current_thread->state < THREAD_TERMINATED) { //They are in order
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static inline struct call_frame * get_current_frame() {
     return &self_thread->frames[self_thread->frames_in_use - 1];
 }
@@ -656,7 +591,7 @@ static bool restore_prev_call_frame() {
 
     bool last_frame = self_thread->frames_in_use == 0;
 
-    //We have hit end of execution of a thread (thread entrypoint are functions)
+    //We have hit the end of execution of a thread (thread's entrypoints are functions)
     if(last_frame) {
         struct call_frame * eof_call_frame = &self_thread->frames[self_thread->frames_in_use++];
         eof_call_frame->pc = &eof;
@@ -696,6 +631,34 @@ static void start_child_thread(struct function_object * thread_entry_point_func)
     atomic_fetch_add(&current_vm.number_current_threads, 1);
 
     pthread_create(&new_thread->native_thread, NULL, run_thread_entrypoint, new_thread);
+}
+
+static void * run_thread_entrypoint(void * thread_ptr) {
+    struct vm_thread * thread = (struct vm_thread *) thread_ptr;
+    thread->native_thread = pthread_self();
+    self_thread = thread;
+    self_thread->state = THREAD_RUNNABLE;
+
+    run();
+
+    terminate_self_thread();
+
+    return NULL;
+}
+
+static void terminate_self_thread() {
+    if(some_child_thread_running(self_thread)) {
+        runtime_panic("Cannot end execution while some child thread still running");
+    }
+
+    self_thread->terminated_state = THREAD_TERMINATED_PENDING_GC;
+    self_thread->state = THREAD_TERMINATED;
+
+    atomic_fetch_sub(&current_vm.number_current_threads, 1);
+
+    thread_on_safe_point();
+
+    pthread_exit(NULL);
 }
 
 static void copy_stack_from_esp(struct vm_thread * from, struct vm_thread * to, int n) {

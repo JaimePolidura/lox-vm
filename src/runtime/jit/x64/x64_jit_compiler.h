@@ -8,6 +8,7 @@
 #include "runtime/threads/vm_thread.h"
 #include "runtime/jit/x64/opcodes.h"
 #include "runtime/jit/x64/x64_stack.h"
+#include "runtime/jit/jit_compiler_arch.h"
 
 #include "shared/utils/collections/u8_arraylist.h"
 #include "shared/utils/collections/stack_list.h"
@@ -17,14 +18,10 @@
 
 #include "compiler/bytecode.h"
 
-struct cpu_regs_state {
-    uint64_t regs[N_MAX_REGISTERS];
-};
-
 struct jit_compiler {
     struct function_object * function_to_compile;
 
-    //Next bytecode instruction to compiler
+    //Next bytecode instruction to compile
     uint8_t * pc;
 
     //Mapping of bytecode instructions to its compiled instructions index stored in native_compiled_code
@@ -47,8 +44,3 @@ struct jit_compiler {
     //It works the same way as vm.h
     struct stack_list package_stack;
 };
-
-struct jit_compilation_result jit_compile(struct function_object * function);
-
-struct cpu_regs_state save_cpu_state();
-void restore_cpu_state(struct cpu_regs_state * regs);

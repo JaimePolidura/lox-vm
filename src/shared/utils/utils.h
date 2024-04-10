@@ -4,6 +4,8 @@
 
 #define TO_UPPER_CASE(character) ( ~((character >= 'a' & character <= 'z') << 5) & character )
 
+#define COMPILER_BARRIER() asm volatile ("" : : : "memory")
+
 #define GROW_CAPACITY(capacity) (capacity < 8 ? 8 : capacity << 1)
 
 #define GROW_ARRAY(type, pointer, oldCount, newCount) \

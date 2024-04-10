@@ -21,9 +21,10 @@ void init_gc_result(struct gc_result * gc_result) {
     gc_result->bytes_allocated_after_gc = 0;
 }
 
-void add_object_to_heap(struct gc_thread_info * gc_thread_info, struct object * object, size_t size) {
-    gc_thread_info->bytes_allocated += size;
-    add_object_to_heap_gc_alg(gc_thread_info, object, size);
+void add_object_to_heap(struct gc_thread_info * gc_thread_info, struct object * object) {
+    size_t allocated_heap_size = sizeof_heap_allocated_lox_object(object);
+    gc_thread_info->bytes_allocated += allocated_heap_size;
+    add_object_to_heap_gc_alg(gc_thread_info, object, allocated_heap_size);
 }
 
 struct gc_result try_start_gc(struct gc_thread_info * gc_thread_info) {

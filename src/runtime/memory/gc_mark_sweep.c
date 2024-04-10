@@ -73,10 +73,10 @@ void check_gc_on_safe_point_alg() {
         case GC_NONE: return;
         case GC_WAITING: {
             //There is a race condition if a thread terminates and the gc starts.
-            //The gc started thread might have read a stale value of the number_current_threads and if other thread
+            //The gc started thread might have read a stale value of the number_current_threads, and if other thread
             //has termianted, the gc thread will block forever
             //To solve this we want to wake up the gc thread to revaluate its waiting condition.
-            //This might work because calling this method number_current_threads have been decreased (see runtime code)
+            //This will work because, calling this method, number_current_threads has been decreased (see runtime code)
             atomic_fetch_add(&gc_mark_sweep->number_threads_ack_start_gc_signal, 1);
             notify_start_gc_signal_acked();
 
@@ -147,24 +147,23 @@ static void mark_stack(struct stack_list * terminated_threads) {
                     THREADS_OPT_INCLUSIVE);
 }
 
+static void mark_thread_stack(struct vm_thread * parent, struct vm_thread * child, int index, void * terminated_threads_ptr) {
+    if(child->state == THREAD_TERMINATED && child->terminated_state == THREAD_TERMINATED_PENDING_GC) {
+        struct stack_list * terminated_threads = terminated_threads_ptr;
+        push_stack_list(terminated_threads, child);
+    } else {
+        for(lox_value_t * value = child->stack; value < child->esp; value++) {
+            mark_value(value);
+        }
+    }
+}
+
 static void remove_terminated_threads(struct stack_list * terminated_threads) {
     while(!is_empty_stack_list(terminated_threads)){
         struct vm_thread * terminated_thread = pop_stack_list(terminated_threads);
 
         free_vm_thread(terminated_thread);
         terminated_thread->terminated_state = THREAD_TERMINATED_GC_DONE;
-    }
-}
-
-static void mark_thread_stack(struct vm_thread * parent, struct vm_thread * child, int index, void * terminated_threads_ptr) {
-    if(child->state == THREAD_TERMINATED && child->terminated_state == THREAD_TERMINATED_PENDING_GC) {
-        struct stack_list * terminated_threads = terminated_threads_ptr;
-
-        push_stack_list(terminated_threads, child);
-    } else {
-        for(lox_value_t * value = child->stack; value < child->esp; value++) {
-            mark_value(value);
-        }
     }
 }
 
