@@ -31,62 +31,66 @@ extern __thread struct vm_thread * self_thread;
 #define CURRENT_BYTECODE_INDEX(jit_compiler) (jit_compiler->pc - jit_compiler->function_to_compile->chunk.code)
 
 static struct jit_compiler init_jit_compiler(struct function_object * function);
-static void add(struct jit_compiler * jit_compiler);
-static void sub(struct jit_compiler * jit_compiler);
-static void lox_value(struct jit_compiler * jit_compiler, lox_value_t value, int bytecode_instruction_length);
-static void comparation(struct jit_compiler * jit_compiler, op_code comparation_opcode, int bytecode_instruction_length);
-static void greater(struct jit_compiler * jit_compiler);
-static void negate(struct jit_compiler * jit_compiler);
-static void multiplication(struct jit_compiler * jit_compiler);
-static void division(struct jit_compiler * jit_compiler);
-static void loop(struct jit_compiler * jit_compiler, uint16_t bytecode_backward_jump);
-static void constant(struct jit_compiler * jit_compiler);
-static void jump(struct jit_compiler * jit_compiler, uint16_t offset);
-static void jump_if_false(struct jit_compiler * jit_compiler, uint16_t jump_offset);
-static void print(struct jit_compiler * jit_compiler);
-static void pop(struct jit_compiler * jit_compiler);
-static void get_local(struct jit_compiler * jit_compiler);
-static void set_local(struct jit_compiler * jit_compiler);
-static void not(struct jit_compiler * jit_compiler);
-static void enter_package(struct jit_compiler * jit_compiler);
-static void exit_package(struct jit_compiler * jit_compiler);
-static void get_global(struct jit_compiler * jit_compiler);
-static void set_global(struct jit_compiler * jit_compiler);
-static void define_global(struct jit_compiler * jit_compiler);
-static void package_const(struct jit_compiler * jit_compiler);
-static void initialize_struct(struct jit_compiler * jit_compiler);
-static void get_struct_field(struct jit_compiler * jit_compiler);
-static void set_struct_field(struct jit_compiler * jit_compiler);
-static void nop(struct jit_compiler * jit_compiler);
-static void initialize_array(struct jit_compiler * jit_compiler);
-static void get_array_element(struct jit_compiler * jit_compiler);
-static void set_array_element(struct jit_compiler * jit_compiler);
-static void enter_monitor_jit(struct jit_compiler * jit_compiler);
-static void exti_monitor_jit(struct jit_compiler * jit_compiler);
+static void add(struct jit_compiler *);
+static void sub(struct jit_compiler *);
+static void lox_value(struct jit_compiler *, lox_value_t value, int bytecode_instruction_length);
+static void comparation(struct jit_compiler *, op_code comparation_opcode, int bytecode_instruction_length);
+static void greater(struct jit_compiler *);
+static void negate(struct jit_compiler *);
+static void multiplication(struct jit_compiler *);
+static void division(struct jit_compiler *);
+static void loop(struct jit_compiler *, uint16_t bytecode_backward_jump);
+static void constant(struct jit_compiler *);
+static void jump(struct jit_compiler *, uint16_t offset);
+static void jump_if_false(struct jit_compiler *, uint16_t jump_offset);
+static void print(struct jit_compiler *);
+static void pop(struct jit_compiler *);
+static void get_local(struct jit_compiler *);
+static void set_local(struct jit_compiler *);
+static void not(struct jit_compiler *);
+static void enter_package(struct jit_compiler *);
+static void exit_package(struct jit_compiler *);
+static void get_global(struct jit_compiler *);
+static void set_global(struct jit_compiler *);
+static void define_global(struct jit_compiler *);
+static void package_const(struct jit_compiler *);
+static void initialize_struct(struct jit_compiler *);
+static void get_struct_field(struct jit_compiler *);
+static void set_struct_field(struct jit_compiler *);
+static void nop(struct jit_compiler *);
+static void initialize_array(struct jit_compiler *);
+static void get_array_element(struct jit_compiler *);
+static void set_array_element(struct jit_compiler *);
+static void enter_monitor_jit(struct jit_compiler *);
+static void exti_monitor_jit(struct jit_compiler *);
 
-static void record_pending_jump_to_patch(struct jit_compiler * jit_compiler, uint16_t jump_instruction_index,
+static void record_pending_jump_to_patch(struct jit_compiler *, uint16_t jump_instruction_index,
         uint16_t bytecode_offset, uint16_t x64_jump_instruction_body_length);
-static void record_compiled_bytecode(struct jit_compiler * jit_compiler, uint16_t native_compiled_index, int bytecode_instruction_length);
-static uint16_t get_compiled_native_index_by_bytecode_index(struct jit_compiler * jit_compiler, uint16_t current_bytecode_index);
-static void check_pending_jumps_to_patch(struct jit_compiler * jit_compiler, int bytecode_instruction_length);
-static void cast_to_lox_boolean(struct jit_compiler * jit_compiler, register_t register_boolean_value);
-static void set_al_with_cmp_result(struct jit_compiler * jit_compiler, op_code comparation_opcode);
-static void number_const(struct jit_compiler * jit_compiler, int value, int instruction_length);
-static void free_jit_compiler(struct jit_compiler * jit_compiler);
-static uint16_t cast_lox_object_to_ptr(struct jit_compiler * jit_compiler, register_t lox_object_ptr);
-static uint16_t cast_ptr_to_lox_object(struct jit_compiler * jit_compiler, register_t lox_object_ptr);
-static void update_monitors_entered_array(struct jit_compiler * jit_compiler, register_t register_call_frame, int64_t monitor_to_enter);
-static void update_last_monitor_entered_count(struct jit_compiler * jit_compiler, register_t register_call_frame, bool increase);
-static void exit_monitor_jit(struct jit_compiler * jit_compiler);
-static void read_last_monitor_entered(struct jit_compiler * jit_compiler, register_t register_call_frame_addr, struct function_object * function);
-static uint16_t call_safepoint(struct jit_compiler * jit_compiler);
-static uint16_t call_add_object_to_heap(struct jit_compiler * jit_compiler, register_t object_addr_reg);
+static void record_compiled_bytecode(struct jit_compiler *, uint16_t native_compiled_index, int bytecode_instruction_length);
+static uint16_t get_compiled_native_index_by_bytecode_index(struct jit_compiler *, uint16_t current_bytecode_index);
+static void check_pending_jumps_to_patch(struct jit_compiler *, int bytecode_instruction_length);
+static void cast_to_lox_boolean(struct jit_compiler *, register_t register_boolean_value);
+static void set_al_with_cmp_result(struct jit_compiler *, op_code comparation_opcode);
+static void number_const(struct jit_compiler *, int value, int instruction_length);
+static void free_jit_compiler(struct jit_compiler *);
+static uint16_t cast_lox_object_to_ptr(struct jit_compiler *, register_t lox_object_ptr);
+static uint16_t cast_ptr_to_lox_object(struct jit_compiler *, register_t lox_object_ptr);
+static void update_monitors_entered_array(struct jit_compiler *, register_t register_call_frame, int64_t monitor_to_enter);
+static void update_last_monitor_entered_count(struct jit_compiler *, register_t register_call_frame, bool increase);
+static void exit_monitor_jit(struct jit_compiler *);
+static void read_last_monitor_entered(struct jit_compiler *, register_t register_call_frame_addr, struct function_object * function);
+static uint16_t call_safepoint(struct jit_compiler *);
+static uint16_t call_add_object_to_heap(struct jit_compiler *, register_t);
+static uint16_t emit_lox_push(struct jit_compiler *, register_t);
+static uint16_t emit_lox_pop(struct jit_compiler *, register_t);
+static uint16_t emit_increase_lox_stack(struct jit_compiler *, int);
+static uint16_t emit_decrease_lox_tsack(struct jit_compiler *, int);
 
 struct jit_compilation_result jit_compile_arch(struct function_object * function) {
     struct jit_compiler jit_compiler = init_jit_compiler(function);
     bool finish_compilation_flag = false;
 
-    prepare_x64_stack(&jit_compiler.native_compiled_code, function);
+    setup_x64_stack(&jit_compiler.native_compiled_code, function);
 
 #ifndef VM_TEST
     push_stack_list(&jit_compiler.package_stack, self_thread->current_package);
@@ -141,7 +145,7 @@ struct jit_compilation_result jit_compile_arch(struct function_object * function
         }
     }
     
-    end_x64_stack(&jit_compiler.native_compiled_code);
+    end_x64_stack(&jit_compiler.native_compiled_code, function);
 
     free_jit_compiler(&jit_compiler);
 
@@ -158,6 +162,7 @@ static void exit_monitor_jit(struct jit_compiler * jit_compiler) {
     register_t current_frame_addr_reg_b = push_register_allocator(&jit_compiler->register_allocator);
 
     uint16_t instruction_index = call_external_c_function(
+            jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
             (uint64_t) &get_current_frame_vm_thread,
             1,
@@ -176,6 +181,7 @@ static void exit_monitor_jit(struct jit_compiler * jit_compiler) {
     read_last_monitor_entered(jit_compiler, current_frame_addr_reg_b, function_object);
 
     call_external_c_function(
+            jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
             (uint64_t) &exit_monitor,
             1,
@@ -268,10 +274,11 @@ static void enter_monitor_jit(struct jit_compiler * jit_compiler) {
     register_t current_frame_addr_reg_b = push_register_allocator(&jit_compiler->register_allocator);
 
     uint16_t instruction_index = call_external_c_function(
-        &jit_compiler->native_compiled_code,
-        (uint64_t) &get_current_frame_vm_thread,
-        1,
-        IMMEDIATE_TO_OPERAND((uint64_t) self_thread)
+            jit_compiler->function_to_compile,
+            &jit_compiler->native_compiled_code,
+            (uint64_t) &get_current_frame_vm_thread,
+            1,
+            IMMEDIATE_TO_OPERAND((uint64_t) self_thread)
     );
 
     emit_mov(&jit_compiler->native_compiled_code, 
@@ -289,15 +296,24 @@ static void enter_monitor_jit(struct jit_compiler * jit_compiler) {
     pop_register_allocator(&jit_compiler->register_allocator);
     pop_register_allocator(&jit_compiler->register_allocator);
 
-    call_external_c_function(&jit_compiler->native_compiled_code, (uint64_t) &set_self_thread_waiting, 0);
+    call_external_c_function(
+            jit_compiler->function_to_compile,
+            &jit_compiler->native_compiled_code,
+            (uint64_t) &set_self_thread_waiting,
+            0);
 
     call_external_c_function(
+            jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
             (uint64_t) &enter_monitor,
             1,
             IMMEDIATE_TO_OPERAND((uint64_t) monitor_to_enter));
 
-    call_external_c_function(&jit_compiler->native_compiled_code, (uint64_t) &set_self_thread_runnable, 0);
+    call_external_c_function(
+            jit_compiler->function_to_compile,
+            &jit_compiler->native_compiled_code,
+            (uint64_t) &set_self_thread_runnable,
+            0);
 
     record_compiled_bytecode(jit_compiler, instruction_index, OP_ENTER_MONITOR_LENGTH);
 }
@@ -396,13 +412,14 @@ static void initialize_array(struct jit_compiler * jit_compiler) {
     int n_elements = READ_U16(jit_compiler);
 
     uint16_t instruction_index = call_external_c_function(
+            jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
             (uint64_t) &alloc_array_object,
             1,
             IMMEDIATE_TO_OPERAND((uint64_t) n_elements));
 
     if(n_elements > 0){
-        emit_push(&jit_compiler->native_compiled_code, RAX_REGISTER_OPERAND);
+        emit_lox_push(jit_compiler, RAX);
     }
 
     for(int i = 0; i < n_elements; i++){
@@ -410,6 +427,7 @@ static void initialize_array(struct jit_compiler * jit_compiler) {
         int index_array_value = n_elements - 1 - i;
 
         call_external_c_function(
+                jit_compiler->function_to_compile,
                 &jit_compiler->native_compiled_code,
                 (uint64_t) &set_element_array,
                 3,
@@ -417,7 +435,7 @@ static void initialize_array(struct jit_compiler * jit_compiler) {
                 IMMEDIATE_TO_OPERAND(index_array_value),
                 REGISTER_TO_OPERAND(array_value_reg));
 
-        emit_pop(&jit_compiler->native_compiled_code, RAX_REGISTER_OPERAND);
+        emit_lox_pop(jit_compiler, RAX);
     }
 
     register_t register_array_address = push_register_allocator(&jit_compiler->register_allocator);
@@ -449,6 +467,7 @@ static void set_struct_field(struct jit_compiler * jit_compiler) {
              IMMEDIATE_TO_OPERAND(offsetof(struct struct_instance_object, fields)));
 
     call_external_c_function(
+            jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
             (uint64_t) &put_hash_table,
             3,
@@ -472,26 +491,21 @@ static void get_struct_field(struct jit_compiler * jit_compiler) {
              REGISTER_TO_OPERAND(struct_instance_addr_reg),
              IMMEDIATE_TO_OPERAND(offsetof(struct struct_instance_object, fields)));
 
-    int return_value_disp = jit_compiler->last_stack_slot_allocated * sizeof(lox_value_t);
-
-    emit_sub(&jit_compiler->native_compiled_code, RSP_REGISTER_OPERAND, IMMEDIATE_TO_OPERAND(sizeof(lox_value_t)));
-
-    //The value will be allocated rigth after ESP
+    //The value will be allocated rigth after RSP. RSP always points to the first non-used slot of the stack
     call_external_c_function(
+            jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
             (uint64_t) &get_hash_table,
             3,
             REGISTER_TO_OPERAND(struct_instance_addr_reg),
             IMMEDIATE_TO_OPERAND((uint64_t) field_name),
-            DISPLACEMENT_TO_OPERAND(RBP, return_value_disp));
+            REGISTER_TO_OPERAND(RSP));
 
     register_t field_value_reg = push_register_allocator(&jit_compiler->register_allocator);
 
     emit_mov(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(field_value_reg),
-             DISPLACEMENT_TO_OPERAND(RBP, return_value_disp));
-
-    emit_add(&jit_compiler->native_compiled_code, RSP_REGISTER_OPERAND, IMMEDIATE_TO_OPERAND(sizeof(lox_value_t)));
+             DISPLACEMENT_TO_OPERAND(RSP, 0));
 
     record_compiled_bytecode(jit_compiler, first_instruction_index, OP_GET_STRUCT_FIELD_LENGTH);
 }
@@ -501,6 +515,7 @@ static void initialize_struct(struct jit_compiler * jit_compiler) {
     int n_fields = struct_definition->n_fields;
 
     uint16_t first_instruction_index = call_external_c_function(
+            jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
             (uint64_t) &alloc_struct_instance_object,
             0
@@ -512,7 +527,7 @@ static void initialize_struct(struct jit_compiler * jit_compiler) {
     );
 
     //RAX will get overrided by call_external_c_function because it is where the return address will be stored
-    emit_push(&jit_compiler->native_compiled_code, RAX_REGISTER_OPERAND);
+    emit_lox_push(jit_compiler, RAX);
 
     //structs will always have to contain atleast one argument, so this for loop will get executed -> RAX will get popped
     for(int i = 0; i < n_fields; i++) {
@@ -520,6 +535,7 @@ static void initialize_struct(struct jit_compiler * jit_compiler) {
         register_t struct_field_value_reg = pop_register_allocator(&jit_compiler->register_allocator);
 
         call_external_c_function(
+                jit_compiler->function_to_compile,
                 &jit_compiler->native_compiled_code,
                 (uint64_t) &put_hash_table,
                 3,
@@ -529,7 +545,7 @@ static void initialize_struct(struct jit_compiler * jit_compiler) {
         );
 
         //So that we can reuse it in the next call_external_c_function
-        emit_pop(&jit_compiler->native_compiled_code, RAX_REGISTER_OPERAND);
+        emit_lox_pop(jit_compiler, RAX);
     }
 
     emit_sub(&jit_compiler->native_compiled_code,
@@ -571,6 +587,7 @@ static void define_global(struct jit_compiler * jit_compiler) {
     register_t new_global_value = peek_register_allocator(&jit_compiler->register_allocator);
 
     uint16_t instruction_index = call_external_c_function(
+            jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
             (uint64_t) &put_hash_table,
             3,
@@ -600,6 +617,7 @@ static void set_global(struct jit_compiler * jit_compiler) {
     register_t new_global_value = peek_register_allocator(&jit_compiler->register_allocator);
 
     uint16_t instruction_index = call_external_c_function(
+            jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
             (uint64_t) &put_hash_table,
             3,
@@ -614,29 +632,23 @@ static void set_global(struct jit_compiler * jit_compiler) {
 static void get_global(struct jit_compiler * jit_compiler) {
     struct string_object * name = AS_STRING_OBJECT(READ_CONSTANT(jit_compiler));
     struct package * current_package = peek_stack_list(&jit_compiler->package_stack);
-    int return_value_dips = jit_compiler->last_stack_slot_allocated * sizeof(lox_value_t);
-
-    uint16_t instruction_index = emit_sub(&jit_compiler->native_compiled_code,
-                                          RSP_REGISTER_OPERAND,
-                                          IMMEDIATE_TO_OPERAND(sizeof(lox_value_t)));
 
     //The value will be allocated rigth after ESP
-    call_external_c_function(
+    uint16_t instruction_index = call_external_c_function(
+            jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
             (uint64_t) &get_hash_table,
             3,
             IMMEDIATE_TO_OPERAND((uint64_t) &current_package->global_variables),
             IMMEDIATE_TO_OPERAND((uint64_t) name),
-            DISPLACEMENT_TO_OPERAND(RBP, return_value_dips)
+            REGISTER_TO_OPERAND(RSP)
     );
 
     register_t global_value_reg = push_register_allocator(&jit_compiler->register_allocator);
 
     emit_mov(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(global_value_reg),
-             DISPLACEMENT_TO_OPERAND(RBP, return_value_dips));
-
-    emit_add(&jit_compiler->native_compiled_code, RSP_REGISTER_OPERAND, IMMEDIATE_TO_OPERAND(sizeof(lox_value_t)));
+             DISPLACEMENT_TO_OPERAND(RSP, 0));
 
     record_compiled_bytecode(jit_compiler, instruction_index, OP_GET_GLOBAL_LENGTH);
 }
@@ -666,9 +678,8 @@ static void set_local(struct jit_compiler * jit_compiler) {
     uint8_t slot = READ_BYTECODE(jit_compiler);
 
     if(slot > jit_compiler->last_stack_slot_allocated){
-        uint8_t diff = slot - jit_compiler->last_stack_slot_allocated;
-        uint8_t stack_grow = diff * sizeof(lox_value_t);
-        emit_sub(&jit_compiler->native_compiled_code, IMMEDIATE_TO_OPERAND(stack_grow), RSP_REGISTER_OPERAND);
+        uint8_t n_locals_to_grow = slot - jit_compiler->last_stack_slot_allocated;
+        emit_increase_lox_stack(jit_compiler, slot - jit_compiler->last_stack_slot_allocated);
     }
 
     register_t register_local_value = peek_register_allocator(&jit_compiler->register_allocator);
@@ -689,7 +700,7 @@ static void get_local(struct jit_compiler * jit_compiler) {
 
     uint16_t instruction_index = emit_mov(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(register_to_save_local),
-             DISPLACEMENT_TO_OPERAND(RBP, - offset_local_from_rbp)); //Stack grows to lower address
+             DISPLACEMENT_TO_OPERAND(RBP, offset_local_from_rbp));
 
     record_compiled_bytecode(jit_compiler, instruction_index, OP_GET_LOCAL_LENGTH);
 }
@@ -698,6 +709,7 @@ static void print(struct jit_compiler * jit_compiler) {
     register_t to_print_register_arg = pop_register_allocator(&jit_compiler->register_allocator);
 
     uint16_t instruction_index = call_external_c_function(
+            jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
             (uint64_t) &print_lox_value,
             1,
@@ -1018,6 +1030,7 @@ static void check_pending_jumps_to_patch(struct jit_compiler * jit_compiler, int
 
 static uint16_t call_safepoint(struct jit_compiler * jit_compiler) {
     return call_external_c_function(
+            jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
             (uint64_t) &check_gc_on_safe_point_alg,
             0);
@@ -1027,10 +1040,46 @@ static uint16_t call_add_object_to_heap(struct jit_compiler * jit_compiler, regi
     register_t lox_object_addr_reg = push_register_allocator(&jit_compiler->register_allocator);
 
     return call_external_c_function(
+            jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
             (uint64_t) &add_object_to_heap,
             1,
             REGISTER_TO_OPERAND(object_addr_reg));
+}
+
+//Se x64_stack.h
+//Same as vm.c push_stack_vm
+static uint16_t emit_lox_push(struct jit_compiler * jit_compiler, register_t reg) {
+    uint16_t instruction_index = emit_mov(&jit_compiler->native_compiled_code,
+             RSP_REGISTER_OPERAND,
+             REGISTER_TO_OPERAND(reg));
+
+    emit_increase_lox_stack(jit_compiler, 1);
+
+    return instruction_index;
+}
+
+//Same as vm.c pop_stack_vm
+static uint16_t emit_lox_pop(struct jit_compiler * jit_compiler, register_t reg) {
+    uint16_t instruction_index = emit_decrease_lox_tsack(jit_compiler, 1);
+
+    emit_add(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(reg),
+             RSP_REGISTER_OPERAND);
+
+    return instruction_index;
+}
+
+static uint16_t emit_increase_lox_stack(struct jit_compiler * jit_compiler, int n_locals) {
+    return emit_add(&jit_compiler->native_compiled_code,
+                    RSP_REGISTER_OPERAND,
+                    IMMEDIATE_TO_OPERAND(sizeof(lox_value_t) * n_locals));
+}
+
+static uint16_t emit_decrease_lox_tsack(struct jit_compiler * jit_compiler, int n_locals) {
+    return emit_sub(&jit_compiler->native_compiled_code,
+                    RSP_REGISTER_OPERAND,
+                    IMMEDIATE_TO_OPERAND(sizeof(lox_value_t) * n_locals));
 }
 
 static uint16_t get_compiled_native_index_by_bytecode_index(struct jit_compiler * jit_compiler, uint16_t current_bytecode_index) {

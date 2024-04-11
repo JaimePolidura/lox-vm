@@ -8,6 +8,9 @@
  * - Storing in low bytes AL the boolean result of a comparation
  * - Storing the return value of external C function calls
  *
+ * RCX used for storing the previous RSP register
+ * RDX used for storing the previous RBP register
+ *
  * RBP, RSP used for stack managment
  * RSI to R15 are used for register allocation
 */

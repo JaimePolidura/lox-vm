@@ -14,8 +14,7 @@ static void load_arguments_into_registers(
 static void save_caller_registers(
     struct u8_arraylist * native_code,
     int n_operands,
-    uint64_t function_ptr,
-    uint16_t * instruction_index
+    uint64_t function_ptr
 );
 
 //We use R9 to store the function address
@@ -28,6 +27,7 @@ static register_t linux_args_call_convention[] = {
 };
 
 uint16_t call_external_c_function(
+        struct function_object * compiling_function,
         struct u8_arraylist * native_code,
         uint64_t function_address,
         int n_arguments,
@@ -35,15 +35,19 @@ uint16_t call_external_c_function(
 ) {
     struct operand arguments[n_arguments];
     VARARGS_TO_ARRAY(struct operand, arguments, n_arguments, ...);
-    uint16_t instruction_index = 0;
+    uint16_t instruction_index = native_code->in_use;
 
-    save_caller_registers(native_code, n_arguments, function_address, &instruction_index);
+    restore_from_lox_stack(native_code, compiling_function);
+
+    save_caller_registers(native_code, n_arguments, function_address);
 
     load_arguments_into_registers(native_code, arguments, n_arguments);
 
     emit_call(native_code, R9_REGISTER_OPERAND);
 
     restore_caller_registers(native_code, n_arguments);
+
+    switch_to_lox_stack(native_code, compiling_function);
 
     return instruction_index;
 }
@@ -60,9 +64,8 @@ static void load_arguments_into_registers(
 }
 
 static void save_caller_registers(struct u8_arraylist * native_code,
-        int n_operands, uint64_t function_ptr, uint16_t * instruction_index) {
+        int n_operands, uint64_t function_ptr) {
 
-    *instruction_index = emit_push(native_code, R9_REGISTER_OPERAND);
     emit_mov(native_code, R9_REGISTER_OPERAND, IMMEDIATE_TO_OPERAND(function_ptr));
 
     for(int i = 0; i < n_operands; i++) {
