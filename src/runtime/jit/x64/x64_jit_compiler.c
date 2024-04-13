@@ -17,12 +17,13 @@ extern void runtime_panic(char * format, ...);
 extern void check_gc_on_safe_point_alg();
 extern void set_self_thread_runnable();
 extern void set_self_thread_waiting();
+extern bool restore_prev_call_frame();
 
 //Used by jit_compiler::compiled_bytecode_to_native_by_index Some instructions are not compiled to native code, but some jumps bytecode offset
 //will be pointing to those instructions. If in a slot is -1, the native offset will be in the next slot
 #define NATIVE_INDEX_IN_NEXT_SLOT 0xFFFF
 
-extern __thread struct vm_thread * self_thread;
+//extern __thread struct vm_thread * self_thread;
 
 #define READ_BYTECODE(jit_compiler) (*(jit_compiler)->pc++)
 #define READ_U16(jit_compiler) \
@@ -63,6 +64,7 @@ static void get_array_element(struct jit_compiler *);
 static void set_array_element(struct jit_compiler *);
 static void enter_monitor_jit(struct jit_compiler *);
 static void exti_monitor_jit(struct jit_compiler *);
+static void return_jit(struct jit_compiler *);
 
 static void record_pending_jump_to_patch(struct jit_compiler *, uint16_t jump_instruction_index,
         uint16_t bytecode_offset, uint16_t x64_jump_instruction_body_length);
@@ -137,6 +139,7 @@ struct jit_compilation_result jit_compile_arch(struct function_object * function
             case OP_SET_ARRAY_ELEMENT: set_array_element(&jit_compiler); break;
             case OP_ENTER_MONITOR: enter_monitor_jit(&jit_compiler); break;
             case OP_EXIT_MONITOR: exit_monitor_jit(&jit_compiler); break;
+            case OP_RETURN: return_jit(&jit_compiler); break;
             default: runtime_panic("Unhandled bytecode to compile %u\n", *(--jit_compiler.pc));
         }
 
@@ -155,9 +158,19 @@ struct jit_compilation_result jit_compile_arch(struct function_object * function
     };
 }
 
-static void exit_monitor_jit(struct jit_compiler * jit_compiler) {
-    struct function_object * function_object = get_current_function_vm_thread(self_thread);
+static void return_jit(struct jit_compiler * jit_compiler) {
+    register_t returned_value = peek_register_allocator(&jit_compiler->register_allocator);
+    bool some_value_returned = returned_value <= R15;
 
+    call_external_c_function(
+            jit_compiler->function_to_compile,
+            &jit_compiler->native_compiled_code,
+            (uint64_t) &restore_prev_call_frame,
+            0);
+
+6}
+
+static void exit_monitor_jit(struct jit_compiler * jit_compiler) {
     register_t current_frame_addr_reg_a = push_register_allocator(&jit_compiler->register_allocator);
     register_t current_frame_addr_reg_b = push_register_allocator(&jit_compiler->register_allocator);
 
@@ -166,7 +179,7 @@ static void exit_monitor_jit(struct jit_compiler * jit_compiler) {
             &jit_compiler->native_compiled_code,
             (uint64_t) &get_current_frame_vm_thread,
             1,
-            IMMEDIATE_TO_OPERAND((uint64_t) self_thread)
+            REGISTER_TO_OPERAND(SELF_THREAD_ADDR_REG)
     );
 
     emit_mov(&jit_compiler->native_compiled_code,
@@ -178,7 +191,7 @@ static void exit_monitor_jit(struct jit_compiler * jit_compiler) {
 
     update_last_monitor_entered_count(jit_compiler, current_frame_addr_reg_a, DECREASE_MONITOR_COUNT);
 
-    read_last_monitor_entered(jit_compiler, current_frame_addr_reg_b, function_object);
+    read_last_monitor_entered(jit_compiler, current_frame_addr_reg_b, jit_compiler->function_to_compile);
 
     call_external_c_function(
             jit_compiler->function_to_compile,
@@ -266,9 +279,8 @@ static void read_last_monitor_entered(struct jit_compiler * jit_compiler,
 // inc r13
 // mov [r14 + offset(struct callframe, monitors_entered)], r14
 static void enter_monitor_jit(struct jit_compiler * jit_compiler) {
-    struct function_object * current_function = get_current_function_vm_thread(self_thread);
     int monitor_number_to_enter = READ_BYTECODE(jit_compiler);
-    struct monitor * monitor_to_enter = &current_function->monitors[monitor_number_to_enter];
+    struct monitor * monitor_to_enter = &jit_compiler->function_to_compile->monitors[monitor_number_to_enter];
     
     register_t current_frame_addr_reg_a = push_register_allocator(&jit_compiler->register_allocator);
     register_t current_frame_addr_reg_b = push_register_allocator(&jit_compiler->register_allocator);
@@ -278,7 +290,7 @@ static void enter_monitor_jit(struct jit_compiler * jit_compiler) {
             &jit_compiler->native_compiled_code,
             (uint64_t) &get_current_frame_vm_thread,
             1,
-            IMMEDIATE_TO_OPERAND((uint64_t) self_thread)
+            REGISTER_TO_OPERAND(SELF_THREAD_ADDR_REG)
     );
 
     emit_mov(&jit_compiler->native_compiled_code, 

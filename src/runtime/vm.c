@@ -44,7 +44,7 @@ static void restore_prev_package_execution();
 static void setup_native_functions();
 static void setup_call_frame_function(struct vm_thread * thread, struct function_object * function);
 static void setup_enter_package(struct package * package_to_enter);
-static bool restore_prev_call_frame();
+bool restore_prev_call_frame();
 static void create_root_thread();
 static void start_child_thread(struct function_object * thread_entry_point_func);
 static int add_child_to_parent_list(struct vm_thread * new_child_thread);
@@ -330,14 +330,23 @@ static void call_function(struct function_object * function, int n_args, bool is
         runtime_panic("Stack overflow. Max allowed frames: %i", FRAME_MAX);
     }
 
-    if(increase_call_count_function(&function->jit_info)) {
-        try_jit_compile(function);
+    if(is_parallel) {
+        start_child_thread(function);
+        return;
     }
 
-    if(!is_parallel) {
-        setup_call_frame_function(self_thread, function);
-    } else {
-        start_child_thread(function);
+    switch (function->jit_info.state) {
+        case JIT_BYTECODE:
+            if(increase_call_count_function(&function->jit_info) && try_jit_compile(function)) {
+                goto run_jit_compiled;
+            }
+        case JIT_INCOPILABLE:
+        case JIT_COMPILING:
+            setup_call_frame_function(self_thread, function);
+            break;
+        case JIT_COMPILED:
+        run_jit_compiled:
+            run_jit_compiled(function);
     }
 }
 
@@ -586,7 +595,7 @@ static void setup_call_frame_function(struct vm_thread * thread, struct function
     new_frame->last_monitor_entered_index = 0;
 }
 
-static bool restore_prev_call_frame() {
+bool restore_prev_call_frame() {
     self_thread->frames_in_use--;
 
     bool last_frame = self_thread->frames_in_use == 0;

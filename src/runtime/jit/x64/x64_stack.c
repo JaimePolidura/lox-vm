@@ -1,7 +1,5 @@
 #include "x64_stack.h"
 
-extern __thread struct vm_thread * self_thread;
-
 void setup_x64_stack(struct u8_arraylist * code, struct function_object * function) {
     emit_push(code, RBP_REGISTER_OPERAND);
     emit_mov(code, RBP_REGISTER_OPERAND, RSP_REGISTER_OPERAND);
@@ -19,14 +17,11 @@ void switch_to_lox_stack(struct u8_arraylist * code, struct function_object * fu
     emit_mov(code, RCX_REGISTER_OPERAND, RSP_REGISTER_OPERAND);
     emit_mov(code, RDX_REGISTER_OPERAND, RBP_REGISTER_OPERAND);
 
-    //Load self-thread into r15
-    emit_mov(code, R15_REGISTER_OPERAND, IMMEDIATE_TO_OPERAND((uint64_t) self_thread));
-
     //Load vm_thread esp into rsp
-    emit_mov(code, RSP_REGISTER_OPERAND, DISPLACEMENT_TO_OPERAND(R15, offsetof(struct vm_thread, esp)));
+    emit_mov(code, RSP_REGISTER_OPERAND, DISPLACEMENT_TO_OPERAND(SELF_THREAD_ADDR_REG, offsetof(struct vm_thread, esp)));
 
     //Load slots/frame pointer to rbp
-    emit_mov(code, RBP_REGISTER_OPERAND, DISPLACEMENT_TO_OPERAND(R15, offsetof(struct vm_thread, esp)));
+    emit_mov(code, RBP_REGISTER_OPERAND, DISPLACEMENT_TO_OPERAND(SELF_THREAD_ADDR_REG, offsetof(struct vm_thread, esp)));
     emit_sub(code, RBP_REGISTER_OPERAND, IMMEDIATE_TO_OPERAND(function->n_arguments));
     emit_dec(code, RBP_REGISTER_OPERAND);
 }

@@ -1,13 +1,14 @@
 #include "jit_compiler.h"
 
 extern struct jit_compilation_result jit_compile_arch(struct function_object * function);
+extern __thread struct vm_thread * self_thread;
 
 static jit_compiled to_executable(struct jit_compilation_result result);
 
-void try_jit_compile(struct function_object * function) {
+bool try_jit_compile(struct function_object * function) {
     jit_state_t expected_state = JIT_BYTECODE;
     if(!atomic_compare_exchange_strong(&function->jit_info.state, &expected_state, JIT_COMPILING)){
-        return;
+        return false;
     }
 
     struct jit_compilation_result result = jit_compile_arch(function);
@@ -16,8 +17,10 @@ void try_jit_compile(struct function_object * function) {
         function->jit_info.compiled_jit = to_executable(result);
         COMPILER_BARRIER(); //TODO Use memory barriers
         function->jit_info.state = JIT_COMPILED;
+        return true;
     } else {
         function->jit_info.state = JIT_INCOPILABLE;
+        return false;
     }
 }
 

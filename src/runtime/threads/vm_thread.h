@@ -77,6 +77,4 @@ enum {
 
 void for_each_thread(struct vm_thread * start_thread, thread_consumer_t callback, void * extra, long options);
 
-struct function_object * get_current_function_vm_thread(struct vm_thread *);
-
 struct call_frame * get_current_frame_vm_thread(struct vm_thread *);
