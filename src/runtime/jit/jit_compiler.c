@@ -1,7 +1,7 @@
 #include "jit_compiler.h"
 
-extern struct jit_compilation_result jit_compile_arch(struct function_object * function);
-extern __thread struct vm_thread * self_thread;
+extern struct jit_compilation_result jit_compile_arch(struct function_object *);
+extern void run_jit_compiled_arch(struct function_object * );
 
 static jit_compiled to_executable(struct jit_compilation_result result);
 
@@ -25,7 +25,7 @@ bool try_jit_compile(struct function_object * function) {
 }
 
 void run_jit_compiled(struct function_object * function) {
-    function->jit_info.compiled_jit();
+    run_jit_compiled_arch(function);
 }
 
 static jit_compiled to_executable(struct jit_compilation_result result) {

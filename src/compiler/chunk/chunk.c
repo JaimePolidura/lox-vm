@@ -15,15 +15,15 @@ int add_constant_to_chunk(struct chunk * chunk_to_write, lox_value_t constant) {
 
 void write_chunk(struct chunk * chunk_to_write, uint8_t byte, int line) {
     if(chunk_to_write->in_use + 1 > chunk_to_write->capacity) {
-        const int new_code_capacity = GROW_CAPACITY(chunk_to_write->capacity);
-        const int old_code_capacity = chunk_to_write->capacity;
+        int new_code_capacity = GROW_CAPACITY(chunk_to_write->capacity);
+        int old_code_capacity = chunk_to_write->capacity;
         chunk_to_write->capacity = new_code_capacity;
 
         chunk_to_write->code = GROW_ARRAY(uint8_t, chunk_to_write->code, old_code_capacity, new_code_capacity);
         chunk_to_write->lines = GROW_ARRAY(int, chunk_to_write->lines, old_code_capacity, new_code_capacity);
     }
 
-    const int index_to_write = chunk_to_write->in_use++;
+    int index_to_write = chunk_to_write->in_use++;
     chunk_to_write->code[index_to_write] = byte;
     chunk_to_write->lines[index_to_write] = line;
 }

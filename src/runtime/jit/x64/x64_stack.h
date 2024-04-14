@@ -1,5 +1,6 @@
 #pragma once
 
+#include "runtime/jit/x64/register_allocator.h"
 #include "runtime/threads/vm_thread.h"
 #include "runtime/jit/x64/opcodes.h"
 

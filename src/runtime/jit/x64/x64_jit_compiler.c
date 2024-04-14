@@ -162,13 +162,20 @@ static void return_jit(struct jit_compiler * jit_compiler) {
     register_t returned_value = peek_register_allocator(&jit_compiler->register_allocator);
     bool some_value_returned = returned_value <= R15;
 
-    call_external_c_function(
+    uint16_t instruction_index = call_external_c_function(
             jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
             (uint64_t) &restore_prev_call_frame,
             0);
 
-6}
+    emit_mov(&jit_compiler->native_compiled_code,
+             RSP_REGISTER_OPERAND,
+             RBP_REGISTER_OPERAND);
+
+    emit_lox_push(jit_compiler, returned_value);
+
+    record_compiled_bytecode(jit_compiler, instruction_index, OP_RETURN_LENGTH);
+}
 
 static void exit_monitor_jit(struct jit_compiler * jit_compiler) {
     register_t current_frame_addr_reg_a = push_register_allocator(&jit_compiler->register_allocator);

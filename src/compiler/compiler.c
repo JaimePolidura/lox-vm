@@ -4,13 +4,13 @@
 struct trie_list * compiled_packages = NULL;
 const char * compiling_base_dir = NULL;
 
-static void report_error(struct compiler * compiler, struct token token, const char * message);
+static void report_error(struct compiler * compiler, struct token token, char * message);
 static void advance(struct compiler * compiler);
 static struct compiler * alloc_compiler(scope_type_t scope, char * package_name, bool is_standalone_mode);
 static void free_compiler(struct compiler * compiler);
 static void init_compiler(struct compiler * compiler, scope_type_t scope_type, struct compiler * parent_compiler);
 static struct function_object * end_compiler(struct compiler * compiler);
-static void consume(struct compiler * compiler, tokenType_t expected_token_type, const char * error_message);
+static void consume(struct compiler * compiler, tokenType_t expected_token_type, char * error_message);
 static void emit_bytecode(struct compiler * compiler, uint8_t bytecode);
 static void emit_bytecodes(struct compiler * compiler, uint8_t bytecodeA, uint8_t bytecodeB);
 static void emit_constant(struct compiler * compiler, lox_value_t value);
@@ -999,7 +999,7 @@ static void emit_bytecode(struct compiler * compiler, uint8_t bytecode) {
     write_chunk(current_chunk(compiler), bytecode, compiler->parser->previous.line);
 }
 
-static void consume(struct compiler * compiler, tokenType_t expected_token_type, const char * error_message) {
+static void consume(struct compiler * compiler, tokenType_t expected_token_type, char * error_message) {
     if(compiler->parser->current.type == expected_token_type) {
         advance(compiler);
         return;
@@ -1008,7 +1008,7 @@ static void consume(struct compiler * compiler, tokenType_t expected_token_type,
     report_error(compiler, compiler->parser->current, error_message);
 }
 
-static void report_error(struct compiler * compiler, struct token token, const char * message) {
+static void report_error(struct compiler * compiler, struct token token, char * message) {
     fprintf(stderr, "[line %d] Error", token.line);
     if (token.type == TOKEN_EOF) {
         fprintf(stderr, " at end");
@@ -1109,7 +1109,7 @@ static void init_compiler(struct compiler * compiler, scope_type_t scope_type, s
 }
 
 static void string(struct compiler * compiler, bool can_assign) {
-    const char * string_ptr = compiler->parser->previous.start + 1;
+    char * string_ptr = compiler->parser->previous.start + 1;
     int string_length = compiler->parser->previous.length - 2;
 
     struct string_pool_add_result add_result = add_to_global_string_pool(string_ptr, string_length);
@@ -1193,7 +1193,7 @@ static bool identifiers_equal(struct token * a, struct token * b) {
 }
 
 static uint8_t add_string_constant(struct compiler * compiler, struct token string_token) {
-    const char * variable_name = string_token.start;
+    char * variable_name = string_token.start;
     int variable_name_length = string_token.length;
 
     //TODO Reuse constant offsets

@@ -27,6 +27,10 @@ void switch_to_lox_stack(struct u8_arraylist * code, struct function_object * fu
 }
 
 void restore_from_lox_stack(struct u8_arraylist * code, struct function_object * function) {
+    //Store back RSP into self_thread esp
+    emit_mov(code, DISPLACEMENT_TO_OPERAND(SELF_THREAD_ADDR_REG, offsetof(struct vm_thread, esp)), RSP_REGISTER_OPERAND);
+
+    //Restore previous rsp & rbp
     emit_mov(code, RSP_REGISTER_OPERAND, RCX_REGISTER_OPERAND);
     emit_mov(code, RBP_REGISTER_OPERAND, RDX_REGISTER_OPERAND);
 }

@@ -4,7 +4,7 @@
 #include "runtime/jit/x64/pending_path_jump.h"
 #include "runtime/jit/jit_compilation_result.h"
 #include "runtime/jit/x64/function_calls.h"
-#include "runtime/jit/x64/registers.h"
+#include "registers.h"
 #include "runtime/threads/vm_thread.h"
 #include "runtime/jit/x64/opcodes.h"
 #include "runtime/jit/x64/x64_stack.h"

@@ -337,7 +337,8 @@ static void call_function(struct function_object * function, int n_args, bool is
 
     switch (function->jit_info.state) {
         case JIT_BYTECODE:
-            if(increase_call_count_function(&function->jit_info) && try_jit_compile(function)) {
+            if(increase_call_count_function(&function->jit_info)) {
+                try_jit_compile(function);
                 goto run_jit_compiled;
             }
         case JIT_INCOPILABLE:
@@ -346,6 +347,7 @@ static void call_function(struct function_object * function, int n_args, bool is
             break;
         case JIT_COMPILED:
         run_jit_compiled:
+            setup_call_frame_function(self_thread, function);
             run_jit_compiled(function);
     }
 }
