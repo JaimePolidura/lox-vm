@@ -65,6 +65,7 @@ static void set_array_element(struct jit_compiler *);
 static void enter_monitor_jit(struct jit_compiler *);
 static void exti_monitor_jit(struct jit_compiler *);
 static void return_jit(struct jit_compiler *);
+static void call(struct jit_compiler *);
 
 static void record_pending_jump_to_patch(struct jit_compiler *, uint16_t jump_instruction_index,
         uint16_t bytecode_offset, uint16_t x64_jump_instruction_body_length);
@@ -87,6 +88,9 @@ static uint16_t emit_lox_push(struct jit_compiler *, register_t);
 static uint16_t emit_lox_pop(struct jit_compiler *, register_t);
 static uint16_t emit_increase_lox_stack(struct jit_compiler *, int);
 static uint16_t emit_decrease_lox_tsack(struct jit_compiler *, int);
+static void emit_native_call(struct jit_compiler *, register_t function_object_addr_reg, int n_args);
+static void update_vm_esp(struct jit_compiler *);
+static void restore_vm_esp(struct jit_compiler *);
 
 struct jit_compilation_result jit_compile_arch(struct function_object * function) {
     struct jit_compiler jit_compiler = init_jit_compiler(function);
@@ -140,6 +144,7 @@ struct jit_compilation_result jit_compile_arch(struct function_object * function
             case OP_ENTER_MONITOR: enter_monitor_jit(&jit_compiler); break;
             case OP_EXIT_MONITOR: exit_monitor_jit(&jit_compiler); break;
             case OP_RETURN: return_jit(&jit_compiler); break;
+            case OP_CALL: call(&jit_compiler); break;
             default: runtime_panic("Unhandled bytecode to compile %u\n", *(--jit_compiler.pc));
         }
 
@@ -156,6 +161,72 @@ struct jit_compilation_result jit_compile_arch(struct function_object * function
             .compiled_code = jit_compiler.native_compiled_code,
             .success = true,
     };
+}
+
+//TODO Add runtime information optimization
+static void call(struct jit_compiler * jit_compiler) {
+    int n_args = READ_BYTECODE(jit_compiler);
+    bool is_parallel = READ_BYTECODE(jit_compiler);
+    register_t function_register = peek_register_allocator(&jit_compiler->register_allocator);
+
+    uint16_t instruction_index = cast_ptr_to_lox_object(jit_compiler, function_register);
+
+    //Pop function_register
+    pop_register_allocator(&jit_compiler->register_allocator);
+
+    emit_cmp(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(function_register),
+             IMMEDIATE_TO_OPERAND(OBJ_NATIVE));
+
+    emit_native_call(jit_compiler, function_register, n_args);
+
+    //As the vm stack might have some data, we need to update vm esp, so that if any thread is garbage collecting,
+    //it can read the most up-to-date stack without discarding data
+    //This is only used here since the safepoint calls are done in places where the stack is emtpy
+    //Note that the stack only contains values when an expression is being executed.
+    update_vm_esp(jit_compiler);
+    call_safepoint(jit_compiler);
+    restore_vm_esp(jit_compiler);
+
+    record_compiled_bytecode(jit_compiler, instruction_index, OP_CALL_LENGTH);
+}
+
+static void emit_native_call(struct jit_compiler * jit_compiler, register_t function_object_addr_reg, int n_args) {
+    emit_add(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(function_object_addr_reg),
+             IMMEDIATE_TO_OPERAND(offsetof(struct native_object, native_fn)));
+
+    for(int i = n_args - 1; i >= 0; i--){
+        register_t arg_reg = peek_at_register_allocator(&jit_compiler->register_allocator, i);
+        emit_lox_push(jit_compiler, arg_reg);
+    }
+    //Pop args registers
+    for(int i = n_args - 1; i >= 0; i--){
+        pop_register_allocator(&jit_compiler->register_allocator);
+    }
+
+    emit_sub(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(RSP),
+             IMMEDIATE_TO_OPERAND(n_args));
+
+    register_t start_args_addr_reg = push_register_allocator(&jit_compiler->register_allocator);
+
+    emit_mov(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(start_args_addr_reg),
+             RSP_REGISTER_OPERAND);
+
+    call_dynamic_external_c_function(
+            jit_compiler->function_to_compile,
+            &jit_compiler->native_compiled_code,
+            REGISTER_TO_OPERAND(function_object_addr_reg),
+            2,
+            IMMEDIATE_TO_OPERAND(n_args),
+            REGISTER_TO_OPERAND(start_args_addr_reg)
+    );
+
+    emit_mov(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(start_args_addr_reg),
+             RAX_REGISTER_OPERAND);
 }
 
 static void return_jit(struct jit_compiler * jit_compiler) {
@@ -652,7 +723,7 @@ static void get_global(struct jit_compiler * jit_compiler) {
     struct string_object * name = AS_STRING_OBJECT(READ_CONSTANT(jit_compiler));
     struct package * current_package = peek_stack_list(&jit_compiler->package_stack);
 
-    //The value will be allocated rigth after ESP
+    //The value will be allocated rigth after RSP
     uint16_t instruction_index = call_external_c_function(
             jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
@@ -1047,6 +1118,65 @@ static void check_pending_jumps_to_patch(struct jit_compiler * jit_compiler, int
     }
 }
 
+static void update_vm_esp(struct jit_compiler * jit_compiler) {
+    int n_allocated_registers = jit_compiler->register_allocator.n_allocated_registers;
+
+    if(n_allocated_registers == 0){
+        return;
+    }
+
+    register_t esp_addr_reg = push_register_allocator(&jit_compiler->register_allocator);
+
+    //Save esp vm address into esp_addr_reg
+    emit_mov(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(esp_addr_reg),
+             DISPLACEMENT_TO_OPERAND(SELF_THREAD_ADDR_REG, offsetof(struct vm_thread, esp)));
+
+    for(int i = n_allocated_registers - 1; i >= 0; i--) {
+        register_t stack_value_reg = peek_at_register_allocator(&jit_compiler->register_allocator, i);
+
+        emit_mov(&jit_compiler->native_compiled_code,
+                 DISPLACEMENT_TO_OPERAND(esp_addr_reg, 0),
+                 REGISTER_TO_OPERAND(stack_value_reg));
+
+        emit_add(&jit_compiler->native_compiled_code,
+                 REGISTER_TO_OPERAND(esp_addr_reg),
+                 IMMEDIATE_TO_OPERAND(sizeof(lox_value_t)));
+    }
+
+    //Update updated esp vm value
+    emit_mov(&jit_compiler->native_compiled_code,
+             DISPLACEMENT_TO_OPERAND(SELF_THREAD_ADDR_REG, offsetof(struct vm_thread, esp)),
+             REGISTER_TO_OPERAND(esp_addr_reg));
+
+    //pop esp_addr_reg
+    pop_register_allocator(&jit_compiler->register_allocator);
+}
+
+static void restore_vm_esp(struct jit_compiler * jit_compiler) {
+    if(jit_compiler->register_allocator.n_allocated_registers == 0){
+        return;
+    }
+
+    register_t esp_addr_reg = push_register_allocator(&jit_compiler->register_allocator);
+
+    //Save esp vm address into esp_addr_reg
+    emit_mov(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(esp_addr_reg),
+             DISPLACEMENT_TO_OPERAND(SELF_THREAD_ADDR_REG, offsetof(struct vm_thread, esp)));
+
+    emit_sub(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(esp_addr_reg),
+             IMMEDIATE_TO_OPERAND(jit_compiler->register_allocator.n_allocated_registers));
+
+    //Update updated esp vm value
+    emit_mov(&jit_compiler->native_compiled_code,
+             DISPLACEMENT_TO_OPERAND(SELF_THREAD_ADDR_REG, offsetof(struct vm_thread, esp)),
+             REGISTER_TO_OPERAND(esp_addr_reg));
+
+    pop_register_allocator(&jit_compiler->register_allocator);
+}
+
 static uint16_t call_safepoint(struct jit_compiler * jit_compiler) {
     return call_external_c_function(
             jit_compiler->function_to_compile,
@@ -1070,7 +1200,7 @@ static uint16_t call_add_object_to_heap(struct jit_compiler * jit_compiler, regi
 //Same as vm.c push_stack_vm
 static uint16_t emit_lox_push(struct jit_compiler * jit_compiler, register_t reg) {
     uint16_t instruction_index = emit_mov(&jit_compiler->native_compiled_code,
-             RSP_REGISTER_OPERAND,
+             DISPLACEMENT_TO_OPERAND(RSP, 0),
              REGISTER_TO_OPERAND(reg));
 
     emit_increase_lox_stack(jit_compiler, 1);
@@ -1084,7 +1214,7 @@ static uint16_t emit_lox_pop(struct jit_compiler * jit_compiler, register_t reg)
 
     emit_add(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(reg),
-             RSP_REGISTER_OPERAND);
+             DISPLACEMENT_TO_OPERAND(RSP, 0));
 
     return instruction_index;
 }

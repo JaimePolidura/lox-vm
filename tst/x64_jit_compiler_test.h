@@ -194,6 +194,8 @@ TEST(x64_jit_compiler_negation) {
     struct jit_compilation_result result = jit_compile_arch(to_function(OP_CONST_1, OP_CONST_2, OP_EQUAL,
             OP_NEGATE, OP_NOT, OP_EOF));
 
+    print_jit_result(result);
+
     ASSERT_U8_SEQ(result.compiled_code.values,
                   0x55, // push rbp
                   0x48, 0x89, 0xe5, //mov rbp, rsp

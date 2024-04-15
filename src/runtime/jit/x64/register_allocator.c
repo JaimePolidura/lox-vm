@@ -22,10 +22,14 @@ register_t push_register_allocator(struct register_allocator * register_allocati
         return -1;
     }
 
+    register_allocation->n_allocated_registers++;
+
     return register_allocation->next_free_register--;
 }
 
 register_t pop_register_allocator(struct register_allocator * register_allocation) {
+    register_allocation->n_allocated_registers--;
+
     return ++register_allocation->next_free_register;
 }
 

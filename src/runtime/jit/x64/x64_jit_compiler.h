@@ -19,6 +19,7 @@
 #include "compiler/bytecode.h"
 
 struct jit_compiler {
+    //Lox function being compiled
     struct function_object * function_to_compile;
 
     //Next bytecode instruction to compile

@@ -22,7 +22,11 @@ void switch_to_lox_stack(struct u8_arraylist * code, struct function_object * fu
 
     //Load slots/frame pointer to rbp
     emit_mov(code, RBP_REGISTER_OPERAND, DISPLACEMENT_TO_OPERAND(SELF_THREAD_ADDR_REG, offsetof(struct vm_thread, esp)));
-    emit_sub(code, RBP_REGISTER_OPERAND, IMMEDIATE_TO_OPERAND(function->n_arguments));
+    
+    if(function->n_arguments > 0){
+        emit_sub(code, RBP_REGISTER_OPERAND, IMMEDIATE_TO_OPERAND(function->n_arguments));
+    }
+
     emit_dec(code, RBP_REGISTER_OPERAND);
 }
 

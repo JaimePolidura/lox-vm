@@ -23,6 +23,7 @@
 
 struct register_allocator {
     register_t next_free_register;
+    int n_allocated_registers;
 };
 
 void init_register_allocator(struct register_allocator * register_allocation);
