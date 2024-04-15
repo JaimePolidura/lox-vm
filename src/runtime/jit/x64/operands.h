@@ -3,6 +3,7 @@
 #include "shared.h"
 #include "registers.h"
 
+#define FUNCTION_TO_OPERAND(function) (IMMEDIATE_TO_OPERAND((uint64_t) &function))
 #define IMMEDIATE_TO_OPERAND(immediate) ((struct operand) {IMMEDIATE_OPERAND, immediate})
 #define REGISTER_TO_OPERAND(reg) ((struct operand) {REGISTER_OPERAND, reg})
 #define DISPLACEMENT_TO_OPERAND(reg, disp) ((struct operand) {.type = REGISTER_DISP_OPERAND, .as = { .reg_disp = {reg, disp} }})

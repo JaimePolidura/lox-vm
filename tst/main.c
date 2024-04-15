@@ -7,14 +7,14 @@
 #include "stack_test.h"
 #include "utils_test.h"
 
-//#define RUN_HASH_TABLE_TEST
-//#define RUN_COMPILER_TEST
-//#define RUN_PACKAGE_TEST
-//#define RUN_TRIE_TEST
-//#define RUN_VM_TEST
-//#define RUN_STACK_TEST
-//#define RUN_UTILS_TEST
-#define JIT_X64_TEST
+#define RUN_HASH_TABLE_TEST
+#define RUN_COMPILER_TEST
+#define RUN_PACKAGE_TEST
+#define RUN_TRIE_TEST
+#define RUN_VM_TEST
+#define RUN_STACK_TEST
+#define RUN_UTILS_TEST
+//#define JIT_X64_TEST
 
 extern struct trie_list * compiled_packages;
 extern const char * compiling_base_dir;
@@ -28,7 +28,7 @@ int main() {
 //    x64_jit_compiler_division_multiplication_outer();
 //    x64_jit_compiler_simple_expression_outer();
 //    x64_jit_compiler_for_loop_outer();
-    x64_jit_compiler_negation_outer();
+//    x64_jit_compiler_negation_outer();
 #endif
 
 #ifdef RUN_PACKAGE_TEST

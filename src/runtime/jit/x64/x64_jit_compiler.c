@@ -215,7 +215,7 @@ static void emit_native_call(struct jit_compiler * jit_compiler, register_t func
              REGISTER_TO_OPERAND(start_args_addr_reg),
              RSP_REGISTER_OPERAND);
 
-    call_dynamic_external_c_function(
+    call_external_c_function(
             jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
             REGISTER_TO_OPERAND(function_object_addr_reg),
@@ -236,7 +236,7 @@ static void return_jit(struct jit_compiler * jit_compiler) {
     uint16_t instruction_index = call_external_c_function(
             jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
-            (uint64_t) &restore_prev_call_frame,
+            FUNCTION_TO_OPERAND(restore_prev_call_frame),
             0);
 
     emit_mov(&jit_compiler->native_compiled_code,
@@ -255,7 +255,7 @@ static void exit_monitor_jit(struct jit_compiler * jit_compiler) {
     uint16_t instruction_index = call_external_c_function(
             jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
-            (uint64_t) &get_current_frame_vm_thread,
+            FUNCTION_TO_OPERAND(get_current_frame_vm_thread),
             1,
             REGISTER_TO_OPERAND(SELF_THREAD_ADDR_REG)
     );
@@ -274,7 +274,7 @@ static void exit_monitor_jit(struct jit_compiler * jit_compiler) {
     call_external_c_function(
             jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
-            (uint64_t) &exit_monitor,
+            FUNCTION_TO_OPERAND(exit_monitor),
             1,
             REGISTER_TO_OPERAND(current_frame_addr_reg_b));
 
@@ -366,7 +366,7 @@ static void enter_monitor_jit(struct jit_compiler * jit_compiler) {
     uint16_t instruction_index = call_external_c_function(
             jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
-            (uint64_t) &get_current_frame_vm_thread,
+            FUNCTION_TO_OPERAND(get_current_frame_vm_thread),
             1,
             REGISTER_TO_OPERAND(SELF_THREAD_ADDR_REG)
     );
@@ -389,20 +389,20 @@ static void enter_monitor_jit(struct jit_compiler * jit_compiler) {
     call_external_c_function(
             jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
-            (uint64_t) &set_self_thread_waiting,
+            FUNCTION_TO_OPERAND(set_self_thread_waiting),
             0);
 
     call_external_c_function(
             jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
-            (uint64_t) &enter_monitor,
+            FUNCTION_TO_OPERAND(enter_monitor),
             1,
             IMMEDIATE_TO_OPERAND((uint64_t) monitor_to_enter));
 
     call_external_c_function(
             jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
-            (uint64_t) &set_self_thread_runnable,
+            FUNCTION_TO_OPERAND(set_self_thread_runnable),
             0);
 
     record_compiled_bytecode(jit_compiler, instruction_index, OP_ENTER_MONITOR_LENGTH);
@@ -504,7 +504,7 @@ static void initialize_array(struct jit_compiler * jit_compiler) {
     uint16_t instruction_index = call_external_c_function(
             jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
-            (uint64_t) &alloc_array_object,
+            FUNCTION_TO_OPERAND(alloc_array_object),
             1,
             IMMEDIATE_TO_OPERAND((uint64_t) n_elements));
 
@@ -519,7 +519,7 @@ static void initialize_array(struct jit_compiler * jit_compiler) {
         call_external_c_function(
                 jit_compiler->function_to_compile,
                 &jit_compiler->native_compiled_code,
-                (uint64_t) &set_element_array,
+                FUNCTION_TO_OPERAND(set_element_array),
                 3,
                 RAX_REGISTER_OPERAND,
                 IMMEDIATE_TO_OPERAND(index_array_value),
@@ -559,7 +559,7 @@ static void set_struct_field(struct jit_compiler * jit_compiler) {
     call_external_c_function(
             jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
-            (uint64_t) &put_hash_table,
+            FUNCTION_TO_OPERAND(put_hash_table),
             3,
             REGISTER_TO_OPERAND(struct_instance_addr_reg),
             IMMEDIATE_TO_OPERAND((uint64_t) field_name),
@@ -585,7 +585,7 @@ static void get_struct_field(struct jit_compiler * jit_compiler) {
     call_external_c_function(
             jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
-            (uint64_t) &get_hash_table,
+            FUNCTION_TO_OPERAND(get_hash_table),
             3,
             REGISTER_TO_OPERAND(struct_instance_addr_reg),
             IMMEDIATE_TO_OPERAND((uint64_t) field_name),
@@ -607,7 +607,7 @@ static void initialize_struct(struct jit_compiler * jit_compiler) {
     uint16_t first_instruction_index = call_external_c_function(
             jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
-            (uint64_t) &alloc_struct_instance_object,
+            FUNCTION_TO_OPERAND(alloc_struct_instance_object),
             0
     );
 
@@ -627,7 +627,7 @@ static void initialize_struct(struct jit_compiler * jit_compiler) {
         call_external_c_function(
                 jit_compiler->function_to_compile,
                 &jit_compiler->native_compiled_code,
-                (uint64_t) &put_hash_table,
+                FUNCTION_TO_OPERAND(put_hash_table),
                 3,
                 RAX_REGISTER_OPERAND,
                 IMMEDIATE_TO_OPERAND((uint64_t) field_name),
@@ -679,7 +679,7 @@ static void define_global(struct jit_compiler * jit_compiler) {
     uint16_t instruction_index = call_external_c_function(
             jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
-            (uint64_t) &put_hash_table,
+            FUNCTION_TO_OPERAND(put_hash_table),
             3,
             IMMEDIATE_TO_OPERAND((uint64_t) &current_package->global_variables),
             IMMEDIATE_TO_OPERAND((uint64_t) global_name),
@@ -709,7 +709,7 @@ static void set_global(struct jit_compiler * jit_compiler) {
     uint16_t instruction_index = call_external_c_function(
             jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
-            (uint64_t) &put_hash_table,
+            FUNCTION_TO_OPERAND(put_hash_table),
             3,
             IMMEDIATE_TO_OPERAND((uint64_t) &current_package->global_variables),
             IMMEDIATE_TO_OPERAND((uint64_t) global_name),
@@ -727,7 +727,7 @@ static void get_global(struct jit_compiler * jit_compiler) {
     uint16_t instruction_index = call_external_c_function(
             jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
-            (uint64_t) &get_hash_table,
+            FUNCTION_TO_OPERAND(get_hash_table),
             3,
             IMMEDIATE_TO_OPERAND((uint64_t) &current_package->global_variables),
             IMMEDIATE_TO_OPERAND((uint64_t) name),
@@ -801,7 +801,7 @@ static void print(struct jit_compiler * jit_compiler) {
     uint16_t instruction_index = call_external_c_function(
             jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
-            (uint64_t) &print_lox_value,
+            FUNCTION_TO_OPERAND(print_lox_value),
             1,
             REGISTER_TO_OPERAND(to_print_register_arg));
 
@@ -1181,7 +1181,7 @@ static uint16_t call_safepoint(struct jit_compiler * jit_compiler) {
     return call_external_c_function(
             jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
-            (uint64_t) &check_gc_on_safe_point_alg,
+            FUNCTION_TO_OPERAND(check_gc_on_safe_point_alg),
             0);
 }
 
@@ -1191,7 +1191,7 @@ static uint16_t call_add_object_to_heap(struct jit_compiler * jit_compiler, regi
     return call_external_c_function(
             jit_compiler->function_to_compile,
             &jit_compiler->native_compiled_code,
-            (uint64_t) &add_object_to_heap,
+            FUNCTION_TO_OPERAND(add_object_to_heap),
             1,
             REGISTER_TO_OPERAND(object_addr_reg));
 }
