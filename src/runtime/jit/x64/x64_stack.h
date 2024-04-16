@@ -10,8 +10,8 @@
 #include "shared.h"
 
 //Used by the jit compiler before and after the compiled bytecode
-void setup_x64_stack(struct u8_arraylist *, struct function_object *);
-void end_x64_stack(struct u8_arraylist *, struct function_object *);
+void emit_prologue_x64_stack(struct u8_arraylist *, struct function_object *);
+void emit_epilogue_x64_stack(struct u8_arraylist *, struct function_object *);
 
 //These functions are used to change from lox stack to native stack
 
@@ -23,5 +23,5 @@ void end_x64_stack(struct u8_arraylist *, struct function_object *);
 //This happens because x64 stack grows to lower address while vm.c stack to higher address.
 
 //We store previous RSP and RBP into RCX & RDX
-void restore_from_lox_stack(struct u8_arraylist * code, struct function_object * function);
+void switch_jit_to_native_mode(struct u8_arraylist * code, struct function_object * function);
 void switch_to_lox_stack(struct u8_arraylist * code, struct function_object * function);

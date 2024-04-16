@@ -353,8 +353,6 @@ static void print() {
 #else
     print_lox_value(value);
 #endif
-    
-    thread_on_safe_point();
 }
 
 static void return_function(struct call_frame * function_to_return_frame) {

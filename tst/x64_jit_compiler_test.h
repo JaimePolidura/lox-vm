@@ -19,6 +19,51 @@
     (function_ptr >> 48) & 0xFF, \
     (function_ptr >> 56) & 0xFF \
 
+//push rbp
+//mov rbp, rsp
+#define PROLOGUE_NO_ARGS_FUNCTION \
+    0x55,                    \
+    0x48, 0x89, 0xe5,        \
+    SWITCH_TO_LOX_STACK_NO_ARGSS
+
+//pop rbq
+//ret
+#define EPILOGUE 0x5d, 0xc3
+
+//mov rcx, rsp
+//mov rdx, rbp
+//mov rsp, [rbx + 0x20]
+//mov rbp, [rbx + 0x20]
+//dec rbp
+#define SWITCH_TO_LOX_STACK_NO_ARGSS  \
+    0x48, 0x89, 0xe1,        \
+    0x48, 0x89, 0xea,        \
+    0x48, 0x8b, 0x63, 0x20,  \
+    0x48, 0x8b, 0x6b, 0x20,  \
+    0x48, 0xff, 0xcd
+
+//mov rcx, rsp
+//mov rdx, rbp
+//mov rsp, [rbx + 0x20]
+//mov rbp, [rbx + 0x20]
+//add rsp, n
+//dec rbp
+#define SWITCH_TO_LOX_STACK_ARGS(n)  \
+    0x48, 0x89, 0xe1,        \
+    0x48, 0x89, 0xea,        \
+    0x48, 0x8b, 0x63, 0x20,  \
+    0x48, 0x8b, 0x6b, 0x20,  \
+    0x48, 0x83, 0xed, 0x02,  \
+    0x48, 0xff, 0xcd
+
+//mov [rbx + 0x20], rsp
+//mov rsp,rcx
+//mov rbp,rdx
+#define RESTORE_FROM_LOX_STACK \
+    0x48, 0x89, 0x63, 0x20, \
+    0x48, 0x89, 0xcc, \
+    0x48, 0x89, 0xd5
+
 static struct function_object * to_function(op_code first, ...);
 static void print_jit_result(struct jit_compilation_result result);
 
@@ -139,10 +184,11 @@ TEST(x64_jit_compiler_for_loop) {
 
     struct jit_compilation_result result = jit_compile_arch(function);
 
+    print_jit_result(result);
+
     ASSERT_U8_SEQ(result.compiled_code.values,
-                  0x55, // push rbp
-                  0x48, 0x89, 0xe5, //mov rbp, rsp
-                  0x48, 0x83, 0xec, 0x10, //sub rsp, 16 Increase stack size by 2
+                  EPILOGUE,
+                  SWITCH_TO_LOX_STACK_ARGS(2),
 
                   0x49, 0xc7, 0xc7, 0x00, 0x00, 0x00, 0x00, //mov r15, 0 (OP_FAST_CONST_8, 0)
                   0x4c, 0x89, 0x7d, 0x00, //mov [rbp+0x0], r15 (OP_SET_LOCAL, 0)
@@ -194,14 +240,24 @@ TEST(x64_jit_compiler_negation) {
     struct jit_compilation_result result = jit_compile_arch(to_function(OP_CONST_1, OP_CONST_2, OP_EQUAL,
             OP_NEGATE, OP_NOT, OP_EOF));
 
-    print_jit_result(result);
-
     ASSERT_U8_SEQ(result.compiled_code.values,
-                  0x55, // push rbp
-                  0x48, 0x89, 0xe5, //mov rbp, rsp
+                  PROLOGUE_NO_ARGS_FUNCTION,
                   0x49, 0xc7, 0xc7, 0x01, 0x00, 0x00, 0x00, //mov r15, 1
                   0x49, 0xc7, 0xc6, 0x02, 0x00, 0x00, 0x00, //mov r14, 2
                   0x4d, 0x39, 0xfe, //cmp r14, r15 OP_EQUAL
+                  0x0f, 0x94, 0xc0, //sete al
+                  0x4c, 0x0f, 0xb6, 0xf8, //movzx r15, al
+                  0x49, 0x83, 0xc7, 0x02, //add r15, 0x2
+                  0x49, 0xbe, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfc, 0x7f, //movabs r14,0x7ffc000000000000
+                  0x4d, 0x09, 0xf7, //or r15,r14
+                  0x49, 0xf7, 0xdf, //neg r15 OP_NEGATE
+                  0x49, 0xbe, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfc, 0x7f, //movabs r14,0x7ffc000000000003 OP_NOT
+                  0x4d, 0x29, 0xf7, //sub r15, r14
+                  0x49, 0xbe, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfc, 0x7f, //movabs r14,0x7ffc000000000002
+                  0x4d, 0x01, 0xf7, //add r15, r14
+                  RESTORE_FROM_LOX_STACK,
+                  EPILOGUE
+
     );
 }
 
@@ -213,13 +269,13 @@ TEST(x64_jit_compiler_simple_expression) {
     uint64_t print_ptr = (uint64_t) &print_lox_value;
 
     ASSERT_U8_SEQ(result.compiled_code.values,
-                  0x55, // push rbp
-                  0x48, 0x89, 0xe5, //mov rbp, rsp
+                  PROLOGUE_NO_ARGS_FUNCTION,
                   0x49, 0xc7, 0xc7, 0x01, 0x00, 0x00, 0x00, // mov r15, 1
                   0x49, 0xc7, 0xc6, 0x02, 0x00, 0x00, 0x00, // mov r14, 2
                   0x4d, 0x01, 0xf7, // add r15, r14
                   0x49, 0xc7, 0xc6, 0x03, 0x00, 0x00, 0x00, // mov r14, 3
                   0x4d, 0x29, 0xf7, // sub r15, r14
+                  RESTORE_FROM_LOX_STACK,
                   0x41, 0x51, //push r9
                   0x49, 0xb9, CONTAINS_QWORD(print_ptr), //movabs r9, <print function address>
                   0x57, //push rdi
@@ -227,8 +283,9 @@ TEST(x64_jit_compiler_simple_expression) {
                   0x41, 0xff, 0xd1, //call r9
                   0x5f, //pop rdi
                   0x41, 0x59, //pop r9
-                  0x5d, //pop rbp
-                  0xc3, //ret
+                  SWITCH_TO_LOX_STACK_NO_ARGSS,
+                  RESTORE_FROM_LOX_STACK,
+                  EPILOGUE
                   );
 }
 

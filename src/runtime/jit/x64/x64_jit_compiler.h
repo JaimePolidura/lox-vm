@@ -9,6 +9,7 @@
 #include "runtime/jit/x64/opcodes.h"
 #include "runtime/jit/x64/x64_stack.h"
 #include "runtime/jit/jit_compiler_arch.h"
+#include "runtime/jit/x64/mode.h"
 
 #include "shared/utils/collections/u8_arraylist.h"
 #include "shared/utils/collections/stack_list.h"
@@ -44,4 +45,6 @@ struct jit_compiler {
     //Keep tracks of which package we are compiling. This is used for being able to get the correct global variables
     //It works the same way as vm.h
     struct stack_list package_stack;
+
+    jit_mode_t current_mode;
 };

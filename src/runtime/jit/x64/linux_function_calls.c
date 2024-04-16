@@ -1,4 +1,5 @@
 #include "function_calls.h"
+#include "x64_jit_compiler.h"
 
 static void restore_caller_registers (
         struct u8_arraylist * native_code,
@@ -27,17 +28,23 @@ static register_t linux_args_call_convention[] = {
 };
 
 uint16_t call_external_c_function(
-        struct function_object * compiling_function,
-        struct u8_arraylist * native_code,
+        struct jit_compiler * jit_compiler,
+        jit_mode_t function_mode,
+        bool restore_mode_after_call,
         struct operand function_address,
         int n_arguments,
         ... //Arguments
 ) {
+    struct function_object * compiling_function = jit_compiler->function_to_compile;
+    struct u8_arraylist * native_code = &jit_compiler->native_compiled_code;
     struct operand arguments[n_arguments];
     VARARGS_TO_ARRAY(struct operand, arguments, n_arguments, ...);
     uint16_t instruction_index = native_code->in_use;
+    mode_t prev_mode = jit_compiler->current_mode;
 
-    restore_from_lox_stack(native_code, compiling_function);
+    switch_to_function_mode(jit_compiler, function_mode);
+
+    switch_jit_to_native_mode(native_code, compiling_function);
 
     save_caller_registers(native_code, n_arguments, function_address);
 
@@ -46,6 +53,10 @@ uint16_t call_external_c_function(
     emit_call(native_code, R9_REGISTER_OPERAND);
 
     restore_caller_registers(native_code, n_arguments);
+
+    if(restore_mode_after_call){
+        switch_to_prev(jit_compiler, prev_mode);
+    }
 
     switch_to_lox_stack(native_code, compiling_function);
 
@@ -65,6 +76,8 @@ static void load_arguments_into_registers(
 
 static void save_caller_registers(struct u8_arraylist * native_code,
         int n_operands, struct operand function_ptr) {
+
+    emit_push(native_code, R9_REGISTER_OPERAND);
 
     emit_mov(native_code, R9_REGISTER_OPERAND, function_ptr);
 
