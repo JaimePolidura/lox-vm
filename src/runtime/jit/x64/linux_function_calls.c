@@ -1,6 +1,10 @@
 #include "function_calls.h"
 #include "x64_jit_compiler.h"
 
+extern void switch_jit_to_native_mode(struct jit_compiler * jit_compiler);
+extern void switch_native_to_jit_mode(struct jit_compiler * jit_compiler);
+extern void runtime_panic(char * format, ...);
+
 static void restore_caller_registers (
         struct u8_arraylist * native_code,
         int n_operands
@@ -27,6 +31,9 @@ static register_t linux_args_call_convention[] = {
         R8
 };
 
+static void switch_to_function_mode(struct jit_compiler *, mode_t new_mode);
+static void switch_to_prev_mode(struct jit_compiler *, mode_t prev_mode);
+
 uint16_t call_external_c_function(
         struct jit_compiler * jit_compiler,
         jit_mode_t function_mode,
@@ -44,8 +51,6 @@ uint16_t call_external_c_function(
 
     switch_to_function_mode(jit_compiler, function_mode);
 
-    switch_jit_to_native_mode(native_code, compiling_function);
-
     save_caller_registers(native_code, n_arguments, function_address);
 
     load_arguments_into_registers(native_code, arguments, n_arguments);
@@ -55,10 +60,8 @@ uint16_t call_external_c_function(
     restore_caller_registers(native_code, n_arguments);
 
     if(restore_mode_after_call){
-        switch_to_prev(jit_compiler, prev_mode);
+        switch_to_prev_mode(jit_compiler, prev_mode);
     }
-
-    switch_to_lox_stack(native_code, compiling_function);
 
     return instruction_index;
 }
@@ -98,3 +101,32 @@ static void restore_caller_registers(
 
     emit_pop(native_code, R9_REGISTER_OPERAND);
 }
+
+static void switch_to_function_mode(struct jit_compiler * jit_compiler, mode_t new_mode) {
+    if(jit_compiler->current_mode == new_mode){
+        return;
+    }
+
+    if(jit_compiler->current_mode == MODE_JIT && new_mode == MODE_VM){
+
+    } else if(jit_compiler->current_mode == MODE_JIT && new_mode == MODE_NATIVE){
+        switch_jit_to_native_mode(jit_compiler);
+    } else {
+        runtime_panic("Illegal JIT mode transition. from %i to %i", jit_compiler->current_mode, new_mode);
+    }
+}
+
+static void switch_to_prev_mode(struct jit_compiler * jit_compiler, mode_t prev_mode) {
+    if(jit_compiler->current_mode == prev_mode){
+        return;
+    }
+
+    if(jit_compiler->current_mode == MODE_NATIVE && prev_mode == MODE_JIT){
+        switch_native_to_jit_mode(jit_compiler);
+    }
+}
+
+
+
+
+

@@ -2,6 +2,7 @@
 
 extern struct jit_compilation_result jit_compile_arch(struct function_object *);
 extern void run_jit_compiled_arch(struct function_object * );
+extern void * alloc_jit_runtime_info_arch();
 
 static jit_compiled to_executable(struct jit_compilation_result result);
 
@@ -33,4 +34,8 @@ static jit_compiled to_executable(struct jit_compilation_result result) {
     memcpy(executable_code, result.compiled_code.values, result.compiled_code.in_use);
 
     return (jit_compiled) executable_code;
+}
+
+void * alloc_jit_runtime_info() {
+    return alloc_jit_runtime_info_arch();
 }

@@ -8,5 +8,6 @@
 
 struct jit_compilation_result jit_compile_arch(struct function_object *);
 
-//Defined in x64_run_jit_compiled
 void run_jit_compiled_arch(struct function_object * );
+
+void * alloc_jit_runtime_info_arch();

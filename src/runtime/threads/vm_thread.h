@@ -57,6 +57,8 @@ struct vm_thread {
     struct stack_list package_stack;
 
     struct gc_thread_info * gc_info;
+
+    void * jit_runtime_info;
 };
 
 typedef void (*thread_consumer_t)(struct vm_thread * parent, struct vm_thread * child, int index, void * extra);

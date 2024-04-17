@@ -18,6 +18,7 @@ extern void check_gc_on_safe_point_alg();
 extern void set_self_thread_runnable();
 extern void set_self_thread_waiting();
 extern bool restore_prev_call_frame();
+extern void setup_vm_to_jit_mode(struct jit_compiler *);
 
 //Used by jit_compiler::compiled_bytecode_to_native_by_index Some instructions are not compiled to native code, but some jumps bytecode offset
 //will be pointing to those instructions. If in a slot is -1, the native offset will be in the next slot
@@ -90,8 +91,10 @@ static uint16_t emit_increase_lox_stack(struct jit_compiler *, int);
 static uint16_t emit_decrease_lox_tsack(struct jit_compiler *, int);
 static void emit_native_call(struct jit_compiler *, register_t function_object_addr_reg, int n_args);
 static void switch_jit_to_vm_mode(struct jit_compiler *);
-static void switch_vm_to_jit_mode(struct jit_compiler *);
-static void setup_vm_to_jit_mode(struct jit_compiler * );
+
+void * alloc_jit_runtime_info_arch() {
+    return malloc(sizeof(struct x64_jit_runtime_info));
+}
 
 struct jit_compilation_result jit_compile_arch(struct function_object * function) {
     struct jit_compiler jit_compiler = init_jit_compiler(function);
@@ -1055,7 +1058,7 @@ static void record_pending_jump_to_patch(struct jit_compiler * jit_compiler, uin
 static struct jit_compiler init_jit_compiler(struct function_object * function) {
     struct jit_compiler compiler;
 
-    compiler.current_mode = MODE_VM;
+    compiler.current_mode = MODE_JIT;
     compiler.compiled_bytecode_to_native_by_index = malloc(sizeof(uint16_t) * function->chunk.in_use);
     memset(compiler.compiled_bytecode_to_native_by_index, 0, sizeof(uint16_t) * function->chunk.in_use);
 
@@ -1190,57 +1193,6 @@ static void switch_jit_to_vm_mode(struct jit_compiler * jit_compiler) {
     emit_mov(&jit_compiler->native_compiled_code, RSP_REGISTER_OPERAND, RCX_REGISTER_OPERAND);
     emit_mov(&jit_compiler->native_compiled_code, RBP_REGISTER_OPERAND, RDX_REGISTER_OPERAND);
 }
-
-//Called by the first time jit mode is entered from vm
-//Stores "native" rsp & rbp registers
-//Setups lox stack
-static void setup_vm_to_jit_mode(struct jit_compiler * jit_compiler) {
-    struct u8_arraylist * code = &jit_compiler->native_compiled_code;
-
-    //Save previous rsp and rbp
-    emit_mov(code, RCX_REGISTER_OPERAND, RSP_REGISTER_OPERAND);
-    emit_mov(code, RDX_REGISTER_OPERAND, RBP_REGISTER_OPERAND);
-
-    //Load vm_thread esp into rsp
-    emit_mov(code, RSP_REGISTER_OPERAND, DISPLACEMENT_TO_OPERAND(SELF_THREAD_ADDR_REG, offsetof(struct vm_thread, esp)));
-
-    //Load slots/frame pointer to rbp
-    emit_mov(code, RBP_REGISTER_OPERAND, DISPLACEMENT_TO_OPERAND(SELF_THREAD_ADDR_REG, offsetof(struct vm_thread, esp)));
-
-    //Really similar to setup_call_frame_function in vm.c
-    if(jit_compiler->function_to_compile->n_arguments > 0){
-        emit_sub(code, RBP_REGISTER_OPERAND, IMMEDIATE_TO_OPERAND(jit_compiler->function_to_compile->n_arguments));
-    }
-
-    emit_dec(code, RBP_REGISTER_OPERAND);
-
-    jit_compiler->current_mode = MODE_JIT;
-}
-
-static void switch_vm_to_jit_mode(struct jit_compiler * jit_compiler) {
-    if(jit_compiler->register_allocator.n_allocated_registers == 0){
-        return;
-    }
-
-    register_t esp_addr_reg = push_register_allocator(&jit_compiler->register_allocator);
-
-    //Save esp vm address into esp_addr_reg
-    emit_mov(&jit_compiler->native_compiled_code,
-             REGISTER_TO_OPERAND(esp_addr_reg),
-             DISPLACEMENT_TO_OPERAND(SELF_THREAD_ADDR_REG, offsetof(struct vm_thread, esp)));
-
-    emit_sub(&jit_compiler->native_compiled_code,
-             REGISTER_TO_OPERAND(esp_addr_reg),
-             IMMEDIATE_TO_OPERAND(jit_compiler->register_allocator.n_allocated_registers));
-
-    //Update updated esp vm value
-    emit_mov(&jit_compiler->native_compiled_code,
-             DISPLACEMENT_TO_OPERAND(SELF_THREAD_ADDR_REG, offsetof(struct vm_thread, esp)),
-             REGISTER_TO_OPERAND(esp_addr_reg));
-
-    pop_register_allocator(&jit_compiler->register_allocator);
-}
-
 
 //As the vm stack might have some data, we need to update vm esp, so that if any thread is garbage collecting,
 //it can read the most up-to-date stack without discarding data

@@ -1,15 +1,16 @@
 #pragma once
 
+#include "runtime/jit/x64/x64_jit_runtime_info.h"
+#include "runtime/jit/jit_compilation_result.h"
 #include "runtime/jit/x64/register_allocator.h"
 #include "runtime/jit/x64/pending_path_jump.h"
-#include "runtime/jit/jit_compilation_result.h"
 #include "runtime/jit/x64/function_calls.h"
-#include "registers.h"
+#include "runtime/jit/jit_compiler_arch.h"
+#include "runtime/jit/x64/x64_stack.h"
 #include "runtime/threads/vm_thread.h"
 #include "runtime/jit/x64/opcodes.h"
-#include "runtime/jit/x64/x64_stack.h"
-#include "runtime/jit/jit_compiler_arch.h"
 #include "runtime/jit/x64/mode.h"
+#include "registers.h"
 
 #include "shared/utils/collections/u8_arraylist.h"
 #include "shared/utils/collections/stack_list.h"

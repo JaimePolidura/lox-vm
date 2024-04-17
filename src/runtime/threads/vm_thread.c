@@ -16,6 +16,7 @@ static void init_vm_thread(struct vm_thread * vm_thread) {
     vm_thread->current_package = NULL;
     vm_thread->frames_in_use = 0;
     vm_thread->terminated_state = THREAD_TERMINATED_NONE;
+    vm_thread->jit_runtime_info = NULL;
 
     init_stack_list(&vm_thread->package_stack);
     
@@ -25,6 +26,7 @@ static void init_vm_thread(struct vm_thread * vm_thread) {
 }
 
 void free_vm_thread(struct vm_thread * vm_thread) {
+    free(vm_thread->jit_runtime_info);
     free(vm_thread->gc_info);
 }
 

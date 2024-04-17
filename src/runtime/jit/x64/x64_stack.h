@@ -23,5 +23,4 @@ void emit_epilogue_x64_stack(struct u8_arraylist *, struct function_object *);
 //This happens because x64 stack grows to lower address while vm.c stack to higher address.
 
 //We store previous RSP and RBP into RCX & RDX
-void switch_jit_to_native_mode(struct u8_arraylist * code, struct function_object * function);
 void switch_to_lox_stack(struct u8_arraylist * code, struct function_object * function);

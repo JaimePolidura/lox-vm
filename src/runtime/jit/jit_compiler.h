@@ -14,4 +14,9 @@
 //Or the jit compilation fails
 bool try_jit_compile(struct function_object * function);
 
+//Runs function_object jit compiled
 void run_jit_compiled(struct function_object * function);
+
+//Each vm_thread holds void * x64_jit_runtime_info, which is a per-thread data structure used
+//in runtime when running jit-compiled code
+void * alloc_jit_runtime_info();
