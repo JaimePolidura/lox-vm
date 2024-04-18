@@ -18,6 +18,7 @@ extern void check_gc_on_safe_point_alg();
 extern void set_self_thread_runnable();
 extern void set_self_thread_waiting();
 extern bool restore_prev_call_frame();
+extern void switch_vm_to_jit_mode(struct jit_compiler *);
 extern void setup_vm_to_jit_mode(struct jit_compiler *);
 
 //Used by jit_compiler::compiled_bytecode_to_native_by_index Some instructions are not compiled to native code, but some jumps bytecode offset
@@ -96,6 +97,28 @@ void * alloc_jit_runtime_info_arch() {
     return malloc(sizeof(struct x64_jit_runtime_info));
 }
 
+//TODO Add runtime information optimization
+static void call(struct jit_compiler * jit_compiler) {
+    int n_args = READ_BYTECODE(jit_compiler);
+    bool is_parallel = READ_BYTECODE(jit_compiler);
+    register_t function_register = peek_register_allocator(&jit_compiler->register_allocator);
+
+    uint16_t instruction_index = cast_ptr_to_lox_object(jit_compiler, function_register);
+
+    //Pop function_register
+    pop_register_allocator(&jit_compiler->register_allocator);
+
+    emit_cmp(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(function_register),
+             IMMEDIATE_TO_OPERAND(OBJ_NATIVE));
+
+    emit_native_call(jit_compiler, function_register, n_args);
+
+    call_safepoint(jit_compiler);
+
+    record_compiled_bytecode(jit_compiler, instruction_index, OP_CALL_LENGTH);
+}
+
 struct jit_compilation_result jit_compile_arch(struct function_object * function) {
     struct jit_compiler jit_compiler = init_jit_compiler(function);
     bool finish_compilation_flag = false;
@@ -166,28 +189,6 @@ struct jit_compilation_result jit_compile_arch(struct function_object * function
             .compiled_code = jit_compiler.native_compiled_code,
             .success = true,
     };
-}
-
-//TODO Add runtime information optimization
-static void call(struct jit_compiler * jit_compiler) {
-    int n_args = READ_BYTECODE(jit_compiler);
-    bool is_parallel = READ_BYTECODE(jit_compiler);
-    register_t function_register = peek_register_allocator(&jit_compiler->register_allocator);
-
-    uint16_t instruction_index = cast_ptr_to_lox_object(jit_compiler, function_register);
-
-    //Pop function_register
-    pop_register_allocator(&jit_compiler->register_allocator);
-
-    emit_cmp(&jit_compiler->native_compiled_code,
-             REGISTER_TO_OPERAND(function_register),
-             IMMEDIATE_TO_OPERAND(OBJ_NATIVE));
-
-    emit_native_call(jit_compiler, function_register, n_args);
-
-    call_safepoint(jit_compiler);
-
-    record_compiled_bytecode(jit_compiler, instruction_index, OP_CALL_LENGTH);
 }
 
 static void emit_native_call(struct jit_compiler * jit_compiler, register_t function_object_addr_reg, int n_args) {
@@ -391,7 +392,7 @@ static void enter_monitor_jit(struct jit_compiler * jit_compiler) {
     pop_register_allocator(&jit_compiler->register_allocator);
 
     //set_self_thread_waiting calls safepoint that run in vm mode
-    //(another thread might be doing gc, so it will need to read the propper lox stack)
+    //(another thread might be doing gc, so it will need to read the most up-to-date lox stack)
     call_external_c_function(
             jit_compiler,
             MODE_VM,
@@ -414,7 +415,6 @@ static void enter_monitor_jit(struct jit_compiler * jit_compiler) {
             FUNCTION_TO_OPERAND(set_self_thread_runnable),
             0);
 
-    //TODO review
     switch_vm_to_jit_mode(jit_compiler);
 
     record_compiled_bytecode(jit_compiler, instruction_index, OP_ENTER_MONITOR_LENGTH);

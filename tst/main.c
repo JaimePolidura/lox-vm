@@ -26,9 +26,9 @@ int main() {
 //    x64_jit_compiler_structs_set_outer();
 //    x64_jit_compiler_structs_initialize_outer();
 //    x64_jit_compiler_division_multiplication_outer();
-    x64_jit_compiler_for_loop_outer();
+//    x64_jit_compiler_for_loop_outer();
 //    x64_jit_compiler_negation_outer();
-//    x64_jit_compiler_simple_expression_outer();
+    x64_jit_compiler_simple_expression_outer();
 #endif
 
 #ifdef RUN_PACKAGE_TEST

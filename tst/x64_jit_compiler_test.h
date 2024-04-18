@@ -268,6 +268,8 @@ TEST(x64_jit_compiler_simple_expression) {
 
     uint64_t print_ptr = (uint64_t) &print_lox_value;
 
+    print_jit_result(result);
+
     ASSERT_U8_SEQ(result.compiled_code.values,
                   PROLOGUE_NO_ARGS_FUNCTION,
                   0x49, 0xc7, 0xc7, 0x01, 0x00, 0x00, 0x00, // mov r15, 1

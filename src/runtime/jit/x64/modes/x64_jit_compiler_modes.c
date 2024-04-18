@@ -1,5 +1,7 @@
 #include "x64_jit_compiler_modes.h"
 
+static void reconstruct_vm_stack(struct jit_compiler * jit_compiler);
+
 void setup_vm_to_jit_mode(struct jit_compiler * jit_compiler) {
     struct u8_arraylist * code = &jit_compiler->native_compiled_code;
 
@@ -83,26 +85,44 @@ void switch_native_to_jit_mode(struct jit_compiler * jit_compiler) {
     jit_compiler->current_mode = MODE_JIT;
 }
 
-void switch_vm_to_jit_mode(struct jit_compiler * jit_compiler) {
-    if(jit_compiler->register_allocator.n_allocated_registers == 0){
-        return;
-    }
+void switch_jit_to_vm_mode(struct jit_compiler * jit_compiler) {
+    reconstruct_vm_stack(jit_compiler);
+    switch_jit_to_native_mode(jit_compiler);
+    jit_compiler->current_mode = MODE_VM;
+}
 
+void switch_vm_to_jit_mode(struct jit_compiler * jit_compiler) {
+    switch_native_to_jit_mode(jit_compiler);
+    jit_compiler->current_mode = MODE_JIT;
+}
+
+static void reconstruct_vm_stack(struct jit_compiler * jit_compiler) {
     register_t esp_addr_reg = push_register_allocator(&jit_compiler->register_allocator);
+    int n_allocated_registers = jit_compiler->register_allocator.n_allocated_registers;
 
     //Save esp vm address into esp_addr_reg
     emit_mov(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(esp_addr_reg),
              DISPLACEMENT_TO_OPERAND(SELF_THREAD_ADDR_REG, offsetof(struct vm_thread, esp)));
 
-    emit_sub(&jit_compiler->native_compiled_code,
-             REGISTER_TO_OPERAND(esp_addr_reg),
-             IMMEDIATE_TO_OPERAND(jit_compiler->register_allocator.n_allocated_registers));
+    //We have to reconstruct the vm stack
+    for(int i = n_allocated_registers - 1; i >= 0; i--) {
+        register_t stack_value_reg = peek_at_register_allocator(&jit_compiler->register_allocator, i);
+
+        emit_mov(&jit_compiler->native_compiled_code,
+                 DISPLACEMENT_TO_OPERAND(esp_addr_reg, 0),
+                 REGISTER_TO_OPERAND(stack_value_reg));
+
+        emit_add(&jit_compiler->native_compiled_code,
+                 REGISTER_TO_OPERAND(esp_addr_reg),
+                 IMMEDIATE_TO_OPERAND(sizeof(lox_value_t)));
+    }
 
     //Update updated esp vm value
     emit_mov(&jit_compiler->native_compiled_code,
              DISPLACEMENT_TO_OPERAND(SELF_THREAD_ADDR_REG, offsetof(struct vm_thread, esp)),
              REGISTER_TO_OPERAND(esp_addr_reg));
 
+    //dealloc esp_addr_reg
     pop_register_allocator(&jit_compiler->register_allocator);
 }

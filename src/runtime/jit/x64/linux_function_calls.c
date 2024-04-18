@@ -3,6 +3,9 @@
 
 extern void switch_jit_to_native_mode(struct jit_compiler * jit_compiler);
 extern void switch_native_to_jit_mode(struct jit_compiler * jit_compiler);
+extern void switch_jit_to_vm_mode(struct jit_compiler * jit_compiler);
+extern void switch_vm_to_jit_mode(struct jit_compiler * jit_compiler);
+
 extern void runtime_panic(char * format, ...);
 
 static void restore_caller_registers (
@@ -108,7 +111,7 @@ static void switch_to_function_mode(struct jit_compiler * jit_compiler, mode_t n
     }
 
     if(jit_compiler->current_mode == MODE_JIT && new_mode == MODE_VM){
-
+        switch_jit_to_vm_mode(jit_compiler);
     } else if(jit_compiler->current_mode == MODE_JIT && new_mode == MODE_NATIVE){
         switch_jit_to_native_mode(jit_compiler);
     } else {
@@ -123,10 +126,9 @@ static void switch_to_prev_mode(struct jit_compiler * jit_compiler, mode_t prev_
 
     if(jit_compiler->current_mode == MODE_NATIVE && prev_mode == MODE_JIT){
         switch_native_to_jit_mode(jit_compiler);
+    } else if(jit_compiler->current_mode == MODE_VM && prev_mode == MODE_JIT){
+        switch_vm_to_jit_mode(jit_compiler);
+    } else {
+        runtime_panic("Illegal JIT mode transition. from %i to %i", jit_compiler->current_mode, prev_mode);
     }
 }
-
-
-
-
-

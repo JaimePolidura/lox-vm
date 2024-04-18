@@ -2,7 +2,7 @@
 
 #include "runtime/jit/x64/opcodes.h"
 #include "runtime/jit/x64/x64_stack.h"
-#include "runtime/jit/x64/mode.h"
+#include "runtime/jit/x64/modes/mode.h"
 
 #include "shared/types/function_object.h"
 
