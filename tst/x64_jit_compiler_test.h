@@ -3,12 +3,6 @@
 #include "test.h"
 #include "runtime/jit/x64/x64_jit_compiler.h"
 
-#define CONTAINS_DWORD(function_ptr) \
-    (function_ptr >> 0) & 0xFF,  \
-    (function_ptr >> 8) & 0xFF,  \
-    (function_ptr >> 16) & 0xFF, \
-    (function_ptr >> 24) & 0xFF \
-
 #define QWORD(function_ptr) \
     (function_ptr >> 0) & 0xFF,  \
     (function_ptr >> 8) & 0xFF,  \
@@ -58,11 +52,12 @@
 //mov [r14 + 0x10], rbx
 //mov rsp,rcx
 //mov rbp,rdx
+//push r14
 #define SWITCH_JIT_TO_NATIVE_MODE \
     0x49, 0x89, 0xde, \
     0x4d, 0x8b, 0x76, 0x48, \
     0x49, 0x89, 0x66, 0x00, \
-    0x49, 0x89, 0x6e, 0x00, \
+    0x49, 0x89, 0x6e, 0x08, \
     0x49, 0x89, 0x5e, 0x10, \
     0x48, 0x89, 0xcc, \
     0x48, 0x89, 0xd5, \
@@ -93,107 +88,51 @@ static void print_jit_result(struct jit_compilation_result result);
 
 extern struct struct_instance_object * alloc_struct_instance_object();
 extern void print_lox_value(lox_value_t value);
+extern void check_gc_on_safe_point_alg();
+extern bool restore_prev_call_frame();
 
-TEST(x64_jit_compiler_structs_get){
-    struct struct_instance_object * instance = alloc_struct_instance_object();
-    struct string_object * field_name = alloc_string_object("x");
-
-    struct function_object * function = to_function(OP_CONSTANT, 0, OP_GET_STRUCT_FIELD, 1, OP_EOF);
-    add_constant_to_chunk(&function->chunk, TO_LOX_VALUE_OBJECT(instance)); //Constant 0
-    add_constant_to_chunk(&function->chunk, TO_LOX_VALUE_OBJECT(field_name)); //Constant 1
+//fun add(a, b) {
+//  var c = a + b;
+//  return c;
+//}
+TEST(x64_jit_compiler_simple_function) {
+    struct function_object * function = to_function(
+            OP_GET_LOCAL, 0, OP_GET_LOCAL, 1, OP_ADD, OP_SET_LOCAL, 2, OP_POP,
+            OP_GET_LOCAL, 2, OP_RETURN,
+            OP_EOF
+    );
+    function->n_arguments = 2;
 
     struct jit_compilation_result result = jit_compile_arch(function);
 
     ASSERT_U8_SEQ(result.compiled_code.values,
-                  0x55, // push rbp
-                  0x48, 0x89, 0xe5, //mov rbp, rsp
-                  0x49, 0xbf, QWORD(TO_LOX_VALUE_OBJECT(instance)), // movabs r15, instance pointer OP_CONST 0 instance pointers
-                  0x49, 0xbe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x03, 0x00, //movabs r14, 0x3ffffffffffff (~(FLOAT_SIGN_BIT | FLOAT_QNAN)) cast instance ptr to lox
-                  0x4d, 0x21, 0xf7, //and r15, r14
-                  0x49, 0x83, 0xc7, 0x10, //add r15, 10
-                  0x48, 0x83, 0xec, 0x08, //sub rsp, 8 (allocate space for get_hash_table 3rd param)
-                  0x41, 0x51, //push r9 36
-                  0x49, 0xb9, QWORD((uint64_t) &get_hash_table),
-                  0x57, 0x56, 0x52, //push rdi, rsi, rdx
-                  0x4c, 0x89, 0xff, //mov rdi, r15
-                  0x48, 0xc7, 0xc6, CONTAINS_DWORD((uint64_t) field_name),
-                  0x48, 0x8b, 0x55, 0xf8, //mov rdx, [rbp - 8]
+                  PROLOGUE,
+                  SETUP_VM_TO_JIT_MODE_WITH_ARGS(2),
+                  0x4c, 0x8b, 0x7d, 0x00, //mov r15, [rbp + 0x0] (OP_GET_LOCAL, 0)
+                  0x4c, 0x8b, 0x75, 0x08, //mov r14, [rbp + 0x8] (OP_GET_LOCAL, 1)
+                  0x4d, 0x01, 0xf7, //add  r15, r14 (OP_ADD)
+                  0x4c, 0x89, 0x7d, 0x10, //mov [rbp + 0x10], r15 (OP_SET_LOCAL, 2)
+                  0x4c, 0x8b, 0x7d, 0x10, //mov r15, [rbp + 0x10] (OP_GET_LOCAL, 2)
+                  SWITCH_JIT_TO_NATIVE_MODE, //OP_RETURN call to restore_prev_call_frame
+                  0x41, 0x51, //push r9
+                  0x49, 0xb9, QWORD((uint64_t) &restore_prev_call_frame), //mov r9, restore_prev_call_frame
                   0x41, 0xff, 0xd1, //call r9
-                  0x5a, 0x5e, 0x5f, 0x41, 0x59, //pop rdx, rsi, rdi, ri
-                  0x4c, 0x8b, 0x7d, 0xf8, //mov r15, [rbp - 8]
-                  0x48, 0x83, 0xc4, 0x08, //add rsp, 8
+                  0x41, 0x59, //pop r9
+                  SWITCH_NATIVE_TO_JIT_MODE,
+                  0x48, 0x89, 0xec, //mov rsp, rbp
+                  0x4c, 0x89, 0x7c, 0x24, 0x00, //mov [rsp + 0x0], r15
+                  0x48, 0x83, 0xc4, 0x08, // add rsp, 0x8
+                  0x48, 0x89, 0x63, 0x20, // mov [rbx + 0x20], rsp
+                  0x48, 0x89, 0xcc, //mov rsp, rcx
+                  0x48, 0x89, 0xd5, //mov rbp, rdx
+                  EPILOGUE
+
     );
 }
 
-TEST(x64_jit_compiler_structs_set) {
-    struct struct_instance_object * instance = alloc_struct_instance_object();
-    struct string_object * field_name = alloc_string_object("x");
-
-    struct function_object * function = to_function(OP_CONSTANT, 0, OP_CONST_1, OP_SET_STRUCT_FIELD, 1, OP_EOF);
-    add_constant_to_chunk(&function->chunk, TO_LOX_VALUE_OBJECT(instance)); //Constant 0
-    add_constant_to_chunk(&function->chunk, TO_LOX_VALUE_OBJECT(field_name)); //Constant 1
-
-    struct jit_compilation_result result = jit_compile_arch(function);
-
-    ASSERT_U8_SEQ(result.compiled_code.values,
-                  0x55, // push rbp
-                  0x48, 0x89, 0xe5, //mov rbp, rsp
-                  0x49, 0xbf, QWORD(TO_LOX_VALUE_OBJECT(instance)), // movabs r15, instance pointer OP_CONST 0 instance pointers
-                  0x49, 0xc7, 0xc6, 0x01, 0x00, 0x00, 0x00, //mov r14, 1 (OP_CONST 1)
-                  0x49, 0xbd, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x03, 0x00, //movabs r13, 0x3ffffffffffff (~(FLOAT_SIGN_BIT | FLOAT_QNAN)) cast instance ptr to lox
-                  0x4d, 0x21, 0xef, // and r15, r13
-                  0x49, 0x83, 0xc7, (uint8_t) offsetof(struct struct_instance_object, fields), //add r15, <field names offset>
-                  0x41, 0x51, //push r9
-                  0x49, 0xb9, QWORD((uint64_t) &put_hash_table), //movabs r9, put_hash_table (function ptr)
-                  0x57, 0x56, 0x52, //push rdi, rsi, rdx
-                  0x4c, 0x89, 0xff, //mov rdi, r15
-                  0x48, 0xc7, 0xc6, CONTAINS_DWORD((uint64_t) field_name), //mov  rsi, field_name
-                  0x4c, 0x89, 0xf2, // mov rdx,r14
-                  0x41, 0xff, 0xd1, //call r9
-                  );
-}
-
-TEST(x64_jit_compiler_structs_initialize) {
-    struct struct_definition_object * struct_definition = alloc_struct_definition_object();
-    struct_definition->n_fields = 2;
-    struct_definition->field_names = malloc(sizeof(struct token) * 2);
-    struct_definition->field_names[0] = alloc_string_object("x");
-    struct_definition->field_names[1] = alloc_string_object("y");
-
-    struct function_object * function = to_function(
-            OP_CONST_1, OP_CONST_2, OP_INITIALIZE_STRUCT, 0, OP_SET_LOCAL, 0, //Initilizae struct var = struct{1, 2}
-            OP_EOF
-            );
-    function->n_arguments = 1;
-    add_constant_to_chunk(&function->chunk, TO_LOX_VALUE_OBJECT(struct_definition));
-
-    struct jit_compilation_result result = jit_compile_arch(function);
-
-    ASSERT_U8_SEQ(result.compiled_code.values,
-                  0x55, // push rbp
-                  0x48, 0x89, 0xe5, //mov rbp, rsp
-                  0x48, 0x83, 0xec, 0x08, //sub rsp, 16 Increase stack size by 1
-                  0x49, 0xc7, 0xc7, 0x01, 0x00, 0x00, 0x00, //mov r15, 1
-                  0x49, 0xc7, 0xc6, 0x02, 0x00, 0x00, 0x00, //mov r14, 2 (OP_CONST_1, OP_CONST_2) Struct initialization fields
-                  0x41, 0x51, //push r9
-                  0x49, 0xb9, QWORD((uint64_t) &alloc_struct_instance_object), //movabs r9, alloc_struct_instance_object
-                  0x41, 0xff, 0xd1, //call r9
-                  0x41, 0x59, //pop r9 (call to alloc_struct_instance_object)
-                  0x48, 0x83, 0xc0, (uint8_t) offsetof(struct struct_instance_object, fields), // add rax, <field names offset>
-                  0x50, //push rax
-                  //CODE FOR SETTING ONE FIELD OF STRUCT
-                  0x41, 0x51, //push r9 prepare call to put_hash_table
-                  0x49, 0xb9, QWORD((uint64_t) &put_hash_table), //movabs r9, put_hash_table
-                  0x57, 0x56, 0x52, //push rdi, rsi, rdx
-                  0x48, 0x89, 0xc7, //push rdi, rax load first argument (struct_instance fields member address)
-                  0x48, 0xc7, 0xc6, CONTAINS_DWORD((uint64_t) struct_definition->field_names[1]),
-                  0x4c, 0x89, 0xf2, //mov rdx, r14 // y value 2
-                  0x41, 0xff, 0xd1, //call r9 (call to put_hash_table)
-                  0x5a, 0x5e, 0x5f, 0x41, 0x59, //pop rdx, rsi, rdi, r9
-                  0x58 //pop rax
-                  );
-}
-
+//for(var i = 0; i < 5; i = i + 1) {
+//  j = i;
+//}
 TEST(x64_jit_compiler_for_loop) {
     struct function_object * function = to_function(
             OP_FAST_CONST_8, 0, OP_SET_LOCAL, 0, OP_POP, //i = 0
@@ -201,14 +140,13 @@ TEST(x64_jit_compiler_for_loop) {
             OP_GET_LOCAL, 0, OP_SET_LOCAL, 1, OP_POP,  //var = i;
             OP_GET_LOCAL, 0, OP_CONST_1, OP_ADD, OP_SET_LOCAL, 0, OP_POP, //i++
             OP_LOOP, 0, 23, //Jump to i < 5 OP_GET_LOCAL (2º line) (we start counting from OP_NO_OP)
-            OP_NO_OP,
             OP_EOF
     );
     function->n_arguments = 2; //Adjust rsp to the number of locals
 
-    struct jit_compilation_result result = jit_compile_arch(function);
+    uint64_t safepoint_ptr = (uint64_t) &check_gc_on_safe_point_alg;
 
-    print_jit_result(result);
+    struct jit_compilation_result result = jit_compile_arch(function);
 
     ASSERT_U8_SEQ(result.compiled_code.values,
                   PROLOGUE,
@@ -227,27 +165,24 @@ TEST(x64_jit_compiler_for_loop) {
                   0x4d, 0x89, 0x7e, 0x00, //mov [r14 + 0x0], r15 (save r15 into esp)
                   0x49, 0x83, 0xc6, 0x08, //add r14, 0x8 Incresae esp pointer by 8
                   0x4c, 0x89, 0x73, 0x20, //mov [rbx + 0x20], r14 Store back vm_thread esp
-                  SWITCH_JIT_TO_NATIVE_MODE
-
+                  SWITCH_JIT_TO_NATIVE_MODE,
+                  0x41, 0x51, //push r9
+                  0x49, 0xb9, QWORD(safepoint_ptr), //mov r9, safepoint address
+                  0x41, 0xff, 0xd1, //call r9
+                  0x41, 0x59, //pop r9
+                  SWITCH_NATIVE_TO_JIT_MODE,
+                  0x49, 0xbe, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfc, 0x7f, //mov r14, TRUE_VALUE
+                  0x4d, 0x39, 0xfe, //cmp r14, r15
+                  0x0f, 0x85, 0x1f, 0x00, 0x00, 0x00, //jne 0xcc (jump to pop rbp)
+                  0x4c, 0x8b, 0x7d, 0x00, //mov r15, [rbp + 0x0] (OP_GET_LOCAL, 0)
+                  0x4c, 0x89, 0x7d, 0x08, //mov [rbp + 0x8], r15 (OP_SET_LOCAL, 1)
+                  0x4c, 0x8b, 0x7d, 0x00, //mov r15, [rbp + 0x0] (OP_GET_LOCAL, 0)
+                  0x49, 0xc7, 0xc6, 0x01, 0x00, 0x00, 0x00, //mov r14, 1 (OP_CONST_1)
+                  0x4d, 0x01, 0xf7, //add r15, r14 OP_ADD
+                  0x4c, 0x89, 0x7d, 0x00,  //mov [rbp + 0x0], r15
+                  0xe9, 0x58, 0xff, 0xff, 0xff, //jmp 0x24 (4º line)
+                  EPILOGUE
     );
-
-
-//
-//                  //(OP_JUMP_IF_FALSE)
-//                  0x49, 0xbe, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfc, 0x7f, //movabs r14, TRUE_VALUE
-//                  0x4d, 0x39, 0xfe, //cmp r14, r15
-//                  0x0f, 0x85, 0x1f, 0x00, 0x00, 0x00, //jne <offset> index: 75
-//
-//                  0x4c, 0x8b, 0x7d, 0x00, // mov r15, [rbp] (OP_GET_LOCAL, 0)
-//                  0x4c, 0x89, 0x7d, 0x08, // mov [rbp + 8], r15 (OP_SET_LOCAL, 1) 83
-//                  0x4c, 0x8b, 0x7d, 0x00, // mov r15, [rbp] (OP_GET_LOCAL, 0)
-//                  0x49, 0xc7, 0xc6, 0x01, 0x00, 0x00, 0x00, //mov r14, 1, (OP_CONST_1)
-//                  0x4d, 0x01, 0xf7, //add r15, r14 (OP_ADD)
-//                  0x4c, 0x89, 0x7d, 0x00, //mov [rbp], r15 (OP_SET_LOCAL, 0)
-//                  0xe9, 0xa8, 0xff, 0xff, 0xff, //jmp -88 (OP_LOOP, 0, 23)
-//                  0x90 //nop (107),
-//                  EPILOGUE
-//    );
 }
 
 TEST(x64_jit_compiler_division_multiplication){
@@ -345,4 +280,52 @@ static void print_jit_result(struct jit_compilation_result result) {
     }
 
     puts("\n");
+}
+
+//Only used for manual inspection
+static void x64_jit_compiler_structs_get() {
+    struct struct_instance_object * instance = alloc_struct_instance_object();
+    struct string_object * field_name = alloc_string_object("x");
+
+    struct function_object * function = to_function(OP_CONSTANT, 0, OP_GET_STRUCT_FIELD, 1, OP_EOF);
+    add_constant_to_chunk(&function->chunk, TO_LOX_VALUE_OBJECT(instance)); //Constant 0
+    add_constant_to_chunk(&function->chunk, TO_LOX_VALUE_OBJECT(field_name)); //Constant 1
+
+    struct jit_compilation_result result = jit_compile_arch(function);
+
+    print_jit_result(result);
+}
+
+//Only used for manual inspection
+static void x64_jit_compiler_structs_set() {
+    struct struct_instance_object * instance = alloc_struct_instance_object();
+    struct string_object * field_name = alloc_string_object("x");
+
+    struct function_object * function = to_function(OP_CONSTANT, 0, OP_CONST_1, OP_SET_STRUCT_FIELD, 1, OP_EOF);
+    add_constant_to_chunk(&function->chunk, TO_LOX_VALUE_OBJECT(instance)); //Constant 0
+    add_constant_to_chunk(&function->chunk, TO_LOX_VALUE_OBJECT(field_name)); //Constant 1
+
+    struct jit_compilation_result result = jit_compile_arch(function);
+
+    print_jit_result(result);
+}
+
+//Only used for manual inspection
+static void x64_jit_compiler_structs_initialize() {
+    struct struct_definition_object * struct_definition = alloc_struct_definition_object();
+    struct_definition->n_fields = 2;
+    struct_definition->field_names = malloc(sizeof(struct token) * 2);
+    struct_definition->field_names[0] = alloc_string_object("x");
+    struct_definition->field_names[1] = alloc_string_object("y");
+
+    struct function_object * function = to_function(
+            OP_CONST_1, OP_CONST_2, OP_INITIALIZE_STRUCT, 0, OP_SET_LOCAL, 0, //Initilizae struct var = struct{1, 2}
+            OP_EOF
+    );
+    function->n_arguments = 1;
+    add_constant_to_chunk(&function->chunk, TO_LOX_VALUE_OBJECT(struct_definition));
+
+    struct jit_compilation_result result = jit_compile_arch(function);
+
+    print_jit_result(result);
 }

@@ -6,15 +6,16 @@
 
 #include "shared/types/function_object.h"
 
-#define SWITCH_BACK_TO_PREV_MODE_AFTER_CALL true
-#define KEEP_MODE_AFTER_CALL false
+#define SWITCH_BACK_TO_PREV_MODE_AFTER_CALL 1
+#define KEEP_MODE_AFTER_CALL 2
+#define DONT_SWITCH_MODES 3
 
 struct jit_compiler;
 
 uint16_t call_external_c_function(
         struct jit_compiler * jit_compiler,
         jit_mode_t function_mode,
-        bool restore_mode_after_call,
+        int mode_switch_config,
         struct operand function_address,
         int n_arguments,
         ... //Operands

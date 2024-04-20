@@ -34,13 +34,13 @@ static register_t linux_args_call_convention[] = {
         R8
 };
 
-static void switch_to_function_mode(struct jit_compiler *, mode_t new_mode);
-static void switch_to_prev_mode(struct jit_compiler *, mode_t prev_mode);
+static void switch_to_function_mode(struct jit_compiler *, mode_t new_mode, int mode_switch_config);
+static void switch_to_prev_mode(struct jit_compiler *, mode_t prev_mode, int mode_switch_config);
 
 uint16_t call_external_c_function(
         struct jit_compiler * jit_compiler,
         jit_mode_t function_mode,
-        bool restore_mode_after_call,
+        int mode_switch_config,
         struct operand function_address,
         int n_arguments,
         ... //Arguments
@@ -52,7 +52,7 @@ uint16_t call_external_c_function(
     uint16_t instruction_index = native_code->in_use;
     mode_t prev_mode = jit_compiler->current_mode;
 
-    switch_to_function_mode(jit_compiler, function_mode);
+    switch_to_function_mode(jit_compiler, function_mode, mode_switch_config);
 
     save_caller_registers(native_code, n_arguments, function_address);
 
@@ -62,9 +62,7 @@ uint16_t call_external_c_function(
 
     restore_caller_registers(native_code, n_arguments);
 
-    if(restore_mode_after_call){
-        switch_to_prev_mode(jit_compiler, prev_mode);
-    }
+    switch_to_prev_mode(jit_compiler, prev_mode, mode_switch_config);
 
     return instruction_index;
 }
@@ -105,8 +103,8 @@ static void restore_caller_registers(
     emit_pop(native_code, R9_REGISTER_OPERAND);
 }
 
-static void switch_to_function_mode(struct jit_compiler * jit_compiler, mode_t new_mode) {
-    if(jit_compiler->current_mode == new_mode){
+static void switch_to_function_mode(struct jit_compiler * jit_compiler, mode_t new_mode, int mode_switch_config) {
+    if(jit_compiler->current_mode == new_mode || mode_switch_config == DONT_SWITCH_MODES){
         return;
     }
 
@@ -119,8 +117,10 @@ static void switch_to_function_mode(struct jit_compiler * jit_compiler, mode_t n
     }
 }
 
-static void switch_to_prev_mode(struct jit_compiler * jit_compiler, mode_t prev_mode) {
-    if(jit_compiler->current_mode == prev_mode){
+static void switch_to_prev_mode(struct jit_compiler * jit_compiler, mode_t prev_mode, int mode_switch_config) {
+    if(jit_compiler->current_mode == prev_mode ||
+        mode_switch_config == DONT_SWITCH_MODES ||
+        mode_switch_config == KEEP_MODE_AFTER_CALL){
         return;
     }
 

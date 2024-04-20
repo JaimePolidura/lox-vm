@@ -461,10 +461,11 @@ static void jump_if_false(struct call_frame * call_frame) {
     thread_on_safe_point();
 }
 
+//OP_LOOP doest call safepoint because OP_JUMP_IF_FALSE already calls it
+//OP_LOOP and OP_JUMP_IF_FALSE are used always together in loops
 static void loop(struct call_frame * call_frame) {
     uint16_t val = READ_U16(call_frame);
     call_frame->pc -= val;
-    thread_on_safe_point();
 }
 
 static inline lox_value_t peek(int index_from_top) {

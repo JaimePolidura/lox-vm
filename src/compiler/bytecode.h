@@ -89,3 +89,4 @@ typedef enum {
 #define OP_CONST_2_LENGTH 1
 #define OP_PACKAGE_CONST_LENGTH 3
 #define OP_NO_OP_LENGTH 1
+#define OP_EOF_LENGTH 1

@@ -20,6 +20,8 @@ extern void set_self_thread_waiting();
 extern bool restore_prev_call_frame();
 extern void switch_vm_to_jit_mode(struct jit_compiler *);
 extern void setup_vm_to_jit_mode(struct jit_compiler *);
+extern void switch_jit_to_native_mode(struct jit_compiler *);
+void switch_native_to_jit_mode(struct jit_compiler *);
 
 //Used by jit_compiler::compiled_bytecode_to_native_by_index Some instructions are not compiled to native code, but some jumps bytecode offset
 //will be pointing to those instructions. If in a slot is -1, the native offset will be in the next slot
@@ -68,6 +70,7 @@ static void enter_monitor_jit(struct jit_compiler *);
 static void exti_monitor_jit(struct jit_compiler *);
 static void return_jit(struct jit_compiler *);
 static void call(struct jit_compiler *);
+static void eof(struct jit_compiler *, bool * finish_compilation_flag);
 
 static void record_pending_jump_to_patch(struct jit_compiler *, uint16_t jump_instruction_index,
         uint16_t bytecode_offset, uint16_t x64_jump_instruction_body_length);
@@ -155,7 +158,7 @@ struct jit_compilation_result jit_compile_arch(struct function_object * function
             case OP_JUMP: jump(&jit_compiler, READ_U16(&jit_compiler)); break;
             case OP_LOOP: loop(&jit_compiler, READ_U16(&jit_compiler)); break;
             case OP_NOT: not(&jit_compiler); break;
-            case OP_EOF: finish_compilation_flag = true; break;
+            case OP_EOF: eof(&jit_compiler, &finish_compilation_flag); break;
             case OP_GET_GLOBAL: get_global(&jit_compiler); break;
             case OP_SET_GLOBAL: set_global(&jit_compiler); break;
             case OP_DEFINE_GLOBAL: define_global(&jit_compiler); break;
@@ -189,6 +192,14 @@ struct jit_compilation_result jit_compile_arch(struct function_object * function
             .compiled_code = jit_compiler.native_compiled_code,
             .success = true,
     };
+}
+
+static void eof(struct jit_compiler * jit_compiler, bool * finish_compilation_flag) {
+    *finish_compilation_flag = true;
+
+    record_compiled_bytecode(jit_compiler,
+                             jit_compiler->native_compiled_code.in_use,
+                             OP_EOF_LENGTH);
 }
 
 static void emit_native_call(struct jit_compiler * jit_compiler, register_t function_object_addr_reg, int n_args) {
@@ -232,7 +243,6 @@ static void emit_native_call(struct jit_compiler * jit_compiler, register_t func
 
 static void return_jit(struct jit_compiler * jit_compiler) {
     register_t returned_value = peek_register_allocator(&jit_compiler->register_allocator);
-    bool some_value_returned = returned_value <= R15;
 
     uint16_t instruction_index = call_external_c_function(
             jit_compiler,
@@ -241,11 +251,22 @@ static void return_jit(struct jit_compiler * jit_compiler) {
             FUNCTION_TO_OPERAND(restore_prev_call_frame),
             0);
 
+    //Same as vm.c self_thread->esp = current_frame->slots
     emit_mov(&jit_compiler->native_compiled_code,
              RSP_REGISTER_OPERAND,
              RBP_REGISTER_OPERAND);
 
+    //We push the returned vlaue
     emit_lox_push(jit_compiler, returned_value);
+
+    //We update self_thread with the new esp value
+    emit_mov(&jit_compiler->native_compiled_code,
+             DISPLACEMENT_TO_OPERAND(RBX, offsetof(struct vm_thread, esp)),
+             RSP_REGISTER_OPERAND);
+
+    //Restore prev rsp and rbp, so that we can return to the caller
+    emit_mov(&jit_compiler->native_compiled_code, RSP_REGISTER_OPERAND, RCX_REGISTER_OPERAND);
+    emit_mov(&jit_compiler->native_compiled_code, RBP_REGISTER_OPERAND, RDX_REGISTER_OPERAND);
 
     record_compiled_bytecode(jit_compiler, instruction_index, OP_RETURN_LENGTH);
 }
@@ -562,10 +583,6 @@ static void set_struct_field(struct jit_compiler * jit_compiler) {
 
     uint16_t first_instruction_index = cast_lox_object_to_ptr(jit_compiler, struct_instance_addr_reg);
 
-    //Deallocate new_value_reg & struct_instance_addr_reg
-    pop_register_allocator(&jit_compiler->register_allocator);
-    pop_register_allocator(&jit_compiler->register_allocator);
-
     emit_add(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(struct_instance_addr_reg),
              IMMEDIATE_TO_OPERAND(offsetof(struct struct_instance_object, fields)));
@@ -580,6 +597,10 @@ static void set_struct_field(struct jit_compiler * jit_compiler) {
             IMMEDIATE_TO_OPERAND((uint64_t) field_name),
             REGISTER_TO_OPERAND(new_value_reg));
 
+    //Deallocate new_value_reg & struct_instance_addr_reg
+    pop_register_allocator(&jit_compiler->register_allocator);
+    pop_register_allocator(&jit_compiler->register_allocator);
+
     record_compiled_bytecode(jit_compiler, first_instruction_index, OP_SET_STRUCT_FIELD_LENGTH);
 }
 
@@ -588,9 +609,6 @@ static void get_struct_field(struct jit_compiler * jit_compiler) {
     struct string_object * field_name = (struct string_object *) AS_OBJECT(READ_CONSTANT(jit_compiler));
 
     uint16_t first_instruction_index = cast_lox_object_to_ptr(jit_compiler, struct_instance_addr_reg);
-
-    //pop struct_instance_addr_reg
-    pop_register_allocator(&jit_compiler->register_allocator);
 
     emit_add(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(struct_instance_addr_reg),
@@ -613,6 +631,9 @@ static void get_struct_field(struct jit_compiler * jit_compiler) {
              REGISTER_TO_OPERAND(field_value_reg),
              DISPLACEMENT_TO_OPERAND(RSP, 0));
 
+    //pop struct_instance_addr_reg
+    pop_register_allocator(&jit_compiler->register_allocator);
+
     record_compiled_bytecode(jit_compiler, first_instruction_index, OP_GET_STRUCT_FIELD_LENGTH);
 }
 
@@ -633,8 +654,11 @@ static void initialize_struct(struct jit_compiler * jit_compiler) {
              IMMEDIATE_TO_OPERAND(offsetof(struct struct_instance_object, fields))
     );
 
+    switch_jit_to_native_mode(jit_compiler);
+
+    //Lox structs needs to have at least one field
     //RAX will get overrided by call_external_c_function because it is where the return address will be stored
-    emit_lox_push(jit_compiler, RAX);
+    emit_push(&jit_compiler->native_compiled_code, RAX_REGISTER_OPERAND);
 
     //structs will always have to contain atleast one argument, so this for loop will get executed -> RAX will get popped
     for(int i = 0; i < n_fields; i++) {
@@ -644,7 +668,7 @@ static void initialize_struct(struct jit_compiler * jit_compiler) {
         call_external_c_function(
                 jit_compiler,
                 MODE_NATIVE,
-                SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
+                DONT_SWITCH_MODES,
                 FUNCTION_TO_OPERAND(put_hash_table),
                 3,
                 RAX_REGISTER_OPERAND,
@@ -653,8 +677,10 @@ static void initialize_struct(struct jit_compiler * jit_compiler) {
         );
 
         //So that we can reuse it in the next call_external_c_function
-        emit_lox_pop(jit_compiler, RAX);
+        emit_pop(&jit_compiler->native_compiled_code, RAX_REGISTER_OPERAND);
     }
+
+    switch_native_to_jit_mode(jit_compiler);
 
     emit_sub(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(RAX),
@@ -882,8 +908,6 @@ static void pop(struct jit_compiler * jit_compiler) {
 }
 
 static void loop(struct jit_compiler * jit_compiler, uint16_t bytecode_backward_jump) {
-    uint16_t instruction_index = call_safepoint(jit_compiler);
-
     uint16_t bytecode_index_to_jump = CURRENT_BYTECODE_INDEX(jit_compiler) - bytecode_backward_jump;
     uint16_t native_index_to_jump = jit_compiler->compiled_bytecode_to_native_by_index[bytecode_index_to_jump];
     uint16_t current_native_index = jit_compiler->native_compiled_code.in_use;
@@ -892,9 +916,9 @@ static void loop(struct jit_compiler * jit_compiler, uint16_t bytecode_backward_
     uint16_t jmp_offset = (current_native_index - native_index_to_jump) + 5;
 
     //Loop bytecode instruction always jumps backward
-    emit_near_jmp(&jit_compiler->native_compiled_code, -((int) jmp_offset));
+    uint16_t jump_index = emit_near_jmp(&jit_compiler->native_compiled_code, -((int) jmp_offset));
 
-    record_compiled_bytecode(jit_compiler, instruction_index, OP_LOOP_LENGTH);
+    record_compiled_bytecode(jit_compiler, jump_index, OP_LOOP_LENGTH);
 }
 
 static void constant(struct jit_compiler * jit_compiler) {

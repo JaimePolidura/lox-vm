@@ -41,7 +41,7 @@ void switch_jit_to_native_mode(struct jit_compiler * jit_compiler) {
              DISPLACEMENT_TO_OPERAND(runtime_info_addr_reg, offsetof(struct x64_jit_runtime_info, rsp)),
              RSP_REGISTER_OPERAND);
     emit_mov(&jit_compiler->native_compiled_code,
-             DISPLACEMENT_TO_OPERAND(runtime_info_addr_reg, offsetof(struct x64_jit_runtime_info, rsp)),
+             DISPLACEMENT_TO_OPERAND(runtime_info_addr_reg, offsetof(struct x64_jit_runtime_info, rbp)),
              RBP_REGISTER_OPERAND);
     emit_mov(&jit_compiler->native_compiled_code,
              DISPLACEMENT_TO_OPERAND(runtime_info_addr_reg, offsetof(struct x64_jit_runtime_info, self_thread)),
