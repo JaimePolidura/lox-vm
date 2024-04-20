@@ -113,7 +113,7 @@ static void call(struct jit_compiler * jit_compiler) {
 
     emit_cmp(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(function_register),
-             IMMEDIATE_TO_OPERAND(OBJ_NATIVE));
+             IMMEDIATE_TO_OPERAND(OBJ_NATIVE_FUNCTION));
 
     emit_native_call(jit_compiler, function_register, n_args);
 
@@ -205,7 +205,7 @@ static void eof(struct jit_compiler * jit_compiler, bool * finish_compilation_fl
 static void emit_native_call(struct jit_compiler * jit_compiler, register_t function_object_addr_reg, int n_args) {
     emit_add(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(function_object_addr_reg),
-             IMMEDIATE_TO_OPERAND(offsetof(struct native_object, native_fn)));
+             IMMEDIATE_TO_OPERAND(offsetof(struct native_function_object, native_fn)));
 
     for(int i = n_args - 1; i >= 0; i--){
         register_t arg_reg = peek_at_register_allocator(&jit_compiler->register_allocator, i);

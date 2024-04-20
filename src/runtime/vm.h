@@ -1,19 +1,22 @@
 #pragma once
 
-#include "shared/string_pool.h"
-#include "shared/utils/collections/lox_hash_table.h"
-#include "compiler/chunk/chunk.h"
-#include "shared/types/function_object.h"
-#include "shared.h"
-#include "compiler/chunk/chunk_disassembler.h"
-#include "compiler/compiler.h"
-#include "shared/types/native_object.h"
-#include "native_functions.h"
-#include "runtime/memory/gc.h"
-#include "shared/types/struct_instance_object.h"
-#include "shared/utils/collections/stack_list.h"
+#include "runtime/native_functions/native_function_definer.h"
 #include "runtime/threads/vm_thread.h"
 #include "runtime/jit/jit_compiler.h"
+#include "runtime/memory/gc.h"
+
+#include "compiler/chunk/chunk.h"
+#include "compiler/chunk/chunk_disassembler.h"
+#include "compiler/compiler.h"
+#include "shared/types/native_function_object.h"
+#include "shared/types/function_object.h"
+
+#include "shared/utils/collections/lox_hash_table.h"
+#include "shared/string_pool.h"
+#include "shared/types/struct_instance_object.h"
+#include "shared/utils/collections/stack_list.h"
+
+#include "shared.h"
 
 struct vm {
     struct vm_thread * root;

@@ -13,7 +13,7 @@ typedef enum {
 typedef enum {
     OBJ_STRING,
     OBJ_FUNCTION,
-    OBJ_NATIVE,
+    OBJ_NATIVE_FUNCTION,
     OBJ_STRUCT_INSTANCE,
     OBJ_STRUCT_DEFINITION,
     OBJ_PACKAGE,
@@ -25,6 +25,8 @@ struct object {
     bool gc_marked; //TODO Replace this with specific gc algorithm custom struct
     struct object * next; //Next object heap allocated
 };
+
+#define LOX_OBJECT(a) ((struct object) {.type = a, .gc_marked = false, .next = NULL} )
 
 #ifdef NAN_BOXING
 

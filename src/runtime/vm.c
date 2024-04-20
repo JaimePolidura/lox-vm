@@ -41,7 +41,6 @@ static void enter_package();
 static void initialize_package(struct package * package_to_initialize);
 static void exit_package();
 static void restore_prev_package_execution();
-static void setup_native_functions();
 static void setup_call_frame_function(struct vm_thread * thread, struct function_object * function);
 static void setup_enter_package(struct package * package_to_enter);
 bool restore_prev_call_frame();
@@ -300,12 +299,12 @@ static void call(struct call_frame * current_frame) {
             call_function(AS_FUNCTION(callee), n_args, is_parallel);
             break;
         }
-        case OBJ_NATIVE: {
+        case OBJ_NATIVE_FUNCTION: {
             if(is_parallel) {
                 runtime_panic("Cannot call parallel in native functions");
             }
 
-            struct native_object * native_function_object = TO_NATIVE(callee);
+            struct native_function_object * native_function_object = TO_NATIVE(callee);
             native_fn native_function = native_function_object->native_fn;
 
             lox_value_t result = native_function(n_args, self_thread->esp - n_args);
@@ -563,21 +562,6 @@ static bool some_child_thread_running(struct vm_thread * thread) {
 
 static inline struct call_frame * get_current_frame() {
     return &self_thread->frames[self_thread->frames_in_use - 1];
-}
-
-static void setup_native_functions() {
-    define_native("selfThreadId", self_thread_id_native, false);
-    define_native("sleep", sleep_ms_native, true);
-    define_native("clock", clock_native, false);
-    define_native("forceGC", force_gc, false);
-    define_native("join", join_native, true);
-}
-
-void define_native(char * function_name, native_fn native_function, bool is_blocking) {
-    struct string_object * function_name_obj = copy_chars_to_string_object(function_name, strlen(function_name));
-    struct native_object * native_object = alloc_native_object(native_function, is_blocking);
-
-    put_hash_table(&self_thread->current_package->global_variables, function_name_obj, TO_LOX_VALUE_OBJECT(native_object));
 }
 
 static void setup_call_frame_function(struct vm_thread * thread, struct function_object * function) {
