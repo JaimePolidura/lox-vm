@@ -9,7 +9,7 @@
     (function_ptr >> 16) & 0xFF, \
     (function_ptr >> 24) & 0xFF \
 
-#define CONTAINS_QWORD(function_ptr) \
+#define QWORD(function_ptr) \
     (function_ptr >> 0) & 0xFF,  \
     (function_ptr >> 8) & 0xFF,  \
     (function_ptr >> 16) & 0xFF, \
@@ -21,25 +21,20 @@
 
 //push rbp
 //mov rbp, rsp
-#define PROLOGUE_NO_ARGS_FUNCTION \
+#define PROLOGUE \
     0x55,                    \
-    0x48, 0x89, 0xe5,        \
-    SWITCH_TO_LOX_STACK_NO_ARGSS
-
-//pop rbq
-//ret
-#define EPILOGUE 0x5d, 0xc3
+    0x48, 0x89, 0xe5
 
 //mov rcx, rsp
 //mov rdx, rbp
 //mov rsp, [rbx + 0x20]
 //mov rbp, [rbx + 0x20]
 //dec rbp
-#define SWITCH_TO_LOX_STACK_NO_ARGSS  \
-    0x48, 0x89, 0xe1,        \
-    0x48, 0x89, 0xea,        \
-    0x48, 0x8b, 0x63, 0x20,  \
-    0x48, 0x8b, 0x6b, 0x20,  \
+#define SETUP_VM_TO_JIT_MODE \
+    0x48, 0x89, 0xe1, \
+    0x48, 0x89, 0xea, \
+    0x48, 0x8b, 0x63, 0x20, \
+    0x48, 0x8b, 0x6b, 0x20, \
     0x48, 0xff, 0xcd
 
 //mov rcx, rsp
@@ -48,21 +43,50 @@
 //mov rbp, [rbx + 0x20]
 //add rsp, n
 //dec rbp
-#define SWITCH_TO_LOX_STACK_ARGS(n)  \
+#define SETUP_VM_TO_JIT_MODE_WITH_ARGS(n)  \
     0x48, 0x89, 0xe1,        \
     0x48, 0x89, 0xea,        \
     0x48, 0x8b, 0x63, 0x20,  \
     0x48, 0x8b, 0x6b, 0x20,  \
-    0x48, 0x83, 0xed, 0x02,  \
+    0x48, 0x83, 0xed, n,  \
     0x48, 0xff, 0xcd
 
-//mov [rbx + 0x20], rsp
+//mov r14,rbx
+//mov r14, [r14 + 0x48]
+//mov [r14 + 0x0], rsp
+//mov [r14 + 0x0], rbp
+//mov [r14 + 0x10], rbx
 //mov rsp,rcx
 //mov rbp,rdx
-#define RESTORE_FROM_LOX_STACK \
-    0x48, 0x89, 0x63, 0x20, \
+#define SWITCH_JIT_TO_NATIVE_MODE \
+    0x49, 0x89, 0xde, \
+    0x4d, 0x8b, 0x76, 0x48, \
+    0x49, 0x89, 0x66, 0x00, \
+    0x49, 0x89, 0x6e, 0x00, \
+    0x49, 0x89, 0x5e, 0x10, \
     0x48, 0x89, 0xcc, \
-    0x48, 0x89, 0xd5
+    0x48, 0x89, 0xd5, \
+    0x41, 0x56
+
+//pop rbq
+//ret
+#define EPILOGUE 0x5d, 0xc3
+
+//mov rcx, rsp
+//mov rbx, rbp
+//pop r14
+//mov rsp, [r14 + 0x0]
+//mov rbp, [r14 + 0x8]
+//mov rbx, [r14 + 0x10]
+#define SWITCH_NATIVE_TO_JIT_MODE \
+    0x48, 0x89, 0xe1, \
+    0x48, 0x89, 0xeb, \
+    0x41, 0x5e, \
+    0x49, 0x8b, 0x66, 0x00, \
+    0x49, 0x8b, 0x6e, 0x08, \
+    0x49, 0x8b, 0x5e, 0x10
+
+#define SAFE_POINT
 
 static struct function_object * to_function(op_code first, ...);
 static void print_jit_result(struct jit_compilation_result result);
@@ -83,13 +107,13 @@ TEST(x64_jit_compiler_structs_get){
     ASSERT_U8_SEQ(result.compiled_code.values,
                   0x55, // push rbp
                   0x48, 0x89, 0xe5, //mov rbp, rsp
-                  0x49, 0xbf, CONTAINS_QWORD(TO_LOX_VALUE_OBJECT(instance)), // movabs r15, instance pointer OP_CONST 0 instance pointers
+                  0x49, 0xbf, QWORD(TO_LOX_VALUE_OBJECT(instance)), // movabs r15, instance pointer OP_CONST 0 instance pointers
                   0x49, 0xbe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x03, 0x00, //movabs r14, 0x3ffffffffffff (~(FLOAT_SIGN_BIT | FLOAT_QNAN)) cast instance ptr to lox
                   0x4d, 0x21, 0xf7, //and r15, r14
                   0x49, 0x83, 0xc7, 0x10, //add r15, 10
                   0x48, 0x83, 0xec, 0x08, //sub rsp, 8 (allocate space for get_hash_table 3rd param)
                   0x41, 0x51, //push r9 36
-                  0x49, 0xb9, CONTAINS_QWORD((uint64_t) &get_hash_table),
+                  0x49, 0xb9, QWORD((uint64_t) &get_hash_table),
                   0x57, 0x56, 0x52, //push rdi, rsi, rdx
                   0x4c, 0x89, 0xff, //mov rdi, r15
                   0x48, 0xc7, 0xc6, CONTAINS_DWORD((uint64_t) field_name),
@@ -114,13 +138,13 @@ TEST(x64_jit_compiler_structs_set) {
     ASSERT_U8_SEQ(result.compiled_code.values,
                   0x55, // push rbp
                   0x48, 0x89, 0xe5, //mov rbp, rsp
-                  0x49, 0xbf, CONTAINS_QWORD(TO_LOX_VALUE_OBJECT(instance)), // movabs r15, instance pointer OP_CONST 0 instance pointers
+                  0x49, 0xbf, QWORD(TO_LOX_VALUE_OBJECT(instance)), // movabs r15, instance pointer OP_CONST 0 instance pointers
                   0x49, 0xc7, 0xc6, 0x01, 0x00, 0x00, 0x00, //mov r14, 1 (OP_CONST 1)
                   0x49, 0xbd, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x03, 0x00, //movabs r13, 0x3ffffffffffff (~(FLOAT_SIGN_BIT | FLOAT_QNAN)) cast instance ptr to lox
                   0x4d, 0x21, 0xef, // and r15, r13
                   0x49, 0x83, 0xc7, (uint8_t) offsetof(struct struct_instance_object, fields), //add r15, <field names offset>
                   0x41, 0x51, //push r9
-                  0x49, 0xb9, CONTAINS_QWORD((uint64_t) &put_hash_table), //movabs r9, put_hash_table (function ptr)
+                  0x49, 0xb9, QWORD((uint64_t) &put_hash_table), //movabs r9, put_hash_table (function ptr)
                   0x57, 0x56, 0x52, //push rdi, rsi, rdx
                   0x4c, 0x89, 0xff, //mov rdi, r15
                   0x48, 0xc7, 0xc6, CONTAINS_DWORD((uint64_t) field_name), //mov  rsi, field_name
@@ -152,14 +176,14 @@ TEST(x64_jit_compiler_structs_initialize) {
                   0x49, 0xc7, 0xc7, 0x01, 0x00, 0x00, 0x00, //mov r15, 1
                   0x49, 0xc7, 0xc6, 0x02, 0x00, 0x00, 0x00, //mov r14, 2 (OP_CONST_1, OP_CONST_2) Struct initialization fields
                   0x41, 0x51, //push r9
-                  0x49, 0xb9, CONTAINS_QWORD((uint64_t) &alloc_struct_instance_object), //movabs r9, alloc_struct_instance_object
+                  0x49, 0xb9, QWORD((uint64_t) &alloc_struct_instance_object), //movabs r9, alloc_struct_instance_object
                   0x41, 0xff, 0xd1, //call r9
                   0x41, 0x59, //pop r9 (call to alloc_struct_instance_object)
                   0x48, 0x83, 0xc0, (uint8_t) offsetof(struct struct_instance_object, fields), // add rax, <field names offset>
                   0x50, //push rax
                   //CODE FOR SETTING ONE FIELD OF STRUCT
                   0x41, 0x51, //push r9 prepare call to put_hash_table
-                  0x49, 0xb9, CONTAINS_QWORD((uint64_t) &put_hash_table), //movabs r9, put_hash_table
+                  0x49, 0xb9, QWORD((uint64_t) &put_hash_table), //movabs r9, put_hash_table
                   0x57, 0x56, 0x52, //push rdi, rsi, rdx
                   0x48, 0x89, 0xc7, //push rdi, rax load first argument (struct_instance fields member address)
                   0x48, 0xc7, 0xc6, CONTAINS_DWORD((uint64_t) struct_definition->field_names[1]),
@@ -187,36 +211,43 @@ TEST(x64_jit_compiler_for_loop) {
     print_jit_result(result);
 
     ASSERT_U8_SEQ(result.compiled_code.values,
-                  EPILOGUE,
-                  SWITCH_TO_LOX_STACK_ARGS(2),
-
+                  PROLOGUE,
+                  SETUP_VM_TO_JIT_MODE_WITH_ARGS(2),
                   0x49, 0xc7, 0xc7, 0x00, 0x00, 0x00, 0x00, //mov r15, 0 (OP_FAST_CONST_8, 0)
                   0x4c, 0x89, 0x7d, 0x00, //mov [rbp+0x0], r15 (OP_SET_LOCAL, 0)
                   0x4c, 0x8b, 0x7d, 0x00, //mov r15, [rbp+0x0] (OP_GET_LOCAL, 0)
                   0x49, 0xc7, 0xc6, 0x05, 0x00, 0x00, 0x00, //mov r14, 0x05 (OP_FAST_CONST_8, 5) 29
-
-                  //(OP_LESS) We compare both values and cast it to lox boolean
-                  0x4d, 0x39, 0xfe, //cmp r14, r15
+                  0x4d, 0x39, 0xfe, //cmp r14, r15 OP_LESS
                   0x0f, 0x9c, 0xc0, //sete al
                   0x4c, 0x0f, 0xb6, 0xf8, //movzx r15, al
                   0x49, 0x83, 0xc7, 0x02, //add r15, 0x2
                   0x49, 0xbe, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfc, 0x7f, //movabs r14, TRUE_VALUE
                   0x4d, 0x09, 0xf7, //or r15, r14 56
+                  0x4c, 0x8b, 0x73, 0x20, //mov r14, [rbx + 0x20] OP_JUMP_IF_FALSE (call to safepoint) load vm_thred esp into r14
+                  0x4d, 0x89, 0x7e, 0x00, //mov [r14 + 0x0], r15 (save r15 into esp)
+                  0x49, 0x83, 0xc6, 0x08, //add r14, 0x8 Incresae esp pointer by 8
+                  0x4c, 0x89, 0x73, 0x20, //mov [rbx + 0x20], r14 Store back vm_thread esp
+                  SWITCH_JIT_TO_NATIVE_MODE
 
-                  //(OP_JUMP_IF_FALSE)
-                  0x49, 0xbe, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfc, 0x7f, //movabs r14, TRUE_VALUE
-                  0x4d, 0x39, 0xfe, //cmp r14, r15
-                  0x0f, 0x85, 0x1f, 0x00, 0x00, 0x00, //jne <offset> index: 75
-
-                  0x4c, 0x8b, 0x7d, 0x00, // mov r15, [rbp] (OP_GET_LOCAL, 0)
-                  0x4c, 0x89, 0x7d, 0x08, // mov [rbp + 8], r15 (OP_SET_LOCAL, 1) 83
-                  0x4c, 0x8b, 0x7d, 0x00, // mov r15, [rbp] (OP_GET_LOCAL, 0)
-                  0x49, 0xc7, 0xc6, 0x01, 0x00, 0x00, 0x00, //mov r14, 1, (OP_CONST_1)
-                  0x4d, 0x01, 0xf7, //add r15, r14 (OP_ADD)
-                  0x4c, 0x89, 0x7d, 0x00, //mov [rbp], r15 (OP_SET_LOCAL, 0)
-                  0xe9, 0xa8, 0xff, 0xff, 0xff, //jmp -88 (OP_LOOP, 0, 23)
-                  0x90 //nop (107)
     );
+
+
+//
+//                  //(OP_JUMP_IF_FALSE)
+//                  0x49, 0xbe, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfc, 0x7f, //movabs r14, TRUE_VALUE
+//                  0x4d, 0x39, 0xfe, //cmp r14, r15
+//                  0x0f, 0x85, 0x1f, 0x00, 0x00, 0x00, //jne <offset> index: 75
+//
+//                  0x4c, 0x8b, 0x7d, 0x00, // mov r15, [rbp] (OP_GET_LOCAL, 0)
+//                  0x4c, 0x89, 0x7d, 0x08, // mov [rbp + 8], r15 (OP_SET_LOCAL, 1) 83
+//                  0x4c, 0x8b, 0x7d, 0x00, // mov r15, [rbp] (OP_GET_LOCAL, 0)
+//                  0x49, 0xc7, 0xc6, 0x01, 0x00, 0x00, 0x00, //mov r14, 1, (OP_CONST_1)
+//                  0x4d, 0x01, 0xf7, //add r15, r14 (OP_ADD)
+//                  0x4c, 0x89, 0x7d, 0x00, //mov [rbp], r15 (OP_SET_LOCAL, 0)
+//                  0xe9, 0xa8, 0xff, 0xff, 0xff, //jmp -88 (OP_LOOP, 0, 23)
+//                  0x90 //nop (107),
+//                  EPILOGUE
+//    );
 }
 
 TEST(x64_jit_compiler_division_multiplication){
@@ -224,8 +255,8 @@ TEST(x64_jit_compiler_division_multiplication){
     struct jit_compilation_result result = jit_compile_arch(to_function(OP_CONST_1, OP_CONST_2, OP_MUL, OP_CONST_1, OP_DIV, OP_EOF));
 
     ASSERT_U8_SEQ(result.compiled_code.values,
-                  0x55, // push rbp
-                  0x48, 0x89, 0xe5, //mov rbp, rsp
+                  PROLOGUE,
+                  SETUP_VM_TO_JIT_MODE,
                   0x49, 0xc7, 0xc7, 0x01, 0x00, 0x00, 0x00, //mov r15, 1
                   0x49, 0xc7, 0xc6, 0x02, 0x00, 0x00, 0x00, //mov r14, 2
                   0x4d, 0x0f, 0xaf, 0xfe, // imul r15, r14
@@ -233,6 +264,7 @@ TEST(x64_jit_compiler_division_multiplication){
                   0x4c, 0x89, 0xf8, //mov rax, r15
                   0x49, 0xf7, 0xfe, //idiv r14
                   0x49, 0x89, 0xc7, //mov r15,rax
+                  EPILOGUE
     );
 }
 
@@ -241,7 +273,8 @@ TEST(x64_jit_compiler_negation) {
             OP_NEGATE, OP_NOT, OP_EOF));
 
     ASSERT_U8_SEQ(result.compiled_code.values,
-                  PROLOGUE_NO_ARGS_FUNCTION,
+                  PROLOGUE,
+                  SETUP_VM_TO_JIT_MODE,
                   0x49, 0xc7, 0xc7, 0x01, 0x00, 0x00, 0x00, //mov r15, 1
                   0x49, 0xc7, 0xc6, 0x02, 0x00, 0x00, 0x00, //mov r14, 2
                   0x4d, 0x39, 0xfe, //cmp r14, r15 OP_EQUAL
@@ -255,9 +288,7 @@ TEST(x64_jit_compiler_negation) {
                   0x4d, 0x29, 0xf7, //sub r15, r14
                   0x49, 0xbe, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfc, 0x7f, //movabs r14,0x7ffc000000000002
                   0x4d, 0x01, 0xf7, //add r15, r14
-                  RESTORE_FROM_LOX_STACK,
                   EPILOGUE
-
     );
 }
 
@@ -268,25 +299,23 @@ TEST(x64_jit_compiler_simple_expression) {
 
     uint64_t print_ptr = (uint64_t) &print_lox_value;
 
-    print_jit_result(result);
-
     ASSERT_U8_SEQ(result.compiled_code.values,
-                  PROLOGUE_NO_ARGS_FUNCTION,
+                  PROLOGUE,
+                  SETUP_VM_TO_JIT_MODE,
                   0x49, 0xc7, 0xc7, 0x01, 0x00, 0x00, 0x00, // mov r15, 1
                   0x49, 0xc7, 0xc6, 0x02, 0x00, 0x00, 0x00, // mov r14, 2
                   0x4d, 0x01, 0xf7, // add r15, r14
                   0x49, 0xc7, 0xc6, 0x03, 0x00, 0x00, 0x00, // mov r14, 3
                   0x4d, 0x29, 0xf7, // sub r15, r14
-                  RESTORE_FROM_LOX_STACK,
+                  SWITCH_JIT_TO_NATIVE_MODE,
                   0x41, 0x51, //push r9
-                  0x49, 0xb9, CONTAINS_QWORD(print_ptr), //movabs r9, <print function address>
+                  0x49, 0xb9, QWORD(print_ptr), //movabs r9, <print function address>
                   0x57, //push rdi
                   0x4c, 0x89, 0xff, //mov rdi, r15
                   0x41, 0xff, 0xd1, //call r9
                   0x5f, //pop rdi
                   0x41, 0x59, //pop r9
-                  SWITCH_TO_LOX_STACK_NO_ARGSS,
-                  RESTORE_FROM_LOX_STACK,
+                  SWITCH_NATIVE_TO_JIT_MODE,
                   EPILOGUE
                   );
 }

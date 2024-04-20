@@ -827,7 +827,7 @@ static void get_local(struct jit_compiler * jit_compiler) {
 }
 
 static void print(struct jit_compiler * jit_compiler) {
-    register_t to_print_register_arg = pop_register_allocator(&jit_compiler->register_allocator);
+    register_t to_print_register_arg = peek_register_allocator(&jit_compiler->register_allocator);
 
     uint16_t instruction_index = call_external_c_function(
             jit_compiler,
@@ -836,6 +836,9 @@ static void print(struct jit_compiler * jit_compiler) {
             FUNCTION_TO_OPERAND(print_lox_value),
             1,
             REGISTER_TO_OPERAND(to_print_register_arg));
+
+    //pop to_print_register_arg
+    pop_register_allocator(&jit_compiler->register_allocator);
 
     record_compiled_bytecode(jit_compiler, instruction_index, OP_PRINT_LENGTH);
 }
@@ -1201,8 +1204,8 @@ static void switch_jit_to_vm_mode(struct jit_compiler * jit_compiler) {
 static uint16_t call_safepoint(struct jit_compiler * jit_compiler) {
     return call_external_c_function(
             jit_compiler,
-            SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
             MODE_VM,
+            SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
             FUNCTION_TO_OPERAND(check_gc_on_safe_point_alg),
             0);
 }

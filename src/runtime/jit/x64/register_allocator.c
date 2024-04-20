@@ -14,6 +14,7 @@ const register_t register_to_allocate[] = {
 };
 
 void init_register_allocator(struct register_allocator * register_allocation) {
+    register_allocation->n_allocated_registers = 0;
     register_allocation->next_free_register = R15;
 }
 

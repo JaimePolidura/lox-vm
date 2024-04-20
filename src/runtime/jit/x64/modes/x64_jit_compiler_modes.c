@@ -97,6 +97,10 @@ void switch_vm_to_jit_mode(struct jit_compiler * jit_compiler) {
 }
 
 static void reconstruct_vm_stack(struct jit_compiler * jit_compiler) {
+    if(jit_compiler->register_allocator.n_allocated_registers == 0){
+        return;
+    }
+
     register_t esp_addr_reg = push_register_allocator(&jit_compiler->register_allocator);
     int n_allocated_registers = jit_compiler->register_allocator.n_allocated_registers;
 
@@ -106,7 +110,7 @@ static void reconstruct_vm_stack(struct jit_compiler * jit_compiler) {
              DISPLACEMENT_TO_OPERAND(SELF_THREAD_ADDR_REG, offsetof(struct vm_thread, esp)));
 
     //We have to reconstruct the vm stack
-    for(int i = n_allocated_registers - 1; i >= 0; i--) {
+    for(int i = n_allocated_registers - 1; i > 0; i--) {
         register_t stack_value_reg = peek_at_register_allocator(&jit_compiler->register_allocator, i);
 
         emit_mov(&jit_compiler->native_compiled_code,
