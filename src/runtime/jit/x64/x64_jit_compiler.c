@@ -68,7 +68,7 @@ static void get_array_element(struct jit_compiler *);
 static void set_array_element(struct jit_compiler *);
 static void enter_monitor_jit(struct jit_compiler *);
 static void exti_monitor_jit(struct jit_compiler *);
-static void return_jit(struct jit_compiler *);
+static void return_jit(struct jit_compiler *, bool * finish_compilation_flag);
 static void call(struct jit_compiler *);
 static void eof(struct jit_compiler *, bool * finish_compilation_flag);
 
@@ -174,7 +174,7 @@ struct jit_compilation_result jit_compile_arch(struct function_object * function
             case OP_SET_ARRAY_ELEMENT: set_array_element(&jit_compiler); break;
             case OP_ENTER_MONITOR: enter_monitor_jit(&jit_compiler); break;
             case OP_EXIT_MONITOR: exit_monitor_jit(&jit_compiler); break;
-            case OP_RETURN: return_jit(&jit_compiler); break;
+            case OP_RETURN: return_jit(&jit_compiler, &finish_compilation_flag); break;
             case OP_CALL: call(&jit_compiler); break;
             default: runtime_panic("Unhandled bytecode to compile %u\n", *(--jit_compiler.pc));
         }
@@ -241,7 +241,7 @@ static void emit_native_call(struct jit_compiler * jit_compiler, register_t func
              RAX_REGISTER_OPERAND);
 }
 
-static void return_jit(struct jit_compiler * jit_compiler) {
+static void return_jit(struct jit_compiler * jit_compiler, bool * finish_compilation_flag) {
     register_t returned_value = peek_register_allocator(&jit_compiler->register_allocator);
 
     uint16_t instruction_index = call_external_c_function(
@@ -269,6 +269,8 @@ static void return_jit(struct jit_compiler * jit_compiler) {
     emit_mov(&jit_compiler->native_compiled_code, RBP_REGISTER_OPERAND, RDX_REGISTER_OPERAND);
 
     record_compiled_bytecode(jit_compiler, instruction_index, OP_RETURN_LENGTH);
+
+    *finish_compilation_flag = true;
 }
 
 static void exit_monitor_jit(struct jit_compiler * jit_compiler) {

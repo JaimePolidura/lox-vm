@@ -71,3 +71,11 @@
             exit(65); \
         } \
     }while(false);
+
+extern struct trie_list * compiled_packages;
+extern const char * compiling_base_dir;
+
+void reset_vm() {
+    compiling_base_dir = NULL;
+    compiled_packages = NULL;
+}

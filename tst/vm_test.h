@@ -8,11 +8,6 @@ extern struct vm current_vm;
 extern struct trie_list * compiled_packages;
 extern const char * compiling_base_dir;
 
-static void reset() {
-    compiling_base_dir = NULL;
-    compiled_packages = NULL;
-}
-
 TEST(simple_vm_test_threads_gc){
     struct compilation_result result = compile(
             "C:\\programacion\\lox-vm\\tst\\resources\\gc\\main.lox",
@@ -28,7 +23,7 @@ TEST(simple_vm_test_threads_gc){
     ASSERT_TRUE(current_vm.last_gc_result.bytes_allocated_before_gc > current_vm.last_gc_result.bytes_allocated_after_gc);
 
     stop_vm();
-    reset();
+    reset_vm();
 }
 
 TEST(simple_vm_test_threads_no_race_condition) {
@@ -48,7 +43,7 @@ TEST(simple_vm_test_threads_no_race_condition) {
     ASSERT_TRUE(strtod(current_vm.log[1], NULL) == 40000);
 
     stop_vm();
-    reset();
+    reset_vm();
 }
 
 TEST(simple_vm_test_threads_race_condition){
@@ -67,7 +62,7 @@ TEST(simple_vm_test_threads_race_condition){
     ASSERT_TRUE(strtod(current_vm.log[0], NULL) != 4000000);
 
     stop_vm();
-    reset();
+    reset_vm();
 }
 
 
@@ -86,7 +81,7 @@ TEST(simple_vm_test_threads_join){
     ASSERT_TRUE(strtod(current_vm.log[0], NULL) >= 300);
 
     stop_vm();
-    reset();
+    reset_vm();
 }
 
 TEST(vm_global_functions_test){
@@ -105,11 +100,11 @@ TEST(vm_global_functions_test){
     ASSERT_NEXT_VM_LOG(current_vm, "closing file 1.000000");
 
     stop_vm();
-    reset();
+    reset_vm();
 }
 
 TEST(vm_file_global_structs_test) {
-    reset();
+    reset_vm();
 
     struct compilation_result result = compile(
             "C:\\programacion\\lox-vm\\tst\\resources\\global_structs\\main.lox",
@@ -124,7 +119,7 @@ TEST(vm_file_global_structs_test) {
     ASSERT_NEXT_VM_LOG(current_vm, "8080.000000");
 
     stop_vm();
-    reset();
+    reset_vm();
 }
 
 TEST(vm_file_global_variables_test) {
@@ -144,7 +139,7 @@ TEST(vm_file_global_variables_test) {
     ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
 
     stop_vm();
-    reset();
+    reset_vm();
 }
 
 TEST(simple_vm_test_inline_array_initilization) {
@@ -166,7 +161,7 @@ TEST(simple_vm_test_inline_array_initilization) {
     ASSERT_NEXT_VM_LOG(current_vm, "10.000000");
 
     stop_vm();
-    reset();
+    reset_vm();
 }
 
 TEST(simple_vm_test_empty_array_initilization) {
@@ -180,7 +175,7 @@ TEST(simple_vm_test_empty_array_initilization) {
     ASSERT_TRUE(vm_result == INTERPRET_OK);
 
     stop_vm();
-    reset();
+    reset_vm();
 }
 
 TEST(simple_vm_test_with_structs) {
@@ -202,7 +197,7 @@ TEST(simple_vm_test_with_structs) {
     ASSERT_NEXT_VM_LOG(current_vm, "22.000000");
 
     stop_vm();
-    reset();
+    reset_vm();
 }
 
 TEST(simple_vm_test_with_while) {
@@ -219,7 +214,7 @@ TEST(simple_vm_test_with_while) {
     ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
 
     stop_vm();
-    reset();
+    reset_vm();
 }
 
 TEST(simple_vm_test_with_ifs) {
@@ -245,7 +240,7 @@ TEST(simple_vm_test_with_ifs) {
     ASSERT_NEXT_VM_LOG(current_vm, "5.000000");
 
     stop_vm();
-    reset();
+    reset_vm();
 }
 
 TEST(simple_vm_test_with_for_loops) {
@@ -265,7 +260,7 @@ TEST(simple_vm_test_with_for_loops) {
     ASSERT_NEXT_VM_LOG(current_vm, "4.000000");
 
     stop_vm();
-    reset();
+    reset_vm();
 }
 
 TEST(simple_vm_test_with_nested_functions) {
@@ -288,7 +283,7 @@ TEST(simple_vm_test_with_nested_functions) {
     ASSERT_NEXT_VM_LOG(current_vm, "2.000000");
 
     stop_vm();
-    reset();
+    reset_vm();
 }
 
 TEST(simple_vm_test_with_functions) {
@@ -306,7 +301,7 @@ TEST(simple_vm_test_with_functions) {
     ASSERT_NEXT_VM_LOG(current_vm, "3.000000");
 
     stop_vm();
-    reset();
+    reset_vm();
 }
 
 TEST(simple_vm_test_with_scope_variables) {
@@ -324,5 +319,5 @@ TEST(simple_vm_test_with_scope_variables) {
     ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
 
     stop_vm();
-    reset();
+    reset_vm();
 }
