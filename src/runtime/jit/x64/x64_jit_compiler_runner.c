@@ -8,8 +8,56 @@ static inline __attribute__((always_inline)) void push_cpu_regs();
 static inline __attribute__((always_inline)) void pop_cpu_regs();
 
 void run_jit_compiled_arch(struct function_object * function_object) {
+    uint64_t ebp = (uint64_t) self_thread->frames[self_thread->frames_in_use - 1].slots;
+
+    puts("a");
+
     push_cpu_regs(); //Save caller regs
     load_self_thread_register();
+
+    asm(
+            "push   %rbp\n"
+            "mov    %rsp,%rbp\n"
+            "mov    %rsp,%rcx\n"
+            "mov    %rbp,%rdx\n"
+            "mov    0xa20(%rbx),%rsp\n"
+            "mov    0xa20(%rbx),%rbp\n"
+            "sub    $0x2,%rbp\n"
+            "dec    %rbp\n"
+            "mov    0x8(%rbp),%r15\n"
+            "mov    0x10(%rbp),%r14\n"
+            "add    %r14,%r15\n"
+            "add    $0x8,%rsp\n"
+            "mov    %r15,0x18(%rbp)\n"
+            "mov    0x18(%rbp),%r14\n"
+            "mov    %rbx,%r13\n"
+            "mov    0xa28(%r13),%r13\n"
+            "mov    %rsp,(%r13)\n"
+            "mov    %rbp,0x8(%r13)\n"
+            "mov    %rbx,0x10(%r13)\n"
+            "mov    %rcx,%rsp\n"
+            "mov    %rdx,%rbp\n"
+            "push   %r13\n"
+            "push   %r9\n"
+            "movabs $0x7ff6581a5588,%r9\n"
+            "call   *%r9\n"
+            "pop    %r9\n"
+            "mov    %rsp,%rcx\n"
+            "mov    %rbp,%rbx\n"
+            "pop    %r13\n"
+            "mov    (%r13),%rsp\n"
+            "mov    0x8(%r13),%rbp\n"
+            "mov    0x10(%r13),%rbx\n"
+            "mov    %rbp,%rsp\n"
+            "mov    %r14,(%rsp)\n"
+            "add    $0x8,%rsp\n"
+            "mov    %rsp,0xa20(%rbx)\n"
+            "mov    %rcx,%rsp\n"
+            "mov    %rdx,%rbp\n"
+            "pop    %rbp\n"
+            "ret\n"
+            );
+
     function_object->jit_info.compiled_jit();
     pop_cpu_regs(); //Resotre caller regs
 }

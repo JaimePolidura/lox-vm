@@ -17,10 +17,10 @@ void setup_vm_to_jit_mode(struct jit_compiler * jit_compiler) {
 
     //Really similar to setup_call_frame_function in vm.c
     if(jit_compiler->function_to_compile->n_arguments > 0){
-        emit_sub(code, RBP_REGISTER_OPERAND, IMMEDIATE_TO_OPERAND(jit_compiler->function_to_compile->n_arguments));
+        emit_sub(code, RBP_REGISTER_OPERAND, IMMEDIATE_TO_OPERAND(jit_compiler->function_to_compile->n_arguments * sizeof(lox_value_t)));
     }
 
-    emit_dec(code, RBP_REGISTER_OPERAND);
+    emit_sub(code, RBP_REGISTER_OPERAND, IMMEDIATE_TO_OPERAND(sizeof(lox_value_t)));
 
     jit_compiler->current_mode = MODE_JIT;
 }
