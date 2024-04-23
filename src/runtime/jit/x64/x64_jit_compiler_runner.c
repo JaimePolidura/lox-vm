@@ -3,7 +3,7 @@
 
 extern __thread struct vm_thread * self_thread;
 
-static inline void load_self_thread_register();
+static inline __attribute__((always_inline)) void load_self_thread_register();
 static inline __attribute__((always_inline)) void push_cpu_regs();
 static inline __attribute__((always_inline)) void pop_cpu_regs();
 

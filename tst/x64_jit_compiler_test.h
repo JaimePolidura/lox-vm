@@ -105,6 +105,8 @@ TEST(x64_jit_compiler_simple_function) {
 
     struct jit_compilation_result result = jit_compile_arch(function);
 
+    print_jit_result(result);
+
     ASSERT_U8_SEQ(result.compiled_code.values,
                   PROLOGUE,
                   SETUP_VM_TO_JIT_MODE_WITH_ARGS(2),

@@ -13,7 +13,7 @@
 //0001
 #define SECOND_OPERAND_LARGE_REG_REX_PREFIX 0x04
 
-#define IS_BYTE_SIZE(item) item < 128 || item >= -127
+#define IS_BYTE_SIZE(item) item < 128 && item >= -127
 
 #define IS_QWORD_SIZE(item) ((item & 0xFFFFFFFF00000000) != 0)
 
@@ -593,9 +593,11 @@ static uint16_t emit_register_disp_to_register_mov(struct u8_arraylist * array, 
         append_u8_arraylist(array, 0x24);
     }
 
-    IS_BYTE_SIZE(b.as.reg_disp.disp) ?
-        append_u8_arraylist(array, disp) :
+    if(IS_BYTE_SIZE(disp)){
+        append_u8_arraylist(array, disp);
+    } else {
         emit_dword_immediate_value(array, disp);
+    }
 
     return instruction_index;
 }
