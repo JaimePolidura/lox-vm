@@ -62,12 +62,12 @@ void switch_jit_to_native_mode(struct jit_compiler * jit_compiler) {
 void switch_native_to_jit_mode(struct jit_compiler * jit_compiler) {
     register_t runtime_info_addr_reg = push_register_allocator(&jit_compiler->register_allocator);
 
+    //Load runtime information from stack and put it into runtime_info_addr_reg
+    emit_pop(&jit_compiler->native_compiled_code, REGISTER_TO_OPERAND(runtime_info_addr_reg));
+
     //Store native rsp & rbp
     emit_mov(&jit_compiler->native_compiled_code, RCX_REGISTER_OPERAND, RSP_REGISTER_OPERAND);
     emit_mov(&jit_compiler->native_compiled_code, RBX_REGISTER_OPERAND, RBP_REGISTER_OPERAND);
-
-    //Load runtime information from stack and put it into runtime_info_addr_reg
-    emit_pop(&jit_compiler->native_compiled_code, REGISTER_TO_OPERAND(runtime_info_addr_reg));
 
     //Store back jit rsp, rbp & self-thread pointer
     emit_mov(&jit_compiler->native_compiled_code,

@@ -2,6 +2,8 @@
 
 static void init_vm_thread(struct vm_thread * vm_thread);
 
+extern void * alloc_jit_runtime_info_arch();
+
 struct vm_thread * alloc_vm_thread() {
     struct vm_thread * vm_thread = malloc(sizeof(struct vm_thread));
     init_vm_thread(vm_thread);
@@ -17,6 +19,7 @@ static void init_vm_thread(struct vm_thread * vm_thread) {
     vm_thread->frames_in_use = 0;
     vm_thread->terminated_state = THREAD_TERMINATED_NONE;
     vm_thread->jit_runtime_info = NULL;
+    vm_thread->jit_runtime_info = alloc_jit_runtime_info_arch();
 
     init_stack_list(&vm_thread->package_stack);
     

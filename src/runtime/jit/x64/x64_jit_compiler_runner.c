@@ -2,60 +2,63 @@
 #include "runtime/threads/vm_thread.h"
 
 extern __thread struct vm_thread * self_thread;
+extern bool restore_prev_call_frame();
 
 static inline __attribute__((always_inline)) void load_self_thread_register();
 static inline __attribute__((always_inline)) void push_cpu_regs();
 static inline __attribute__((always_inline)) void pop_cpu_regs();
 
 void run_jit_compiled_arch(struct function_object * function_object) {
-    uint64_t ebp = (uint64_t) self_thread->frames[self_thread->frames_in_use - 1].slots;
-
-    puts("a");
-
     push_cpu_regs(); //Save caller regs
     load_self_thread_register();
 
+    uint64_t restore_prev_call_frame_addr = (uint64_t) &restore_prev_call_frame;
     asm(
-            "push   %rbp\n"
-            "mov    %rsp,%rbp\n"
-            "mov    %rsp,%rcx\n"
-            "mov    %rbp,%rdx\n"
-            "mov    0xa20(%rbx),%rsp\n"
-            "mov    0xa20(%rbx),%rbp\n"
-            "sub    $0x2,%rbp\n"
-            "dec    %rbp\n"
-            "mov    0x8(%rbp),%r15\n"
-            "mov    0x10(%rbp),%r14\n"
-            "add    %r14,%r15\n"
-            "add    $0x8,%rsp\n"
-            "mov    %r15,0x18(%rbp)\n"
-            "mov    0x18(%rbp),%r14\n"
-            "mov    %rbx,%r13\n"
-            "mov    0xa28(%r13),%r13\n"
-            "mov    %rsp,(%r13)\n"
-            "mov    %rbp,0x8(%r13)\n"
-            "mov    %rbx,0x10(%r13)\n"
-            "mov    %rcx,%rsp\n"
-            "mov    %rdx,%rbp\n"
-            "push   %r13\n"
-            "push   %r9\n"
-            "movabs $0x7ff6581a5588,%r9\n"
-            "call   *%r9\n"
-            "pop    %r9\n"
-            "mov    %rsp,%rcx\n"
-            "mov    %rbp,%rbx\n"
-            "pop    %r13\n"
-            "mov    (%r13),%rsp\n"
-            "mov    0x8(%r13),%rbp\n"
-            "mov    0x10(%r13),%rbx\n"
-            "mov    %rbp,%rsp\n"
-            "mov    %r14,(%rsp)\n"
-            "add    $0x8,%rsp\n"
-            "mov    %rsp,0xa20(%rbx)\n"
-            "mov    %rcx,%rsp\n"
-            "mov    %rdx,%rbp\n"
-            "pop    %rbp\n"
-            "ret\n"
+            "movq    %0, %%r9\n" // Use leaq for loading address
+            :
+            : "m" (restore_prev_call_frame_addr) // Pass the address as an input operand
+            );
+
+    asm(
+            "pushq   %rbp\n"
+            "movq    %rsp, %rbp\n"
+            "movq    %rsp, %rcx\n"
+            "movq    %rbp, %rdx\n"
+            "movq    0xa20(%rbx), %rsp\n"
+            "movq    0xa20(%rbx), %rbp\n"
+            "subq    $0x10, %rbp\n"
+            "subq    $0x8, %rbp\n"
+            "movq    0x8(%rbp), %r15\n"
+            "movq    0x10(%rbp), %r14\n"
+            "addq    %r14, %r15\n"
+            "addq    $0x8, %rsp\n"
+            "movq    %r15, 0x18(%rbp)\n"
+            "movq    0x18(%rbp), %r14\n"
+            "movq    %rbx, %r13\n"
+            "movq    0xa28(%r13), %r13\n"
+            "movq    %rsp, (%r13)\n"
+            "movq    %rbp, 0x8(%r13)\n"
+            "movq    %rbx, 0x10(%r13)\n"
+            "movq    %rcx, %rsp\n"
+            "movq    %rdx, %rbp\n"
+            "pushq   %r13\n"
+            "pushq   %r9\n"
+            "callq   *%r9\n"
+            "popq    %r9\n"
+            "popq    %r13\n"
+            "movq    %rsp, %rcx\n"
+            "movq    %rbp, %rbx\n"
+            "movq    (%r13), %rsp\n"
+            "movq    0x8(%r13), %rbp\n"
+            "movq    0x10(%r13), %rbx\n"
+            "movq    %rbp, %rsp\n"
+            "movq    %r14, (%rsp)\n"
+            "addq    $0x8, %rsp\n"
+            "movq    %rsp, 0xa20(%rbx)\n"
+            "movq    %rcx, %rsp\n"
+            "movq    %rdx, %rbp\n"
+            "popq    %rbp\n"
+            "retq"
             );
 
     function_object->jit_info.compiled_jit();
