@@ -11,56 +11,6 @@ static inline __attribute__((always_inline)) void pop_cpu_regs();
 void run_jit_compiled_arch(struct function_object * function_object) {
     push_cpu_regs(); //Save caller regs
     load_self_thread_register();
-
-    uint64_t restore_prev_call_frame_addr = (uint64_t) &restore_prev_call_frame;
-    asm(
-            "movq    %0, %%r9\n" // Use leaq for loading address
-            :
-            : "m" (restore_prev_call_frame_addr) // Pass the address as an input operand
-            );
-
-    asm(
-            "pushq   %rbp\n"
-            "movq    %rsp, %rbp\n"
-            "movq    %rsp, %rcx\n"
-            "movq    %rbp, %rdx\n"
-            "movq    0xa20(%rbx), %rsp\n"
-            "movq    0xa20(%rbx), %rbp\n"
-            "subq    $0x10, %rbp\n"
-            "subq    $0x8, %rbp\n"
-            "movq    0x8(%rbp), %r15\n"
-            "movq    0x10(%rbp), %r14\n"
-            "addq    %r14, %r15\n"
-            "addq    $0x8, %rsp\n"
-            "movq    %r15, 0x18(%rbp)\n"
-            "movq    0x18(%rbp), %r14\n"
-            "movq    %rbx, %r13\n"
-            "movq    0xa28(%r13), %r13\n"
-            "movq    %rsp, (%r13)\n"
-            "movq    %rbp, 0x8(%r13)\n"
-            "movq    %rbx, 0x10(%r13)\n"
-            "movq    %rcx, %rsp\n"
-            "movq    %rdx, %rbp\n"
-            "pushq   %r13\n"
-            "pushq   %r9\n"
-            "callq   *%r9\n"
-            "popq    %r9\n"
-            "popq    %r13\n"
-            "movq    %rsp, %rcx\n"
-            "movq    %rbp, %rbx\n"
-            "movq    (%r13), %rsp\n"
-            "movq    0x8(%r13), %rbp\n"
-            "movq    0x10(%r13), %rbx\n"
-            "movq    %rbp, %rsp\n"
-            "movq    %r14, (%rsp)\n"
-            "addq    $0x8, %rsp\n"
-            "movq    %rsp, 0xa20(%rbx)\n"
-            "movq    %rcx, %rsp\n"
-            "movq    %rdx, %rbp\n"
-            "popq    %rbp\n"
-            "retq"
-            );
-
     function_object->jit_info.compiled_jit();
     pop_cpu_regs(); //Resotre caller regs
 }
