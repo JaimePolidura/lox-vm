@@ -419,7 +419,7 @@ static void initialize_struct(struct call_frame * call_frame) {
     struct struct_definition_object * struct_definition = (struct struct_definition_object *) AS_OBJECT(READ_CONSTANT(call_frame));
     int n_fields = struct_definition->n_fields;
 
-    ((struct struct_definition_object *) AS_OBJECT(READ_CONSTANT(call_frame)))->name->chars;
+    struct_instance->definition = struct_definition;
 
     for(int i = 0; i < n_fields; i++) {
         struct string_object * field_name = struct_definition->field_names[struct_definition->n_fields - i - 1];

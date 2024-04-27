@@ -9,6 +9,9 @@
 #define SINGLE_INSTRUCTION(name) printf("%s\n", name)
 #define BINARY_U8_INSTRUCTION(name, pc) printf("%s %u\n", name, READ_BYTECODE(pc))
 #define BINARY_U16_INSTRUCTION(name, pc) printf("%s %u\n", name, READ_U16(pc))
+#define FWD_JUMP_INSTRUCTION(name, pc, chunk, jump) printf("%s %4llX\n", name, (pc + jump) - chunk->code + 1)
+#define BWD_JUMP_INSTRUCTION(name, pc, chunk, jump) printf("%s %4llX\n", name, (pc - jump) - chunk->code + 1)
+
 #define BINARY_STRING_INSTRUCTION(name, chunk, pc) printf("%s %s\n", name, AS_STRING_OBJECT(READ_CONSTANT(chunk, pc))->chars)
 #define CALL_INSTRUCTION(name, pc) printf("%s %u %d\n", name, READ_BYTECODE(pc), READ_BYTECODE(pc))
 #define INITIALIZE_STRUCT_INSTRUCTION(namexd, chunk, pc) printf("%s <struct_definition: %s>\n", \
@@ -19,10 +22,10 @@
 void disassemble_chunk(struct chunk * chunk) {
     uint8_t * pc = chunk->code;
 
-    for(;;) {
+    for(;(pc - chunk->code < chunk->in_use);) {
         uint8_t current_instruction = READ_BYTECODE(pc);
 
-        printf("%04X:\t", current_instruction);
+        printf("%4llX:\t", pc - chunk->code);
 
         switch (current_instruction) {
             case OP_RETURN: SINGLE_INSTRUCTION("OP_RETURN"); break;
@@ -45,10 +48,10 @@ void disassemble_chunk(struct chunk * chunk) {
             case OP_GET_GLOBAL: BINARY_STRING_INSTRUCTION("OP_GET_GLOBAL", chunk, pc); break;
             case OP_SET_GLOBAL: BINARY_STRING_INSTRUCTION("OP_SET_GLOBAL", chunk, pc); break;
             case OP_GET_LOCAL: BINARY_U8_INSTRUCTION("OP_GET_LOCAL", pc); break;
-            case OP_JUMP_IF_FALSE: BINARY_U16_INSTRUCTION("OP_JUMP_IF_FALSE", pc); break;
-            case OP_JUMP: BINARY_U16_INSTRUCTION("OP_JUMP", pc); break;
+            case OP_JUMP_IF_FALSE: { uint16_t jump = READ_U16(pc); FWD_JUMP_INSTRUCTION("OP_JUMP_IF_FALSE", pc, chunk, jump); break; }
+            case OP_JUMP: { uint16_t jump = READ_U16(pc); BWD_JUMP_INSTRUCTION("OP_JUMP", pc, chunk, jump); break; }
             case OP_SET_LOCAL: BINARY_U8_INSTRUCTION("OP_SET_LOCAL", pc); break;
-            case OP_LOOP: BINARY_U16_INSTRUCTION("OP_LOOP", pc); break;
+            case OP_LOOP: { uint16_t jump = READ_U16(pc); BWD_JUMP_INSTRUCTION("OP_LOOP", pc, chunk, jump); break; }
             case OP_CALL: CALL_INSTRUCTION("OP_CALL", pc); break;
             case OP_INITIALIZE_STRUCT: INITIALIZE_STRUCT_INSTRUCTION("OP_INITIALIZE_STRUCT", chunk, pc); break;
             case OP_GET_STRUCT_FIELD: STRUCT_INSTRUCTION("OP_GET_STRUCT_FIELD", pc, chunk); break;

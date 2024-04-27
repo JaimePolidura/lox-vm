@@ -20,16 +20,18 @@ TEST(vm_jit_for_loop){
             "}"
             ""
             "forceJIT(sum);"
-            "print sum(10);"
+            "print sum(100000);"
     );
 
-    disassemble_chunk(&compilation.compiled_package->main_function->chunk);
+    struct function_object * sum = (struct function_object *) AS_OBJECT(*(compilation.compiled_package->main_function->chunk.constants.values + 1));
+    disassemble_chunk(&sum->chunk);
 
     interpret_vm(compilation);
+
     stop_vm();
     reset_vm();
 
-    ASSERT_NEXT_VM_LOG(current_vm, "2.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "100.000000");
 }
 
 TEST(vm_jit_if_test) {
