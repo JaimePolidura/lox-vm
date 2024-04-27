@@ -6,6 +6,7 @@ extern void * alloc_jit_runtime_info_arch();
 
 static jit_compiled to_executable(struct jit_compilation_result result);
 
+#ifdef RUN_TEST
 static void print_jit_result(struct jit_compilation_result result) {
     for(int i = 0; i < result.compiled_code.in_use; i++){
         uint8_t a = result.compiled_code.values[i];
@@ -15,6 +16,7 @@ static void print_jit_result(struct jit_compilation_result result) {
 
     puts("\n");
 }
+#endif
 
 bool try_jit_compile(struct function_object * function) {
     jit_state_t expected_state = JIT_BYTECODE;
@@ -24,7 +26,9 @@ bool try_jit_compile(struct function_object * function) {
 
     struct jit_compilation_result result = jit_compile_arch(function);
 
+#ifdef RUN_TEST
     print_jit_result(result);
+#endif
 
     if(result.success){
         function->jit_info.compiled_jit = to_executable(result);

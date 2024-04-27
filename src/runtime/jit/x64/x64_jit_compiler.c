@@ -1071,17 +1071,21 @@ static void add(struct jit_compiler * jit_compiler) {
     record_compiled_bytecode(jit_compiler, add_index, OP_ADD_LENGTH);
 }
 
-static void record_pending_jump_to_patch(struct jit_compiler * jit_compiler, uint16_t jump_instruction_index,
-        uint16_t bytecode_offset,
-        uint16_t x64_jump_instruction_body_length) {
+static void record_pending_jump_to_patch(struct jit_compiler * jit_compiler,
+        uint16_t jump_instruction_index, //Index to native code where jump instruction starts
+        uint16_t bytecode_offset, //Bytecode offset to jump
+        uint16_t x64_jump_instruction_body_length //Jump native instruction length (without counting the native jump offset)
+) {
     uint16_t bytecode_instruction_to_jump = CURRENT_BYTECODE_INDEX(jit_compiler) + bytecode_offset;
 
     if(jit_compiler->pending_jumps_to_patch[bytecode_instruction_to_jump] == NULL) {
         jit_compiler->pending_jumps_to_patch[bytecode_instruction_to_jump] = alloc_pending_path_jump();
     }
 
-    //Near jump instruction: (opcode 2 byte) + (offset 4 bytes) TODO check return value
-    add_pending_path_jump(jit_compiler->pending_jumps_to_patch[bytecode_instruction_to_jump], jump_instruction_index + x64_jump_instruction_body_length);
+    //Near jump instruction: (opcode 2 byte) + (offset 4 bytes)
+    add_pending_path_jump(
+            jit_compiler->pending_jumps_to_patch[bytecode_instruction_to_jump],
+            jump_instruction_index + x64_jump_instruction_body_length);
 }
 
 static struct jit_compiler init_jit_compiler(struct function_object * function) {

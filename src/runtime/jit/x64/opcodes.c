@@ -120,7 +120,7 @@ uint16_t emit_near_jne(struct u8_arraylist * array, int offset) {
     uint8_t opcode_1 = 0x0F;
     uint8_t opcode_2 = 0x85;
 
-    uint8_t instruction_offset = append_u8_arraylist(array, opcode_1);
+    uint16_t instruction_offset = append_u8_arraylist(array, opcode_1);
     append_u8_arraylist(array, opcode_2);
 
     emit_dword_immediate_value(array, offset);

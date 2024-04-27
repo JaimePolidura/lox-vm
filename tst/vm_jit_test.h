@@ -29,8 +29,8 @@ TEST(vm_jit_if_test) {
     stop_vm();
     reset_vm();
 
-    ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
     ASSERT_NEXT_VM_LOG(current_vm, "2.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
 }
 
 TEST(vm_jit_simple_function_test) {
