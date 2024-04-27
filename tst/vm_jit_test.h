@@ -3,8 +3,34 @@
 #include "test.h"
 #include "runtime/vm.h"
 #include "compiler/compiler.h"
+#include "compiler/chunk/chunk_disassembler.h"
 
 extern struct vm current_vm;
+
+TEST(vm_jit_for_loop){
+    start_vm();
+
+    struct compilation_result compilation = compile_standalone(
+            "fun sum(n) {"
+            "   var result = 0;"
+            "   for(var i = 0; i < n; i = i + 1) {"
+            "       result = result + n;"
+            "   }"
+            "   return result;"
+            "}"
+            ""
+            "forceJIT(sum);"
+            "print sum(10);"
+    );
+
+    disassemble_chunk(&compilation.compiled_package->main_function->chunk);
+
+    interpret_vm(compilation);
+    stop_vm();
+    reset_vm();
+
+    ASSERT_NEXT_VM_LOG(current_vm, "2.000000");
+}
 
 TEST(vm_jit_if_test) {
     start_vm();

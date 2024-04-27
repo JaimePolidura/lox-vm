@@ -896,12 +896,10 @@ static void jump_if_false(struct jit_compiler * jit_compiler, uint16_t jump_offs
 }
 
 static void jump(struct jit_compiler * jit_compiler, uint16_t offset) {
-    uint16_t instruction_index = call_safepoint(jit_compiler);
-
     uint16_t jmp_index = emit_near_jmp(&jit_compiler->native_compiled_code, 0); //We don't know the offset of where to jump
 
     record_pending_jump_to_patch(jit_compiler, jmp_index, offset, 1); //jmp takes only 1 byte as opcode
-    record_compiled_bytecode(jit_compiler, instruction_index, OP_JUMP_LENGTH);
+    record_compiled_bytecode(jit_compiler, jmp_index, OP_JUMP_LENGTH);
 }
 
 static void pop(struct jit_compiler * jit_compiler) {

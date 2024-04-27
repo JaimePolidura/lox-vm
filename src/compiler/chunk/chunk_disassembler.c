@@ -2,82 +2,73 @@
 
 #include <stdio.h>
 
-extern void print_lox_value(lox_value_t value);
+#define READ_BYTECODE(pc) (*pc++)
+#define READ_CONSTANT(chunk, pc) (chunk->constants.values[READ_BYTECODE(pc)])
+#define READ_U16(pc) (pc += 2, (uint16_t)((pc[-2] << 8) | pc[-1]))
 
-static int constant_instruction(char * name, struct chunk * chunk, int offset);
-static int simple_instruction(char * name, int offset);
-static int byte_instruction(char * name, struct chunk * chunk, int offset);
-static int jump_instruction(char* name, int sign, struct chunk * chunk, int offset);
+#define SINGLE_INSTRUCTION(name) printf("%s\n", name)
+#define BINARY_U8_INSTRUCTION(name, pc) printf("%s %u\n", name, READ_BYTECODE(pc))
+#define BINARY_U16_INSTRUCTION(name, pc) printf("%s %u\n", name, READ_U16(pc))
+#define BINARY_STRING_INSTRUCTION(name, chunk, pc) printf("%s %s\n", name, AS_STRING_OBJECT(READ_CONSTANT(chunk, pc))->chars)
+#define CALL_INSTRUCTION(name, pc) printf("%s %u %d\n", name, READ_BYTECODE(pc), READ_BYTECODE(pc))
+#define INITIALIZE_STRUCT_INSTRUCTION(namexd, chunk, pc) printf("%s <struct_definition: %s>\n", \
+    namexd, ((struct struct_definition_object *) AS_OBJECT(READ_CONSTANT(chunk, pc)))->name->chars)
+#define STRUCT_INSTRUCTION(name, pc, chunk) printf("%s <field_name: %s>\n", name, AS_STRING_OBJECT(READ_CONSTANT(chunk, pc))->chars)
+#define PACKAGE_CONST_INSTRUCTION(namexd, pc, chunk) printf("%s <package_name: %s>\n", namexd, ((struct package_object *) AS_OBJECT(READ_CONSTANT(chunk, pc)))->package->name)
 
 void disassemble_chunk(struct chunk * chunk) {
-    for(int offset = 0; offset < chunk->in_use;) {
-        offset = disassemble_chunk_instruction(chunk, offset);
+    uint8_t * pc = chunk->code;
+
+    for(;;) {
+        uint8_t current_instruction = READ_BYTECODE(pc);
+
+        printf("%04X:\t", current_instruction);
+
+        switch (current_instruction) {
+            case OP_RETURN: SINGLE_INSTRUCTION("OP_RETURN"); break;
+            case OP_CONSTANT: BINARY_U8_INSTRUCTION("OP_CONSTANT", pc); break;
+            case OP_NEGATE: SINGLE_INSTRUCTION("OP_NEGATE"); break;
+            case OP_ADD: SINGLE_INSTRUCTION("OP_ADD"); break;
+            case OP_SUB: SINGLE_INSTRUCTION("OP_SUB"); break;
+            case OP_MUL: SINGLE_INSTRUCTION("OP_MUL"); break;
+            case OP_DIV: SINGLE_INSTRUCTION("OP_DIV"); break;
+            case OP_GREATER: SINGLE_INSTRUCTION("OP_GREATER"); break;
+            case OP_LESS: SINGLE_INSTRUCTION("OP_LESS"); break;
+            case OP_FALSE: SINGLE_INSTRUCTION("OP_FALSE"); break;
+            case OP_TRUE: SINGLE_INSTRUCTION("OP_TRUE"); break;
+            case OP_NIL: SINGLE_INSTRUCTION("OP_NIL"); break;
+            case OP_NOT: SINGLE_INSTRUCTION("OP_NOT"); break;
+            case OP_EQUAL: SINGLE_INSTRUCTION("OP_EQUAL"); break;
+            case OP_PRINT: SINGLE_INSTRUCTION("OP_PRINT"); break;
+            case OP_POP: SINGLE_INSTRUCTION("OP_POP"); break;
+            case OP_DEFINE_GLOBAL: BINARY_STRING_INSTRUCTION("OP_DEFINE_GLOBAL", chunk, pc); break;
+            case OP_GET_GLOBAL: BINARY_STRING_INSTRUCTION("OP_GET_GLOBAL", chunk, pc); break;
+            case OP_SET_GLOBAL: BINARY_STRING_INSTRUCTION("OP_SET_GLOBAL", chunk, pc); break;
+            case OP_GET_LOCAL: BINARY_U8_INSTRUCTION("OP_GET_LOCAL", pc); break;
+            case OP_JUMP_IF_FALSE: BINARY_U16_INSTRUCTION("OP_JUMP_IF_FALSE", pc); break;
+            case OP_JUMP: BINARY_U16_INSTRUCTION("OP_JUMP", pc); break;
+            case OP_SET_LOCAL: BINARY_U8_INSTRUCTION("OP_SET_LOCAL", pc); break;
+            case OP_LOOP: BINARY_U16_INSTRUCTION("OP_LOOP", pc); break;
+            case OP_CALL: CALL_INSTRUCTION("OP_CALL", pc); break;
+            case OP_INITIALIZE_STRUCT: INITIALIZE_STRUCT_INSTRUCTION("OP_INITIALIZE_STRUCT", chunk, pc); break;
+            case OP_GET_STRUCT_FIELD: STRUCT_INSTRUCTION("OP_GET_STRUCT_FIELD", pc, chunk); break;
+            case OP_SET_STRUCT_FIELD: STRUCT_INSTRUCTION("OP_SET_STRUCT_FIELD", pc, chunk); break;
+            case OP_ENTER_PACKAGE: /*Ignored, printed by OP_PACKAGE_CONST*/ break;
+            case OP_EXIT_PACKAGE: SINGLE_INSTRUCTION("OP_EXIT_PACKAGE"); break;
+            case OP_ENTER_MONITOR: BINARY_U8_INSTRUCTION("OP_ENTER_MONITOR", pc); break;
+            case OP_EXIT_MONITOR: SINGLE_INSTRUCTION("OP_EXIT_MONITOR"); break;
+            case OP_INITIALIZE_ARRAY: BINARY_U16_INSTRUCTION("OP_INITIALIZE_ARRAY", pc); break;
+            case OP_GET_ARRAY_ELEMENT: BINARY_U16_INSTRUCTION("OP_GET_ARRAY_ELEMENT", pc); break;
+            case OP_SET_ARRAY_ELEMENT: BINARY_U16_INSTRUCTION("OP_SET_ARRAY_ELEMENT", pc); break;
+            case OP_FAST_CONST_8: BINARY_U8_INSTRUCTION("OP_FAST_CONST_8", pc); break;
+            case OP_FAST_CONST_16: BINARY_U16_INSTRUCTION("OP_FAST_CONST_8", pc); break;
+            case OP_CONST_1: SINGLE_INSTRUCTION("OP_CONST_1"); break;
+            case OP_CONST_2: SINGLE_INSTRUCTION("OP_CONST_2"); break;
+            case OP_PACKAGE_CONST: PACKAGE_CONST_INSTRUCTION("OP_ENTER_PACKAGE", pc, chunk); break;
+            case OP_EOF: SINGLE_INSTRUCTION("OP_EOF"); return;
+            case OP_NO_OP: SINGLE_INSTRUCTION("OP_NO_OP"); break;
+            default:
+                perror("Unhandled bytecode op\n");
+        }
     }
-}
-
-int disassemble_chunk_instruction(struct chunk * chunk, int offset) {
-    const uint8_t instruction = chunk->code[offset];
-    switch (instruction) {
-        case OP_RETURN: return simple_instruction("RETURN", offset);
-        case OP_NEGATE: return simple_instruction("NEGATE", offset);
-        case OP_CONSTANT: return constant_instruction("CONSTANT", chunk, offset);
-        case OP_ADD: return simple_instruction("ADD", offset);
-        case OP_SUB: return simple_instruction("SUB", offset);
-        case OP_MUL: return simple_instruction("MUL", offset);
-        case OP_DIV: return simple_instruction("DIV", offset);
-        case OP_FALSE: return simple_instruction("FALSE", offset);
-        case OP_LESS: return simple_instruction("LESS", offset);
-        case OP_GREATER: return simple_instruction("GREATER", offset);
-        case OP_EQUAL: return simple_instruction("EQUAL", offset);
-        case OP_TRUE: return simple_instruction("TRUE", offset);
-        case OP_NIL: return simple_instruction("NIL", offset);
-        case OP_NOT: return simple_instruction("NOT", offset);
-        case OP_POP: return simple_instruction("POP", offset);
-        case OP_PRINT: return simple_instruction("PRINT", offset);
-        case OP_DEFINE_GLOBAL: return simple_instruction("DEFINE_GLOBAL", offset);
-        case OP_GET_GLOBAL: return simple_instruction("GET_GLOBAL", offset);
-        case OP_SET_GLOBAL: return simple_instruction("SET_GLOBAL", offset);
-        case OP_SET_LOCAL: return byte_instruction("SET_LOCAL", chunk, offset);
-        case OP_GET_LOCAL: return byte_instruction("GET_LOCAL", chunk, offset);
-        case OP_JUMP: return jump_instruction("JUMP", 1, chunk, offset);
-        case OP_LOOP: return jump_instruction("LOOP", -1, chunk, offset);
-        case OP_CALL: return byte_instruction("CALL", chunk, offset);
-        case OP_ENTER_PACKAGE: return byte_instruction("ENTER_PACKAGE", chunk, offset);
-        case OP_EXIT_PACKAGE: return byte_instruction("OP_EXIT_PACKAGE", chunk, offset);
-        case OP_JUMP_IF_FALSE: return jump_instruction("JUMP_IF_FALSE", 1, chunk, offset);
-        case OP_EOF: return 0x7FFFFFFF;
-        default:
-            printf("Unknown opcode %d\n", instruction);
-            return offset + 1;
-    }
-}
-
-static int simple_instruction(char * name, int offset) {
-    printf("%s\n", name);
-    return offset + 1;
-}
-
-static int byte_instruction(char * name, struct chunk * chunk, int offset) {
-    uint8_t slot = chunk->code[offset + 1];
-    printf("%-16s %4d\n", name, slot);
-    return offset + 2;
-}
-
-static int constant_instruction(char * name, struct chunk * chunk, int offset) {
-    const uint8_t constant = chunk->code[offset + 1];
-    printf("%s '", name);
-    print_lox_value(chunk->constants.values[constant]);
-    printf("'\n");
-
-    return offset + 2;
-}
-
-static int jump_instruction(char * name,
-                            int sign,
-                            struct chunk * chunk, int offset) {
-    uint16_t jump = (uint16_t)(chunk->code[offset + 1] << 8);
-    jump |= chunk->code[offset + 2];
-    printf("%-16s %4d -> %d\n", name, offset,
-           offset + 3 + sign * jump);
-    return offset + 3;
 }

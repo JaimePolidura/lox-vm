@@ -373,7 +373,6 @@ static void return_function(struct call_frame * function_to_return_frame) {
 
 static void jump(struct call_frame * current_frame) {
     current_frame->pc += READ_U16(current_frame);
-    thread_on_safe_point();
 }
 
 static void initialize_array(struct call_frame * call_frame) {
@@ -420,7 +419,7 @@ static void initialize_struct(struct call_frame * call_frame) {
     struct struct_definition_object * struct_definition = (struct struct_definition_object *) AS_OBJECT(READ_CONSTANT(call_frame));
     int n_fields = struct_definition->n_fields;
 
-    struct_instance->definition = struct_definition;
+    ((struct struct_definition_object *) AS_OBJECT(READ_CONSTANT(call_frame)))->name->chars;
 
     for(int i = 0; i < n_fields; i++) {
         struct string_object * field_name = struct_definition->field_names[struct_definition->n_fields - i - 1];
