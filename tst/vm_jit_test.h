@@ -6,6 +6,33 @@
 
 extern struct vm current_vm;
 
+TEST(vm_jit_if_test) {
+    start_vm();
+
+    struct compilation_result compilation = compile_standalone(
+            "fun hacerPrint(a) {"
+            "   if(a == 1) {"
+            "       print a;"
+            "   }"
+            "   if(a == 2) {"
+            "       print a;"
+            "   }"
+            "}"
+            "forceJIT(hacerPrint);"
+            ""
+            "hacerPrint(2);"
+            "hacerPrint(1);"
+    );
+
+    interpret_vm(compilation);
+
+    stop_vm();
+    reset_vm();
+
+    ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "2.000000");
+}
+
 TEST(vm_jit_simple_function_test) {
     start_vm();
 

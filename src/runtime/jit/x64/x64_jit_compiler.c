@@ -1169,6 +1169,7 @@ static void check_pending_jumps_to_patch(struct jit_compiler * jit_compiler, int
                 uint16_t native_jmp_offset = current_compiled_index - (compiled_native_jmp_offset_index + 4);
                 uint16_t * compiled_native_jmp_offset_index_ptr = (uint16_t *) (jit_compiler->native_compiled_code.values + compiled_native_jmp_offset_index);
 
+                //TODO Este es el problema
                 *compiled_native_jmp_offset_index_ptr = native_jmp_offset;
             }
         }

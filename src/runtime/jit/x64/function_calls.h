@@ -10,6 +10,23 @@
 #define KEEP_MODE_AFTER_CALL 2
 #define DONT_SWITCH_MODES 3
 
+//We use R10 to store the function address
+#ifdef _WIN32
+static register_t args_call_convention[] = {
+        RCX,
+        RDX,
+        R8,
+        R9,
+};
+#else
+static register_t args_call_convention[] = {
+        RDI,
+        RSI,
+        RDX,
+        RCX,
+};
+#endif
+
 struct jit_compiler;
 
 uint16_t call_external_c_function(

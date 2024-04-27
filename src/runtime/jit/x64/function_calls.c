@@ -25,15 +25,6 @@ static void save_caller_registers(
     struct operand function_ptr
 );
 
-//We use R9 to store the function address
-static register_t linux_args_call_convention[] = {
-        RDI,
-        RSI,
-        RDX,
-        RCX,
-        R8
-};
-
 static void switch_to_function_mode(struct jit_compiler *, mode_t new_mode, int mode_switch_config);
 static void switch_to_prev_mode(struct jit_compiler *, mode_t prev_mode, int mode_switch_config);
 
@@ -58,7 +49,7 @@ uint16_t call_external_c_function(
 
     load_arguments_into_registers(native_code, arguments, n_arguments);
 
-    emit_call(native_code, R9_REGISTER_OPERAND);
+    emit_call(native_code, R10_REGISTER_OPERAND);
 
     restore_caller_registers(native_code, n_arguments);
 
@@ -73,21 +64,21 @@ static void load_arguments_into_registers(
         int n_operands
 ) {
     for(int i = 0; i < n_operands; i++){
-        register_t linux_argument_to_push = linux_args_call_convention[i];
-        emit_mov(native_code, REGISTER_TO_OPERAND(linux_argument_to_push), arguments[i]);
+        register_t argument_to_push = args_call_convention[i];
+        emit_mov(native_code, REGISTER_TO_OPERAND(argument_to_push), arguments[i]);
     }
 }
 
 static void save_caller_registers(struct u8_arraylist * native_code,
         int n_operands, struct operand function_ptr) {
 
-    emit_push(native_code, R9_REGISTER_OPERAND);
+    emit_push(native_code, R10_REGISTER_OPERAND);
 
-    emit_mov(native_code, R9_REGISTER_OPERAND, function_ptr);
+    emit_mov(native_code, R10_REGISTER_OPERAND, function_ptr);
 
     for(int i = 0; i < n_operands; i++) {
-        register_t linux_argument_to_push = linux_args_call_convention[i];
-        emit_push(native_code, REGISTER_TO_OPERAND(linux_argument_to_push));
+        register_t argument_to_push = args_call_convention[i];
+        emit_push(native_code, REGISTER_TO_OPERAND(argument_to_push));
     }
 }
 
@@ -96,11 +87,11 @@ static void restore_caller_registers(
         int n_operands
 ) {
     for(int i = n_operands - 1; i >= 0; i--){
-        register_t linux_argument_to_pop = linux_args_call_convention[i];
-        emit_pop(native_code, REGISTER_TO_OPERAND(linux_argument_to_pop));
+        register_t argument_to_pop = args_call_convention[i];
+        emit_pop(native_code, REGISTER_TO_OPERAND(argument_to_pop));
     }
 
-    emit_pop(native_code, R9_REGISTER_OPERAND);
+    emit_pop(native_code, R10_REGISTER_OPERAND);
 }
 
 static void switch_to_function_mode(struct jit_compiler * jit_compiler, mode_t new_mode, int mode_switch_config) {
