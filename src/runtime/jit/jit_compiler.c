@@ -26,15 +26,15 @@ bool try_jit_compile(struct function_object * function) {
 
     print_jit_result(result);
 
-//    if(result.success){
-//        function->jit_info.compiled_jit = to_executable(result);
-//        COMPILER_BARRIER(); //TODO Use memory barriers
-//        function->jit_info.state = JIT_COMPILED;
-//        return true;
-//    } else {
-//        function->jit_info.state = JIT_INCOPILABLE;
-//        return false;
-//    }
+    if(result.success){
+        function->jit_info.compiled_jit = to_executable(result);
+        COMPILER_BARRIER(); //TODO Use memory barriers
+        function->jit_info.state = JIT_COMPILED;
+        return true;
+    } else {
+        function->jit_info.state = JIT_INCOPILABLE;
+        return false;
+    }
 }
 
 void run_jit_compiled(struct function_object * function) {

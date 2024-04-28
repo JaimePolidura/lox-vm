@@ -1,6 +1,6 @@
-#include "types.h"
-#include "function_object.h"
-#include "string_object.h"
+#include "shared/types/types.h"
+#include "shared/types/function_object.h"
+#include "shared/types/string_object.h"
 #include "runtime/vm.h"
 
 extern struct vm current_vm;

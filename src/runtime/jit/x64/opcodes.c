@@ -49,6 +49,14 @@ static uint16_t emit_push_pop(struct u8_arraylist * array, struct operand a, uin
 static uint16_t emit_register_register_binary_and(struct u8_arraylist * array, struct operand a, struct operand b);
 static uint16_t emit_register_immediate_binary_and(struct u8_arraylist * array, struct operand a, struct operand b);
 
+uint16_t emit_int(struct u8_arraylist * array, int interrupt_number) {
+    uint16_t instruction_index = append_u8_arraylist(array, 0xcd);
+
+    append_u8_arraylist(array, interrupt_number);
+
+    return instruction_index;
+}
+
 uint16_t emit_dec(struct u8_arraylist * array, struct operand operand) {
     uint16_t instruction_index = append_u8_arraylist(array, operand.as.reg >= R8 ? 0x49 : 0x48);
     append_u8_arraylist(array, 0xFF);
@@ -411,8 +419,8 @@ static uint16_t emit_register_register_cmp(struct u8_arraylist * array, struct o
     uint8_t opcode = 0x39;
 
     uint8_t mode = REGISTER_ADDRESSING_MODE;
-    uint8_t reg = TO_32_BIT_REGISTER(a.as.reg) << 3;
-    uint8_t rm = TO_32_BIT_REGISTER(b.as.reg);
+    uint8_t reg = TO_32_BIT_REGISTER(b.as.reg) << 3;
+    uint8_t rm = TO_32_BIT_REGISTER(a.as.reg);
     uint8_t mod_reg_rm = mode | reg | rm;
 
     uint16_t index = append_u8_arraylist(array, prefix);

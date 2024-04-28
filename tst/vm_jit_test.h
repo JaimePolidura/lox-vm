@@ -23,9 +23,6 @@ TEST(vm_jit_for_loop){
             "print sum(100000);"
     );
 
-    struct function_object * sum = (struct function_object *) AS_OBJECT(*(compilation.compiled_package->main_function->chunk.constants.values + 1));
-    disassemble_chunk(&sum->chunk);
-
     interpret_vm(compilation);
 
     stop_vm();

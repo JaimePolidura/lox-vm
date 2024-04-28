@@ -826,6 +826,7 @@ static void not(struct jit_compiler * jit_compiler) {
 static void set_local(struct jit_compiler * jit_compiler) {
     uint8_t slot = READ_BYTECODE(jit_compiler);
 
+    //TODO If set_local is run multiple times, the stack will get increased a lot
     if(slot > jit_compiler->last_stack_slot_allocated){
         uint8_t n_locals_to_grow = slot - jit_compiler->last_stack_slot_allocated;
         emit_increase_lox_stack(jit_compiler, slot - jit_compiler->last_stack_slot_allocated);
@@ -1171,7 +1172,6 @@ static void check_pending_jumps_to_patch(struct jit_compiler * jit_compiler, int
                 uint16_t native_jmp_offset = current_compiled_index - (compiled_native_jmp_offset_index + 4);
                 uint16_t * compiled_native_jmp_offset_index_ptr = (uint16_t *) (jit_compiler->native_compiled_code.values + compiled_native_jmp_offset_index);
 
-                //TODO Este es el problema
                 *compiled_native_jmp_offset_index_ptr = native_jmp_offset;
             }
         }
@@ -1289,9 +1289,11 @@ static uint16_t emit_decrease_lox_tsack(struct jit_compiler * jit_compiler, int 
 static uint16_t get_compiled_native_index_by_bytecode_index(struct jit_compiler * jit_compiler, uint16_t current_bytecode_index) {
     uint16_t * current = jit_compiler->compiled_bytecode_to_native_by_index + current_bytecode_index;
 
-    for(; *current == NATIVE_INDEX_IN_NEXT_SLOT; current++);
-
-    return *current;
+    if(*current == NATIVE_INDEX_IN_NEXT_SLOT) {
+        return jit_compiler->native_compiled_code.in_use;
+    } else {
+        return *current;
+    }
 }
 
 static void free_jit_compiler(struct jit_compiler * jit_compiler) {

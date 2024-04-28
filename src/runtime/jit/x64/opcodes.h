@@ -28,3 +28,4 @@ uint16_t emit_ret(struct u8_arraylist * array);
 uint16_t emit_nop(struct u8_arraylist * array);
 uint16_t emit_inc(struct u8_arraylist * array, struct operand operand);
 uint16_t emit_dec(struct u8_arraylist * array, struct operand operand);
+uint16_t emit_int(struct u8_arraylist * array, int interrupt_number);

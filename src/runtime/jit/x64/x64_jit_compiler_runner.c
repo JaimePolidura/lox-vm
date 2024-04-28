@@ -3,6 +3,7 @@
 
 extern __thread struct vm_thread * self_thread;
 extern bool restore_prev_call_frame();
+extern void check_gc_on_safe_point_alg();
 
 static inline __attribute__((always_inline)) void load_self_thread_register();
 static inline __attribute__((always_inline)) void push_cpu_regs();
@@ -10,6 +11,24 @@ static inline __attribute__((always_inline)) void pop_cpu_regs();
 
 void run_jit_compiled_arch(struct function_object * function_object) {
     push_cpu_regs(); //Save caller regs
+
+//    uint64_t safe_point = (uint64_t) check_gc_on_safe_point_alg;
+//    uint64_t restore = (uint64_t) restore_prev_call_frame;
+//
+//    asm(
+//            "movq %0, %%r10;"
+//            : /* no output */
+//            : "r" (safe_point)
+//            : // clobber list
+//            );
+//
+//    asm(
+//            "movq %0, %%r9;"
+//            : /* no output */
+//            : "r" (restore)
+//            : // clobber list
+//            );
+
     load_self_thread_register();
     function_object->jit_info.compiled_jit();
     pop_cpu_regs(); //Resotre caller regs
