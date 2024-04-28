@@ -1,10 +1,10 @@
 #include "function_calls.h"
 #include "x64_jit_compiler.h"
 
-extern void switch_jit_to_native_mode(struct jit_compiler * jit_compiler);
-extern void switch_native_to_jit_mode(struct jit_compiler * jit_compiler);
-extern void switch_jit_to_vm_mode(struct jit_compiler * jit_compiler);
-extern void switch_vm_to_jit_mode(struct jit_compiler * jit_compiler);
+extern struct jit_mode_switch_info switch_jit_to_native_mode(struct jit_compiler *);
+extern struct jit_mode_switch_info switch_native_to_jit_mode(struct jit_compiler *);
+extern struct jit_mode_switch_info switch_jit_to_vm_mode(struct jit_compiler *);
+extern struct jit_mode_switch_info switch_vm_to_jit_mode(struct jit_compiler *, struct jit_mode_switch_info);
 
 extern void runtime_panic(char * format, ...);
 
@@ -25,8 +25,8 @@ static void save_caller_registers(
     struct operand function_ptr
 );
 
-static void switch_to_function_mode(struct jit_compiler *, mode_t new_mode, int mode_switch_config);
-static void switch_to_prev_mode(struct jit_compiler *, mode_t prev_mode, int mode_switch_config);
+static struct jit_mode_switch_info switch_to_function_mode(struct jit_compiler *, mode_t new_mode, int mode_switch_config);
+static void switch_to_prev_mode(struct jit_compiler *, struct jit_mode_switch_info, mode_t prev_mode, int mode_switch_config);
 
 uint16_t call_external_c_function(
         struct jit_compiler * jit_compiler,
@@ -43,7 +43,8 @@ uint16_t call_external_c_function(
     uint16_t instruction_index = native_code->in_use;
     mode_t prev_mode = jit_compiler->current_mode;
 
-    switch_to_function_mode(jit_compiler, function_mode, mode_switch_config);
+    struct jit_mode_switch_info jit_mode_switch_info =
+            switch_to_function_mode(jit_compiler, function_mode, mode_switch_config);
 
     save_caller_registers(native_code, n_arguments, function_address);
 
@@ -53,7 +54,7 @@ uint16_t call_external_c_function(
 
     restore_caller_registers(native_code, n_arguments);
 
-    switch_to_prev_mode(jit_compiler, prev_mode, mode_switch_config);
+    switch_to_prev_mode(jit_compiler, jit_mode_switch_info, prev_mode, mode_switch_config);
 
     return instruction_index;
 }
@@ -94,21 +95,29 @@ static void restore_caller_registers(
     emit_pop(native_code, R10_REGISTER_OPERAND);
 }
 
-static void switch_to_function_mode(struct jit_compiler * jit_compiler, mode_t new_mode, int mode_switch_config) {
+static struct jit_mode_switch_info switch_to_function_mode(struct jit_compiler * jit_compiler, mode_t new_mode, int mode_switch_config) {
     if(jit_compiler->current_mode == new_mode || mode_switch_config == DONT_SWITCH_MODES){
-        return;
+        return  NO_MODE_SWITCH_INFO;
     }
 
     if(jit_compiler->current_mode == MODE_JIT && new_mode == MODE_VM){
-        switch_jit_to_vm_mode(jit_compiler);
+        return switch_jit_to_vm_mode(jit_compiler);
     } else if(jit_compiler->current_mode == MODE_JIT && new_mode == MODE_NATIVE){
-        switch_jit_to_native_mode(jit_compiler);
+        return switch_jit_to_native_mode(jit_compiler);
     } else {
         runtime_panic("Illegal JIT mode transition. from %i to %i", jit_compiler->current_mode, new_mode);
     }
+
+    //Unreachable code
+    return NO_MODE_SWITCH_INFO;
 }
 
-static void switch_to_prev_mode(struct jit_compiler * jit_compiler, mode_t prev_mode, int mode_switch_config) {
+static void switch_to_prev_mode(
+        struct jit_compiler * jit_compiler,
+        struct jit_mode_switch_info jit_mode_switch_info,
+        mode_t prev_mode,
+        int mode_switch_config
+) {
     if(jit_compiler->current_mode == prev_mode ||
         mode_switch_config == DONT_SWITCH_MODES ||
         mode_switch_config == KEEP_MODE_AFTER_CALL){
@@ -118,7 +127,7 @@ static void switch_to_prev_mode(struct jit_compiler * jit_compiler, mode_t prev_
     if(jit_compiler->current_mode == MODE_NATIVE && prev_mode == MODE_JIT){
         switch_native_to_jit_mode(jit_compiler);
     } else if(jit_compiler->current_mode == MODE_VM && prev_mode == MODE_JIT){
-        switch_vm_to_jit_mode(jit_compiler);
+        switch_vm_to_jit_mode(jit_compiler, jit_mode_switch_info);
     } else {
         runtime_panic("Illegal JIT mode transition. from %i to %i", jit_compiler->current_mode, prev_mode);
     }

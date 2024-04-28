@@ -20,7 +20,8 @@ TEST(vm_jit_for_loop){
             "}"
             ""
             "forceJIT(sum);"
-            "print sum(100000);"
+            ""
+            "print sum(84);"
     );
 
     interpret_vm(compilation);

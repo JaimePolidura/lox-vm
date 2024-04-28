@@ -23,3 +23,4 @@ typedef enum {
     //MODE_VM is a subset of MODE_NATIVE, the only difference is that MODE_NATIVE vm_threads holds the most up-to-date stack
     MODE_VM,
 } jit_mode_t;
+

@@ -94,7 +94,6 @@ static uint16_t emit_lox_pop(struct jit_compiler *, register_t);
 static uint16_t emit_increase_lox_stack(struct jit_compiler *, int);
 static uint16_t emit_decrease_lox_tsack(struct jit_compiler *, int);
 static void emit_native_call(struct jit_compiler *, register_t function_object_addr_reg, int n_args);
-static void switch_jit_to_vm_mode(struct jit_compiler *);
 
 void * alloc_jit_runtime_info_arch() {
     return malloc(sizeof(struct x64_jit_runtime_info));
@@ -827,10 +826,10 @@ static void set_local(struct jit_compiler * jit_compiler) {
     uint8_t slot = READ_BYTECODE(jit_compiler);
 
     //TODO If set_local is run multiple times, the stack will get increased a lot
-    if(slot > jit_compiler->last_stack_slot_allocated){
-        uint8_t n_locals_to_grow = slot - jit_compiler->last_stack_slot_allocated;
-        emit_increase_lox_stack(jit_compiler, slot - jit_compiler->last_stack_slot_allocated);
-    }
+//    if(slot > jit_compiler->last_stack_slot_allocated){
+//        uint8_t n_locals_to_grow = slot - jit_compiler->last_stack_slot_allocated;
+//        emit_increase_lox_stack(jit_compiler, slot - jit_compiler->last_stack_slot_allocated);
+//    }
 
     register_t register_local_value = peek_register_allocator(&jit_compiler->register_allocator);
     int offset_local_from_rbp = slot * sizeof(lox_value_t);
@@ -1179,51 +1178,6 @@ static void check_pending_jumps_to_patch(struct jit_compiler * jit_compiler, int
         jit_compiler->pending_jumps_to_patch[current_bytecode_index] = NULL;
         free(pending_jumps);
     }
-}
-
-//Copies allocated registes to lox stack.
-//It updates vm self-thread esp pointer and updates rsp native register
-static void switch_jit_to_vm_mode(struct jit_compiler * jit_compiler) {
-    int n_allocated_registers = jit_compiler->register_allocator.n_allocated_registers;
-
-    if(n_allocated_registers == 0){
-        return;
-    }
-
-    register_t esp_addr_reg = push_register_allocator(&jit_compiler->register_allocator);
-
-    //Save esp vm address into esp_addr_reg
-    emit_mov(&jit_compiler->native_compiled_code,
-             REGISTER_TO_OPERAND(esp_addr_reg),
-             DISPLACEMENT_TO_OPERAND(SELF_THREAD_ADDR_REG, offsetof(struct vm_thread, esp)));
-
-    for(int i = n_allocated_registers - 1; i > 0; i--) {
-        register_t stack_value_reg = peek_at_register_allocator(&jit_compiler->register_allocator, i);
-
-        emit_mov(&jit_compiler->native_compiled_code,
-                 DISPLACEMENT_TO_OPERAND(esp_addr_reg, 0),
-                 REGISTER_TO_OPERAND(stack_value_reg));
-
-        emit_add(&jit_compiler->native_compiled_code,
-                 REGISTER_TO_OPERAND(esp_addr_reg),
-                 IMMEDIATE_TO_OPERAND(sizeof(lox_value_t)));
-    }
-
-    emit_add(&jit_compiler->native_compiled_code,
-             RSP_REGISTER_OPERAND,
-             IMMEDIATE_TO_OPERAND(n_allocated_registers * sizeof(lox_value_t)));
-
-    //Update updated esp vm value
-    emit_mov(&jit_compiler->native_compiled_code,
-             DISPLACEMENT_TO_OPERAND(SELF_THREAD_ADDR_REG, offsetof(struct vm_thread, esp)),
-             REGISTER_TO_OPERAND(esp_addr_reg));
-
-    //pop esp_addr_reg
-    pop_register_allocator(&jit_compiler->register_allocator);
-
-    //Restore previous rsp & rbp
-    emit_mov(&jit_compiler->native_compiled_code, RSP_REGISTER_OPERAND, RCX_REGISTER_OPERAND);
-    emit_mov(&jit_compiler->native_compiled_code, RBP_REGISTER_OPERAND, RDX_REGISTER_OPERAND);
 }
 
 //As the vm stack might have some data, we need to update vm esp, so that if any thread is garbage collecting,
