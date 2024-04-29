@@ -1096,6 +1096,7 @@ static void init_compiler(struct compiler * compiler, scope_type_t scope_type, s
 
     compiler->local_count = 0;
     compiler->local_depth = 0;
+    compiler->max_locals = 0;
 
     struct local * local = &compiler->locals[compiler->local_count++];
     local->name.length = 0;
@@ -1134,6 +1135,7 @@ static void free_compiler(struct compiler * compiler) {
 static struct function_object * end_compiler(struct compiler * compiler) {
     emit_empty_return(compiler);
     compiler->package->state = PENDING_INITIALIZATION;
+    compiler->current_function->n_locals = compiler->max_locals;
     return compiler->current_function;
 }
 
@@ -1172,6 +1174,8 @@ static int add_local_variable(struct compiler * compiler, struct token new_varia
     struct local * local = &compiler->locals[compiler->local_count++];
     local->depth = compiler->local_depth;
     local->name = new_variable_name;
+
+    compiler->max_locals = MAX(compiler->max_locals, compiler->local_count);
 
     return compiler->local_count - 1;
 }

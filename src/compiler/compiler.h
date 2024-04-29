@@ -47,6 +47,7 @@ struct compiler {
     struct local locals[UINT8_MAX];
     int local_count;
     int local_depth;
+    int max_locals;
 
     bool compiling_external_function;
     struct package * package_of_compiling_external_func;

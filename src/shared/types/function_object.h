@@ -9,12 +9,12 @@
 
 #define MAX_MONITORS_PER_FUNCTION 8
 
-//TODO Add number of locals
 struct function_object {
     struct object object;
     int n_arguments; //Number of arguments
     struct chunk chunk;
     struct string_object * name;
+    int n_locals;
 
     struct jit_info jit_info;
 

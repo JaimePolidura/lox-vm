@@ -16,12 +16,15 @@ struct jit_mode_switch_info setup_vm_to_jit_mode(struct jit_compiler * jit_compi
     //Load slots/frame pointer to rbp
     emit_mov(code, RBP_REGISTER_OPERAND, DISPLACEMENT_TO_OPERAND(SELF_THREAD_ADDR_REG, offsetof(struct vm_thread, esp)));
 
-    //Really similar to setup_call_frame_function in vm.c
-    if(jit_compiler->function_to_compile->n_arguments > 0){
-        emit_sub(code, RBP_REGISTER_OPERAND, IMMEDIATE_TO_OPERAND(jit_compiler->function_to_compile->n_arguments * sizeof(lox_value_t)));
-    }
+    //Really similar to setup_call_frame_function in vm.c Setup ebp
+    size_t n_bytes_adjust_rbp = sizeof(lox_value_t) + jit_compiler->function_to_compile->n_arguments * sizeof(lox_value_t);
+    emit_sub(code, RBP_REGISTER_OPERAND, IMMEDIATE_TO_OPERAND(n_bytes_adjust_rbp));
 
-    emit_sub(code, RBP_REGISTER_OPERAND, IMMEDIATE_TO_OPERAND(sizeof(lox_value_t)));
+    size_t n_bytes_adjust_rsp = jit_compiler->function_to_compile->n_locals - jit_compiler->function_to_compile->n_arguments;
+    if(n_bytes_adjust_rsp > 0){
+        n_bytes_adjust_rsp = sizeof(lox_value_type) + n_bytes_adjust_rsp * sizeof(lox_value_t);
+        emit_add(code, RSP_REGISTER_OPERAND, IMMEDIATE_TO_OPERAND(n_bytes_adjust_rsp));
+    }
 
     jit_compiler->current_mode = MODE_JIT;
 

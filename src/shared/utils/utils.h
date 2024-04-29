@@ -2,6 +2,8 @@
 
 #include "shared.h"
 
+#define MAX(a, b) a > b ? a : b
+
 #define TO_UPPER_CASE(character) ( ~((character >= 'a' & character <= 'z') << 5) & character )
 
 #define COMPILER_BARRIER() asm volatile ("" : : : "memory")

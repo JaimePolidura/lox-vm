@@ -825,12 +825,6 @@ static void not(struct jit_compiler * jit_compiler) {
 static void set_local(struct jit_compiler * jit_compiler) {
     uint8_t slot = READ_BYTECODE(jit_compiler);
 
-    //TODO If set_local is run multiple times, the stack will get increased a lot
-//    if(slot > jit_compiler->last_stack_slot_allocated){
-//        uint8_t n_locals_to_grow = slot - jit_compiler->last_stack_slot_allocated;
-//        emit_increase_lox_stack(jit_compiler, slot - jit_compiler->last_stack_slot_allocated);
-//    }
-
     register_t register_local_value = peek_register_allocator(&jit_compiler->register_allocator);
     int offset_local_from_rbp = slot * sizeof(lox_value_t);
 
