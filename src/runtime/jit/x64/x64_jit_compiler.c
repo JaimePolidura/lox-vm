@@ -327,14 +327,16 @@ static void enter_monitor_jit(struct jit_compiler * jit_compiler) {
 static void set_array_element(struct jit_compiler * jit_compiler) {
     uint16_t array_index = READ_U16(jit_compiler);
 
-    register_t element_addr_reg = peek_register_allocator(&jit_compiler->register_allocator);
-    register_t new_element = peek_register_allocator(&jit_compiler->register_allocator);
+    register_t element_addr_reg = peek_at_register_allocator(&jit_compiler->register_allocator, 0);
+    register_t new_element = peek_at_register_allocator(&jit_compiler->register_allocator, 1);
 
     uint16_t instruction_index = cast_lox_object_to_ptr(jit_compiler, element_addr_reg);
 
     emit_add(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(element_addr_reg),
-             IMMEDIATE_TO_OPERAND(offsetof(struct array_object, values)));
+             IMMEDIATE_TO_OPERAND(
+                     offsetof(struct array_object, values) +
+                     offsetof(struct lox_arraylist, values)));
 
     emit_mov(&jit_compiler->native_compiled_code,
              DISPLACEMENT_TO_OPERAND(element_addr_reg, array_index * sizeof(lox_value_t)),
@@ -368,6 +370,14 @@ static void get_array_element(struct jit_compiler * jit_compiler) {
 static void initialize_array(struct jit_compiler * jit_compiler) {
     int n_elements = READ_U16(jit_compiler);
 
+    //Load elements in order from registers to lox stack
+    for(int i = 0; i < n_elements; i++){
+        register_t reg = peek_at_register_allocator(&jit_compiler->register_allocator, i);
+        emit_lox_push(jit_compiler, reg);
+    }
+    pop_at_register_allocator(&jit_compiler->register_allocator, n_elements);
+
+    //Allocate array object & add to heap list
     uint16_t instruction_index = call_external_c_function(
             jit_compiler,
             MODE_NATIVE,
@@ -375,37 +385,43 @@ static void initialize_array(struct jit_compiler * jit_compiler) {
             FUNCTION_TO_OPERAND(alloc_array_object),
             1,
             IMMEDIATE_TO_OPERAND((uint64_t) n_elements));
+    register_t array_addr_reg = push_register_allocator(&jit_compiler->register_allocator);
+    emit_mov(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(array_addr_reg),
+             RAX_REGISTER_OPERAND);
+    call_add_object_to_heap(jit_compiler, array_addr_reg);
 
-    if(n_elements > 0){
-        emit_lox_push(jit_compiler, RAX);
+    //Load array object values into array_values_addr_reg
+    register_t array_values_addr_reg = push_register_allocator(&jit_compiler->register_allocator);
+    emit_mov(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(array_values_addr_reg),
+             REGISTER_TO_OPERAND(array_addr_reg));
+    emit_add(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(array_values_addr_reg),
+             IMMEDIATE_TO_OPERAND(
+                     offsetof(struct array_object, values) +
+                     offsetof(struct lox_arraylist, values)));
+
+    //Load array values from lox stack into array_values_addr_reg
+    register_t array_value_reg = push_register_allocator(&jit_compiler->register_allocator);
+    for(int i = 0; i < n_elements; i++) {
+        emit_lox_pop(jit_compiler, array_value_reg);
+
+        emit_mov(&jit_compiler->native_compiled_code,
+                 DISPLACEMENT_TO_OPERAND(array_values_addr_reg, i * sizeof(lox_value_t)),
+                 REGISTER_TO_OPERAND(array_value_reg));
     }
 
-    for(int i = 0; i < n_elements; i++){
-        register_t array_value_reg = pop_register_allocator(&jit_compiler->register_allocator);
-        int index_array_value = n_elements - 1 - i;
+    cast_ptr_to_lox_object(jit_compiler, array_addr_reg);
 
-        call_external_c_function(
-                jit_compiler,
-                MODE_NATIVE,
-                SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
-                FUNCTION_TO_OPERAND(set_element_array),
-                3,
-                RAX_REGISTER_OPERAND,
-                IMMEDIATE_TO_OPERAND(index_array_value),
-                REGISTER_TO_OPERAND(array_value_reg));
-
-        emit_lox_pop(jit_compiler, RAX);
-    }
-
-    register_t register_array_address = push_register_allocator(&jit_compiler->register_allocator);
+    //Pop array_value_reg, array_addr_reg & array_values_addr_reg
+    pop_register_allocator(&jit_compiler->register_allocator);
+    pop_register_allocator(&jit_compiler->register_allocator);
+    pop_register_allocator(&jit_compiler->register_allocator);
 
     emit_mov(&jit_compiler->native_compiled_code,
-             REGISTER_TO_OPERAND(register_array_address),
-             RAX_REGISTER_OPERAND);
-
-    call_add_object_to_heap(jit_compiler, register_array_address);
-
-    cast_ptr_to_lox_object(jit_compiler, register_array_address);
+             REGISTER_TO_OPERAND(push_register_allocator(&jit_compiler->register_allocator)),
+             REGISTER_TO_OPERAND(array_addr_reg));
 
     record_compiled_bytecode(jit_compiler, instruction_index, OP_INITIALIZE_ARRAY_LENGTH);
 }
@@ -1032,8 +1048,6 @@ static uint16_t call_safepoint(struct jit_compiler * jit_compiler) {
 }
 
 static uint16_t call_add_object_to_heap(struct jit_compiler * jit_compiler, register_t object_addr_reg) {
-    register_t lox_object_addr_reg = push_register_allocator(&jit_compiler->register_allocator);
-
     return call_external_c_function(
             jit_compiler,
             MODE_VM,
@@ -1059,23 +1073,23 @@ static uint16_t emit_lox_push(struct jit_compiler * jit_compiler, register_t reg
 static uint16_t emit_lox_pop(struct jit_compiler * jit_compiler, register_t reg) {
     uint16_t instruction_index = emit_decrease_lox_tsack(jit_compiler, 1);
 
-    emit_add(&jit_compiler->native_compiled_code,
-             REGISTER_TO_OPERAND(reg),
-             DISPLACEMENT_TO_OPERAND(RSP, 0));
+    emit_mov(&jit_compiler->native_compiled_code,
+            REGISTER_TO_OPERAND(reg),
+            DISPLACEMENT_TO_OPERAND(RSP, 0));
 
     return instruction_index;
 }
 
 static uint16_t emit_increase_lox_stack(struct jit_compiler * jit_compiler, int n_locals) {
     return emit_add(&jit_compiler->native_compiled_code,
-                    RSP_REGISTER_OPERAND,
-                    IMMEDIATE_TO_OPERAND(sizeof(lox_value_t) * n_locals));
+            RSP_REGISTER_OPERAND,
+            IMMEDIATE_TO_OPERAND(sizeof(lox_value_t) * n_locals));
 }
 
 static uint16_t emit_decrease_lox_tsack(struct jit_compiler * jit_compiler, int n_locals) {
     return emit_sub(&jit_compiler->native_compiled_code,
-                    RSP_REGISTER_OPERAND,
-                    IMMEDIATE_TO_OPERAND(sizeof(lox_value_t) * n_locals));
+            RSP_REGISTER_OPERAND,
+            IMMEDIATE_TO_OPERAND(sizeof(lox_value_t) * n_locals));
 }
 
 static uint16_t get_compiled_native_index_by_bytecode_index(struct jit_compiler * jit_compiler, uint16_t current_bytecode_index) {

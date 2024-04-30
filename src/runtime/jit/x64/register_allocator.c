@@ -13,31 +13,36 @@ const register_t register_to_allocate[] = {
         R15  // 1111 Register number: 15
 };
 
-void init_register_allocator(struct register_allocator * register_allocation) {
-    register_allocation->n_allocated_registers = 0;
-    register_allocation->next_free_register = R15;
+void init_register_allocator(struct register_allocator * register_allocator) {
+    register_allocator->n_allocated_registers = 0;
+    register_allocator->next_free_register = R15;
 }
 
-register_t push_register_allocator(struct register_allocator * register_allocation) {
-    if(register_allocation->next_free_register < register_to_allocate[0]){
+register_t push_register_allocator(struct register_allocator * register_allocator) {
+    if(register_allocator->next_free_register < register_to_allocate[0]){
         return -1;
     }
 
-    register_allocation->n_allocated_registers++;
+    register_allocator->n_allocated_registers++;
 
-    return register_allocation->next_free_register--;
+    return register_allocator->next_free_register--;
 }
 
-register_t pop_register_allocator(struct register_allocator * register_allocation) {
-    register_allocation->n_allocated_registers--;
+register_t pop_register_allocator(struct register_allocator * register_allocator) {
+    register_allocator->n_allocated_registers--;
 
-    return ++register_allocation->next_free_register;
+    return ++register_allocator->next_free_register;
 }
 
-register_t peek_register_allocator(struct register_allocator * register_allocation) {
-    return register_allocation->next_free_register + 1;
+register_t peek_register_allocator(struct register_allocator * register_allocator) {
+    return register_allocator->next_free_register + 1;
 }
 
-register_t peek_at_register_allocator(struct register_allocator * register_allocation, int index) {
-    return register_allocation->next_free_register + 1 + index;
+register_t peek_at_register_allocator(struct register_allocator * register_allocaor, int index) {
+    return register_allocaor->next_free_register + 1 + index;
+}
+
+void pop_at_register_allocator(struct register_allocator * register_allocator, int items) {
+    register_allocator->n_allocated_registers -= items;
+    register_allocator->next_free_register = MAX((register_allocator->next_free_register + items), R15);
 }

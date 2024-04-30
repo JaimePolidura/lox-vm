@@ -7,6 +7,30 @@
 
 extern struct vm current_vm;
 
+TEST(vm_jit_arrays) {
+    start_vm();
+
+    struct compilation_result compilation = compile_standalone(
+            "fun function() {"
+            "   var array = [1, 2, 3, 4];"
+            "   print array[1];"
+            "   array[0] = array[3];"
+            "   print array[0];"
+            "}"
+            ""
+            "forceJIT(function);"
+            ""
+            "function();"
+    );
+
+    interpret_vm(compilation);
+    stop_vm();
+    reset_vm();
+
+    ASSERT_NEXT_VM_LOG(current_vm, "2.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "4.000000");
+}
+
 TEST(vm_jit_globals){
     start_vm();
 
