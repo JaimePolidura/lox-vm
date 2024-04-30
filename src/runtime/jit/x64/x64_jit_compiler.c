@@ -293,7 +293,6 @@ static void exit_monitor_jit(struct jit_compiler * jit_compiler) {
              RAX_REGISTER_OPERAND);
 
     update_last_monitor_entered_count(jit_compiler, current_frame_addr_reg_a, DECREASE_MONITOR_COUNT);
-
     read_last_monitor_entered(jit_compiler, current_frame_addr_reg_b, jit_compiler->function_to_compile);
 
     call_external_c_function(
@@ -313,53 +312,23 @@ static void exit_monitor_jit(struct jit_compiler * jit_compiler) {
 
 //Puts latest monitor ptr entered into register_call_frame_addr
 //Equivalent in C: &function->monitors[call_frame->monitors_entered[call_frame->last_monitor_entered_index]]
-//Code:
-/**
- * r15 => register_call_frame_addr
- * mov r14, [r15 + offset(struct call_frame, last_monitor_entered_index)
- *
- * add r15, offset(struct call_frame, monitors_entered)
- * add r15, r14
- * mov r14, [r15]
- *
- * mov r13, function
- * add r13, offset(struct function_object, monitors)
- * add r13, r14
- *
- * mov register_call_frame_addr, r13
- */
 static void read_last_monitor_entered(struct jit_compiler * jit_compiler,
         register_t register_call_frame_addr,
         struct function_object * function) {
-    register_t last_monitor_index_reg = push_register_allocator(&jit_compiler->register_allocator);
 
+    //Load last monitor entered reg
+    register_t last_monitor_index_reg = push_register_allocator(&jit_compiler->register_allocator);
     emit_mov(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(last_monitor_index_reg),
              DISPLACEMENT_TO_OPERAND(register_call_frame_addr, offsetof(struct call_frame, last_monitor_entered_index)));
 
-    emit_add(&jit_compiler->native_compiled_code,
-             REGISTER_TO_OPERAND(register_call_frame_addr),
-             IMMEDIATE_TO_OPERAND(offsetof(struct call_frame, monitors_entered)));
-    emit_add(&jit_compiler->native_compiled_code,
-             REGISTER_TO_OPERAND(register_call_frame_addr),
-             REGISTER_TO_OPERAND(last_monitor_index_reg));
-    emit_mov(&jit_compiler->native_compiled_code,
-             REGISTER_TO_OPERAND(last_monitor_index_reg),
-             DISPLACEMENT_TO_OPERAND(register_call_frame_addr, 0));
-
     register_t function_addr_reg = push_register_allocator(&jit_compiler->register_allocator);
-
-    emit_mov(&jit_compiler->native_compiled_code,
-             REGISTER_TO_OPERAND(function_addr_reg),
-             IMMEDIATE_TO_OPERAND((uint64_t) function));
-
     emit_add(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(function_addr_reg),
-             IMMEDIATE_TO_OPERAND(offsetof(struct function_object, monitors)));
+             IMMEDIATE_TO_OPERAND((uint64_t) function + offsetof(struct function_object, monitors)));
     emit_add(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(function_addr_reg),
              REGISTER_TO_OPERAND(last_monitor_index_reg));
-
     emit_mov(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(register_call_frame_addr),
              REGISTER_TO_OPERAND(function_addr_reg));
@@ -401,9 +370,9 @@ static void enter_monitor_jit(struct jit_compiler * jit_compiler) {
     emit_mov(&jit_compiler->native_compiled_code, 
         REGISTER_TO_OPERAND(current_frame_addr_reg_a), 
         RAX_REGISTER_OPERAND);
-    
-    emit_mov(&jit_compiler->native_compiled_code, 
-        REGISTER_TO_OPERAND(current_frame_addr_reg_b), 
+
+    emit_mov(&jit_compiler->native_compiled_code,
+        REGISTER_TO_OPERAND(current_frame_addr_reg_b),
         RAX_REGISTER_OPERAND);
 
     update_monitors_entered_array(jit_compiler, current_frame_addr_reg_a, monitor_number_to_enter);
@@ -443,50 +412,54 @@ static void enter_monitor_jit(struct jit_compiler * jit_compiler) {
 }
 
 // call_frame->monitors_entered[call_frame->last_monitor_entered_index] = monitor_number_to_enter
+// mov r14, [r15 + offsetof(struct call_frame, last_monitor_entered_index)
 // add r15, offset(struct callframe, monitors_entered)
-// add r15, [r15 + offset(struct callframe, last_monitor_entered_index)] 
+// add r15, r14
 // mov [r15], monitor_number_to_enter
 static void update_monitors_entered_array(struct jit_compiler * jit_compiler, register_t register_call_frame, int64_t monitor_to_enter) {
-    emit_add(&jit_compiler->native_compiled_code, 
-        REGISTER_TO_OPERAND(register_call_frame), 
-        IMMEDIATE_TO_OPERAND(offsetof(struct call_frame, monitors_entered)));
-
-    emit_add(&jit_compiler->native_compiled_code,
-        REGISTER_TO_OPERAND(register_call_frame),
-        DISPLACEMENT_TO_OPERAND(register_call_frame, offsetof(struct call_frame, last_monitor_entered_index)));
+    register_t last_monitor_entered_index_reg = push_register_allocator(&jit_compiler->register_allocator);
 
     emit_mov(&jit_compiler->native_compiled_code,
-        DISPLACEMENT_TO_OPERAND(register_call_frame, 0),
-        IMMEDIATE_TO_OPERAND(monitor_to_enter));
+             REGISTER_TO_OPERAND(last_monitor_entered_index_reg),
+             DISPLACEMENT_TO_OPERAND(last_monitor_entered_index_reg, offsetof(struct call_frame, last_monitor_entered_index)));
+
+    emit_add(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(register_call_frame),
+             IMMEDIATE_TO_OPERAND(offsetof(struct call_frame, monitors_entered)));
+
+    emit_add(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(register_call_frame),
+             REGISTER_TO_OPERAND(last_monitor_entered_index_reg));
+
+    emit_mov(&jit_compiler->native_compiled_code,
+             DISPLACEMENT_TO_OPERAND(register_call_frame, 0),
+             IMMEDIATE_TO_OPERAND(monitor_to_enter));
+
+    pop_register_allocator(&jit_compiler->register_allocator);
 }
 
 // call_frame->last_monitor_entered_index++
-// add r14, offset (struct call_frame, last_monitor_entered_index)
-// mov r13, [r14]
-// inc/dec r13
-// mov [r14], r13
+// mov r14, [r15 + offset (struct call_frame, last_monitor_entered_index)]
+// inc/dec r14
+// mov [r15 + offset (struct call_frame, last_monitor_entered_index)], r14
 static void update_last_monitor_entered_count(struct jit_compiler * jit_compiler, register_t register_call_frame, bool increase) {
-    emit_add(&jit_compiler->native_compiled_code,
-        REGISTER_TO_OPERAND(register_call_frame),
-        IMMEDIATE_TO_OPERAND(offsetof(struct call_frame, last_monitor_entered_index)));
+    register_t last_monitor_entered_index_reg = push_register_allocator(&jit_compiler->register_allocator);
 
-    register_t count_register_value = push_register_allocator(&jit_compiler->register_allocator);
-
-    emit_mov(&jit_compiler->native_compiled_code, 
-        REGISTER_TO_OPERAND(count_register_value), 
-        DISPLACEMENT_TO_OPERAND(count_register_value, 0));    
+    emit_mov(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(last_monitor_entered_index_reg),
+             DISPLACEMENT_TO_OPERAND(register_call_frame, offsetof(struct call_frame, last_monitor_entered_index)));
 
     if(increase){
         emit_inc(&jit_compiler->native_compiled_code,
-                 REGISTER_TO_OPERAND(count_register_value));
+                 REGISTER_TO_OPERAND(last_monitor_entered_index_reg));
     } else {
         emit_dec(&jit_compiler->native_compiled_code,
-                 REGISTER_TO_OPERAND(count_register_value));
+                 REGISTER_TO_OPERAND(last_monitor_entered_index_reg));
     }
 
     emit_mov(&jit_compiler->native_compiled_code, 
-        DISPLACEMENT_TO_OPERAND(register_call_frame, 0), 
-        REGISTER_TO_OPERAND(count_register_value));
+        DISPLACEMENT_TO_OPERAND(register_call_frame, offsetof(struct call_frame, last_monitor_entered_index)),
+        REGISTER_TO_OPERAND(last_monitor_entered_index_reg));
 
     pop_register_allocator(&jit_compiler->register_allocator);
 }

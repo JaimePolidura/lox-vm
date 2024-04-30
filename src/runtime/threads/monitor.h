@@ -3,6 +3,8 @@
 #include "shared.h"
 #include "shared/utils/concurrency/mutex.h"
 
+typedef uint8_t monitor_number_t;
+
 struct monitor {
     pthread_cond_t condition;
     struct mutex mutex;

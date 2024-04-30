@@ -54,7 +54,9 @@ struct compiler {
 
     bool compiling_parallel_call;
 
-    int monitor_depth;
+    monitor_number_t monitor_numbers_entered[MAX_MONITORS_PER_FUNCTION];
+    monitor_number_t * last_monitor_entered;
+    monitor_number_t last_monitor_allocated_number;
 
     //Maintains function call list, so that we know how many different functions have been called
     //This is used by struct function_object field: n_function_calls

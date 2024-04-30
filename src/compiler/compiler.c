@@ -1035,13 +1035,15 @@ static struct compiler * alloc_compiler(scope_type_t scope, char * package_name,
 }
 
 static void emit_exit_monitor(struct compiler * compiler) {
-    compiler->monitor_depth--;
-    emit_bytecode(compiler, OP_EXIT_MONITOR);
+    monitor_number_t monitor_number_to_exit = *--compiler->last_monitor_entered;
+    emit_bytecodes(compiler, OP_EXIT_MONITOR, monitor_number_to_exit);
 }
 
 static void emit_exit_all_monitors(struct compiler * compiler) {
-    for(int i = 0; i < compiler->monitor_depth; i++){
-        emit_bytecode(compiler, OP_EXIT_MONITOR);
+    for(monitor_number_t * monitor_number_to_exit = compiler->last_monitor_entered - 1;
+        monitor_number_to_exit >= &compiler->monitor_numbers_entered[0];
+        --monitor_number_to_exit) {
+        emit_bytecodes(compiler, OP_EXIT_MONITOR, * monitor_number_to_exit);
     }
 }
 
@@ -1049,11 +1051,13 @@ static void emit_enter_monitor(struct compiler * compiler) {
     if(compiler->current_scope == SCOPE_PACKAGE){
         report_error(compiler, compiler->parser->previous, "Only sync can be called at a function level");
     }
-    if(++compiler->monitor_depth > MAX_MONITORS_PER_FUNCTION){
+    monitor_number_t monitor_number_to_enter = compiler->last_monitor_allocated_number++;
+    if(monitor_number_to_enter >= MAX_MONITORS_PER_FUNCTION){
         report_error(compiler, compiler->parser->previous, "Max monitors in function reached");
     }
-    
-    emit_bytecodes(compiler, OP_ENTER_MONITOR, compiler->monitor_depth - 1);
+
+    *(compiler->last_monitor_entered++) = monitor_number_to_enter;
+    emit_bytecodes(compiler, OP_ENTER_MONITOR, monitor_number_to_enter);
 }
 
 static struct package * add_package_to_compiled_packages(char * package_import_name, int package_import_name_length, bool is_stand_alone_mode) {
@@ -1106,7 +1110,10 @@ static void init_compiler(struct compiler * compiler, scope_type_t scope_type, s
     compiler->package_of_compiling_external_func = NULL;
     compiler->compiling_external_function = false;
     compiler->compiling_parallel_call = false;
-    compiler->monitor_depth = 0;
+
+    memset(&compiler->monitor_numbers_entered, 0, sizeof(monitor_number_t) * MAX_MONITORS_PER_FUNCTION);
+    compiler->last_monitor_entered = &compiler->monitor_numbers_entered[0];
+    compiler->last_monitor_allocated_number = 0;
 }
 
 static void string(struct compiler * compiler, bool can_assign) {

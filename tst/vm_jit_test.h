@@ -7,6 +7,35 @@
 
 extern struct vm current_vm;
 
+TEST(vm_jit_monitors) {
+    start_vm();
+
+    struct compilation_result compilation = compile_standalone(
+            "fun sync function() {"
+            "   sync {"
+            "       print 1;"
+            "   }"
+            "   sync {"
+            "       print 2;"
+            "   }"
+            "}"
+            ""
+            "forceJIT(function);"
+            ""
+            "function();"
+    );
+
+    struct function_object * func = (struct function_object *) AS_OBJECT(* (compilation.compiled_package->main_function->chunk.constants.values + 1));
+    disassemble_chunk(&func->chunk);
+
+    interpret_vm(compilation);
+    stop_vm();
+    reset_vm();
+
+    ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "2.000000");
+}
+
 TEST(vm_jit_for_loop){
     start_vm();
 
@@ -25,7 +54,6 @@ TEST(vm_jit_for_loop){
     );
 
     interpret_vm(compilation);
-
     stop_vm();
     reset_vm();
 

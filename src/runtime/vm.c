@@ -153,24 +153,20 @@ static interpret_result_t run() {
 
 static void enter_monitor_vm(struct call_frame * call_frame) {
     struct function_object * function = call_frame->function;
-    int64_t monitor_number_to_enter = (int64_t) READ_BYTECODE(call_frame);
+    monitor_number_t monitor_number_to_enter = READ_BYTECODE(call_frame);
     struct monitor * monitor_to_enter = &function->monitors[monitor_number_to_enter];
 
-    call_frame->monitors_entered[call_frame->last_monitor_entered_index++] = monitor_number_to_enter;
-
     set_self_thread_waiting();
-
     enter_monitor(monitor_to_enter);
-
     set_self_thread_runnable();
 }
 
 static void exit_monitor_vm(struct call_frame * call_frame) {
-    int monitor_number_to_exit = call_frame->monitors_entered[--call_frame->last_monitor_entered_index];
+    monitor_number_t monitor_number_to_exit = READ_BYTECODE(call_frame);
     struct function_object * function = call_frame->function;
-    struct monitor * monitor_to_exit = &function->monitors[monitor_number_to_exit];
+    struct monitor * monitor = &function->monitors[monitor_number_to_exit];
 
-    exit_monitor(monitor_to_exit);
+    exit_monitor(monitor);
 }
 
 static void enter_package() {

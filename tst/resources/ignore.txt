@@ -1,85 +1,20 @@
-"pushq   %rbp\n"
-"movq    %rsp, %rbp\n"
-"movq    %rsp, %rcx\n"
-"movq    %rbp, %rdx\n"
-"movq    0xa20(%rbx), %rsp\n"
-"movq    0xa20(%rbx), %rbp\n"
-"subq    $0x8, %rbp\n"
-"subq    $0x8, %rbp\n"
-"movq    $0x0, %r15\n"
-"movq    %r15, 0x10(%rbp)\n"
-"movq    $0x0, %r14\n"
-"movq    %r14, 0x18(%rbp)\n"
-"movq    0x18(%rbp), %r13\n"
-"movq    0x8(%rbp), %r12\n"
-"cmpq    %r13, %r12\n"
-"setl    %al\n"
-"movzbl  %al, %r13d\n"
-"addq    $0x2, %r13\n"
-"movabsq $0x7ffc000000000000, %r12\n"
-"orq     %r12, %r13\n"
-"movq    0xa20(%rbx), %r12\n"
-"movq    %r15, 0x0(%r12)\n"
-"addq    $0x8, %r12\n"
-"movq    %r14, 0x0(%r12)\n"
-"addq    $0x8, %r12\n"
-"movq    %r13, 0x0(%r12)\n"
-"addq    $0x8, %r12\n"
-"movq    %r12, 0xa20(%rbx)\n"
-"movq    %rbx, %r12\n"
-"movq    0xa28(%r12), %r12\n"
-"movq    %rsp, 0x0(%r12)\n"
-"movq    %rbp, 0x8(%r12)\n"
-"movq    %rbx, 0x10(%r12)\n"
-"movq    %rcx, %rsp\n"
-"movq    %rdx, %rbp\n"
-"pushq   %r12\n"
-"pushq   %r10\n"
-"movabsq $0x7ff78afb28f2, %r10\n"
-"callq   *%r10\n"
-"popq    %r10\n"
-"popq    %r12\n"
-"movq    %rsp, %rcx\n"
-"movq    %rbp, %rdx\n"
-"movq    0x0(%r12), %rsp\n"
-"movq    0x8(%r12), %rbp\n"
-"movq    0x10(%r12), %rbx\n"
-"movq    %rsp, 0xa20(%rbx)\n"
-"movabsq $0x7ffc000000000003, %r12\n"
-"cmpq    %r13, %r12\n"
-"jne     0x10c\n"
-"movq    0x10(%rbp), %r14\n"
-"movq    0x8(%rbp), %r13\n"
-"addq    %r13, %r14\n"
-"movq    %r14, 0x10(%rbp)\n"
-"movq    0x18(%rbp), %r14\n"
-"addq    $0x1, %r14\n"
-"movq    %r14, 0x18(%rbp)\n"
-"jmp     0x36\n"
-"movq    0x10(%rbp), %r15\n"
-"movq    %rbx, %r14\n"
-"movq    0xa28(%r14), %r14\n"
-"movq    %rsp, 0x0(%r14)\n"
-"movq    %rbp, 0x8(%r14)\n"
-"movq    %rbx, 0x10(%r14)\n"
-"movq    %rcx, %rsp\n"
-"movq    %rdx, %rbp\n"
-"pushq   %r14\n"
-"pushq   %r10\n"
-"movabsq $0x7ff78afb550b, %r10\n"
-"callq   *%r10\n"
-"popq    %r10\n"
-"popq    %r14\n"
-"movq    %rsp, %rcx\n"
-"movq    %rbp, %rdx\n"
-"movq    0x0(%r14), %rsp\n"
-"movq    0x8(%r14), %rbp\n"
-"movq    0x10(%r14), %rbx\n"
-"movq    %rbp, %rsp\n"
-"movq    %r15, 0x0(%rsp)\n"
-"addq    $0x8, %rsp\n"
-"movq    %rsp, 0xa20(%rbx)\n"
-"movq    %rcx, %rsp\n"
-"movq    %rdx, %rbp\n"
-"popq    %rbp\n"
-"retq\n"
+sync { // 0
+    sync { // 1
+    }
+
+    sync { // 2
+    }
+}
+
+sync { // 3
+}
+
+ENTER 0
+ENTER 1
+EXIT 1
+ENTER 2
+EXIT 2
+EXIT 0
+
+ENTER 3
+EXIT 3
