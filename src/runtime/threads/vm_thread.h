@@ -17,9 +17,6 @@ struct call_frame {
     struct function_object * function;
     uint8_t * pc; //Actual instruction
     lox_value_t * slots; //Used for local variables. It points to the gray_stack
-
-    int64_t last_monitor_entered_index;
-    int64_t monitors_entered[MAX_MONITORS_PER_FUNCTION];
 };
 
 typedef enum {

@@ -59,7 +59,7 @@ void disassemble_chunk(struct chunk * chunk) {
             case OP_ENTER_PACKAGE: /*Ignored, printed by OP_PACKAGE_CONST*/ break;
             case OP_EXIT_PACKAGE: SINGLE_INSTRUCTION("OP_EXIT_PACKAGE"); break;
             case OP_ENTER_MONITOR: BINARY_U8_INSTRUCTION("OP_ENTER_MONITOR", pc); break;
-            case OP_EXIT_MONITOR: SINGLE_INSTRUCTION("OP_EXIT_MONITOR"); break;
+            case OP_EXIT_MONITOR: BINARY_U8_INSTRUCTION("OP_EXIT_MONITOR", pc); break;
             case OP_INITIALIZE_ARRAY: BINARY_U16_INSTRUCTION("OP_INITIALIZE_ARRAY", pc); break;
             case OP_GET_ARRAY_ELEMENT: BINARY_U16_INSTRUCTION("OP_GET_ARRAY_ELEMENT", pc); break;
             case OP_SET_ARRAY_ELEMENT: BINARY_U16_INSTRUCTION("OP_SET_ARRAY_ELEMENT", pc); break;

@@ -25,9 +25,6 @@ TEST(vm_jit_monitors) {
             "function();"
     );
 
-    struct function_object * func = (struct function_object *) AS_OBJECT(* (compilation.compiled_package->main_function->chunk.constants.values + 1));
-    disassemble_chunk(&func->chunk);
-
     interpret_vm(compilation);
     stop_vm();
     reset_vm();

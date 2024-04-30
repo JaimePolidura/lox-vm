@@ -570,7 +570,6 @@ static void setup_call_frame_function(struct vm_thread * thread, struct function
     new_frame->function = function;
     new_frame->pc = function->chunk.code;
     new_frame->slots = thread->esp - function->n_arguments - 1;
-    new_frame->last_monitor_entered_index = 0;
 }
 
 bool restore_prev_call_frame() {
