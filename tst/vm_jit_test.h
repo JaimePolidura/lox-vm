@@ -7,6 +7,30 @@
 
 extern struct vm current_vm;
 
+TEST(vm_jit_globals){
+    start_vm();
+
+    struct compilation_result compilation = compile_standalone(
+            "var numero = 1;"
+            "fun function() {"
+            "   print numero;"
+            "   numero = 2;"
+            "}"
+            ""
+            "forceJIT(function);"
+            ""
+            "function();"
+            "print numero;"
+    );
+
+    interpret_vm(compilation);
+    stop_vm();
+    reset_vm();
+
+    ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "2.000000");
+}
+
 TEST(vm_jit_monitors) {
     start_vm();
 

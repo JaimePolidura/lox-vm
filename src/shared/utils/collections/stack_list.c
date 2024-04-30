@@ -15,7 +15,7 @@ struct stack_list * alloc_stack_list() {
 }
 
 void * peek_stack_list(struct stack_list * stack) {
-    return stack->head;
+    return stack->head->data;
 }
 
 void free_stack_list(struct stack_list * stack) {

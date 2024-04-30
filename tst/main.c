@@ -22,6 +22,7 @@ extern const char * compiling_base_dir;
 //Run in debug mode
 int main() {
 #ifdef RUN_VM_JIT_TEST
+    vm_jit_globals_outer();
     vm_jit_monitors_outer();
     vm_jit_for_loop_outer();
     vm_jit_if_test_outer();

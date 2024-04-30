@@ -3,6 +3,8 @@
 #define INCREASE_MONITOR_COUNT true
 #define DECREASE_MONITOR_COUNT true
 
+extern __thread struct vm_thread * self_thread;
+
 extern bool get_hash_table(struct lox_hash_table * table, struct string_object * key, lox_value_t *value);
 extern bool put_hash_table(struct lox_hash_table * table, struct string_object * key, lox_value_t value);
 extern struct call_frame * get_current_frame_vm_thread(struct vm_thread *);
@@ -124,6 +126,10 @@ struct jit_compilation_result jit_compile_arch(struct function_object * function
 
     emit_prologue_x64_stack(&jit_compiler.native_compiled_code, function);
     setup_vm_to_jit_mode(&jit_compiler);
+
+    struct vm_thread * this = self_thread;
+
+    push_stack_list(&jit_compiler.package_stack, self_thread->current_package);
 
 #ifndef VM_TEST
     push_stack_list(&jit_compiler.package_stack, self_thread->current_package);
@@ -433,14 +439,18 @@ static void set_struct_field(struct jit_compiler * jit_compiler) {
 }
 
 static void get_struct_field(struct jit_compiler * jit_compiler) {
-    register_t struct_instance_addr_reg = peek_register_allocator(&jit_compiler->register_allocator);
     struct string_object * field_name = (struct string_object *) AS_OBJECT(READ_CONSTANT(jit_compiler));
 
-    uint16_t first_instruction_index = cast_lox_object_to_ptr(jit_compiler, struct_instance_addr_reg);
-
+    register_t struct_instance_addr_reg = peek_register_allocator(&jit_compiler->register_allocator);
+    uint16_t instruction_index = cast_lox_object_to_ptr(jit_compiler, struct_instance_addr_reg);
     emit_add(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(struct_instance_addr_reg),
              IMMEDIATE_TO_OPERAND(offsetof(struct struct_instance_object, fields)));
+
+    register_t field_value_reg = push_register_allocator(&jit_compiler->register_allocator);
+    emit_mov(&jit_compiler->native_compiled_code,
+            REGISTER_TO_OPERAND(field_value_reg),
+            REGISTER_TO_OPERAND(RSP));
 
     //The value will be allocated rigth after RSP. RSP always points to the first non-used slot of the stack
     call_external_c_function(
@@ -451,18 +461,21 @@ static void get_struct_field(struct jit_compiler * jit_compiler) {
             3,
             REGISTER_TO_OPERAND(struct_instance_addr_reg),
             IMMEDIATE_TO_OPERAND((uint64_t) field_name),
-            REGISTER_TO_OPERAND(RSP));
-
-    register_t field_value_reg = push_register_allocator(&jit_compiler->register_allocator);
+            REGISTER_TO_OPERAND(field_value_reg));
 
     emit_mov(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(field_value_reg),
-             DISPLACEMENT_TO_OPERAND(RSP, 0));
+             DISPLACEMENT_TO_OPERAND(field_value_reg, 0));
 
-    //pop struct_instance_addr_reg
+    //pop struct_instance_addr_reg & struct_instance_addr_reg
+    pop_register_allocator(&jit_compiler->register_allocator);
     pop_register_allocator(&jit_compiler->register_allocator);
 
-    record_compiled_bytecode(jit_compiler, first_instruction_index, OP_GET_STRUCT_FIELD_LENGTH);
+    emit_mov(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(push_register_allocator(&jit_compiler->register_allocator)),
+             REGISTER_TO_OPERAND(field_value_reg));
+
+    record_compiled_bytecode(jit_compiler, instruction_index, OP_GET_STRUCT_FIELD_LENGTH);
 }
 
 static void initialize_struct(struct jit_compiler * jit_compiler) {
@@ -597,8 +610,14 @@ static void get_global(struct jit_compiler * jit_compiler) {
     struct string_object * name = AS_STRING_OBJECT(READ_CONSTANT(jit_compiler));
     struct package * current_package = peek_stack_list(&jit_compiler->package_stack);
 
+    register_t global_value_reg = push_register_allocator(&jit_compiler->register_allocator);
+
+    uint16_t instruction_index = emit_mov(&jit_compiler->native_compiled_code,
+            REGISTER_TO_OPERAND(global_value_reg),
+            REGISTER_TO_OPERAND(RSP));
+
     //The value will be allocated rigth after RSP
-    uint16_t instruction_index = call_external_c_function(
+    call_external_c_function(
             jit_compiler,
             MODE_NATIVE,
             SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
@@ -606,14 +625,12 @@ static void get_global(struct jit_compiler * jit_compiler) {
             3,
             IMMEDIATE_TO_OPERAND((uint64_t) &current_package->global_variables),
             IMMEDIATE_TO_OPERAND((uint64_t) name),
-            REGISTER_TO_OPERAND(RSP)
+            REGISTER_TO_OPERAND(global_value_reg)
     );
-
-    register_t global_value_reg = push_register_allocator(&jit_compiler->register_allocator);
 
     emit_mov(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(global_value_reg),
-             DISPLACEMENT_TO_OPERAND(RSP, 0));
+             DISPLACEMENT_TO_OPERAND(global_value_reg, 0));
 
     record_compiled_bytecode(jit_compiler, instruction_index, OP_GET_GLOBAL_LENGTH);
 }
