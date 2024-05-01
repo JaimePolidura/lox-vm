@@ -7,14 +7,14 @@
 #include "stack_test.h"
 #include "utils_test.h"
 
-//#define RUN_HASH_TABLE_TEST
-//#define RUN_COMPILER_TEST
-//#define RUN_PACKAGE_TEST
+#define RUN_HASH_TABLE_TEST
+#define RUN_COMPILER_TEST
+#define RUN_PACKAGE_TEST
 #define RUN_VM_JIT_TEST
-//#define RUN_TRIE_TEST
-//#define RUN_VM_TEST
-//#define RUN_STACK_TEST
-//#define RUN_UTILS_TEST
+#define RUN_TRIE_TEST
+#define RUN_VM_TEST
+#define RUN_STACK_TEST
+#define RUN_UTILS_TEST
 
 extern struct trie_list * compiled_packages;
 extern const char * compiling_base_dir;
@@ -22,6 +22,7 @@ extern const char * compiling_base_dir;
 //Run in debug mode
 int main() {
 #ifdef RUN_VM_JIT_TEST
+    vm_jit_struct_outer();
     vm_jit_arrays_outer();
     vm_jit_globals_outer();
     vm_jit_monitors_outer();

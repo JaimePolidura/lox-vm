@@ -7,6 +7,36 @@
 
 extern struct vm current_vm;
 
+TEST(vm_jit_struct){
+    start_vm();
+
+    struct compilation_result compilation = compile_standalone(
+            "struct Persona {"
+            "   nombre;"
+            "   edad;"
+            "}"
+            ""
+            "fun function() {"
+            "   var jaime = Persona{\"Jaime\", 21};"
+            "   print jaime.nombre;"
+            "   jaime.edad = 2;"
+            ""
+            "   return jaime;"
+            "}"
+            ""
+            "forceJIT(function);"
+            ""
+            "print function().edad;"
+    );
+
+    interpret_vm(compilation);
+    stop_vm();
+    reset_vm();
+
+    ASSERT_NEXT_VM_LOG(current_vm, "Jaime");
+    ASSERT_NEXT_VM_LOG(current_vm, "2.000000");
+}
+
 TEST(vm_jit_arrays) {
     start_vm();
 

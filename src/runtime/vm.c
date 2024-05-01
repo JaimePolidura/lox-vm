@@ -411,11 +411,9 @@ static void set_array_element(struct call_frame * call_frame) {
 }
 
 static void initialize_struct(struct call_frame * call_frame) {
-    struct struct_instance_object * struct_instance = alloc_struct_instance_object();
     struct struct_definition_object * struct_definition = (struct struct_definition_object *) AS_OBJECT(READ_CONSTANT(call_frame));
+    struct struct_instance_object * struct_instance = alloc_struct_instance_object(struct_definition);
     int n_fields = struct_definition->n_fields;
-
-    struct_instance->definition = struct_definition;
 
     for(int i = 0; i < n_fields; i++) {
         struct string_object * field_name = struct_definition->field_names[struct_definition->n_fields - i - 1];

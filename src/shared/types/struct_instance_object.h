@@ -13,6 +13,6 @@ struct struct_instance_object {
     struct struct_definition_object * definition;
 };
 
-struct struct_instance_object * alloc_struct_instance_object();
+struct struct_instance_object * alloc_struct_instance_object(struct struct_definition_object *);
 
-void init_struct_instance_object(struct struct_instance_object * struct_object);
+void init_struct_instance_object(struct struct_instance_object *, struct struct_definition_object *);

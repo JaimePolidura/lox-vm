@@ -9,7 +9,7 @@ extern bool get_hash_table(struct lox_hash_table * table, struct string_object *
 extern bool put_hash_table(struct lox_hash_table * table, struct string_object * key, lox_value_t value);
 extern struct call_frame * get_current_frame_vm_thread(struct vm_thread *);
 extern bool set_element_array(struct array_object * array, int index, lox_value_t value);
-extern struct struct_instance_object * alloc_struct_instance_object();
+extern struct struct_instance_object * alloc_struct_instance_object(struct struct_definition_object *);
 extern struct array_object * alloc_array_object(int size);
 extern void add_object_to_heap(struct object * object);
 extern void enter_monitor(struct monitor * monitor);
@@ -369,22 +369,28 @@ static void get_array_element(struct jit_compiler * jit_compiler) {
 
 static void initialize_array(struct jit_compiler * jit_compiler) {
     int n_elements = READ_U16(jit_compiler);
+    uint16_t instruction_index = 0;
 
     //Load elements in order from registers to lox stack
     for(int i = 0; i < n_elements; i++){
         register_t reg = peek_at_register_allocator(&jit_compiler->register_allocator, i);
-        emit_lox_push(jit_compiler, reg);
+        uint16_t current_instruction_index = emit_lox_push(jit_compiler, reg);
+
+        if(i == 0)
+            instruction_index = current_instruction_index;
     }
     pop_at_register_allocator(&jit_compiler->register_allocator, n_elements);
 
     //Allocate array object & add to heap list
-    uint16_t instruction_index = call_external_c_function(
+    call_external_c_function(
             jit_compiler,
             MODE_NATIVE,
             SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
             FUNCTION_TO_OPERAND(alloc_array_object),
             1,
             IMMEDIATE_TO_OPERAND((uint64_t) n_elements));
+
+
     register_t array_addr_reg = push_register_allocator(&jit_compiler->register_allocator);
     emit_mov(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(array_addr_reg),
@@ -497,64 +503,68 @@ static void get_struct_field(struct jit_compiler * jit_compiler) {
 static void initialize_struct(struct jit_compiler * jit_compiler) {
     struct struct_definition_object * struct_definition = (struct struct_definition_object *) AS_OBJECT(READ_CONSTANT(jit_compiler));
     int n_fields = struct_definition->n_fields;
+    uint16_t instruction_index = 0;
 
-    uint16_t first_instruction_index = call_external_c_function(
+    //Load struct fields into lox stack
+    for(int i = 0; i < n_fields; i++){
+        register_t reg = peek_at_register_allocator(&jit_compiler->register_allocator, i);
+        uint16_t current_instrution_index = emit_lox_push(jit_compiler, reg);
+
+        if(i == 0)
+            instruction_index = current_instrution_index;
+    }
+    pop_at_register_allocator(&jit_compiler->register_allocator, n_fields);
+
+    //Alloc struct_instance_objet, add to heap & load struct address into struct_addr_reg
+    call_external_c_function(
             jit_compiler,
             MODE_NATIVE,
             SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
             FUNCTION_TO_OPERAND(alloc_struct_instance_object),
-            0
+            1,
+            IMMEDIATE_TO_OPERAND((uint64_t) struct_definition)
     );
-
+    register_t struct_addr_reg = push_register_allocator(&jit_compiler->register_allocator);
+    emit_mov(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(struct_addr_reg),
+             RAX_REGISTER_OPERAND);
+    call_add_object_to_heap(jit_compiler, struct_addr_reg);
     emit_add(&jit_compiler->native_compiled_code,
-             RAX_REGISTER_OPERAND,
+             REGISTER_TO_OPERAND(struct_addr_reg),
              IMMEDIATE_TO_OPERAND(offsetof(struct struct_instance_object, fields))
     );
 
-    switch_jit_to_native_mode(jit_compiler);
-
-    //Lox structs needs to have at least one field
-    //RAX will get overrided by call_external_c_function because it is where the return address will be stored
-    emit_push(&jit_compiler->native_compiled_code, RAX_REGISTER_OPERAND);
-
-    //structs will always have to contain atleast one argument, so this for loop will get executed -> RAX will get popped
-    for(int i = 0; i < n_fields; i++) {
-        struct string_object * field_name = struct_definition->field_names[struct_definition->n_fields - i - 1];
-        register_t struct_field_value_reg = pop_register_allocator(&jit_compiler->register_allocator);
-
+    //Add struct fields to struct
+    register_t field_value_register = push_register_allocator(&jit_compiler->register_allocator);
+    for(int i = 0; i < n_fields; i++){
+        emit_lox_pop(jit_compiler, field_value_register);
         call_external_c_function(
                 jit_compiler,
                 MODE_NATIVE,
-                DONT_SWITCH_MODES,
+                SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
                 FUNCTION_TO_OPERAND(put_hash_table),
                 3,
-                RAX_REGISTER_OPERAND,
-                IMMEDIATE_TO_OPERAND((uint64_t) field_name),
-                REGISTER_TO_OPERAND(struct_field_value_reg)
+                REGISTER_TO_OPERAND(struct_addr_reg),
+                IMMEDIATE_TO_OPERAND((uint64_t) struct_definition->field_names[i]),
+                REGISTER_TO_OPERAND(field_value_register)
         );
-
-        //So that we can reuse it in the next call_external_c_function
-        emit_pop(&jit_compiler->native_compiled_code, RAX_REGISTER_OPERAND);
     }
 
-    switch_native_to_jit_mode(jit_compiler);
-
+    //Cast the lox object to lox pointer
     emit_sub(&jit_compiler->native_compiled_code,
-             REGISTER_TO_OPERAND(RAX),
+             REGISTER_TO_OPERAND(struct_addr_reg),
              IMMEDIATE_TO_OPERAND(offsetof(struct struct_instance_object, fields)));
-    
-    //Store struct instance address
-    register_t register_to_store_address = push_register_allocator(&jit_compiler->register_allocator);
+    cast_lox_object_to_ptr(jit_compiler, struct_addr_reg);
+
+    //Pop field_value_register & struct_addr_reg
+    pop_register_allocator(&jit_compiler->register_allocator);
+    pop_register_allocator(&jit_compiler->register_allocator);
 
     emit_mov(&jit_compiler->native_compiled_code,
-             REGISTER_TO_OPERAND(register_to_store_address),
-             RAX_REGISTER_OPERAND);
+             REGISTER_TO_OPERAND(push_register_allocator(&jit_compiler->register_allocator)),
+             REGISTER_TO_OPERAND(struct_addr_reg));
 
-    call_add_object_to_heap(jit_compiler, register_to_store_address);
-
-    cast_ptr_to_lox_object(jit_compiler, register_to_store_address);
-
-    record_compiled_bytecode(jit_compiler, first_instruction_index, OP_INITIALIZE_STRUCT_LENGTH);
+    record_compiled_bytecode(jit_compiler, instruction_index, OP_INITIALIZE_STRUCT_LENGTH);
 }
 
 static void nop(struct jit_compiler * jit_compiler) {
