@@ -5,6 +5,10 @@
 #include "shared/utils/utils.h"
 
 #define SELF_THREAD_ADDR_REG RBX
+#define LOX_ESP_REG RCX
+#define LOX_EBP_REG RDX
+#define LOX_ESP_REG_OPERAND REGISTER_TO_OPERAND(LOX_ESP_REG)
+#define LOX_EBP_REG_OPERAND REGISTER_TO_OPERAND(LOX_EBP_REG)
 
 /**
  * Register allocation:

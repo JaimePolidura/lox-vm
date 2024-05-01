@@ -1,29 +1,96 @@
-55 48 89 e5   48 89 e1 48   89 ea 48 8b   a3 20 0a 00
-   00 48 8b ab   20 0a 00 00   48 83 ed 08   48 83 c4 14
-   49 c7 c7 01   00 00 00 49   c7 c6 02 00   00 00 49 c7
-   c5 03 00 00   00 49 c7 c4   04 00 00 00   4c 89 64 24
-   00 48 83 c4   08 4c 89 6c   24 00 48 83   c4 08 4c 89
-   74 24 00 48   83 c4 08 4c   89 7c 24 00   48 83 c4 08
-   49 89 df 4d   8b bf 28 0a   00 00 49 89   67 00 49 89
-   6f 08 49 89   5f 10 48 89   cc 48 89 d5   41 57 41 52
-   49 ba 10 ea   d3 2f f6 7f   00 00 51 48   c7 c1 04 00
-   00 00 41 ff   d2 59 41 5a   41 5f 48 89   e1 48 89 ea
-   49 8b 67 00   49 8b 6f 08   49 8b 5f 10   49 89 c7 4c
-   8b b3 20 0a   00 00 4d 89   7e 00 49 83   c6 08 4c 89
-   b3 20 0a 00   00 49 89 de   4d 8b b6 28   0a 00 00 49
-   89 66 00 49   89 6e 08 49   89 5e 10 48   89 cc 48 89
-   d5 41 56 41   52 49 ba c6   54 d4 2f f6   7f 00 00 51
-   4c 89 f9 41   ff d2 59 41   5a 41 5e 48   89 e1 48 89
-   ea 49 8b 66   00 49 8b 6e   08 49 8b 5e   10 48 89 a3
-   20 0a 00 00   4d 89 fe 49   83 c6 10 48   83 ec 08 4c
-   8b 6c 24 00   4d 89 6e 00   48 83 ec 08   4c 8b 6c 24
-   00 4d 89 6e   08 48 83 ec   08 4c 8b 6c   24 00 4d 89
-   6e 10 48 83   ec 08 4c 8b   6c 24 00 4d   89 6e 18 49
-   bc 00 00 00   00 00 00 fc   ff 4d 09 e7   4d 89 ff 4c
-   89 7d 08 49   be 01 00 00   00 00 00 fc   7f 49 89 dd
-   4d 8b ad 28   0a 00 00 49   89 65 00 49   89 6d 08 49
-   89 5d 10 48   89 cc 48 89   d5 41 55 41   52 49 ba 52
-   df d3 2f f6   7f 00 00 41   ff d2 41 5a   41 5d 48 89
-   e1 48 89 ea   49 8b 65 00   49 8b 6d 08   49 8b 5d 10
-   48 89 ec 4c   89 74 24 00   48 83 c4 08   48 89 a3 20
-   0a 00 00 48   89 cc 48 89   d5 5d c3
+"pushq   %rbp\n"
+"movq    %rsp, %rbp\n"
+"movq    0xa20(%rbx), %rcx\n"
+"movq    0xa20(%rbx), %rdx\n"
+"subq    $0x8, %rdx\n"
+"addq    $0x14, %rcx\n"
+"movq    $0x1, %r15\n"
+"movq    $0x2, %r14\n"
+"movq    $0x3, %r13\n"
+"movq    $0x4, %r12\n"
+"movq    %r12, 0x0(%rcx)\n"
+"addq    $0x8, %rcx\n"
+"movq    %r13, 0x0(%rcx)\n"
+"addq    $0x8, %rcx\n"
+"movq    %r14, 0x0(%rcx)\n"
+"addq    $0x8, %rcx\n"
+"movq    %r15, 0x0(%rcx)\n"
+"addq    $0x8, %rcx\n"
+"pushq   %r10\n"
+"movabsq $0x7ff65ff7ed30, %r10\n"
+"pushq   %rcx\n"
+"pushq   %rcx\n"
+"pushq   %rdx\n"
+"movq    $0x4, %rcx\n"
+"call    *%r10\n"
+"popq    %rdx\n"
+"popq    %rcx\n"
+"popq    %rcx\n"
+"popq    %r10\n"
+"movq    %rax, %r15\n"
+"movq    %rcx, 0xa20(%rbx)\n"
+"movq    %rcx, %r14\n"
+"movq    %r15, 0x0(%r14)\n"
+"addq    $0x8, %r14\n"
+"movq    0xa20(%rbx), %rcx\n"
+"pushq   %r10\n"
+"movabsq $0x7ff65ff85836, %r10\n"
+"pushq   %rcx\n"
+"pushq   %rcx\n"
+"pushq   %rdx\n"
+"movq    %r15, %rcx\n"
+"call    *%r10\n"
+"popq    %rdx\n"
+"popq    %rcx\n"
+"popq    %rcx\n"
+"popq    %r10\n"
+"movq    %rcx, 0xa20(%rbx)\n"
+"movq    %r15, %r14\n"
+"addq    $0x10, %r14\n"
+"subq    $0x8, %rcx\n"
+"movq    0x0(%rcx), %r13\n"
+"movq    %r13, 0x0(%r14)\n"
+"subq    $0x8, %rcx\n"
+"movq    0x0(%rcx), %r13\n"
+"movq    %r13, 0x8(%r14)\n"
+"subq    $0x8, %rcx\n"
+"movq    0x0(%rcx), %r13\n"
+"movq    %r13, 0x10(%r14)\n"
+"subq    $0x8, %rcx\n"
+"movq    0x0(%rcx), %r13\n"
+"movq    %r13, 0x18(%r14)\n"
+"movabsq $0xfffc000000000000, %r12\n"
+"orq     %r12, %r15\n"
+"movq    %r15, %r15\n"
+"movq    %r15, 0x8(%rdx)\n"
+"movq    0x8(%rdx), %r14\n"
+"movabsq $0x3ffffffffffff, %r13\n"
+"andq    %r13, %r14\n"
+"addq    $0x10, %r14\n"
+"movq    0x0(%r14), %r14\n"
+"pushq   %r10\n"
+"movabsq $0x7ff65ff86990, %r10\n"
+"pushq   %rcx\n"
+"pushq   %rcx\n"
+"pushq   %rdx\n"
+"movq    %r14, %rcx\n"
+"call    *%r10\n"
+"popq    %rdx\n"
+"popq    %rcx\n"
+"popq    %rcx\n"
+"popq    %r10\n"
+"movabsq $0x7ffc000000000001, %r14\n"
+"pushq   %r10\n"
+"movabsq $0x7ff65ff7e26d, %r10\n"
+"pushq   %rcx\n"
+"pushq   %rdx\n"
+"call    *%r10\n"
+"popq    %rdx\n"
+"popq    %rcx\n"
+"popq    %r10\n"
+"movq    %rdx, %rcx\n"
+"movq    %r14, 0x0(%rcx)\n"
+"addq    $0x8, %rcx\n"
+"movq    %rcx, 0xa20(%rbx)\n"
+"popq    %rbp\n"
+"ret\n"

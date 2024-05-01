@@ -2,8 +2,6 @@
 #include "runtime/threads/vm_thread.h"
 
 extern __thread struct vm_thread * self_thread;
-extern bool restore_prev_call_frame();
-extern void check_gc_on_safe_point_alg();
 
 static inline __attribute__((always_inline)) void load_self_thread_register();
 static inline __attribute__((always_inline)) void push_cpu_regs();

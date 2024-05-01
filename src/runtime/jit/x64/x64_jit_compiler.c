@@ -1,8 +1,5 @@
 #include "x64_jit_compiler.h"
 
-#define INCREASE_MONITOR_COUNT true
-#define DECREASE_MONITOR_COUNT true
-
 extern __thread struct vm_thread * self_thread;
 
 extern bool get_hash_table(struct lox_hash_table * table, struct string_object * key, lox_value_t *value);
@@ -91,7 +88,7 @@ static uint16_t call_add_object_to_heap(struct jit_compiler *, register_t);
 static uint16_t emit_lox_push(struct jit_compiler *, register_t);
 static uint16_t emit_lox_pop(struct jit_compiler *, register_t);
 static uint16_t emit_increase_lox_stack(struct jit_compiler *, int);
-static uint16_t emit_decrease_lox_tsack(struct jit_compiler *, int);
+static uint16_t emit_decrease_lox_stack(struct jit_compiler *jit_compiler, int n_locals);
 static void emit_native_call(struct jit_compiler *, register_t function_object_addr_reg, int n_args);
 
 void * alloc_jit_runtime_info_arch() {
@@ -126,8 +123,6 @@ struct jit_compilation_result jit_compile_arch(struct function_object * function
 
     emit_prologue_x64_stack(&jit_compiler.native_compiled_code, function);
     setup_vm_to_jit_mode(&jit_compiler);
-
-    struct vm_thread * this = self_thread;
 
     push_stack_list(&jit_compiler.package_stack, self_thread->current_package);
 
@@ -255,20 +250,16 @@ static void return_jit(struct jit_compiler * jit_compiler, bool * finish_compila
 
     //Same as vm.c self_thread->esp = current_frame->slots
     emit_mov(&jit_compiler->native_compiled_code,
-             RSP_REGISTER_OPERAND,
-             RBP_REGISTER_OPERAND);
+             LOX_ESP_REG_OPERAND,
+             LOX_EBP_REG_OPERAND);
 
     //We push the returned vlaue
     emit_lox_push(jit_compiler, returned_value);
 
     //We update self_thread with the new esp value
     emit_mov(&jit_compiler->native_compiled_code,
-             DISPLACEMENT_TO_OPERAND(RBX, offsetof(struct vm_thread, esp)),
-             RSP_REGISTER_OPERAND);
-
-    //Restore prev rsp and rbp, so that we can return to the caller
-    emit_mov(&jit_compiler->native_compiled_code, RSP_REGISTER_OPERAND, RCX_REGISTER_OPERAND);
-    emit_mov(&jit_compiler->native_compiled_code, RBP_REGISTER_OPERAND, RDX_REGISTER_OPERAND);
+             DISPLACEMENT_TO_OPERAND(SELF_THREAD_ADDR_REG, offsetof(struct vm_thread, esp)),
+             LOX_ESP_REG_OPERAND);
 
     record_compiled_bytecode(jit_compiler, instruction_index, OP_RETURN_LENGTH);
 
@@ -390,7 +381,6 @@ static void initialize_array(struct jit_compiler * jit_compiler) {
             1,
             IMMEDIATE_TO_OPERAND((uint64_t) n_elements));
 
-
     register_t array_addr_reg = push_register_allocator(&jit_compiler->register_allocator);
     emit_mov(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(array_addr_reg),
@@ -472,7 +462,7 @@ static void get_struct_field(struct jit_compiler * jit_compiler) {
     register_t field_value_reg = push_register_allocator(&jit_compiler->register_allocator);
     emit_mov(&jit_compiler->native_compiled_code,
             REGISTER_TO_OPERAND(field_value_reg),
-            REGISTER_TO_OPERAND(RSP));
+            LOX_ESP_REG_OPERAND);
 
     //The value will be allocated rigth after RSP. RSP always points to the first non-used slot of the stack
     call_external_c_function(
@@ -640,7 +630,7 @@ static void get_global(struct jit_compiler * jit_compiler) {
 
     uint16_t instruction_index = emit_mov(&jit_compiler->native_compiled_code,
             REGISTER_TO_OPERAND(global_value_reg),
-            REGISTER_TO_OPERAND(RSP));
+            LOX_ESP_REG_OPERAND);
 
     //The value will be allocated rigth after RSP
     call_external_c_function(
@@ -699,7 +689,7 @@ static void set_local(struct jit_compiler * jit_compiler) {
     int offset_local_from_rbp = slot * sizeof(lox_value_t);
 
     uint16_t instruction_index = emit_mov(&jit_compiler->native_compiled_code,
-             DISPLACEMENT_TO_OPERAND(RBP, offset_local_from_rbp),
+             DISPLACEMENT_TO_OPERAND(LOX_EBP_REG, offset_local_from_rbp),
              REGISTER_TO_OPERAND(register_local_value));
 
     record_compiled_bytecode(jit_compiler, instruction_index, OP_SET_LOCAL_LENGTH);
@@ -713,7 +703,7 @@ static void get_local(struct jit_compiler * jit_compiler) {
 
     uint16_t instruction_index = emit_mov(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(register_to_save_local),
-             DISPLACEMENT_TO_OPERAND(RBP, offset_local_from_rbp));
+             DISPLACEMENT_TO_OPERAND(LOX_EBP_REG, offset_local_from_rbp));
 
     record_compiled_bytecode(jit_compiler, instruction_index, OP_GET_LOCAL_LENGTH);
 }
@@ -1071,7 +1061,7 @@ static uint16_t call_add_object_to_heap(struct jit_compiler * jit_compiler, regi
 //Same as vm.c push_stack_vm
 static uint16_t emit_lox_push(struct jit_compiler * jit_compiler, register_t reg) {
     uint16_t instruction_index = emit_mov(&jit_compiler->native_compiled_code,
-             DISPLACEMENT_TO_OPERAND(RSP, 0),
+             DISPLACEMENT_TO_OPERAND(LOX_ESP_REG, 0),
              REGISTER_TO_OPERAND(reg));
 
     emit_increase_lox_stack(jit_compiler, 1);
@@ -1081,24 +1071,24 @@ static uint16_t emit_lox_push(struct jit_compiler * jit_compiler, register_t reg
 
 //Same as vm.c pop_stack_vm
 static uint16_t emit_lox_pop(struct jit_compiler * jit_compiler, register_t reg) {
-    uint16_t instruction_index = emit_decrease_lox_tsack(jit_compiler, 1);
+    uint16_t instruction_index = emit_decrease_lox_stack(jit_compiler, 1);
 
     emit_mov(&jit_compiler->native_compiled_code,
             REGISTER_TO_OPERAND(reg),
-            DISPLACEMENT_TO_OPERAND(RSP, 0));
+            DISPLACEMENT_TO_OPERAND(LOX_ESP_REG, 0));
 
     return instruction_index;
 }
 
 static uint16_t emit_increase_lox_stack(struct jit_compiler * jit_compiler, int n_locals) {
     return emit_add(&jit_compiler->native_compiled_code,
-            RSP_REGISTER_OPERAND,
+            LOX_ESP_REG_OPERAND,
             IMMEDIATE_TO_OPERAND(sizeof(lox_value_t) * n_locals));
 }
 
-static uint16_t emit_decrease_lox_tsack(struct jit_compiler * jit_compiler, int n_locals) {
+static uint16_t emit_decrease_lox_stack(struct jit_compiler * jit_compiler, int n_locals) {
     return emit_sub(&jit_compiler->native_compiled_code,
-            RSP_REGISTER_OPERAND,
+            LOX_ESP_REG_OPERAND,
             IMMEDIATE_TO_OPERAND(sizeof(lox_value_t) * n_locals));
 }
 

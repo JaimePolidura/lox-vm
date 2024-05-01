@@ -10,7 +10,7 @@ extern void runtime_panic(char * format, ...);
 
 static void restore_caller_registers (
         struct u8_arraylist * native_code,
-        int n_operands
+        int n_args
 );
 
 static void load_arguments_into_registers(
@@ -21,7 +21,7 @@ static void load_arguments_into_registers(
 
 static void save_caller_registers(
     struct u8_arraylist * native_code,
-    int n_operands,
+    int n_args,
     struct operand function_ptr
 );
 
@@ -68,26 +68,49 @@ static void load_arguments_into_registers(
         register_t argument_to_push = args_call_convention[i];
         emit_mov(native_code, REGISTER_TO_OPERAND(argument_to_push), arguments[i]);
     }
+
+#ifdef __WIN32
+    //On Windows x64 ABI, functions always place its arguments in the stack despite they are only passed by registers.
+    //The caller must make sure to accomodate enough space in the stack, so that the callee is able to use it.
+    //As we only support 4 arguments, 0x20 (4 words) is enough
+    emit_sub(native_code, RSP_REGISTER_OPERAND, IMMEDIATE_TO_OPERAND(0x20));
+#endif
 }
 
 static void save_caller_registers(struct u8_arraylist * native_code,
-        int n_operands, struct operand function_ptr) {
-
+        int n_args, struct operand function_ptr) {
     emit_push(native_code, R10_REGISTER_OPERAND);
-
     emit_mov(native_code, R10_REGISTER_OPERAND, function_ptr);
 
-    for(int i = 0; i < n_operands; i++) {
+    //Save args registers
+    for(int i = 0; i < n_args; i++) {
         register_t argument_to_push = args_call_convention[i];
+        emit_push(native_code, REGISTER_TO_OPERAND(argument_to_push));
+    }
+
+    //Save caller save registers
+    for(int i = 0; i < sizeof(caller_saved_registers) / sizeof(register_t); i++){
+        register_t argument_to_push = caller_saved_registers[i];
         emit_push(native_code, REGISTER_TO_OPERAND(argument_to_push));
     }
 }
 
 static void restore_caller_registers(
         struct u8_arraylist * native_code,
-        int n_operands
+        int n_args
 ) {
-    for(int i = n_operands - 1; i >= 0; i--){
+#ifdef __WIN32
+    emit_add(native_code, RSP_REGISTER_OPERAND, IMMEDIATE_TO_OPERAND(0x20));
+#endif
+
+    //Restore caller save registers
+    for(int i = sizeof(caller_saved_registers) / sizeof(register_t) - 1; i >= 0; i--){
+        register_t argument_to_pop = caller_saved_registers[i];
+        emit_pop(native_code, REGISTER_TO_OPERAND(argument_to_pop));
+    }
+
+    //Restore arg registers
+    for(int i = n_args - 1; i >= 0; i--){
         register_t argument_to_pop = args_call_convention[i];
         emit_pop(native_code, REGISTER_TO_OPERAND(argument_to_pop));
     }

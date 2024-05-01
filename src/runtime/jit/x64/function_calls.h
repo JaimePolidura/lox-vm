@@ -12,6 +12,15 @@
 #define KEEP_MODE_AFTER_CALL 2
 #define DONT_SWITCH_MODES 3
 
+#ifdef __WIN32
+static register_t caller_saved_registers[] = {
+        RCX,
+        RDX,
+};
+#else
+static register_t caller_saved_registers[] = {};
+#endif
+
 //We use R10 to store the function address
 #ifdef _WIN32
 static register_t args_call_convention[] = {

@@ -21,6 +21,6 @@ struct jit_mode_switch_info switch_jit_to_native_mode(struct jit_compiler *);
 struct jit_mode_switch_info switch_native_to_jit_mode(struct jit_compiler *);
 
 //Reconstructs vm stack
-//It expects the code that needs vm_thread's stack to not modify it
+//It expects vm stack to remain unchanged
 struct jit_mode_switch_info switch_jit_to_vm_mode(struct jit_compiler *);
 struct jit_mode_switch_info switch_vm_to_jit_mode(struct jit_compiler *, struct jit_mode_switch_info);
