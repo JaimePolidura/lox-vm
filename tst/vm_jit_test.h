@@ -7,7 +7,7 @@
 
 extern struct vm current_vm;
 
-TEST(vm_jit_struct){
+TEST(vm_jit_struct_test){
     start_vm();
 
     struct compilation_result compilation = compile_standalone(
@@ -37,7 +37,7 @@ TEST(vm_jit_struct){
     ASSERT_NEXT_VM_LOG(current_vm, "2.000000");
 }
 
-TEST(vm_jit_arrays) {
+TEST(vm_jit_arrays_test) {
     start_vm();
 
     struct compilation_result compilation = compile_standalone(
@@ -61,7 +61,7 @@ TEST(vm_jit_arrays) {
     ASSERT_NEXT_VM_LOG(current_vm, "4.000000");
 }
 
-TEST(vm_jit_globals){
+TEST(vm_jit_globals_test){
     start_vm();
 
     struct compilation_result compilation = compile_standalone(
@@ -85,7 +85,7 @@ TEST(vm_jit_globals){
     ASSERT_NEXT_VM_LOG(current_vm, "2.000000");
 }
 
-TEST(vm_jit_monitors) {
+TEST(vm_jit_monitors_test) {
     start_vm();
 
     struct compilation_result compilation = compile_standalone(
@@ -111,7 +111,7 @@ TEST(vm_jit_monitors) {
     ASSERT_NEXT_VM_LOG(current_vm, "2.000000");
 }
 
-TEST(vm_jit_for_loop){
+TEST(vm_jit_for_loop_test){
     start_vm();
 
     struct compilation_result compilation = compile_standalone(

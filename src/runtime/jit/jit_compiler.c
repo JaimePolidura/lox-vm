@@ -2,7 +2,6 @@
 
 extern struct jit_compilation_result jit_compile_arch(struct function_object *);
 extern void run_jit_compiled_arch(struct function_object * );
-extern void * alloc_jit_runtime_info_arch();
 
 static jit_compiled to_executable(struct jit_compilation_result result);
 
@@ -24,7 +23,7 @@ bool try_jit_compile(struct function_object * function) {
 
     struct jit_compilation_result result = jit_compile_arch(function);
 
-    print_jit_result(result);
+//    print_jit_result(result);
 
     if(result.success){
         function->jit_info.compiled_jit = to_executable(result);
@@ -46,8 +45,4 @@ static jit_compiled to_executable(struct jit_compilation_result result) {
     memcpy(executable_code, result.compiled_code.values, result.compiled_code.in_use);
 
     return (jit_compiled) executable_code;
-}
-
-void * alloc_jit_runtime_info() {
-    return alloc_jit_runtime_info_arch();
 }

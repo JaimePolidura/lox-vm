@@ -5,6 +5,8 @@
 
 extern __thread struct vm_thread * self_thread;
 
+extern void add_object_to_heap_gc_alg(struct object * object);
+
 lox_value_t addition_lox(lox_value_t a, lox_value_t b) {
     if(IS_NUMBER(a) && IS_NUMBER(b)) {
         return TO_LOX_VALUE_NUMBER(a + b);
@@ -31,7 +33,7 @@ lox_value_t addition_lox(lox_value_t a, lox_value_t b) {
     struct string_pool_add_result add_result = add_to_global_string_pool(concatenated, new_length);
 
     if(add_result.created_new) {
-        add_object_to_heap(&add_result.string_object->object);
+        add_object_to_heap_gc_alg(&add_result.string_object->object);
     } else {
         free(concatenated);
     }

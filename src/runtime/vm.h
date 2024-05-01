@@ -3,7 +3,6 @@
 #include "runtime/native_functions/native_function_definer.h"
 #include "runtime/threads/vm_thread.h"
 #include "runtime/jit/jit_compiler.h"
-#include "runtime/memory/gc.h"
 
 #include "compiler/chunk/chunk.h"
 #include "compiler/chunk/chunk_disassembler.h"
@@ -17,10 +16,11 @@
 #include "shared/utils/collections/stack_list.h"
 
 #include "shared.h"
+#include "runtime/memory/gc_result.h"
 
 struct vm {
     struct vm_thread * root;
-    struct gc * gc;
+    void * gc;
 
     lox_thread_id last_thread_id;
 

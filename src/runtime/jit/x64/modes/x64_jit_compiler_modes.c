@@ -27,19 +27,8 @@ struct jit_mode_switch_info setup_vm_to_jit_mode(struct jit_compiler * jit_compi
     return NO_MODE_SWITCH_INFO;
 }
 
-struct jit_mode_switch_info switch_jit_to_native_mode(struct jit_compiler * jit_compiler) {
-    jit_compiler->current_mode = MODE_NATIVE;
-    return NO_MODE_SWITCH_INFO;
-}
-
-struct jit_mode_switch_info switch_native_to_jit_mode(struct jit_compiler * jit_compiler) {
-    jit_compiler->current_mode = MODE_JIT;
-    return NO_MODE_SWITCH_INFO;
-}
-
 struct jit_mode_switch_info switch_jit_to_vm_mode(struct jit_compiler * jit_compiler) {
     int stack_grow = reconstruct_vm_stack(jit_compiler);
-    switch_jit_to_native_mode(jit_compiler);
     jit_compiler->current_mode = MODE_VM;
 
     return (struct jit_mode_switch_info) {
@@ -48,7 +37,6 @@ struct jit_mode_switch_info switch_jit_to_vm_mode(struct jit_compiler * jit_comp
 }
 
 struct jit_mode_switch_info switch_vm_to_jit_mode(struct jit_compiler * jit_compiler, struct jit_mode_switch_info jit_mode_switch_info) {
-    switch_native_to_jit_mode(jit_compiler);
     deconstruct_vm_stack(jit_compiler, jit_mode_switch_info);
     jit_compiler->current_mode = MODE_JIT;
     return NO_MODE_SWITCH_INFO;

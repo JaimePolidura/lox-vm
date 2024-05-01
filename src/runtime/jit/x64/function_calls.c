@@ -125,8 +125,6 @@ static struct jit_mode_switch_info switch_to_function_mode(struct jit_compiler *
 
     if(jit_compiler->current_mode == MODE_JIT && new_mode == MODE_VM){
         return switch_jit_to_vm_mode(jit_compiler);
-    } else if(jit_compiler->current_mode == MODE_JIT && new_mode == MODE_NATIVE){
-        return switch_jit_to_native_mode(jit_compiler);
     } else {
         runtime_panic("Illegal JIT mode transition. from %i to %i", jit_compiler->current_mode, new_mode);
     }
@@ -147,9 +145,7 @@ static void switch_to_prev_mode(
         return;
     }
 
-    if(jit_compiler->current_mode == MODE_NATIVE && prev_mode == MODE_JIT){
-        switch_native_to_jit_mode(jit_compiler);
-    } else if(jit_compiler->current_mode == MODE_VM && prev_mode == MODE_JIT){
+    if(jit_compiler->current_mode == MODE_VM && prev_mode == MODE_JIT){
         switch_vm_to_jit_mode(jit_compiler, jit_mode_switch_info);
     } else {
         runtime_panic("Illegal JIT mode transition. from %i to %i", jit_compiler->current_mode, prev_mode);

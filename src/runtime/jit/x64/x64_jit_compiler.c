@@ -7,8 +7,8 @@ extern bool put_hash_table(struct lox_hash_table * table, struct string_object *
 extern struct call_frame * get_current_frame_vm_thread(struct vm_thread *);
 extern bool set_element_array(struct array_object * array, int index, lox_value_t value);
 extern struct struct_instance_object * alloc_struct_instance_object(struct struct_definition_object *);
+extern void add_object_to_heap_gc_alg(struct object * object);
 extern struct array_object * alloc_array_object(int size);
-extern void add_object_to_heap(struct object * object);
 extern void enter_monitor(struct monitor * monitor);
 extern void exit_monitor(struct monitor * monitor);
 extern void print_lox_value(lox_value_t value);
@@ -91,11 +91,6 @@ static uint16_t emit_increase_lox_stack(struct jit_compiler *, int);
 static uint16_t emit_decrease_lox_stack(struct jit_compiler *jit_compiler, int n_locals);
 static void emit_native_call(struct jit_compiler *, register_t function_object_addr_reg, int n_args);
 
-void * alloc_jit_runtime_info_arch() {
-    return malloc(sizeof(struct x64_jit_runtime_info));
-}
-
-//TODO Add runtime information optimization
 static void call(struct jit_compiler * jit_compiler) {
     int n_args = READ_BYTECODE(jit_compiler);
     bool is_parallel = READ_BYTECODE(jit_compiler);
@@ -225,7 +220,7 @@ static void emit_native_call(struct jit_compiler * jit_compiler, register_t func
 
     call_external_c_function(
             jit_compiler,
-            MODE_NATIVE,
+            MODE_JIT,
             SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
             REGISTER_TO_OPERAND(function_object_addr_reg),
             2,
@@ -243,7 +238,7 @@ static void return_jit(struct jit_compiler * jit_compiler, bool * finish_compila
 
     uint16_t instruction_index = call_external_c_function(
             jit_compiler,
-            MODE_NATIVE,
+            MODE_JIT,
             SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
             FUNCTION_TO_OPERAND(restore_prev_call_frame),
             0);
@@ -272,7 +267,7 @@ static void exit_monitor_jit(struct jit_compiler * jit_compiler) {
 
     uint16_t instruction_index = call_external_c_function(
             jit_compiler,
-            MODE_NATIVE,
+            MODE_JIT,
             SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
             FUNCTION_TO_OPERAND(exit_monitor),
             1,
@@ -375,7 +370,7 @@ static void initialize_array(struct jit_compiler * jit_compiler) {
     //Allocate array object & add to heap list
     call_external_c_function(
             jit_compiler,
-            MODE_NATIVE,
+            MODE_JIT,
             SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
             FUNCTION_TO_OPERAND(alloc_array_object),
             1,
@@ -435,7 +430,7 @@ static void set_struct_field(struct jit_compiler * jit_compiler) {
 
     call_external_c_function(
             jit_compiler,
-            MODE_NATIVE,
+            MODE_JIT,
             SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
             FUNCTION_TO_OPERAND(put_hash_table),
             3,
@@ -467,7 +462,7 @@ static void get_struct_field(struct jit_compiler * jit_compiler) {
     //The value will be allocated rigth after RSP. RSP always points to the first non-used slot of the stack
     call_external_c_function(
             jit_compiler,
-            MODE_NATIVE,
+            MODE_JIT,
             SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
             FUNCTION_TO_OPERAND(get_hash_table),
             3,
@@ -508,7 +503,7 @@ static void initialize_struct(struct jit_compiler * jit_compiler) {
     //Alloc struct_instance_objet, add to heap & load struct address into struct_addr_reg
     call_external_c_function(
             jit_compiler,
-            MODE_NATIVE,
+            MODE_JIT,
             SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
             FUNCTION_TO_OPERAND(alloc_struct_instance_object),
             1,
@@ -530,7 +525,7 @@ static void initialize_struct(struct jit_compiler * jit_compiler) {
         emit_lox_pop(jit_compiler, field_value_register);
         call_external_c_function(
                 jit_compiler,
-                MODE_NATIVE,
+                MODE_JIT,
                 SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
                 FUNCTION_TO_OPERAND(put_hash_table),
                 3,
@@ -579,7 +574,7 @@ static void define_global(struct jit_compiler * jit_compiler) {
 
     uint16_t instruction_index = call_external_c_function(
             jit_compiler,
-            MODE_NATIVE,
+            MODE_JIT,
             SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
             FUNCTION_TO_OPERAND(put_hash_table),
             3,
@@ -610,7 +605,7 @@ static void set_global(struct jit_compiler * jit_compiler) {
 
     uint16_t instruction_index = call_external_c_function(
             jit_compiler,
-            MODE_NATIVE,
+            MODE_JIT,
             SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
             FUNCTION_TO_OPERAND(put_hash_table),
             3,
@@ -635,7 +630,7 @@ static void get_global(struct jit_compiler * jit_compiler) {
     //The value will be allocated rigth after RSP
     call_external_c_function(
             jit_compiler,
-            MODE_NATIVE,
+            MODE_JIT,
             SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
             FUNCTION_TO_OPERAND(get_hash_table),
             3,
@@ -713,7 +708,7 @@ static void print(struct jit_compiler * jit_compiler) {
 
     uint16_t instruction_index = call_external_c_function(
             jit_compiler,
-            MODE_NATIVE,
+            MODE_JIT,
             SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
             FUNCTION_TO_OPERAND(print_lox_value),
             1,
@@ -1052,7 +1047,7 @@ static uint16_t call_add_object_to_heap(struct jit_compiler * jit_compiler, regi
             jit_compiler,
             MODE_VM,
             SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
-            FUNCTION_TO_OPERAND(add_object_to_heap),
+            FUNCTION_TO_OPERAND(add_object_to_heap_gc_alg),
             1,
             REGISTER_TO_OPERAND(object_addr_reg));
 }

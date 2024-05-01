@@ -22,11 +22,11 @@ extern const char * compiling_base_dir;
 //Run in debug mode
 int main() {
 #ifdef RUN_VM_JIT_TEST
-    vm_jit_struct_outer();
-    vm_jit_arrays_outer();
-    vm_jit_globals_outer();
-    vm_jit_monitors_outer();
-    vm_jit_for_loop_outer();
+    vm_jit_struct_test_outer();
+    vm_jit_arrays_test_outer();
+    vm_jit_globals_test_outer();
+    vm_jit_monitors_test_outer();
+    vm_jit_for_loop_test_outer();
     vm_jit_if_test_outer();
     vm_jit_simple_function_test_outer();
 #endif

@@ -2,6 +2,11 @@
 
 extern struct trie_list * compiled_packages;
 extern void check_gc_on_safe_point_alg();
+extern void add_object_to_heap_gc_alg(struct object * object);
+extern struct gc_result try_start_gc_alg();
+extern void * alloc_gc_thread_info_alg();
+extern void * alloc_gc_alg();
+
 extern void print_lox_value(lox_value_t value);
 extern void runtime_panic(char * format, ...);
 extern lox_value_t addition_lox(lox_value_t a, lox_value_t b);
@@ -382,7 +387,7 @@ static void initialize_array(struct call_frame * call_frame) {
         set_element_array(array, index, value);
     }
 
-    add_object_to_heap(&array->object);
+    add_object_to_heap_gc_alg(&array->object);
 
     push_stack_vm(TO_LOX_VALUE_OBJECT(array));
 }
@@ -422,7 +427,7 @@ static void initialize_struct(struct call_frame * call_frame) {
 
     push_stack_vm(TO_LOX_VALUE_OBJECT(struct_instance));
 
-    add_object_to_heap(&struct_instance->object);
+    add_object_to_heap_gc_alg(&struct_instance->object);
 }
 
 static void get_struct_field(struct call_frame * call_frame) {
@@ -522,7 +527,7 @@ static lox_value_t pop_stack_vm() {
 }
 
 void start_vm() {
-    current_vm.gc = alloc_gc();
+    current_vm.gc = alloc_gc_alg();
     current_vm.number_current_threads = 0;
     current_vm.last_thread_id = 0;
 
@@ -590,8 +595,7 @@ static void create_root_thread() {
     root_thread->native_thread = pthread_self();
     root_thread->esp = root_thread->stack;
     root_thread->state = THREAD_RUNNABLE;
-    root_thread->gc_info = alloc_gc_thread_info();
-    root_thread->gc_info->gc_global_info = current_vm.gc;
+    root_thread->gc_info = alloc_gc_thread_info_alg();
 
     current_vm.root = root_thread;
     current_vm.number_current_threads += 1;
@@ -604,8 +608,7 @@ static void start_child_thread(struct function_object * thread_entry_point_func)
     new_thread->thread_id = atomic_fetch_add(&current_vm.last_thread_id, 1);
     new_thread->state = THREAD_NEW;
     new_thread->current_package = self_thread->current_package;
-    new_thread->gc_info = alloc_gc_thread_info();
-    new_thread->gc_info->gc_global_info = current_vm.gc;
+    new_thread->gc_info = alloc_gc_thread_info_alg();
     new_thread->parent = self_thread;
 
     add_child_to_parent_list(new_thread);
@@ -659,7 +662,7 @@ static int add_child_to_parent_list(struct vm_thread * new_child_thread) {
         return index;
     }
 
-    try_start_gc(self_thread->gc_info);
+    try_start_gc_alg();
 
     //The gc will remove termianted threads
     if((index = try_add_child_to_parent_list(new_child_thread)) != -1) {

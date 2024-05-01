@@ -1,9 +1,12 @@
-#include "runtime/memory/gc.h"
+#include "runtime/native_functions/native_function_definer.h"
+#include "runtime/memory/gc_result.h"
+
+extern struct gc_result try_start_gc_alg();
 
 extern __thread struct vm_thread * self_thread;
 
 static lox_value_t force_gc_native(int n_args, lox_value_t * args) {
-    try_start_gc(self_thread->gc_info);
+    try_start_gc_alg();
 
     return VOID_NATIVE_RETURN;
 }

@@ -46,15 +46,13 @@ struct vm_thread {
     lox_value_t stack[STACK_MAX];
     lox_value_t * esp; //Top of stack_list
 
-    void * jit_runtime_info;
-
     struct call_frame frames[FRAME_MAX];
     int frames_in_use;
 
     struct package * current_package;
     struct stack_list package_stack;
 
-    struct gc_thread_info * gc_info;
+    void * gc_info;
 };
 
 typedef void (*thread_consumer_t)(struct vm_thread * parent, struct vm_thread * child, int index, void * extra);
