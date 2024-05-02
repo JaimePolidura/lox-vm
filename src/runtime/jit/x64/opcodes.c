@@ -49,6 +49,8 @@ static uint16_t emit_push_pop(struct u8_arraylist * array, struct operand a, uin
 static uint16_t emit_register_register_binary_and(struct u8_arraylist * array, struct operand a, struct operand b);
 static uint16_t emit_register_immediate_binary_and(struct u8_arraylist * array, struct operand a, struct operand b);
 
+extern void runtime_panic(char * format, ...);
+
 uint16_t emit_int(struct u8_arraylist * array, int interrupt_number) {
     uint16_t instruction_index = append_u8_arraylist(array, 0xcd);
 
@@ -156,12 +158,12 @@ uint16_t emit_idiv(struct u8_arraylist * array, struct operand divisor) {
 
 uint16_t emit_imul(struct u8_arraylist * array, struct operand a, struct operand b) {
     if(a.type == REGISTER_OPERAND && b.type == REGISTER_OPERAND){
-        emit_register_register_imul(array, a, b);
+        return emit_register_register_imul(array, a, b);
     } else {
-        emit_register_immediate_imul(array, a, b);
+        return emit_register_immediate_imul(array, a, b);
     }
 
-    //TODO Unreachable, panic
+    runtime_panic("Illegal x64 JIT compiler 'imul' instruction operands %i %i", a.type, b.type);
     return -1;
 }
 
@@ -176,17 +178,24 @@ uint16_t emit_neg(struct u8_arraylist * array, struct operand a) {
 uint16_t emit_or(struct u8_arraylist * array, struct operand a, struct operand b) {
     if(a.type == REGISTER_OPERAND && b.type == REGISTER_OPERAND){
         return emit_register_register_binary_or(array, a, b);
-    } else {
+    } else if(a.type == REGISTER_OPERAND && b.type == IMMEDIATE_OPERAND){
         return emit_register_immediate_binary_or(array, a, b);
     }
+
+    runtime_panic("Illegal x64 JIT compiler 'or' instruction operands %i %i", a.type, b.type);
+
+    return -1;
 }
 
 uint16_t emit_and(struct u8_arraylist * array, struct operand a, struct operand b) {
     if(a.type == REGISTER_OPERAND && b.type == REGISTER_OPERAND){
         return emit_register_register_binary_and(array, a, b);
-    } else {
+    } else if (a.type == REGISTER_OPERAND && b.type == IMMEDIATE_OPERAND) {
         return emit_register_immediate_binary_and(array, a, b);
     }
+
+    runtime_panic("Illegal x64 JIT compiler 'and' instruction operands %i %i", a.type, b.type);
+    return -1;
 }
 
 uint16_t emit_al_movzx(struct u8_arraylist * array, struct operand a) {
@@ -234,19 +243,23 @@ uint16_t emit_sete_al(struct u8_arraylist * array) {
 uint16_t emit_cmp(struct u8_arraylist * array, struct operand a, struct operand b) {
     if(a.type == REGISTER_OPERAND && b.type == REGISTER_OPERAND){
         return emit_register_register_cmp(array, a, b);
-    } else {
+    } else if (a.type == REGISTER_OPERAND && b.type == IMMEDIATE_OPERAND) {
         return emit_register_immediate_cmp(array, a, b);
     }
+
+    runtime_panic("Illegal x64 JIT compiler 'cmp' instruction operands %i %i", a.type, b.type);
 
     return -1; //TODO Unreachable, panic
 }
 
 uint16_t emit_add(struct u8_arraylist * array, struct operand a, struct operand b) {
     if(a.type == REGISTER_OPERAND && b.type == REGISTER_OPERAND){
-        emit_register_register_add(array, a, b);
+        return emit_register_register_add(array, a, b);
     } else if(a.type == REGISTER_OPERAND && b.type == IMMEDIATE_OPERAND){
-        emit_register_immediate_add(array, a, b);
+        return emit_register_immediate_add(array, a, b);
     }
+
+    runtime_panic("Illegal x64 JIT compiler 'add' instruction operands %i %i", a.type, b.type);
 
     return -1;
 }
@@ -262,6 +275,8 @@ uint16_t emit_mov(struct u8_arraylist * array, struct operand a, struct operand 
         return emit_register_to_disp_register_move(array, a, b); //mov displacement a, b
     }
 
+    runtime_panic("Illegal x64 JIT compiler 'mov' instruction operands %i %i", a.type, b.type);
+
     return -1;
 }
 
@@ -271,6 +286,8 @@ uint16_t emit_sub(struct u8_arraylist * array, struct operand a, struct operand 
     } else if(a.type == REGISTER_OPERAND && b.type == IMMEDIATE_OPERAND) {
         return emit_register_immediate_sub(array, a, b);
     }
+
+    runtime_panic("Illegal x64 JIT compiler 'sub' instruction operands %i %i", a.type, b.type);
 
     return -1;
 }

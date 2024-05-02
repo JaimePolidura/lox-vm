@@ -36,7 +36,7 @@ void add_object_to_heap_gc_alg(struct object * object) {
     struct mark_sweep_thread_info * gc_thread_info = self_thread->gc_info;
     size_t allocated_heap_size = sizeof_heap_allocated_lox_object(object);
     gc_thread_info->bytes_allocated += allocated_heap_size;
-
+    
     object->next = gc_thread_info->heap;
     gc_thread_info->heap = object;
 
@@ -75,7 +75,7 @@ struct gc_result try_start_gc_alg() {
 }
 
 static struct gc_result start_gc() {
-    struct gc_mark_sweep * gc_mark_sweep = (struct gc_mark_sweep *) current_vm.gc;
+    struct mark_sweep_global_info * gc_mark_sweep = current_vm.gc;
     struct stack_list terminated_threads;
     init_stack_list(&terminated_threads);
     struct gc_result gc_result;
@@ -242,7 +242,7 @@ static void sweep_heap(struct gc_result * gc_result) {
                     THREADS_OPT_INCLUDE_TERMINATED);
 }
 
-static void sweep_heap_thread(struct vm_thread * parent_ignore, struct vm_thread * vm_thread, int index, void * gc_result_ptr) {
+static void sweep_heap_thread(struct vm_thread *    parent_ignore, struct vm_thread * vm_thread, int index, void * gc_result_ptr) {
     struct mark_sweep_thread_info * gc_info = vm_thread->gc_info;
     struct gc_result * gc_result = gc_result_ptr;
 

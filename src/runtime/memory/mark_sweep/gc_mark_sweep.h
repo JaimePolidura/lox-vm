@@ -34,7 +34,7 @@ struct mark_sweep_global_info {
 struct mark_sweep_thread_info {
     size_t bytes_allocated;
 
-    struct gc_mark_sweep * mark_sweep;
+    struct mark_sweep_global_info * mark_sweep;
 
     size_t next_gc;
 
