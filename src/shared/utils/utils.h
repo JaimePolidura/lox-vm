@@ -2,6 +2,7 @@
 
 #include "shared.h"
 
+#define PICK_NOT_ZERO(a, b) a == 0 ? b : a
 #define MAX(a, b) a > b ? a : b
 
 #define TO_UPPER_CASE(character) ( ~((character >= 'a' & character <= 'z') << 5) & character )

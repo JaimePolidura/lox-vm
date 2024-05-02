@@ -2,7 +2,7 @@
 
 #include "runtime/jit/x64/modes/jit_mode_switch_info.h"
 #include "runtime/jit/x64/modes/mode.h"
-#include "runtime/jit/x64/x64_stack.h"
+#include "runtime/jit/x64/jit_stack.h"
 #include "runtime/jit/x64/opcodes.h"
 
 

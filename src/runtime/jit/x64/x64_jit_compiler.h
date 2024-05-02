@@ -1,15 +1,18 @@
 #pragma once
 
+#include "runtime/jit/x64/operations/binary_operations.h"
+#include "runtime/jit/x64/operations/single_operations.h"
 #include "runtime/jit/x64/x64_jit_runtime_info.h"
 #include "runtime/jit/jit_compilation_result.h"
 #include "runtime/jit/x64/register_allocator.h"
 #include "runtime/jit/x64/pending_path_jump.h"
 #include "runtime/jit/x64/function_calls.h"
 #include "runtime/jit/jit_compiler_arch.h"
-#include "runtime/jit/x64/x64_stack.h"
+#include "runtime/jit/x64/jit_stack.h"
 #include "runtime/threads/vm_thread.h"
 #include "runtime/jit/x64/opcodes.h"
 #include "runtime/jit/x64/modes/mode.h"
+#include "runtime/jit/x64/jit_stack.h"
 #include "registers.h"
 
 #include "shared/utils/collections/u8_arraylist.h"
@@ -27,12 +30,12 @@ struct jit_compiler {
     //Next bytecode instruction to compile
     uint8_t * pc;
 
-    //Mapping of bytecode instructions to its compiled instructions index stored in native_compiled_code
+    //Mapping of bytecode operations to its compiled operations index stored in native_compiled_code
     //This is used for knowing the relative offset when emitting assembly backward jumps
     //If value is -1, the native index will be in the next slot
     uint16_t * compiled_bytecode_to_native_by_index;
 
-    //Mapping of bytecode instructions to pending_path_jump, which will allow us to know if there is some
+    //Mapping of bytecode operations to pending_path_jump, which will allow us to know if there is some
     //pending previous forward jump assembly offset to patch.
     struct pending_path_jump ** pending_jumps_to_patch;
 
@@ -47,5 +50,12 @@ struct jit_compiler {
     //It works the same way as vm.h
     struct stack_list package_stack;
 
+    struct jit_stack jit_stack;
+
     jit_mode_t current_mode;
+};
+
+struct pop_stack_operand_result {
+    struct operand operand;
+    uint8_t instruction_index;
 };

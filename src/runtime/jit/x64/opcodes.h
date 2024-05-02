@@ -4,6 +4,35 @@
 #include "shared.h"
 #include "operands.h"
 
+/**
+ * Byte -> 1 byte
+ * Word -> 2 bytes
+ * DWord -> 4 bytes
+ * QWord -> 8 bytes
+ */
+
+#define REX_PREFIX 0x48
+//0100
+#define FIRST_OPERAND_LARGE_REG_REX_PREFIX 0x01
+//0001
+#define SECOND_OPERAND_LARGE_REG_REX_PREFIX 0x04
+
+#define IS_BYTE_SIZE(item) item < 128 && item >= -127
+
+#define IS_QWORD_SIZE(item) ((item & 0xFFFFFFFF00000000) != 0)
+
+//11000000
+#define REGISTER_ADDRESSING_MODE 0xC0
+//01000000
+#define BYTE_DISPLACEMENT_MODE 0x40
+//10000000
+#define DWORD_DISPLACEMENT_MODE 0x80
+//00000000
+#define ZERO_DISPLACEMENT_MODE 0x00
+
+void emit_prologue_x64_stack(struct u8_arraylist *);
+void emit_epilogue_x64_stack(struct u8_arraylist *);
+
 //a <- b
 //These functions returns the beginning index of the emitted instruction. An instruction can occupy multiple bytes
 uint16_t emit_mov(struct u8_arraylist * array, struct operand a, struct operand b);

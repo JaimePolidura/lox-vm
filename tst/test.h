@@ -14,11 +14,11 @@
     do {                                 \
         n_assertions++; \
         if(last_offset_vm_log >= vm.log_entries_in_use) { \
-            fprintf(stderr, "[%s] Invalid runtime log assert number %i Max log entries have been reached\n", test_name, n_assertions); \
+            fprintf(stderr, "[%s] Invalid runtime log assert immediate %i Max log entries have been reached\n", test_name, n_assertions); \
             exit(65); \
         } \
         if(strcmp(vm.log[last_offset_vm_log++], expected) != 0) { \
-            fprintf(stderr, "[%s] Invalid runtime log assert number %i at log index %i Actual: %s Expected: %s\n", test_name, n_assertions, last_offset_vm_log, vm.log[last_offset_vm_log - 1], expected); \
+            fprintf(stderr, "[%s] Invalid runtime log assert immediate %i at log index %i Actual: %s Expected: %s\n", test_name, n_assertions, last_offset_vm_log, vm.log[last_offset_vm_log - 1], expected); \
             exit(65); \
         } \
     }while(false); \
@@ -27,7 +27,7 @@
     do { \
         n_assertions++; \
         if(strcmp(a, b) != 0) { \
-            fprintf(stderr, "[%s] Invalid string equals assert number %i while comparing %s and %s\n", test_name, n_assertions, a, b); \
+            fprintf(stderr, "[%s] Invalid string equals assert immediate %i while comparing %s and %s\n", test_name, n_assertions, a, b); \
             exit(65); \
         } \
     }while(false);
@@ -36,7 +36,7 @@
     do { \
         n_assertions++; \
         if(a != b) { \
-            fprintf(stderr, "[%s] Invalid equals assert number %i while comparing %d and %d\n", test_name, n_assertions, a, b); \
+            fprintf(stderr, "[%s] Invalid equals assert immediate %i while comparing %d and %d\n", test_name, n_assertions, a, b); \
             exit(65); \
         } \
     }while(false); \
@@ -48,7 +48,7 @@
         size_t n_bytecode_expected = sizeof(bytecode_expected); \
         for(int i = 0; i < n_bytecode_expected; i++){ \
             if(actual[i] != bytecode_expected[i]) { \
-                fprintf(stderr, "[%s] Invalid bytecode equals assert number %i while comparing bytecode at index %i Expected %i actual %i\n", test_name, n_assertions, i, bytecode_expected[i], actual[i]); \
+                fprintf(stderr, "[%s] Invalid bytecode equals assert immediate %i while comparing bytecode at index %i Expected %i actual %i\n", test_name, n_assertions, i, bytecode_expected[i], actual[i]); \
                 exit(65); \
             } \
         } \
@@ -58,7 +58,7 @@
     do{ \
         n_assertions++; \
         if(!(a)) { \
-            fprintf(stderr, "[%s] Invalid true assert at number %i\n", test_name, n_assertions); \
+            fprintf(stderr, "[%s] Invalid true assert at immediate %i\n", test_name, n_assertions); \
             exit(65); \
         } \
     }while(false);
@@ -67,7 +67,7 @@
     do { \
         n_assertions++; \
         if(a) { \
-            fprintf(stderr, "[%s] Invalid false assert at number %i\n", test_name, n_assertions); \
+            fprintf(stderr, "[%s] Invalid false assert at immediate %i\n", test_name, n_assertions); \
             exit(65); \
         } \
     }while(false);

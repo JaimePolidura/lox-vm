@@ -1,31 +1,5 @@
 #include "opcodes.h"
 
-/**
- * Byte -> 1 byte
- * Word -> 2 bytes
- * DWord -> 4 bytes
- * QWord -> 8 bytes
- */
-
-#define REX_PREFIX 0x48
-//0100
-#define FIRST_OPERAND_LARGE_REG_REX_PREFIX 0x01
-//0001
-#define SECOND_OPERAND_LARGE_REG_REX_PREFIX 0x04
-
-#define IS_BYTE_SIZE(item) item < 128 && item >= -127
-
-#define IS_QWORD_SIZE(item) ((item & 0xFFFFFFFF00000000) != 0)
-
-//11000000
-#define REGISTER_ADDRESSING_MODE 0xC0
-//01000000
-#define BYTE_DISPLACEMENT_MODE 0x40
-//10000000
-#define DWORD_DISPLACEMENT_MODE 0x80
-//00000000
-#define ZERO_DISPLACEMENT_MODE 0x00
-
 static uint8_t get_64_bit_binary_op_prefix(struct operand a, struct operand b);
 static uint8_t get_16_bit_prefix();
 
@@ -50,6 +24,16 @@ static uint16_t emit_register_register_binary_and(struct u8_arraylist * array, s
 static uint16_t emit_register_immediate_binary_and(struct u8_arraylist * array, struct operand a, struct operand b);
 
 extern void runtime_panic(char * format, ...);
+
+void emit_prologue_x64_stack(struct u8_arraylist * code) {
+    emit_push(code, RBP_REGISTER_OPERAND);
+    emit_mov(code, RBP_REGISTER_OPERAND, RSP_REGISTER_OPERAND);
+}
+
+void emit_epilogue_x64_stack(struct u8_arraylist * code) {
+    emit_pop(code, RBP_REGISTER_OPERAND);
+    emit_ret(code);
+}
 
 uint16_t emit_int(struct u8_arraylist * array, int interrupt_number) {
     uint16_t instruction_index = append_u8_arraylist(array, 0xcd);
@@ -249,7 +233,7 @@ uint16_t emit_cmp(struct u8_arraylist * array, struct operand a, struct operand 
 
     runtime_panic("Illegal x64 JIT compiler 'cmp' instruction operands %i %i", a.type, b.type);
 
-    return -1; //TODO Unreachable, panic
+    return -1;
 }
 
 uint16_t emit_add(struct u8_arraylist * array, struct operand a, struct operand b) {

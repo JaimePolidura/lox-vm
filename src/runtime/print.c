@@ -27,7 +27,7 @@ void print_lox_value(lox_value_t value) {
     #else
         switch (value.type) {
             case VAL_NIL: printf("nil"); break;
-            case VAL_NUMBER: printf("%g", value.as.number); break;
+            case VAL_NUMBER: printf("%g", value.as.immediate); break;
             case VAL_BOOL: printf(value.as.boolean ? "true" : "false"); break;
             case VAL_OBJ:
                 switch (value.as.object->type) {

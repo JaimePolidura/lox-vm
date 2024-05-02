@@ -64,13 +64,13 @@ typedef struct {
   lox_value_type type;
   union {
     bool boolean;
-    double number;
+    double immediate;
     struct object * object;
   } as;
 } lox_value_t;
 
-#define AS_NUMBER(value) ((value).as.number)
-#define TO_LOX_VALUE_NUMBER(value) ((lox_value_t){VAL_NUMBER, {.number = value}})
+#define AS_NUMBER(value) ((value).as.immediate)
+#define TO_LOX_VALUE_NUMBER(value) ((lox_value_t){VAL_NUMBER, {.immediate = value}})
 #define IS_NUMBER(value) ((value).type == VAL_NUMBER)
 
 #define IS_NIL(value) ((value).type == VAL_NIL)

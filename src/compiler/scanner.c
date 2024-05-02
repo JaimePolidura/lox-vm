@@ -169,7 +169,7 @@ static struct token number(struct scanner* scanner) {
     }
 
     if(at_the_end(scanner)) {
-        return create_error_token(scanner, "Unterminated number.");
+        return create_error_token(scanner, "Unterminated immediate.");
     }
 
     return create_token(scanner, TOKEN_NUMBER);

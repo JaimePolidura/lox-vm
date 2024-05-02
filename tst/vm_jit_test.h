@@ -175,6 +175,8 @@ TEST(vm_jit_simple_function_test) {
             "print sumar(1, 3);"
             );
 
+//    disassemble_chunk(&((struct function_object *) AS_OBJECT(*(compilation.compiled_package->main_function->chunk.constants.values + 1)))->chunk);
+
     interpret_vm(compilation);
 
     stop_vm();

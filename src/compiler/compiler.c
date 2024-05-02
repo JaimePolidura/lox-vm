@@ -690,7 +690,7 @@ static void variable(struct compiler * compiler, bool can_assign) {
     } else if(is_from_array) {
         variable_name = compiler->parser->previous;
         advance(compiler); //Consume [
-        consume(compiler, TOKEN_NUMBER, "Expect number when accessing array");
+        consume(compiler, TOKEN_NUMBER, "Expect immediate when accessing array");
         array_index = compiler->parser->previous;
         consume(compiler, TOKEN_CLOSE_SQUARE, "Expect `]` when accessing array");
     } else {
@@ -765,7 +765,7 @@ static void struct_initialization(struct compiler * compiler, struct package * e
     consume(compiler, TOKEN_CLOSE_BRACE, "Expect '}' after struct initialization");
 
     if(n_fields != struct_definition->n_fields){
-        report_error(compiler, struct_name, "Struct initialization number of args doest match with definition");
+        report_error(compiler, struct_name, "Struct initialization immediate of args doest match with definition");
     }
 
     int struct_definition_constant = add_constant_to_chunk(current_chunk(compiler), TO_LOX_VALUE_OBJECT(struct_definition));

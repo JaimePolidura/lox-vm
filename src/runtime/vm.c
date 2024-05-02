@@ -274,7 +274,6 @@ static void set_global(struct call_frame * current_frame) {
 
 static void set_local(struct call_frame * current_frame) {
     uint8_t slot = READ_BYTECODE(current_frame);
-    //TODO stack leak, compiler never emits OP_POP after assigment
     lox_value_t value = peek(0);
     current_frame->slots[slot] = value; //Assigment is an expression
 }
@@ -478,10 +477,9 @@ static double pop_and_check_number() {
     lox_value_t value = pop_stack_vm();
 
     if(IS_NUMBER(value)) {
-        double d = AS_NUMBER(value);
-        return d;
+        return AS_NUMBER(value);
     } else {
-        runtime_panic("Operand must be a number.");
+        runtime_panic("Operand must be a immediate.");
         return -1; //Unreachable
     }
 }
@@ -506,7 +504,7 @@ static lox_value_t values_equal(lox_value_t a, lox_value_t b) {
 
     switch (a.type) {
         case VAL_NIL: return TO_LOX_VALUE_BOOL(true);
-        case VAL_NUMBER: return TO_LOX_VALUE_BOOL(a.as.number == b.as.number);
+        case VAL_NUMBER: return TO_LOX_VALUE_BOOL(a.as.immediate == b.as.immediate);
         case VAL_BOOL: return TO_LOX_VALUE_BOOL(a.as.boolean == b.as.boolean);
         case VAL_OBJ: return TO_LOX_VALUE_BOOL(AS_STRING_OBJECT(a)->chars == AS_STRING_OBJECT(b)->chars);
         default:
@@ -669,7 +667,7 @@ static int add_child_to_parent_list(struct vm_thread * new_child_thread) {
         return index;
     }
 
-    runtime_panic("Exceeded max number of child threads_race_conditions %i per thread", MAX_THREADS_PER_THREAD);
+    runtime_panic("Exceeded max immediate of child threads_race_conditions %i per thread", MAX_THREADS_PER_THREAD);
 
     return -1;
 }

@@ -5,7 +5,7 @@ bool cast_to_boolean(lox_value_t value) {
 #ifdef NAN_BOXING
     return AS_BOOL(value);
 #else
-    return value.as.number != 0;
+    return value.as.immediate != 0;
 #endif
 }
 
@@ -22,7 +22,7 @@ struct object * allocate_object(size_t size, object_type_t type) {
     return object;
 }
 
-//This current_function should be only used for testing since it may leak memory when value is a number
+//This current_function should be only used for testing since it may leak memory when value is a immediate
 char * to_string(lox_value_t value) {
 #ifdef NAN_BOXING
     if(IS_NIL(value)) {
@@ -47,7 +47,7 @@ char * to_string(lox_value_t value) {
         case VAL_NIL: return "nil"; break;
         case VAL_NUMBER: {
             char * string_as_double = malloc(sizeof(char) * 20);
-            sprintf(string_as_double, "%f", value.as.number);
+            sprintf(string_as_double, "%f", value.as.immediate);
             return string_as_double;
         }
         case VAL_BOOL: return value.as.boolean ? "true" : "false"; break;
