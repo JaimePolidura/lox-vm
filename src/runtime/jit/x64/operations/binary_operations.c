@@ -145,11 +145,8 @@ static int div_operation(
         struct operand b
 ) {
     emit_mov(&jit_compiler->native_compiled_code, RAX_REGISTER_OPERAND, a);
-
     emit_idiv(&jit_compiler->native_compiled_code, b);
-
     emit_mov(&jit_compiler->native_compiled_code, a, RAX_REGISTER_OPERAND);
-
     return 1;
 }
 

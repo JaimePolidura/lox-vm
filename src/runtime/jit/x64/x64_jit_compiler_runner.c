@@ -7,6 +7,8 @@ static inline __attribute__((always_inline)) void load_self_thread_register();
 static inline __attribute__((always_inline)) void push_cpu_regs();
 static inline __attribute__((always_inline)) void pop_cpu_regs();
 
+extern bool restore_prev_call_frame();
+
 void run_jit_compiled_arch(struct function_object * function_object) {
     push_cpu_regs(); //Save caller regs
     load_self_thread_register();

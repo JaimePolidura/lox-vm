@@ -130,11 +130,11 @@ TEST(vm_jit_for_loop_test){
 
     disassemble_package(compilation.compiled_package, DISASSEMBLE_PACKAGE_FUNCTIONS);
 
-//    interpret_vm(compilation);
-//    stop_vm();
-//    reset_vm();
-//
-//    ASSERT_NEXT_VM_LOG(current_vm, "7056.000000");
+    interpret_vm(compilation);
+    stop_vm();
+    reset_vm();
+
+    ASSERT_NEXT_VM_LOG(current_vm, "7056.000000");
 }
 
 TEST(vm_jit_if_test) {
