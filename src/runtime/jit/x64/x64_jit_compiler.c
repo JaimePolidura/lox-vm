@@ -661,12 +661,24 @@ static void set_local(struct jit_compiler * jit_compiler) {
     size_t offset_local_from_rbp = slot * sizeof(lox_value_t);
 
     struct pop_stack_operand_result to_print_operand = pop_stack_operand_jit_stack(jit_compiler);
+    uint16_t instruction_index = 0;
 
-    uint16_t instruction_index = emit_mov(&jit_compiler->native_compiled_code,
-            DISPLACEMENT_TO_OPERAND(LOX_EBP_REG, offset_local_from_rbp),
-            to_print_operand.operand);
+    if(to_print_operand.operand.type == IMMEDIATE_OPERAND){
+        register_t register_value = push_register_allocator(&jit_compiler->register_allocator);
+        instruction_index = emit_mov(&jit_compiler->native_compiled_code,
+                REGISTER_TO_OPERAND(register_value),
+                IMMEDIATE_TO_OPERAND(to_print_operand.operand.as.immediate));
+        emit_mov(&jit_compiler->native_compiled_code,
+                 DISPLACEMENT_TO_OPERAND(LOX_EBP_REG, offset_local_from_rbp),
+                 REGISTER_TO_OPERAND(register_value));
+        //pop register_value
+        pop_register_allocator(&jit_compiler->register_allocator);
 
-    if(to_print_operand.operand.type == REGISTER_OPERAND){
+    } else { //Register operand
+        instruction_index = emit_mov(&jit_compiler->native_compiled_code,
+                DISPLACEMENT_TO_OPERAND(LOX_EBP_REG, offset_local_from_rbp),
+                to_print_operand.operand);
+
         pop_register_allocator(&jit_compiler->register_allocator);
     }
 

@@ -8,4 +8,6 @@
 #include "shared/types/struct_definition_object.h"
 #include "shared/types/package_object.h"
 
-void disassemble_chunk(struct chunk * chunk);
+#define DISASSEMBLE_PACKAGE_FUNCTIONS 1
+
+void disassemble_package(struct package * package, long options);

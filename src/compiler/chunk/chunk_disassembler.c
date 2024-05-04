@@ -19,7 +19,33 @@
 #define STRUCT_INSTRUCTION(name, pc, chunk) printf("%s <field_name: %s>\n", name, AS_STRING_OBJECT(READ_CONSTANT(chunk, pc))->chars)
 #define PACKAGE_CONST_INSTRUCTION(namexd, pc, chunk) printf("%s <package_name: %s>\n", namexd, ((struct package_object *) AS_OBJECT(READ_CONSTANT(chunk, pc)))->package->name)
 
-void disassemble_chunk(struct chunk * chunk) {
+static void disassemble_function(struct function_object * function, long options);
+static void disassemble_package_functions(struct package * package, long options);
+
+void disassemble_package(struct package * package, long options) {
+    disassemble_function(package->main_function, options);
+
+    if((options & DISASSEMBLE_PACKAGE_FUNCTIONS) == DISASSEMBLE_PACKAGE_FUNCTIONS) {
+        disassemble_package_functions(package, options);
+    }
+}
+
+static void disassemble_package_functions(struct package * package, long options) {
+    struct lox_arraylist package_constants = package->main_function->chunk.constants;
+
+    for(int i = 0; i < package_constants.in_use; i++){
+        lox_value_t current_constant = package_constants.values[i];
+
+        if(IS_OBJECT(current_constant) && AS_OBJECT(current_constant)->type == OBJ_FUNCTION) {
+            struct function_object * function = (struct function_object *) AS_OBJECT(current_constant);
+            printf("\n<%s>:\n", function->name->chars);
+            disassemble_function(function, options);
+        }
+    }
+}
+
+void disassemble_function(struct function_object * function, long options) {
+    struct chunk * chunk = &function->chunk;
     uint8_t * pc = chunk->code;
 
     for(;(pc - chunk->code < chunk->in_use);) {
