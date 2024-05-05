@@ -1063,7 +1063,7 @@ static void binary_operation(
                  REGISTER_TO_OPERAND(result_reg),
                  a.operand);
 
-        record_compiled_bytecode(jit_compiler, a.instruction_index, instruction_length);
+        record_compiled_bytecode(jit_compiler, b.instruction_index, instruction_length);
         result_operand = REGISTER_TO_OPERAND(result_reg);
 
     } else { //1 register, 1 operand
@@ -1102,7 +1102,7 @@ static void binary_operation(
 static uint16_t find_native_index_by_compiled_bytecode(struct jit_compiler * jit_compiler, uint16_t bytecode_index) {
     uint16_t * current_native_index = &jit_compiler->compiled_bytecode_to_native_by_index[bytecode_index];
 
-    while(*current_native_index == NATIVE_INDEX_IN_NEXT_SLOT || *current_native_index == 0){
+    while(*current_native_index == NATIVE_INDEX_IN_NEXT_SLOT || *current_native_index == 0) {
         current_native_index++;
     }
 
