@@ -35,6 +35,8 @@ struct jit_stack {
     int in_use;
 };
 
+void push_operand_jit_stack(struct jit_stack *, struct operand);
+
 void push_immediate_jit_stack(struct jit_stack *, uint64_t number);
 void push_register_jit_stack(struct jit_stack *, register_t reg);
 void push_native_stack_jit_stack(struct jit_stack *);

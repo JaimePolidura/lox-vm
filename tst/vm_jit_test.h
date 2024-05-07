@@ -53,6 +53,8 @@ TEST(vm_jit_arrays_test) {
             "function();"
     );
 
+    disassemble_package(compilation.compiled_package, DISASSEMBLE_PACKAGE_FUNCTIONS);
+
     interpret_vm(compilation);
     stop_vm();
     reset_vm();
@@ -76,6 +78,8 @@ TEST(vm_jit_globals_test){
             "function();"
             "print numero;"
     );
+
+    disassemble_package(compilation.compiled_package, DISASSEMBLE_PACKAGE_FUNCTIONS);
 
     interpret_vm(compilation);
     stop_vm();
@@ -127,8 +131,6 @@ TEST(vm_jit_for_loop_test){
             ""
             "print sum(84);"
     );
-
-    disassemble_package(compilation.compiled_package, DISASSEMBLE_PACKAGE_FUNCTIONS);
 
     interpret_vm(compilation);
     stop_vm();

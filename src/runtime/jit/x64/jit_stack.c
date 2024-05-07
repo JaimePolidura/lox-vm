@@ -1,5 +1,19 @@
 #include "jit_stack.h"
 
+void push_operand_jit_stack(struct jit_stack * jit_stack, struct operand operand) {
+    switch (operand.type) {
+        case IMMEDIATE_OPERAND:
+            push_immediate_jit_stack(jit_stack, operand.as.immediate);
+            break;
+        case REGISTER_OPERAND:
+            push_register_jit_stack(jit_stack, operand.as.reg);
+            break;
+        case REGISTER_DISP_OPERAND:
+            push_displacement_jit_stack(jit_stack, operand.as.reg_disp.reg, operand.as.reg_disp.disp);
+            break;
+    }
+}
+
 void push_immediate_jit_stack(struct jit_stack * jit_stack, uint64_t number) {
     jit_stack->items[jit_stack->in_use++] = TO_IMMEDIATE_JIT_STACK_ITEM(number);
 }

@@ -316,10 +316,12 @@ static void enter_monitor_jit(struct jit_compiler * jit_compiler) {
 static void set_array_element(struct jit_compiler * jit_compiler) {
     uint16_t array_index = READ_U16(jit_compiler);
 
-    register_t element_addr_reg = peek_at_register_allocator(&jit_compiler->register_allocator, 0);
-    register_t new_element = peek_at_register_allocator(&jit_compiler->register_allocator, 1);
+    struct pop_stack_operand_result element_addr_pop = pop_stack_operand_jit_stack_as_register(jit_compiler);
+    struct pop_stack_operand_result new_element_pop = pop_stack_operand_jit_stack_as_register(jit_compiler);
+    register_t element_addr_reg = element_addr_pop.operand.as.reg;
+    register_t new_element_reg = new_element_pop.operand.as.reg;
 
-    uint16_t instruction_index = cast_lox_object_to_ptr(jit_compiler, element_addr_reg);
+    uint16_t instruction_index_cast = cast_lox_object_to_ptr(jit_compiler, element_addr_reg);
 
     emit_add(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(element_addr_reg),
@@ -329,11 +331,15 @@ static void set_array_element(struct jit_compiler * jit_compiler) {
 
     emit_mov(&jit_compiler->native_compiled_code,
              DISPLACEMENT_TO_OPERAND(element_addr_reg, array_index * sizeof(lox_value_t)),
-             REGISTER_TO_OPERAND(new_element));
+             REGISTER_TO_OPERAND(new_element_reg));
 
-    //pop element_addr_reg & new_element
+    //pop element_addr_reg & new_element_reg
     pop_register_allocator(&jit_compiler->register_allocator);
     pop_register_allocator(&jit_compiler->register_allocator);
+
+    uint16_t instruction_index = PICK_FIRST_NOT_ZERO_3(element_addr_pop.instruction_index,
+                                                       new_element_pop.instruction_index,
+                                                       instruction_index_cast);
 
     record_compiled_bytecode(jit_compiler, instruction_index, OP_SET_ARRAY_ELEMENT_LENGTH);
 }
@@ -341,37 +347,30 @@ static void set_array_element(struct jit_compiler * jit_compiler) {
 static void get_array_element(struct jit_compiler * jit_compiler) {
     uint16_t array_index = READ_U16(jit_compiler);
 
-    register_t element_addr_reg = peek_register_allocator(&jit_compiler->register_allocator);
+    struct pop_stack_operand_result array_addr_pop_result = pop_stack_operand_jit_stack_as_register(jit_compiler);
+    register_t array_addr_reg = array_addr_pop_result.operand.as.reg;
 
-    uint16_t instruction_index = cast_lox_object_to_ptr(jit_compiler, element_addr_reg);
+    uint16_t instruction_index = cast_lox_object_to_ptr(jit_compiler, array_addr_reg);
 
     emit_add(&jit_compiler->native_compiled_code,
-             REGISTER_TO_OPERAND(element_addr_reg),
+             REGISTER_TO_OPERAND(array_addr_reg),
              IMMEDIATE_TO_OPERAND(offsetof(struct array_object, values)));
 
     emit_mov(&jit_compiler->native_compiled_code,
-             REGISTER_TO_OPERAND(element_addr_reg),
-             DISPLACEMENT_TO_OPERAND(element_addr_reg, array_index * sizeof(lox_value_t)));
+             REGISTER_TO_OPERAND(array_addr_reg),
+             DISPLACEMENT_TO_OPERAND(array_addr_reg, array_index * sizeof(lox_value_t)));
 
-    record_compiled_bytecode(jit_compiler, instruction_index, OP_GET_ARRAY_ELEMENT_LENGTH);
+    push_register_jit_stack(&jit_compiler->jit_stack, array_addr_reg);
+
+    record_compiled_bytecode(jit_compiler, PICK_FIRST_NOT_ZERO(array_addr_pop_result.instruction_index, instruction_index),
+                             OP_GET_ARRAY_ELEMENT_LENGTH);
 }
 
 static void initialize_array(struct jit_compiler * jit_compiler) {
     int n_elements = READ_U16(jit_compiler);
-    uint16_t instruction_index = 0;
-
-    //Load elements in order from registers to lox stack
-    for(int i = 0; i < n_elements; i++){
-        register_t reg = peek_at_register_allocator(&jit_compiler->register_allocator, i);
-        uint16_t current_instruction_index = emit_lox_push(jit_compiler, reg);
-
-        if(i == 0)
-            instruction_index = current_instruction_index;
-    }
-    pop_at_register_allocator(&jit_compiler->register_allocator, n_elements);
 
     //Allocate array object & add to heap list
-    call_external_c_function(
+    uint16_t instruction_index = call_external_c_function(
             jit_compiler,
             MODE_JIT,
             SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
@@ -397,25 +396,27 @@ static void initialize_array(struct jit_compiler * jit_compiler) {
                      offsetof(struct lox_arraylist, values)));
 
     //Load array values from lox stack into array_values_addr_reg
-    register_t array_value_reg = push_register_allocator(&jit_compiler->register_allocator);
-    for(int i = 0; i < n_elements; i++) {
-        emit_lox_pop(jit_compiler, array_value_reg);
+    for(int i = 0; i < n_elements; i++){
+        struct pop_stack_operand_result pop_result = pop_stack_operand_jit_stack_as_register(jit_compiler);
+        size_t current_array_offset = (n_elements - i - 1) * sizeof(lox_value_t);
 
         emit_mov(&jit_compiler->native_compiled_code,
-                 DISPLACEMENT_TO_OPERAND(array_values_addr_reg, i * sizeof(lox_value_t)),
-                 REGISTER_TO_OPERAND(array_value_reg));
+                 DISPLACEMENT_TO_OPERAND(array_values_addr_reg, current_array_offset),
+                 pop_result.operand);
+
+        pop_register_allocator(&jit_compiler->register_allocator);
     }
 
     cast_ptr_to_lox_object(jit_compiler, array_addr_reg);
 
-    //Pop array_value_reg, array_addr_reg & array_values_addr_reg
-    pop_register_allocator(&jit_compiler->register_allocator);
-    pop_register_allocator(&jit_compiler->register_allocator);
+    //Pop array_addr_reg & array_values_addr_reg
     pop_register_allocator(&jit_compiler->register_allocator);
 
     emit_mov(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(push_register_allocator(&jit_compiler->register_allocator)),
              REGISTER_TO_OPERAND(array_addr_reg));
+
+    push_register_jit_stack(&jit_compiler->jit_stack, array_addr_reg);
 
     record_compiled_bytecode(jit_compiler, instruction_index, OP_INITIALIZE_ARRAY_LENGTH);
 }
@@ -570,25 +571,7 @@ static void package_const(struct jit_compiler * jit_compiler) {
 }
 
 static void define_global(struct jit_compiler * jit_compiler) {
-    struct string_object * global_name = AS_STRING_OBJECT(READ_CONSTANT(jit_compiler));
-    struct package * current_package = peek_stack_list(&jit_compiler->package_stack);
-
-    register_t new_global_value = peek_register_allocator(&jit_compiler->register_allocator);
-
-    uint16_t instruction_index = call_external_c_function(
-            jit_compiler,
-            MODE_JIT,
-            SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
-            FUNCTION_TO_OPERAND(put_hash_table),
-            3,
-            IMMEDIATE_TO_OPERAND((uint64_t) &current_package->global_variables),
-            IMMEDIATE_TO_OPERAND((uint64_t) global_name),
-            REGISTER_TO_OPERAND(new_global_value)
-    );
-
-    call_safepoint(jit_compiler);
-
-    record_compiled_bytecode(jit_compiler, instruction_index, OP_DEFINE_GLOBAL_LENGTH);
+    runtime_panic("Invalid OP_DEFINE_GLOBAL bytecode to jit compile");
 }
 
 static void enter_package(struct jit_compiler * jit_compiler) {
@@ -604,7 +587,7 @@ static void set_global(struct jit_compiler * jit_compiler) {
     struct string_object * global_name = AS_STRING_OBJECT(READ_CONSTANT(jit_compiler));
     struct package * current_package = peek_stack_list(&jit_compiler->package_stack);
 
-    register_t new_global_value = peek_register_allocator(&jit_compiler->register_allocator);
+    struct pop_stack_operand_result new_global_value = pop_stack_operand_jit_stack(jit_compiler);
 
     uint16_t instruction_index = call_external_c_function(
             jit_compiler,
@@ -614,10 +597,12 @@ static void set_global(struct jit_compiler * jit_compiler) {
             3,
             IMMEDIATE_TO_OPERAND((uint64_t) &current_package->global_variables),
             IMMEDIATE_TO_OPERAND((uint64_t) global_name),
-            REGISTER_TO_OPERAND(new_global_value)
+            new_global_value.operand
     );
 
-    record_compiled_bytecode(jit_compiler, instruction_index, OP_SET_GLOBAL_LENGTH);
+    push_operand_jit_stack(&jit_compiler->jit_stack, new_global_value.operand);
+
+    record_compiled_bytecode(jit_compiler, PICK_FIRST_NOT_ZERO(new_global_value.instruction_index, instruction_index), OP_SET_GLOBAL_LENGTH);
 }
 
 static void get_global(struct jit_compiler * jit_compiler) {
@@ -646,6 +631,8 @@ static void get_global(struct jit_compiler * jit_compiler) {
              REGISTER_TO_OPERAND(global_value_reg),
              DISPLACEMENT_TO_OPERAND(global_value_reg, 0));
 
+    push_register_jit_stack(&jit_compiler->jit_stack,global_value_reg);
+
     record_compiled_bytecode(jit_compiler, instruction_index, OP_GET_GLOBAL_LENGTH);
 }
 
@@ -662,8 +649,8 @@ static void set_local(struct jit_compiler * jit_compiler) {
     push_register_jit_stack(&jit_compiler->jit_stack, new_value_local.operand.as.reg);
 
     record_compiled_bytecode(jit_compiler,
-            PICK_NOT_ZERO(new_value_local.instruction_index, instruction_index),
-            OP_SET_LOCAL_LENGTH);
+                             PICK_FIRST_NOT_ZERO(new_value_local.instruction_index, instruction_index),
+                             OP_SET_LOCAL_LENGTH);
 }
 
 static void get_local(struct jit_compiler * jit_compiler) {

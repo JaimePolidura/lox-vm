@@ -23,6 +23,7 @@ static void disassemble_function(struct function_object * function, long options
 static void disassemble_package_functions(struct package * package, long options);
 
 void disassemble_package(struct package * package, long options) {
+    printf("<main>:\n");
     disassemble_function(package->main_function, options);
 
     if((options & DISASSEMBLE_PACKAGE_FUNCTIONS) == DISASSEMBLE_PACKAGE_FUNCTIONS) {
