@@ -423,13 +423,14 @@ static void initialize_array(struct jit_compiler * jit_compiler) {
 
 static void set_struct_field(struct jit_compiler * jit_compiler) {
     struct string_object * field_name = (struct string_object *) AS_OBJECT(READ_CONSTANT(jit_compiler));
-    register_t new_value_reg = peek_at_register_allocator(&jit_compiler->register_allocator, 0);
-    register_t struct_instance_addr_reg = peek_at_register_allocator(&jit_compiler->register_allocator, 1);
+    struct pop_stack_operand_result new_value_pop_result = pop_stack_operand_jit_stack(jit_compiler);
+    struct pop_stack_operand_result struct_addr_pop_result = pop_stack_operand_jit_stack_as_register(jit_compiler);
+    register_t struct_addr_reg = struct_addr_pop_result.operand.as.reg;
 
-    uint16_t first_instruction_index = cast_lox_object_to_ptr(jit_compiler, struct_instance_addr_reg);
+    uint16_t first_instruction_index = cast_lox_object_to_ptr(jit_compiler, struct_addr_reg);
 
     emit_add(&jit_compiler->native_compiled_code,
-             REGISTER_TO_OPERAND(struct_instance_addr_reg),
+             REGISTER_TO_OPERAND(struct_addr_reg),
              IMMEDIATE_TO_OPERAND(offsetof(struct struct_instance_object, fields)));
 
     call_external_c_function(
@@ -438,39 +439,47 @@ static void set_struct_field(struct jit_compiler * jit_compiler) {
             SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
             FUNCTION_TO_OPERAND(put_hash_table),
             3,
-            REGISTER_TO_OPERAND(struct_instance_addr_reg),
+            REGISTER_TO_OPERAND(struct_addr_reg),
             IMMEDIATE_TO_OPERAND((uint64_t) field_name),
-            REGISTER_TO_OPERAND(new_value_reg));
+            new_value_pop_result.operand);
 
     //Deallocate new_value_reg & struct_instance_addr_reg
     pop_register_allocator(&jit_compiler->register_allocator);
+    if(struct_addr_pop_result.operand.type == REGISTER_OPERAND){
+        pop_register_allocator(&jit_compiler->register_allocator);
+    }
     pop_register_allocator(&jit_compiler->register_allocator);
 
-    record_compiled_bytecode(jit_compiler, first_instruction_index, OP_SET_STRUCT_FIELD_LENGTH);
+    record_compiled_bytecode(jit_compiler,
+        PICK_FIRST_NOT_ZERO(new_value_pop_result.instruction_index, struct_addr_pop_result.instruction_index),
+        OP_SET_STRUCT_FIELD_LENGTH);
 }
 
 static void get_struct_field(struct jit_compiler * jit_compiler) {
     struct string_object * field_name = (struct string_object *) AS_OBJECT(READ_CONSTANT(jit_compiler));
 
-    register_t struct_instance_addr_reg = peek_register_allocator(&jit_compiler->register_allocator);
-    uint16_t instruction_index = cast_lox_object_to_ptr(jit_compiler, struct_instance_addr_reg);
+    //Load struct's field address into struct_addr_reg
+    struct pop_stack_operand_result struct_addr_pop_result = pop_stack_operand_jit_stack_as_register(jit_compiler);
+    uint16_t instruction_index = cast_lox_object_to_ptr(jit_compiler, struct_addr_pop_result.operand.as.reg);
+    register_t struct_addr_reg = struct_addr_pop_result.operand.as.reg;
     emit_add(&jit_compiler->native_compiled_code,
-             REGISTER_TO_OPERAND(struct_instance_addr_reg),
+             REGISTER_TO_OPERAND(struct_addr_reg),
              IMMEDIATE_TO_OPERAND(offsetof(struct struct_instance_object, fields)));
 
+    //Load field_value_reg which will hold the struct value
     register_t field_value_reg = push_register_allocator(&jit_compiler->register_allocator);
     emit_mov(&jit_compiler->native_compiled_code,
-            REGISTER_TO_OPERAND(field_value_reg),
-            LOX_ESP_REG_OPERAND);
+             REGISTER_TO_OPERAND(field_value_reg),
+             LOX_ESP_REG_OPERAND);
 
-    //The value will be allocated rigth after RSP. RSP always points to the first non-used slot of the stack
+    //The value will be allocated rigth after lox rsp. lox rsp always points to the first non-used slot of the stack
     call_external_c_function(
             jit_compiler,
             MODE_JIT,
             SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
             FUNCTION_TO_OPERAND(get_hash_table),
             3,
-            REGISTER_TO_OPERAND(struct_instance_addr_reg),
+            REGISTER_TO_OPERAND(struct_addr_reg),
             IMMEDIATE_TO_OPERAND((uint64_t) field_name),
             REGISTER_TO_OPERAND(field_value_reg));
 
@@ -478,8 +487,7 @@ static void get_struct_field(struct jit_compiler * jit_compiler) {
              REGISTER_TO_OPERAND(field_value_reg),
              DISPLACEMENT_TO_OPERAND(field_value_reg, 0));
 
-    //pop struct_instance_addr_reg & struct_instance_addr_reg
-    pop_register_allocator(&jit_compiler->register_allocator);
+    //pop struct_addr_reg
     pop_register_allocator(&jit_compiler->register_allocator);
 
     emit_mov(&jit_compiler->native_compiled_code,
@@ -487,25 +495,16 @@ static void get_struct_field(struct jit_compiler * jit_compiler) {
              REGISTER_TO_OPERAND(field_value_reg));
 
     record_compiled_bytecode(jit_compiler, instruction_index, OP_GET_STRUCT_FIELD_LENGTH);
+
+    push_register_jit_stack(&jit_compiler->jit_stack, field_value_reg);
 }
 
 static void initialize_struct(struct jit_compiler * jit_compiler) {
     struct struct_definition_object * struct_definition = (struct struct_definition_object *) AS_OBJECT(READ_CONSTANT(jit_compiler));
     int n_fields = struct_definition->n_fields;
-    uint16_t instruction_index = 0;
 
-    //Load struct fields into lox stack
-    for(int i = 0; i < n_fields; i++){
-        register_t reg = peek_at_register_allocator(&jit_compiler->register_allocator, i);
-        uint16_t current_instrution_index = emit_lox_push(jit_compiler, reg);
-
-        if(i == 0)
-            instruction_index = current_instrution_index;
-    }
-    pop_at_register_allocator(&jit_compiler->register_allocator, n_fields);
-
-    //Alloc struct_instance_objet, add to heap & load struct address into struct_addr_reg
-    call_external_c_function(
+    //Alloc struct & load fields into struct_addr_reg
+    uint16_t instruction_index = call_external_c_function(
             jit_compiler,
             MODE_JIT,
             SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
@@ -517,16 +516,16 @@ static void initialize_struct(struct jit_compiler * jit_compiler) {
     emit_mov(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(struct_addr_reg),
              RAX_REGISTER_OPERAND);
-    call_add_object_to_heap(jit_compiler, struct_addr_reg);
     emit_add(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(struct_addr_reg),
              IMMEDIATE_TO_OPERAND(offsetof(struct struct_instance_object, fields))
     );
 
-    //Add struct fields to struct
-    register_t field_value_register = push_register_allocator(&jit_compiler->register_allocator);
+    //Load struct fields into lox stack
     for(int i = 0; i < n_fields; i++){
-        emit_lox_pop(jit_compiler, field_value_register);
+        struct pop_stack_operand_result pop_result = pop_stack_operand_jit_stack_as_register(jit_compiler);
+        struct string_object * current_field_name = struct_definition->field_names[n_fields - i -  1];
+
         call_external_c_function(
                 jit_compiler,
                 MODE_JIT,
@@ -534,24 +533,22 @@ static void initialize_struct(struct jit_compiler * jit_compiler) {
                 FUNCTION_TO_OPERAND(put_hash_table),
                 3,
                 REGISTER_TO_OPERAND(struct_addr_reg),
-                IMMEDIATE_TO_OPERAND((uint64_t) struct_definition->field_names[i]),
-                REGISTER_TO_OPERAND(field_value_register)
+                IMMEDIATE_TO_OPERAND((uint64_t) current_field_name),
+                REGISTER_TO_OPERAND(pop_result.operand.as.reg)
         );
+        pop_register_allocator(&jit_compiler->register_allocator);
     }
 
-    //Cast the lox object to lox pointer
+    //Load struct pointer from struct's field pointer
     emit_sub(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(struct_addr_reg),
              IMMEDIATE_TO_OPERAND(offsetof(struct struct_instance_object, fields)));
+
+    call_add_object_to_heap(jit_compiler, struct_addr_reg);
+
     cast_lox_object_to_ptr(jit_compiler, struct_addr_reg);
 
-    //Pop field_value_register & struct_addr_reg
-    pop_register_allocator(&jit_compiler->register_allocator);
-    pop_register_allocator(&jit_compiler->register_allocator);
-
-    emit_mov(&jit_compiler->native_compiled_code,
-             REGISTER_TO_OPERAND(push_register_allocator(&jit_compiler->register_allocator)),
-             REGISTER_TO_OPERAND(struct_addr_reg));
+    push_register_jit_stack(&jit_compiler->jit_stack, struct_addr_reg);
 
     record_compiled_bytecode(jit_compiler, instruction_index, OP_INITIALIZE_STRUCT_LENGTH);
 }

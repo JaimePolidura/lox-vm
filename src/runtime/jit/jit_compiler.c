@@ -23,7 +23,7 @@ bool try_jit_compile(struct function_object * function) {
 
     struct jit_compilation_result result = jit_compile_arch(function);
 
-    print_jit_result(result);
+//    print_jit_result(result);
 
     if(result.success){
         function->jit_info.compiled_jit = to_executable(result);
@@ -34,6 +34,8 @@ bool try_jit_compile(struct function_object * function) {
         function->jit_info.state = JIT_INCOPILABLE;
         return false;
     }
+
+    return true;
 }
 
 void run_jit_compiled(struct function_object * function) {

@@ -28,7 +28,7 @@ TEST(vm_jit_struct_test){
             ""
             "print function().edad;"
     );
-
+    
     interpret_vm(compilation);
     stop_vm();
     reset_vm();
@@ -53,8 +53,6 @@ TEST(vm_jit_arrays_test) {
             "function();"
     );
 
-    disassemble_package(compilation.compiled_package, DISASSEMBLE_PACKAGE_FUNCTIONS);
-
     interpret_vm(compilation);
     stop_vm();
     reset_vm();
@@ -78,8 +76,6 @@ TEST(vm_jit_globals_test){
             "function();"
             "print numero;"
     );
-
-    disassemble_package(compilation.compiled_package, DISASSEMBLE_PACKAGE_FUNCTIONS);
 
     interpret_vm(compilation);
     stop_vm();
