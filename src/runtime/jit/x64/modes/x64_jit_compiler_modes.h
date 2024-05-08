@@ -12,6 +12,6 @@
 struct jit_mode_switch_info setup_vm_to_jit_mode(struct jit_compiler *);
 
 //Reconstructs vm stack
-//It expects vm stack to remain unchanged
-struct jit_mode_switch_info switch_jit_to_vm_mode(struct jit_compiler *);
-struct jit_mode_switch_info switch_vm_to_jit_mode(struct jit_compiler *, struct jit_mode_switch_info);
+//It expects vm stack to remain unchanged in MODE_VM_GC
+struct jit_mode_switch_info switch_jit_to_vm_gc_mode(struct jit_compiler *);
+struct jit_mode_switch_info switch_vm_gc_to_jit_mode(struct jit_compiler *, struct jit_mode_switch_info);

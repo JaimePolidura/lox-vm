@@ -242,7 +242,7 @@ static void sweep_heap(struct gc_result * gc_result) {
                     THREADS_OPT_INCLUDE_TERMINATED);
 }
 
-static void sweep_heap_thread(struct vm_thread *    parent_ignore, struct vm_thread * vm_thread, int index, void * gc_result_ptr) {
+static void sweep_heap_thread(struct vm_thread * parent_ignore, struct vm_thread * vm_thread, int index, void * gc_result_ptr) {
     struct mark_sweep_thread_info * gc_info = vm_thread->gc_info;
     struct gc_result * gc_result = gc_result_ptr;
 

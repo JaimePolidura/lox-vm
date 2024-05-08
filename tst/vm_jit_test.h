@@ -28,7 +28,7 @@ TEST(vm_jit_struct_test){
             ""
             "print function().edad;"
     );
-    
+
     interpret_vm(compilation);
     stop_vm();
     reset_vm();

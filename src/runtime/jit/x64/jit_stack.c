@@ -18,6 +18,12 @@ void push_immediate_jit_stack(struct jit_stack * jit_stack, uint64_t number) {
     jit_stack->items[jit_stack->in_use++] = TO_IMMEDIATE_JIT_STACK_ITEM(number);
 }
 
+void push_heap_allocated_register_jit_stack(struct jit_stack * jit_stack, register_t reg) {
+    struct jit_stack_item jit_stack_item =  TO_REGISTER_JIT_STACK_ITEM(reg);
+    jit_stack_item.is_heap_allocated = true;
+    jit_stack->items[jit_stack->in_use++] = jit_stack_item;
+}
+
 void push_register_jit_stack(struct jit_stack * jit_stack, register_t reg) {
     jit_stack->items[jit_stack->in_use++] = TO_REGISTER_JIT_STACK_ITEM(reg);
 }
@@ -36,6 +42,18 @@ struct jit_stack_item pop_jit_stack(struct jit_stack * jit_stack) {
 
 void init_jit_stack(struct jit_stack * jit_stack) {
     jit_stack->in_use = 0;
+}
+
+int n_heap_allocations_in_jit_stack(struct jit_stack * jit_stack) {
+    int n_heap_allocations = 0;
+
+    for(int i = 0; i < jit_stack->in_use; i++){
+        if(jit_stack->items[i].is_heap_allocated){
+            n_heap_allocations++;
+        }
+    }
+
+    return n_heap_allocations;
 }
 
 bool does_single_pop_vm_stack(op_code opcode) {

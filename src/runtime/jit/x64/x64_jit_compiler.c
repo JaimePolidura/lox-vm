@@ -17,11 +17,12 @@ extern void check_gc_on_safe_point_alg();
 extern void set_self_thread_runnable();
 extern void set_self_thread_waiting();
 extern bool restore_prev_call_frame();
-extern void switch_vm_to_jit_mode(struct jit_compiler *);
-extern void setup_vm_to_jit_mode(struct jit_compiler *);
+extern struct jit_mode_switch_info switch_jit_to_vm_gc_mode(struct jit_compiler *);
+extern struct jit_mode_switch_info switch_vm_gc_to_jit_mode(struct jit_compiler *, struct jit_mode_switch_info);
 extern void switch_jit_to_native_mode(struct jit_compiler *);
 extern struct binary_operation binary_operations[];
 extern struct single_operation single_operations[];
+extern struct jit_mode_switch_info setup_vm_to_jit_mode(struct jit_compiler *);
 
 void switch_native_to_jit_mode(struct jit_compiler *);
 
@@ -288,14 +289,14 @@ static void enter_monitor_jit(struct jit_compiler * jit_compiler) {
     //(another thread might be doing gc, so it will need to read the most up-to-date lox stack)
     uint16_t instruction_index = call_external_c_function(
             jit_compiler,
-            MODE_VM,
+            MODE_VM_GC,
             KEEP_MODE_AFTER_CALL,
             FUNCTION_TO_OPERAND(set_self_thread_waiting),
             0);
 
     call_external_c_function(
             jit_compiler,
-            MODE_VM,
+            MODE_VM_GC,
             KEEP_MODE_AFTER_CALL,
             FUNCTION_TO_OPERAND(enter_monitor),
             1,
@@ -303,12 +304,13 @@ static void enter_monitor_jit(struct jit_compiler * jit_compiler) {
 
     call_external_c_function(
             jit_compiler,
-            MODE_VM,
+            MODE_VM_GC,
             KEEP_MODE_AFTER_CALL,
             FUNCTION_TO_OPERAND(set_self_thread_runnable),
             0);
 
-    switch_vm_to_jit_mode(jit_compiler);
+    int h_heap_allocations = n_heap_allocations_in_jit_stack(&jit_compiler->jit_stack);
+    switch_vm_gc_to_jit_mode(jit_compiler, (struct jit_mode_switch_info) {h_heap_allocations});
 
     record_compiled_bytecode(jit_compiler, instruction_index, OP_ENTER_MONITOR_LENGTH);
 }
@@ -382,7 +384,6 @@ static void initialize_array(struct jit_compiler * jit_compiler) {
     emit_mov(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(array_addr_reg),
              RAX_REGISTER_OPERAND);
-    call_add_object_to_heap(jit_compiler, array_addr_reg);
 
     //Load array object values into array_values_addr_reg
     register_t array_values_addr_reg = push_register_allocator(&jit_compiler->register_allocator);
@@ -407,16 +408,21 @@ static void initialize_array(struct jit_compiler * jit_compiler) {
         pop_register_allocator(&jit_compiler->register_allocator);
     }
 
-    cast_ptr_to_lox_object(jit_compiler, array_addr_reg);
-
-    //Pop array_addr_reg & array_values_addr_reg
-    pop_register_allocator(&jit_compiler->register_allocator);
+    register_t register_array_lox_addr_reg = push_register_allocator(&jit_compiler->register_allocator);
 
     emit_mov(&jit_compiler->native_compiled_code,
-             REGISTER_TO_OPERAND(push_register_allocator(&jit_compiler->register_allocator)),
+             REGISTER_TO_OPERAND(register_array_lox_addr_reg),
              REGISTER_TO_OPERAND(array_addr_reg));
 
-    push_register_jit_stack(&jit_compiler->jit_stack, array_addr_reg);
+    cast_ptr_to_lox_object(jit_compiler, register_array_lox_addr_reg);
+
+    push_heap_allocated_register_jit_stack(&jit_compiler->jit_stack, register_array_lox_addr_reg);
+
+    call_add_object_to_heap(jit_compiler, array_addr_reg);
+
+    //Pop array_values_addr_reg & register_array_lox_addr_reg
+    pop_register_allocator(&jit_compiler->register_allocator);
+    pop_register_allocator(&jit_compiler->register_allocator);
 
     record_compiled_bytecode(jit_compiler, instruction_index, OP_INITIALIZE_ARRAY_LENGTH);
 }
@@ -544,11 +550,19 @@ static void initialize_struct(struct jit_compiler * jit_compiler) {
              REGISTER_TO_OPERAND(struct_addr_reg),
              IMMEDIATE_TO_OPERAND(offsetof(struct struct_instance_object, fields)));
 
+    register_t struct_lox_addr_reg = push_register_allocator(&jit_compiler->register_allocator);
+    emit_mov(&jit_compiler->native_compiled_code,
+             REGISTER_TO_OPERAND(struct_lox_addr_reg),
+             REGISTER_TO_OPERAND(struct_addr_reg));
+
+    cast_lox_object_to_ptr(jit_compiler, struct_lox_addr_reg);
+
+    push_heap_allocated_register_jit_stack(&jit_compiler->jit_stack, struct_lox_addr_reg);
+
     call_add_object_to_heap(jit_compiler, struct_addr_reg);
 
-    cast_lox_object_to_ptr(jit_compiler, struct_addr_reg);
-
-    push_register_jit_stack(&jit_compiler->jit_stack, struct_addr_reg);
+    //pop struct_lox_addr_reg
+    pop_register_allocator(&jit_compiler->register_allocator);
 
     record_compiled_bytecode(jit_compiler, instruction_index, OP_INITIALIZE_STRUCT_LENGTH);
 }
@@ -678,7 +692,7 @@ static void print(struct jit_compiler * jit_compiler) {
 }
 
 static void jump_if_false(struct jit_compiler * jit_compiler, uint16_t jump_offset) {
-//    uint16_t instruction_index = call_safepoint(jit_compiler);
+    uint16_t instruction_index = call_safepoint(jit_compiler);
 
     struct pop_stack_operand_result boolean_value = pop_stack_operand_jit_stack_as_register(jit_compiler);
 
@@ -697,7 +711,7 @@ static void jump_if_false(struct jit_compiler * jit_compiler, uint16_t jump_offs
     push_register_jit_stack(&jit_compiler->jit_stack, boolean_value.operand.as.reg);
 
     record_pending_jump_to_patch(jit_compiler, jmp_index, jump_offset, 2); //JNE takes two bytes as opcode
-    record_compiled_bytecode(jit_compiler, 0, OP_JUMP_IF_FALSE_LENGTH);
+    record_compiled_bytecode(jit_compiler, instruction_index, OP_JUMP_IF_FALSE_LENGTH);
 }
 
 static void jump(struct jit_compiler * jit_compiler, uint16_t offset) {
@@ -876,7 +890,7 @@ static void check_pending_jumps_to_patch(struct jit_compiler * jit_compiler, int
 static uint16_t call_safepoint(struct jit_compiler * jit_compiler) {
     return call_external_c_function(
             jit_compiler,
-            MODE_VM,
+            MODE_VM_GC,
             SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
             FUNCTION_TO_OPERAND(check_gc_on_safe_point_alg),
             0);
@@ -885,7 +899,7 @@ static uint16_t call_safepoint(struct jit_compiler * jit_compiler) {
 static uint16_t call_add_object_to_heap(struct jit_compiler * jit_compiler, register_t object_addr_reg) {
     return call_external_c_function(
             jit_compiler,
-            MODE_VM,
+            MODE_VM_GC,
             SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
             FUNCTION_TO_OPERAND(add_object_to_heap_gc_alg),
             1,

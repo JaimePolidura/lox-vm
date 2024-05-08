@@ -3,8 +3,8 @@
 
 extern struct jit_mode_switch_info switch_jit_to_native_mode(struct jit_compiler *);
 extern struct jit_mode_switch_info switch_native_to_jit_mode(struct jit_compiler *);
-extern struct jit_mode_switch_info switch_jit_to_vm_mode(struct jit_compiler *);
-extern struct jit_mode_switch_info switch_vm_to_jit_mode(struct jit_compiler *, struct jit_mode_switch_info);
+extern struct jit_mode_switch_info switch_jit_to_vm_gc_mode(struct jit_compiler *);
+extern struct jit_mode_switch_info switch_vm_gc_to_jit_mode(struct jit_compiler *, struct jit_mode_switch_info);
 
 extern void runtime_panic(char * format, ...);
 
@@ -123,8 +123,8 @@ static struct jit_mode_switch_info switch_to_function_mode(struct jit_compiler *
         return  NO_MODE_SWITCH_INFO;
     }
 
-    if(jit_compiler->current_mode == MODE_JIT && new_mode == MODE_VM){
-        return switch_jit_to_vm_mode(jit_compiler);
+    if(jit_compiler->current_mode == MODE_JIT && new_mode == MODE_VM_GC){
+        return switch_jit_to_vm_gc_mode(jit_compiler);
     } else {
         runtime_panic("Illegal JIT mode transition. from %i to %i", jit_compiler->current_mode, new_mode);
     }
@@ -145,8 +145,8 @@ static void switch_to_prev_mode(
         return;
     }
 
-    if(jit_compiler->current_mode == MODE_VM && prev_mode == MODE_JIT){
-        switch_vm_to_jit_mode(jit_compiler, jit_mode_switch_info);
+    if(jit_compiler->current_mode == MODE_VM_GC && prev_mode == MODE_JIT){
+        switch_vm_gc_to_jit_mode(jit_compiler, jit_mode_switch_info);
     } else {
         runtime_panic("Illegal JIT mode transition. from %i to %i", jit_compiler->current_mode, prev_mode);
     }

@@ -386,9 +386,9 @@ static void initialize_array(struct call_frame * call_frame) {
         set_element_array(array, index, value);
     }
 
-    add_object_to_heap_gc_alg(&array->object);
-
     push_stack_vm(TO_LOX_VALUE_OBJECT(array));
+
+    add_object_to_heap_gc_alg(&array->object);
 }
 
 static void get_array_element(struct call_frame * call_frame) {

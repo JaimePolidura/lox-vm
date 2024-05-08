@@ -11,10 +11,10 @@ typedef enum {
     //RCD points to callframe slots
     MODE_JIT,
 
-    //Set when a vm_thread that is running jit compiled code, needs to call an already compiled C function that needs
-    //access vm_thread's most up-to-date stack data structures (only for reads not for writes)
-    //For example when calling safe_point (a gc thread might start marking the caller's vm_thread stack)
-    //When changing from MODE_JIT to MODE_VM, The vm_thread's stack needs to be reconstructed
-    MODE_VM,
+    //Set when vm_thread that is running jit compiled code is going to be expected by a garbage collection.
+    //This will construct vm_thread stack with only the heap allocated objects stored in the compile time datastructure jit_stack.
+    //The stack will get "deconstructed" when switching back to JIT mode
+    //The vm stack is not expected to change during MODE_VM_GC
+    MODE_VM_GC,
 } jit_mode_t;
 
