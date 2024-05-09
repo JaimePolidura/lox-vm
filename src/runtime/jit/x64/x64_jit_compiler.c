@@ -23,6 +23,7 @@ extern void switch_jit_to_native_mode(struct jit_compiler *);
 extern struct binary_operation binary_operations[];
 extern struct single_operation single_operations[];
 extern struct jit_mode_switch_info setup_vm_to_jit_mode(struct jit_compiler *);
+extern void call(lox_value_t callee_lox, int n_args, bool is_parallel);
 
 void switch_native_to_jit_mode(struct jit_compiler *);
 
@@ -65,7 +66,7 @@ static void set_array_element(struct jit_compiler *);
 static void enter_monitor_jit(struct jit_compiler *);
 static void exti_monitor_jit(struct jit_compiler *);
 static void return_jit(struct jit_compiler *, bool * finish_compilation_flag);
-static void call(struct jit_compiler *);
+static void call_jit(struct jit_compiler *);
 static void eof(struct jit_compiler *, bool * finish_compilation_flag);
 
 static void record_pending_jump_to_patch(struct jit_compiler *, uint16_t jump_instruction_index,
@@ -86,7 +87,6 @@ static uint16_t emit_lox_push(struct jit_compiler *, register_t);
 static uint16_t emit_lox_pop(struct jit_compiler *, register_t);
 static uint16_t emit_increase_lox_stack(struct jit_compiler *, int);
 static uint16_t emit_decrease_lox_stack(struct jit_compiler *jit_compiler, int n_locals);
-static void emit_native_call(struct jit_compiler *, register_t function_object_addr_reg, int n_args);
 static struct pop_stack_operand_result pop_stack_operand_jit_stack(struct jit_compiler *);
 static struct pop_stack_operand_result pop_stack_operand_jit_stack_as_register(struct jit_compiler *);
 static void record_multiple_compiled_bytecode(struct jit_compiler * jit_compiler,
@@ -94,27 +94,7 @@ static void record_multiple_compiled_bytecode(struct jit_compiler * jit_compiler
 static void binary_operation(struct jit_compiler * jit_compiler, int instruction_length, op_code instruction);
 static void single_operation(struct jit_compiler * jit_compiler, int instruction_length, op_code instruction);
 static uint16_t find_native_index_by_compiled_bytecode(struct jit_compiler *, uint16_t bytecode_index);
-
-static void call(struct jit_compiler * jit_compiler) {
-    int n_args = READ_BYTECODE(jit_compiler);
-    bool is_parallel = READ_BYTECODE(jit_compiler);
-    register_t function_register = peek_register_allocator(&jit_compiler->register_allocator);
-
-    uint16_t instruction_index = cast_ptr_to_lox_object(jit_compiler, function_register);
-
-    //Pop function_register
-    pop_register_allocator(&jit_compiler->register_allocator);
-
-    emit_cmp(&jit_compiler->native_compiled_code,
-             REGISTER_TO_OPERAND(function_register),
-             IMMEDIATE_TO_OPERAND(OBJ_NATIVE_FUNCTION));
-
-    emit_native_call(jit_compiler, function_register, n_args);
-
-    call_safepoint(jit_compiler);
-
-    record_compiled_bytecode(jit_compiler, instruction_index, OP_CALL_LENGTH);
-}
+static uint16_t load_arguments(struct jit_compiler * jit_compiler, int n_arguments);
 
 struct jit_compilation_result jit_compile_arch(struct function_object * function) {
     struct jit_compiler jit_compiler = init_jit_compiler(function);
@@ -171,7 +151,7 @@ struct jit_compilation_result jit_compile_arch(struct function_object * function
             case OP_ENTER_MONITOR: enter_monitor_jit(&jit_compiler); break;
             case OP_EXIT_MONITOR: exit_monitor_jit(&jit_compiler); break;
             case OP_RETURN: return_jit(&jit_compiler, &finish_compilation_flag); break;
-            case OP_CALL: call(&jit_compiler); break;
+            case OP_CALL: call_jit(&jit_compiler); break;
             default: runtime_panic("Unhandled bytecode to compile %u\n", *(--jit_compiler.pc));
         }
 
@@ -190,51 +170,77 @@ struct jit_compilation_result jit_compile_arch(struct function_object * function
     };
 }
 
+static void call_jit(struct jit_compiler * jit_compiler) {
+    int n_args = READ_BYTECODE(jit_compiler);
+    bool is_parallel = READ_BYTECODE(jit_compiler);
+
+    uint16_t instruction_index = load_arguments(jit_compiler, n_args);
+
+    struct pop_stack_operand_result function_object = pop_stack_operand_jit_stack_as_register(jit_compiler);
+
+    call_external_c_function(
+            jit_compiler,
+            MODE_VM_GC,
+            SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
+            FUNCTION_TO_OPERAND(call),
+            3,
+            REGISTER_TO_OPERAND(function_object.operand.as.reg),
+            IMMEDIATE_TO_OPERAND(n_args),
+            IMMEDIATE_TO_OPERAND(is_parallel));
+
+    //call() modifies vm_thread->esp to point the correct value
+    emit_mov(&jit_compiler->native_compiled_code,
+             LOX_ESP_REG_OPERAND,
+             DISPLACEMENT_TO_OPERAND(SELF_THREAD_ADDR_REG, offsetof(struct vm_thread, esp)));
+
+    //pop function_object
+    pop_register_allocator(&jit_compiler->register_allocator);
+
+    register_t return_value_reg = push_register_allocator(&jit_compiler->register_allocator);
+
+    emit_mov(&jit_compiler->native_compiled_code, 
+            REGISTER_TO_OPERAND(return_value_reg),
+            DISPLACEMENT_TO_OPERAND(LOX_ESP_REG, - sizeof(lox_value_t)));
+
+    push_register_jit_stack(&jit_compiler->jit_stack, return_value_reg);
+
+    record_compiled_bytecode(jit_compiler, PICK_FIRST_NOT_ZERO(instruction_index, function_object.instruction_index), OP_CALL_LENGTH);
+}
+
+static uint16_t load_arguments(struct jit_compiler * jit_compiler, int n_arguments) {
+    if(n_arguments == 0){
+        return 0;
+    }
+
+    uint16_t instruction_index = emit_add(&jit_compiler->native_compiled_code,
+             LOX_ESP_REG_OPERAND,
+             IMMEDIATE_TO_OPERAND(n_arguments * sizeof(lox_value_t)));
+
+    for(int i = n_arguments - 1; i >= 0; i--){
+        struct pop_stack_operand_result argument_pop_result = pop_stack_operand_jit_stack_as_register(jit_compiler);
+        register_t argument_reg = argument_pop_result.operand.as.reg;
+
+        emit_mov(&jit_compiler->native_compiled_code,
+                 DISPLACEMENT_TO_OPERAND(LOX_ESP_REG, - ((i + 1) * sizeof(lox_value_t))),
+                 REGISTER_TO_OPERAND(argument_reg));
+
+        //pop argument_reg
+        pop_register_allocator(&jit_compiler->register_allocator);
+    }
+
+    emit_mov(&jit_compiler->native_compiled_code,
+             DISPLACEMENT_TO_OPERAND(SELF_THREAD_ADDR_REG, offsetof(struct vm_thread, esp)),
+             LOX_ESP_REG_OPERAND);
+
+    return instruction_index;
+}
+
 static void eof(struct jit_compiler * jit_compiler, bool * finish_compilation_flag) {
     *finish_compilation_flag = true;
 
     record_compiled_bytecode(jit_compiler,
                              jit_compiler->native_compiled_code.in_use,
                              OP_EOF_LENGTH);
-}
-
-static void emit_native_call(struct jit_compiler * jit_compiler, register_t function_object_addr_reg, int n_args) {
-    emit_add(&jit_compiler->native_compiled_code,
-             REGISTER_TO_OPERAND(function_object_addr_reg),
-             IMMEDIATE_TO_OPERAND(offsetof(struct native_function_object, native_fn)));
-
-    for(int i = n_args - 1; i >= 0; i--){
-        register_t arg_reg = peek_at_register_allocator(&jit_compiler->register_allocator, i);
-        emit_lox_push(jit_compiler, arg_reg);
-    }
-    //Pop args registers
-    for(int i = n_args - 1; i >= 0; i--){
-        pop_register_allocator(&jit_compiler->register_allocator);
-    }
-
-    emit_sub(&jit_compiler->native_compiled_code,
-             REGISTER_TO_OPERAND(RSP),
-             IMMEDIATE_TO_OPERAND(n_args));
-
-    register_t start_args_addr_reg = push_register_allocator(&jit_compiler->register_allocator);
-
-    emit_mov(&jit_compiler->native_compiled_code,
-             REGISTER_TO_OPERAND(start_args_addr_reg),
-             RSP_REGISTER_OPERAND);
-
-    call_external_c_function(
-            jit_compiler,
-            MODE_JIT,
-            SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
-            REGISTER_TO_OPERAND(function_object_addr_reg),
-            2,
-            IMMEDIATE_TO_OPERAND(n_args),
-            REGISTER_TO_OPERAND(start_args_addr_reg)
-    );
-
-    emit_mov(&jit_compiler->native_compiled_code,
-             REGISTER_TO_OPERAND(start_args_addr_reg),
-             RAX_REGISTER_OPERAND);
 }
 
 static void return_jit(struct jit_compiler * jit_compiler, bool * finish_compilation_flag) {

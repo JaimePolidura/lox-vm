@@ -7,6 +7,53 @@
 
 extern struct vm current_vm;
 
+TEST(vm_jit_native_functions_test) {
+    start_vm();
+
+    struct compilation_result compilation = compile_standalone(
+            "fun funcion() {"
+            "   print selfThreadId();"
+            "}"
+            ""
+            "forceJIT(funcion);"
+            ""
+            "funcion();"
+    );
+
+    interpret_vm(compilation);
+    stop_vm();
+    reset_vm();
+
+    ASSERT_NEXT_VM_LOG(current_vm, "0.000000");
+}
+
+TEST(vm_jit_functions_test){
+    start_vm();
+
+    struct compilation_result compilation = compile_standalone(
+            "fun suma(a, b) {"
+            "   return a + b;"
+            "}"
+            ""
+            "fun dobleSuma(a, b) {"
+            "   var d = suma(a, b);"
+            "   var e = suma(a, b);"
+            "   return d + e;"
+            "}"
+            ""
+            "forceJIT(suma);"
+            "forceJIT(dobleSuma);"
+            ""
+            "print dobleSuma(2, 1);"
+    );
+
+    interpret_vm(compilation);
+    stop_vm();
+    reset_vm();
+
+    ASSERT_NEXT_VM_LOG(current_vm, "6.000000");
+}
+
 TEST(vm_jit_struct_test){
     start_vm();
 

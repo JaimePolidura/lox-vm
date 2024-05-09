@@ -15,6 +15,7 @@ __thread struct vm_thread * self_thread;
 const uint8_t eof = OP_EOF;
 struct vm current_vm;
 
+void call(lox_value_t callee_lox, int n_args, bool is_parallel);
 static void setup_package_execution(struct package * package);
 static void push_stack_vm(lox_value_t value);
 static lox_value_t pop_stack_vm();
@@ -34,7 +35,7 @@ static void get_local(struct call_frame * current_frame);
 static void jump_if_false(struct call_frame * current_frame);
 static void jump(struct call_frame * current_frame);
 static void loop(struct call_frame * current_frame);
-static void call(struct call_frame * current_frame);
+static void call_vm(struct call_frame * current_frame);
 static void return_function(struct call_frame * function_to_return_frame);
 static void call_function(struct function_object * function, int n_args, bool is_parallel);
 static void print_frame_stack_trace();
@@ -131,7 +132,7 @@ static interpret_result_t run() {
             case OP_JUMP: jump(current_frame); break; //Checks for start gc signal
             case OP_SET_LOCAL: set_local(current_frame); break;
             case OP_LOOP: loop(current_frame); break; //Checks for start gc signal
-            case OP_CALL: call(current_frame); current_frame = get_current_frame(); break; //Checks for start gc signal
+            case OP_CALL: call_vm(current_frame); current_frame = get_current_frame(); break; //Checks for start gc signal
             case OP_INITIALIZE_STRUCT: initialize_struct(current_frame); break;
             case OP_GET_STRUCT_FIELD: get_struct_field(current_frame); break;
             case OP_SET_STRUCT_FIELD: set_struct_field(current_frame); break;
@@ -284,7 +285,7 @@ static void get_local(struct call_frame * current_frame) {
     push_stack_vm(value);
 }
 
-static void call(struct call_frame * current_frame) {
+static void call_vm(struct call_frame * current_frame) {
     int n_args = READ_BYTECODE(current_frame);
     bool is_parallel = READ_BYTECODE(current_frame);
 
@@ -294,9 +295,13 @@ static void call(struct call_frame * current_frame) {
         runtime_panic("Cannot call");
     }
 
-    switch (AS_OBJECT(callee)->type) {
+    call(callee, n_args, is_parallel);
+}
+
+void call(lox_value_t callee_lox, int n_args, bool is_parallel) {
+    switch (AS_OBJECT(callee_lox)->type) {
         case OBJ_FUNCTION: {
-            call_function(AS_FUNCTION(callee), n_args, is_parallel);
+            call_function(AS_FUNCTION(callee_lox), n_args, is_parallel);
             break;
         }
         case OBJ_NATIVE_FUNCTION: {
@@ -304,7 +309,7 @@ static void call(struct call_frame * current_frame) {
                 runtime_panic("Cannot call parallel in native functions");
             }
 
-            struct native_function_object * native_function_object = TO_NATIVE(callee);
+            struct native_function_object * native_function_object = TO_NATIVE(callee_lox);
             native_fn native_function = native_function_object->native_fn;
 
             lox_value_t result = native_function(n_args, self_thread->esp - n_args);
