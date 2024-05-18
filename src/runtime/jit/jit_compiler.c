@@ -16,6 +16,7 @@ static void print_jit_result(struct jit_compilation_result result) {
 }
 
 bool try_jit_compile(struct function_object * function) {
+#ifdef NAN_BOXING
     jit_state_t expected_state = JIT_BYTECODE;
     if(!atomic_compare_exchange_strong(&function->jit_info.state, &expected_state, JIT_COMPILING)){
         return false;
@@ -36,6 +37,10 @@ bool try_jit_compile(struct function_object * function) {
     }
 
     return true;
+
+#else
+    return false;
+#endif
 }
 
 void run_jit_compiled(struct function_object * function) {
