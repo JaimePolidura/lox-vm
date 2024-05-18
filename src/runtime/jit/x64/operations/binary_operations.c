@@ -4,6 +4,8 @@
 
 #define NO_RETURN_VALUE -1
 
+extern lox_value_t addition_lox(lox_value_t a, lox_value_t b);
+
 static int imm_imm_add_operation(struct jit_compiler *, struct operand, struct operand);
 static int imm_imm_sub_operation(struct jit_compiler *, struct operand, struct operand);
 static int add_operation(struct jit_compiler *,struct operand, struct operand);
@@ -93,7 +95,18 @@ static int add_operation(
         struct operand a,
         struct operand b
 ) {
-    emit_add(&jit_compiler->native_compiled_code, a, b);
+    call_external_c_function(
+            jit_compiler,
+            MODE_VM_GC,
+            SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
+            FUNCTION_TO_OPERAND(addition_lox),
+            2,
+            a,
+            b
+    );
+
+    emit_mov(&jit_compiler->native_compiled_code, a, RAX_REGISTER_OPERAND);
+
     return NO_RETURN_VALUE;
 }
 

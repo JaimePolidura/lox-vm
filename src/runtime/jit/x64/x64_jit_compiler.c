@@ -24,6 +24,7 @@ extern struct binary_operation binary_operations[];
 extern struct single_operation single_operations[];
 extern struct jit_mode_switch_info setup_vm_to_jit_mode(struct jit_compiler *);
 extern void call(lox_value_t callee_lox, int n_args, bool is_parallel);
+extern lox_value_t addition_lox(lox_value_t a, lox_value_t b);
 
 void switch_native_to_jit_mode(struct jit_compiler *);
 
@@ -74,7 +75,6 @@ static void record_pending_jump_to_patch(struct jit_compiler *, uint16_t jump_in
 static void record_compiled_bytecode(struct jit_compiler *, uint16_t native_compiled_index, int bytecode_instruction_length);
 static uint16_t get_compiled_native_index_by_bytecode_index(struct jit_compiler *, uint16_t current_bytecode_index);
 static void check_pending_jumps_to_patch(struct jit_compiler *, int bytecode_instruction_length);
-static void cast_to_lox_boolean(struct jit_compiler *, register_t register_boolean_value);
 static void set_al_with_cmp_result(struct jit_compiler *, op_code comparation_opcode);
 static void number_const(struct jit_compiler *, int value, int instruction_length);
 static void free_jit_compiler(struct jit_compiler *);
