@@ -2,7 +2,7 @@
 
 #include "compiler/chunk/chunk_disassembler.h"
 #include "compiler/chunk/chunk.h"
-#include "compiler/compiler.h"
+#include "compiler/bytecode_compiler.h"
 
 #include "shared/string_pool.h"
 #include "shared/utils/collections//lox_hash_table.h"

@@ -28,7 +28,7 @@ struct package {
     // This might be modified concurrently. lox_hash_table has rw mutex
     struct lox_hash_table global_variables;
 
-    // Used at runtime & compiler
+    // Used at runtime & bytecode_compiler
     // This might be modified concurrently by runtime Protected by state_mutex
     package_state_t state;
     pthread_mutex_t state_mutex;

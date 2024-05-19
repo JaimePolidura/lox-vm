@@ -2,7 +2,7 @@
 
 #include "test.h"
 #include "runtime/vm.h"
-#include "compiler/compiler.h"
+#include "compiler/bytecode_compiler.h"
 
 extern struct vm current_vm;
 extern struct trie_list * compiled_packages;

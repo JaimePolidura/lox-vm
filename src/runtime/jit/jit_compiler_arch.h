@@ -4,7 +4,7 @@
 #include "jit_compilation_result.h"
 #include "shared.h"
 
-//Implemented by everey specific jit compiler architecture (arm, x64 etc.)
+//Implemented by everey specific jit bytecode_compiler architecture (arm, x64 etc.)
 
 struct jit_compilation_result jit_compile_arch(struct function_object *);
 

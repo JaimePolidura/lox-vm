@@ -1008,7 +1008,7 @@ static struct pop_stack_operand_result pop_stack_operand_jit_stack(struct jit_co
         }
     }
 
-    runtime_panic("Illegal state in x64 JIT compiler, in pop_stack_operand_jit_stack. Invalid stack item type %i", item.type);
+    runtime_panic("Illegal state in x64 JIT bytecode_compiler, in pop_stack_operand_jit_stack. Invalid stack item type %i", item.type);
 }
 
 static void single_operation(

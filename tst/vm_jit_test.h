@@ -2,8 +2,9 @@
 
 #include "test.h"
 #include "runtime/vm.h"
-#include "compiler/compiler.h"
+#include "compiler/bytecode_compiler.h"
 #include "compiler/chunk/chunk_disassembler.h"
+#include "compiler/compiler.h"
 
 extern struct vm current_vm;
 

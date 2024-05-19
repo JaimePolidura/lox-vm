@@ -7,7 +7,7 @@
 #include "shared/os/os_utils.h"
 #include "shared.h"
 
-//Entry point for JIT compiler used by the runtime in vm.c
+//Entry point for JIT bytecode_compiler used by the runtime in vm.c
 
 //Try to jit compile the function.
 //The jit compilation might fail if another thread tries to jit compile the same functino concurrently

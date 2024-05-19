@@ -14,6 +14,6 @@ set(SOURCES ${SOURCES}
 
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
-add_executable(${BINARY}_pg ${SOURCES})
+add_executable(${BINARY}_tst ${SOURCES})
 
-target_link_libraries(${BINARY}_pg PRIVATE ${BINARY}_lib)
+target_link_libraries(${BINARY}_tst PRIVATE ${BINARY}_lib)

@@ -147,7 +147,7 @@ uint16_t emit_imul(struct u8_arraylist * array, struct operand a, struct operand
         return emit_register_immediate_imul(array, a, b);
     }
 
-    runtime_panic("Illegal x64 JIT compiler 'imul' instruction operands %i %i", a.type, b.type);
+    runtime_panic("Illegal x64 JIT bytecode_compiler 'imul' instruction operands %i %i", a.type, b.type);
     return -1;
 }
 
@@ -166,7 +166,7 @@ uint16_t emit_or(struct u8_arraylist * array, struct operand a, struct operand b
         return emit_register_immediate_binary_or(array, a, b);
     }
 
-    runtime_panic("Illegal x64 JIT compiler 'or' instruction operands %i %i", a.type, b.type);
+    runtime_panic("Illegal x64 JIT bytecode_compiler 'or' instruction operands %i %i", a.type, b.type);
 
     return -1;
 }
@@ -178,7 +178,7 @@ uint16_t emit_and(struct u8_arraylist * array, struct operand a, struct operand 
         return emit_register_immediate_binary_and(array, a, b);
     }
 
-    runtime_panic("Illegal x64 JIT compiler 'and' instruction operands %i %i", a.type, b.type);
+    runtime_panic("Illegal x64 JIT bytecode_compiler 'and' instruction operands %i %i", a.type, b.type);
     return -1;
 }
 
@@ -231,7 +231,7 @@ uint16_t emit_cmp(struct u8_arraylist * array, struct operand a, struct operand 
         return emit_register_immediate_cmp(array, a, b);
     }
 
-    runtime_panic("Illegal x64 JIT compiler 'cmp' instruction operands %i %i", a.type, b.type);
+    runtime_panic("Illegal x64 JIT bytecode_compiler 'cmp' instruction operands %i %i", a.type, b.type);
 
     return -1;
 }
@@ -243,7 +243,7 @@ uint16_t emit_add(struct u8_arraylist * array, struct operand a, struct operand 
         return emit_register_immediate_add(array, a, b);
     }
 
-    runtime_panic("Illegal x64 JIT compiler 'add' instruction operands %i %i", a.type, b.type);
+    runtime_panic("Illegal x64 JIT bytecode_compiler 'add' instruction operands %i %i", a.type, b.type);
 
     return -1;
 }
@@ -259,7 +259,7 @@ uint16_t emit_mov(struct u8_arraylist * array, struct operand a, struct operand 
         return emit_register_to_disp_register_move(array, a, b); //mov displacement a, b
     }
 
-    runtime_panic("Illegal x64 JIT compiler 'mov' instruction operands %i %i", a.type, b.type);
+    runtime_panic("Illegal x64 JIT bytecode_compiler 'mov' instruction operands %i %i", a.type, b.type);
 
     return -1;
 }
@@ -271,7 +271,7 @@ uint16_t emit_sub(struct u8_arraylist * array, struct operand a, struct operand 
         return emit_register_immediate_sub(array, a, b);
     }
 
-    runtime_panic("Illegal x64 JIT compiler 'sub' instruction operands %i %i", a.type, b.type);
+    runtime_panic("Illegal x64 JIT bytecode_compiler 'sub' instruction operands %i %i", a.type, b.type);
 
     return -1;
 }
