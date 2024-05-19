@@ -83,6 +83,8 @@ static void emit_exit_monitor(struct bytecode_compiler * compiler);
 static void emit_exit_all_monitors(struct bytecode_compiler * compiler);
 static void array_inline_initialization(struct bytecode_compiler * compiler, bool can_assign);
 static int array_inline_initialization_elements(struct bytecode_compiler * compiler);
+static void inline_declaration(struct bytecode_compiler * compiler);
+static void add_current_function_call(struct bytecode_compiler * bytecode_compiler);
 
 //Lowest to highest
 typedef enum {
@@ -228,12 +230,20 @@ static void declaration(struct bytecode_compiler * compiler) {
         struct_declaration(compiler, is_public);
     } else if(match(compiler, TOKEN_PARALLEL)) {
         parallel_declaration(compiler);
+    } else if(match(compiler, TOKEN_INLINE)){
+        inline_declaration(compiler);
     } else if(match(compiler, TOKEN_FUN)) {
         bool is_protected_by_monitor = match(compiler, TOKEN_SYNC);
         function_declaration(compiler, is_public, is_protected_by_monitor);
     } else {
         statement(compiler);
     }
+}
+
+static void inline_declaration(struct bytecode_compiler * compiler) {
+    compiler->compiling_inline_call = true;
+    expression_statement(compiler);
+    compiler->compiling_inline_call = false;
 }
 
 static void parallel_declaration(struct bytecode_compiler * compiler) {
@@ -405,8 +415,8 @@ static void function_parameters(struct bytecode_compiler * function_compiler) {
 static void function_call(struct bytecode_compiler * compiler, bool can_assign) {
     int n_args = function_call_number_arguments(compiler);
 
-    if (compiler->compiling_external_function) {
-        lox_value_t package_lox_type = to_lox_package(compiler->package_of_compiling_external_func);
+    if (compiler->compiling_extermal_symbol_call) {
+        lox_value_t package_lox_type = to_lox_package(compiler->package_of_external_symbol);
         emit_constant(compiler, package_lox_type);
         emit_bytecode(compiler, OP_ENTER_PACKAGE);
     }
@@ -414,11 +424,17 @@ static void function_call(struct bytecode_compiler * compiler, bool can_assign) 
     emit_bytecodes(compiler, OP_CALL, n_args);
     emit_bytecode(compiler, compiler->compiling_parallel_call ? 1 : 0);
 
-    if (compiler->compiling_external_function) {
+    add_current_function_call(compiler);
+
+    if (compiler->compiling_inline_call) {
+        compiler->compiling_inline_call = false;
+    }
+
+    if (compiler->compiling_extermal_symbol_call) {
         emit_bytecode(compiler, OP_EXIT_PACKAGE);
 
-        compiler->package_of_compiling_external_func = NULL;
-        compiler->compiling_external_function = false;
+        compiler->package_of_external_symbol = NULL;
+        compiler->compiling_extermal_symbol_call = false;
     }
 }
 
@@ -667,6 +683,13 @@ static void variable(struct bytecode_compiler * compiler, bool can_assign) {
         variable_name = compiler->parser->previous;
     }
 
+    if(!is_from_function && compiler->compiling_inline_call) {
+        report_error(compiler, compiler->parser->previous, "Expect 'inline' to be placed in function calls");
+    }
+    if(is_from_function && compiler->compiling_parallel_call && compiler->compiling_inline_call) {
+        report_error(compiler, compiler->parser->previous, "'inline' and 'parallel' cannot be used together");
+    }
+
     if (check(compiler, TOKEN_OPEN_BRACE)) {
         struct_initialization(compiler, external_package);
     } else {
@@ -684,6 +707,8 @@ static void variable(struct bytecode_compiler * compiler, bool can_assign) {
         } else if(is_from_function && !is_from_package) {
             function_name = copy_string(variable_name.start, variable_name.length);
         }
+
+        compiler->current_function_call_name = function_name;
 
         if(!put_trie(&compiler->function_call_list, function_name, function_name_length, NULL)) {
             free(function_name);
@@ -790,8 +815,8 @@ static void named_variable(struct bytecode_compiler * compiler,
         variable_identifier = exported_symbol->constant_identifier;
 
         if(array_index.type != TOKEN_NO_TOKEN) {
-            compiler->package_of_compiling_external_func = external_package;
-            compiler->compiling_external_function = true;
+            compiler->package_of_external_symbol = external_package;
+            compiler->compiling_extermal_symbol_call = true;
         }
     }
 
@@ -1080,13 +1105,18 @@ static void init_compiler(struct bytecode_compiler * compiler, scope_type_t scop
     local->name.start = "";
     local->depth = 0;
 
-    compiler->package_of_compiling_external_func = NULL;
-    compiler->compiling_external_function = false;
+    compiler->package_of_external_symbol = NULL;
+    compiler->compiling_extermal_symbol_call = false;
     compiler->compiling_parallel_call = false;
+    compiler->compiling_inline_call = false;
+
+    compiler->function_calls = NULL;
 
     memset(&compiler->monitor_numbers_entered, 0, sizeof(monitor_number_t) * MAX_MONITORS_PER_FUNCTION);
     compiler->last_monitor_entered = &compiler->monitor_numbers_entered[0];
     compiler->last_monitor_allocated_number = 0;
+
+    compiler->function_calls = NULL;
 }
 
 static void string(struct bytecode_compiler * compiler, bool can_assign) {
@@ -1114,8 +1144,9 @@ static void free_compiler(struct bytecode_compiler * compiler) {
 
 static struct function_object * end_compiler(struct bytecode_compiler * compiler) {
     emit_empty_return(compiler);
-    compiler->package->state = PENDING_INITIALIZATION;
+    compiler->current_function->function_calls = compiler->function_calls;
     compiler->current_function->n_locals = compiler->max_locals;
+    compiler->package->state = PENDING_INITIALIZATION;
     return compiler->current_function;
 }
 
@@ -1231,4 +1262,27 @@ static void add_exported_symbol(struct bytecode_compiler * compiler, struct expo
     if(already_defined){
         report_error(compiler, name, "Symbol already defined");
     }
+}
+
+static struct function_call * create_current_function_call(struct bytecode_compiler * bytecode_compiler) {
+    struct function_call * current_function_call = alloc_function_call();
+    current_function_call->is_inlined = bytecode_compiler->compiling_inline_call;
+    current_function_call->function_name = bytecode_compiler->current_function_call_name;
+    current_function_call->package = bytecode_compiler->package_of_external_symbol != NULL ?
+                                     bytecode_compiler->package_of_external_symbol :
+                                     bytecode_compiler->package;
+    current_function_call->call_bytecode_index = bytecode_compiler->current_function->chunk.in_use - 4;
+
+    return current_function_call;
+}
+
+static void add_current_function_call(struct bytecode_compiler * bytecode_compiler) {
+    struct function_call * current_function_call = create_current_function_call(bytecode_compiler);
+
+    if(bytecode_compiler != NULL){
+        struct function_call * prev_function_call = bytecode_compiler->function_calls;
+        current_function_call->prev = prev_function_call;
+    }
+
+    bytecode_compiler->function_calls = current_function_call;
 }

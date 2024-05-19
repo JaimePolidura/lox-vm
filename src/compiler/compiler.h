@@ -2,6 +2,7 @@
 
 #include "compiler/compilation_result.h"
 #include "compiler/bytecode_compiler.h"
+#include "compiler/inline/inliner.h"
 
 //Main entrypoint for compilation
 

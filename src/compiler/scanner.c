@@ -112,7 +112,14 @@ static tokenType_t identifier_type(struct scanner * scanner) {
     switch (scanner->start[0]) {
         case 'a': return check_keyword(scanner, 1, 2, "nd", TOKEN_AND);
         case 'e': return check_keyword(scanner, 1, 3, "lse", TOKEN_ELSE);
-        case 'i': return check_keyword(scanner, 1, 1, "f", TOKEN_IF);
+        case 'i': {
+            if(scanner->current - scanner->start > 1) {
+                switch (scanner->start[1]) {
+                    case 'f': return TOKEN_IF;
+                    case 'n': return check_keyword(scanner, 2, 5, "nline", TOKEN_INLINE);
+                }
+            }
+        }
         case 'n': return check_keyword(scanner, 1, 2, "il", TOKEN_NIL);
         case 'o': return check_keyword(scanner, 1, 1, "r", TOKEN_OR);
         case 'p': {

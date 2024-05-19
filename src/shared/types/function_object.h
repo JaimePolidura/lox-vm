@@ -6,6 +6,7 @@
 #include "shared/utils/collections/trie.h"
 #include "types.h"
 #include "runtime/jit/jit_info.h"
+#include "compiler/function_call.h"
 
 #define MAX_MONITORS_PER_FUNCTION 8
 
@@ -15,6 +16,7 @@ struct function_object {
     struct chunk chunk;
     struct string_object * name;
     int n_locals;
+    struct function_call * function_calls;
 
     struct jit_info jit_info;
 

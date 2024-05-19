@@ -12,10 +12,11 @@ struct compilation_result compile(char * entrypoint_absolute_path, char * compil
     }
 
     struct compilation_result bytecode_compilation = compile_bytecode(source_code, package_name_entrypoint, compilation_base_dir);
+    struct compilation_result inlining_result = inline_bytecode_compilation(bytecode_compilation);
 
     free(source_code);
 
-    return bytecode_compilation;
+    return inlining_result;
 }
 
 struct compilation_result compile_standalone(char * source_code) {
