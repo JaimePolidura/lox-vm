@@ -13,7 +13,6 @@ struct string_object {
 };
 
 struct string_object * copy_chars_to_string_object(const char * chars, int length);
-struct string_object * to_string_objett(char * chars);
 //Only used for testing
 struct string_object * alloc_string_object(char *);
 

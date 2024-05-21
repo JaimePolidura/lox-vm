@@ -79,6 +79,12 @@ struct bytecode_compiler {
     //Strings inserted will be new heap allocated
     //After the compilation is done, this will get freed
     struct trie_list function_call_list;
+
+    //May include public & private
+    //This will be preserved after compilation, it will be stored in package.h
+    struct lox_hash_table defined_functions;
+
+    uint32_t next_package_id;
 };
 
 //compile_bytecode() takes the source code and returns the compiled bytecode.

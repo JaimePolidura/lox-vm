@@ -5,5 +5,7 @@ struct compilation_result inline_bytecode_compilation(struct compilation_result 
         return bytecode_compilation;
     }
 
+
+
     return bytecode_compilation;
 }

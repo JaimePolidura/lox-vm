@@ -13,3 +13,15 @@ struct function_call * alloc_function_call() {
     init_function_calls(function_call);
     return function_call;
 }
+
+int get_n_function_calls(struct function_call * function_call) {
+    struct function_call * current = function_call;
+    int count = 0;
+
+    while(current != NULL) {
+        count++;
+        current = current->prev;
+    }
+
+    return count;
+}

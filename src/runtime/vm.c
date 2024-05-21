@@ -96,7 +96,7 @@ interpret_result_t interpret_vm(struct compilation_result compilation_result) {
 
     setup_package_execution(compilation_result.compiled_package);
 
-    self_thread->esp += compilation_result.local_count;
+    self_thread->esp += compilation_result.n_locals;
 
     return run();
 }

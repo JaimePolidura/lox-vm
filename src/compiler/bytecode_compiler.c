@@ -85,6 +85,9 @@ static void array_inline_initialization(struct bytecode_compiler * compiler, boo
 static int array_inline_initialization_elements(struct bytecode_compiler * compiler);
 static void inline_declaration(struct bytecode_compiler * compiler);
 static void add_current_function_call(struct bytecode_compiler * bytecode_compiler);
+static void add_function_call(struct bytecode_compiler *, struct function_call *);
+static void add_package_function_call(struct bytecode_compiler *, struct package *);
+static void set_compiling_function_name(struct bytecode_compiler *, char *);
 
 //Lowest to highest
 typedef enum {
@@ -164,10 +167,12 @@ struct compilation_result compile_bytecode(char * source_code, char * compiling_
     struct bytecode_compiler * compiler = start_compiling(source_code, compiling_package_name, false);
 
     compiler->package->main_function = end_compiler(compiler);
+    compiler->package->defined_functions = compiler->defined_functions;
 
     struct compilation_result compilation_result = {
             .compiled_package = compiler->package,
             .success = !compiler->parser->has_error,
+            .n_compiled_packages = compiler->next_package_id,
             .error_message = NULL,
     };
 
@@ -179,6 +184,8 @@ struct compilation_result compile_bytecode(char * source_code, char * compiling_
 static struct bytecode_compiler * start_compiling(char * source_code, char * package_name, bool is_standalone_mode) {
     struct bytecode_compiler * compiler = alloc_compiler(SCOPE_PACKAGE, package_name, is_standalone_mode);
     init_scanner(compiler->scanner, source_code);
+
+    compiler->package->package_id = compiler->next_package_id++;
 
     advance(compiler);
 
@@ -393,6 +400,8 @@ static struct function_object * function(struct bytecode_compiler * compiler, bo
     emit_exit_all_monitors(&function_compiler);
 
     struct function_object * function = end_compiler(&function_compiler);
+
+    put_hash_table(&compiler->defined_functions, function->name, TO_LOX_VALUE_OBJECT(function));
 
     int function_constant_offset = add_constant_to_chunk(current_chunk(compiler), TO_LOX_VALUE_OBJECT(function));
     emit_bytecodes(compiler, OP_CONSTANT, function_constant_offset);
@@ -696,7 +705,7 @@ static void variable(struct bytecode_compiler * compiler, bool can_assign) {
         named_variable(compiler, variable_name, array_index, can_assign, external_package);
     }
 
-    if(is_from_function){
+    if(is_from_function) {
         int function_name_length = 0;
         char * function_name = NULL;
 
@@ -710,9 +719,7 @@ static void variable(struct bytecode_compiler * compiler, bool can_assign) {
 
         compiler->current_function_call_name = function_name;
 
-        if(!put_trie(&compiler->function_call_list, function_name, function_name_length, NULL)) {
-            free(function_name);
-        }
+        put_trie(&compiler->function_call_list, function_name, function_name_length, NULL);
     }
 }
 
@@ -724,8 +731,13 @@ static struct package * load_package(struct bytecode_compiler * compiler) {
         report_error(compiler, package_name, "Cannot find package");
     }
 
+    //Precompiled, may part of some library
+    if(package->state == PENDING_INITIALIZATION && package->package_id == 0){
+        package->package_id = ++compiler->next_package_id;
+    }
     if(package->state == PENDING_COMPILATION){
         compile_package(compiler, package);
+        add_package_function_call(compiler, package);
     }
 
     emit_package_constant(compiler, to_lox_package(package));
@@ -741,6 +753,7 @@ static struct package * compile_package(struct bytecode_compiler * compiler, str
     char * source_code = read_package_source_code(package->absolute_path);
     struct compilation_result compilation_result = compile_bytecode(source_code, package->name, compiling_base_dir);
     package->state = PENDING_INITIALIZATION;
+    package->package_id = ++compiler->next_package_id;
 
     free(source_code);
 
@@ -1116,7 +1129,11 @@ static void init_compiler(struct bytecode_compiler * compiler, scope_type_t scop
     compiler->last_monitor_entered = &compiler->monitor_numbers_entered[0];
     compiler->last_monitor_allocated_number = 0;
 
+    init_hash_table(&compiler->defined_functions);
+
     compiler->function_calls = NULL;
+
+    compiler->next_package_id = 0;
 }
 
 static void string(struct bytecode_compiler * compiler, bool can_assign) {
@@ -1264,6 +1281,17 @@ static void add_exported_symbol(struct bytecode_compiler * compiler, struct expo
     }
 }
 
+static void add_package_function_call(struct bytecode_compiler * bytecode_compiler, struct package * other_package) {
+    struct function_call * current_function_call = alloc_function_call();
+    current_function_call->is_inlined = false;
+    current_function_call->package = other_package;
+    current_function_call->call_bytecode_index = 0;
+    current_function_call->function_name = other_package->name;
+    current_function_call->function_scope = SCOPE_PACKAGE;
+
+    add_function_call(bytecode_compiler, current_function_call);
+}
+
 static struct function_call * create_current_function_call(struct bytecode_compiler * bytecode_compiler) {
     struct function_call * current_function_call = alloc_function_call();
     current_function_call->is_inlined = bytecode_compiler->compiling_inline_call;
@@ -1272,17 +1300,21 @@ static struct function_call * create_current_function_call(struct bytecode_compi
                                      bytecode_compiler->package_of_external_symbol :
                                      bytecode_compiler->package;
     current_function_call->call_bytecode_index = bytecode_compiler->current_function->chunk.in_use - 4;
+    current_function_call->function_scope = SCOPE_FUNCTION;
 
     return current_function_call;
 }
 
 static void add_current_function_call(struct bytecode_compiler * bytecode_compiler) {
     struct function_call * current_function_call = create_current_function_call(bytecode_compiler);
+    add_function_call(bytecode_compiler, current_function_call);
+}
 
-    if(bytecode_compiler != NULL){
+static void add_function_call(struct bytecode_compiler * bytecode_compiler, struct function_call * function_call) {
+    if(bytecode_compiler->function_calls != NULL){
         struct function_call * prev_function_call = bytecode_compiler->function_calls;
-        current_function_call->prev = prev_function_call;
+        function_call->prev = prev_function_call;
     }
 
-    bytecode_compiler->function_calls = current_function_call;
+    bytecode_compiler->function_calls = function_call;
 }

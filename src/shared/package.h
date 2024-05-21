@@ -42,6 +42,12 @@ struct package {
     // May include public & private
     // Only used and modified at compile time
     struct trie_list struct_definitions; //Stores struct_definition
+
+    // May include public & private
+    // Modified and used at compile time & maybe used in runtime
+    struct lox_hash_table defined_functions;
+
+    uint32_t package_id;
 };
 
 void free_package(struct package * package);

@@ -1,23 +1,22 @@
 #include "shared.h"
 #include "compiler/bytecode_compiler.h"
-#include "compiler/chunk/chunk_disassembler.h"
+#include "compiler/inline/call_graph.h"
 
 int main() {
-    auto result = compile_standalone(
+    auto result = compile_bytecode(
             "fun suma(a, b) {"
-            "   return a + b;"
             "}"
             ""
             "fun resta(a, b) {"
-            "   return a - b;"
             "}"
             ""
             "fun calcular(a, b) {"
-            "   var c = suma(a, b);"
-            "   var d = resta(a, b);"
-            "   return c * d;"
+            "   suma(a, b);"
+            "   resta(a, b);"
             "}"
-    );
+            ""
+            "calcular(1, 2);",
+    "main", NULL);
 
-    disassemble_package(result.compiled_package, DISASSEMBLE_PACKAGE_FUNCTIONS);
+    create_call_graph(&result);
 }

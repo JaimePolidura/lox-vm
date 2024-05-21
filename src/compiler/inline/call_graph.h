@@ -1,20 +1,28 @@
 #pragma once
 
+#include "shared/utils/collections/stack_list.h"
+#include "compiler/compilation_result.h"
 #include "compiler/function_call.h"
+
+#include "shared/types/function_object.h"
 #include "shared/package.h"
 #include "shared.h"
 
-struct call_graph {
-    char * function_name;
-    bool is_inlined;
-    struct package * package;
-    int call_bytecode_index;
+struct call_graph;
 
-    struct call_graph * children;
-    int n_child;
+struct call_graph_caller_data {
+    int call_bytecode_index;
+    bool is_inlined;
+    struct call_graph * call_graph;
 };
 
-struct call_graph * alloc_call_graph();
-void init_call_graph(struct call_graph *);
+struct call_graph {
+    char * function_name;
+    struct package * package;
+    scope_type_t scope;
 
-void add_function_calls_call_graph(struct call_graph *, struct function_call *);
+    struct call_graph_caller_data ** children;
+    int n_childs;
+};
+
+struct call_graph * create_call_graph(struct compilation_result *);
