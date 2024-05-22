@@ -20,6 +20,10 @@ void free_u64_hash_table(struct u64_hash_table * u64_hash_table) {
 }
 
 void * get_u64_hash_table(struct u64_hash_table * hash_hable, uint64_t key) {
+    if(hash_hable->size == 0){
+        return NULL;
+    }
+
     struct u64_hash_table_entry * result = find_u64_hash_table_entry(hash_hable, key);
     return result != NULL ? result->value : NULL;
 }

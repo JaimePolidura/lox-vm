@@ -8,8 +8,12 @@ struct pending_call {
 static struct pending_call * create_pending_call(struct function_call * main, struct call_graph_caller_data * parent);
 static void add_children(struct stack_list * stack, struct function_call * function_call, struct call_graph * parent);
 static struct function_object * get_function_by_name(struct package * package, char * name);
+static struct call_graph * get_call_graph_node(struct u64_hash_table *, struct function_call * caller,
+        struct function_object * function_object, bool * call_graph_node_already_exists);
 
 struct call_graph * create_call_graph(struct compilation_result * compilation_resul) {
+    struct u64_hash_table functions_in_call_graph;
+    init_u64_hash_table(&functions_in_call_graph);
     struct stack_list pending;
     init_stack_list(&pending);
 
@@ -22,23 +26,49 @@ struct call_graph * create_call_graph(struct compilation_result * compilation_re
 
     while(!is_empty_stack_list(&pending)) {
         struct pending_call * pending_call = pop_stack_list(&pending);
-        struct function_call * callee_function_call = pending_call->function_call;
+        struct function_call * function_call_callee = pending_call->function_call;
         struct call_graph_caller_data * caller_data = pending_call->parent;
-        struct package * function_package_callee = callee_function_call->package;
-        char * function_name_callee = callee_function_call->function_name;
-
+        struct package * function_package_callee = function_call_callee->package;
+        char * function_name_callee = function_call_callee->function_name;
         struct function_object * function_object_callee = get_function_by_name(function_package_callee, function_name_callee);
+        bool callee_node_already_existed = false;
 
-        struct call_graph * callee = malloc(sizeof(struct call_graph *));
-        callee->scope = callee_function_call->function_scope;
-        callee->function_object = function_object_callee;
-        callee->package = callee_function_call->package;
-        caller_data->call_graph = callee;
+        struct call_graph * call_graph_node_callee = get_call_graph_node(&functions_in_call_graph, function_call_callee,
+                function_object_callee, &callee_node_already_existed);
 
-        add_children(&pending, function_object_callee->function_calls, callee);
+        caller_data->call_graph = call_graph_node_callee;
+
+        if (!callee_node_already_existed) {
+            add_children(&pending, function_object_callee->function_calls, call_graph_node_callee);
+        }
+
+        free(pending_call);
     }
 
+    free_u64_hash_table(&functions_in_call_graph);
+    free_stack_list(&pending);
+
     return call_graph;
+}
+
+static struct call_graph * get_call_graph_node(struct u64_hash_table * functions_in_call_graph, struct function_call * caller,
+        struct function_object * function_object, bool * call_graph_node_already_exists) {
+    struct call_graph * node_in_graph = get_u64_hash_table(functions_in_call_graph, (uint64_t) function_object);
+
+    if(node_in_graph != NULL) {
+        *call_graph_node_already_exists = true;
+        return node_in_graph;
+    }
+
+    struct call_graph * new_node = malloc(sizeof(struct call_graph *));
+    new_node->scope = caller->function_scope;
+    new_node->function_object = function_object;
+    new_node->package = caller->package;
+    *call_graph_node_already_exists = false;
+
+    put_u64_hash_table(functions_in_call_graph, (uint64_t) function_object, new_node);
+
+    return new_node;
 }
 
 static void add_children(

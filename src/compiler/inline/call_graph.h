@@ -1,9 +1,10 @@
 #pragma once
 
-#include "shared/utils/collections/stack_list.h"
 #include "compiler/compilation_result.h"
 #include "compiler/function_call.h"
 
+#include "shared/utils/collections/u64_hash_table.h"
+#include "shared/utils/collections/stack_list.h"
 #include "shared/types/function_object.h"
 #include "shared/package.h"
 #include "shared.h"
