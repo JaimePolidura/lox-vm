@@ -692,9 +692,6 @@ static void variable(struct bytecode_compiler * compiler, bool can_assign) {
         variable_name = compiler->parser->previous;
     }
 
-    if(!is_from_function && compiler->compiling_inline_call) {
-        report_error(compiler, compiler->parser->previous, "Expect 'inline' to be placed in function calls");
-    }
     if(is_from_function && compiler->compiling_parallel_call && compiler->compiling_inline_call) {
         report_error(compiler, compiler->parser->previous, "'inline' and 'parallel' cannot be used together");
     }

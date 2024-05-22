@@ -13,11 +13,13 @@ int main() {
             ""
             "fun calcular(a, b) {"
             "   suma(a, b);"
-            "   resta(a, b);"
+            "   inline resta(a, b);"
             "}"
             ""
-            "calcular(1, 2);",
+            "inline calcular(1, 2);",
     "main", NULL);
 
-    create_call_graph(&result);
+    struct call_graph * call_graph = create_call_graph(&result);
+    
+    puts("hola");
 }

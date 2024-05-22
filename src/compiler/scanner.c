@@ -116,7 +116,7 @@ static tokenType_t identifier_type(struct scanner * scanner) {
             if(scanner->current - scanner->start > 1) {
                 switch (scanner->start[1]) {
                     case 'f': return TOKEN_IF;
-                    case 'n': return check_keyword(scanner, 2, 5, "nline", TOKEN_INLINE);
+                    case 'n': return check_keyword(scanner, 2, 4, "line", TOKEN_INLINE);
                 }
             }
         }
