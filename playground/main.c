@@ -8,6 +8,7 @@ int main() {
             "}"
             ""
             "fun resta(a, b) {"
+            "   suma(a, b);"
             "}"
             ""
             "fun calcular(a, b) {"

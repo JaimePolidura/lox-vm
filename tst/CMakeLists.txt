@@ -10,6 +10,7 @@ set(SOURCES ${SOURCES}
         stack_test.h
         utils_test.h
         package_test.h
+        u64_hash_table_test.h
 )
 
 include_directories(${PROJECT_SOURCE_DIR}/src)

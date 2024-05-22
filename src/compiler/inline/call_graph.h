@@ -17,8 +17,8 @@ struct call_graph_caller_data {
 };
 
 struct call_graph {
-    char * function_name;
     struct package * package;
+    struct function_object * function_object;
     scope_type_t scope;
 
     struct call_graph_caller_data ** children;

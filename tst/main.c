@@ -1,12 +1,14 @@
+#include "u64_hash_table_test.h"
 #include "hash_table_test.h"
 #include "package_test.h"
 #include "scanner_test.h"
 #include "vm_jit_test.h"
-#include "vm_test.h"
-#include "trie_test.h"
 #include "stack_test.h"
 #include "utils_test.h"
+#include "trie_test.h"
+#include "vm_test.h"
 
+#define RUN_U64_HASH_TABLE_TEST
 #define RUN_HASH_TABLE_TEST
 #define RUN_COMPILER_TEST
 #define RUN_PACKAGE_TEST
@@ -31,6 +33,10 @@ int main() {
     vm_jit_for_loop_test_outer();
     vm_jit_if_test_outer();
     vm_jit_simple_function_test_outer();
+#endif
+
+#ifdef RUN_U64_HASH_TABLE_TEST
+    u64_hash_table_put_get_test_outer();
 #endif
 
 #ifdef RUN_PACKAGE_TEST

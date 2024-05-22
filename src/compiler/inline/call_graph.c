@@ -14,7 +14,7 @@ struct call_graph * create_call_graph(struct compilation_result * compilation_re
     init_stack_list(&pending);
 
     struct call_graph * call_graph = malloc(sizeof(struct call_graph));
-    call_graph->function_name = compilation_resul->compiled_package->name;
+    call_graph->function_object = compilation_resul->compiled_package->main_function;
     call_graph->package = compilation_resul->compiled_package;
     call_graph->scope = SCOPE_PACKAGE;
 
@@ -24,16 +24,18 @@ struct call_graph * create_call_graph(struct compilation_result * compilation_re
         struct pending_call * pending_call = pop_stack_list(&pending);
         struct function_call * callee_function_call = pending_call->function_call;
         struct call_graph_caller_data * caller_data = pending_call->parent;
+        struct package * function_package_callee = callee_function_call->package;
+        char * function_name_callee = callee_function_call->function_name;
+
+        struct function_object * function_object_callee = get_function_by_name(function_package_callee, function_name_callee);
 
         struct call_graph * callee = malloc(sizeof(struct call_graph *));
-        callee->function_name = callee_function_call->function_name;
         callee->scope = callee_function_call->function_scope;
+        callee->function_object = function_object_callee;
         callee->package = callee_function_call->package;
         caller_data->call_graph = callee;
 
-        struct function_object * function_object_calee = get_function_by_name(callee->package, callee->function_name);
-
-        add_children(&pending, function_object_calee->function_calls, callee);
+        add_children(&pending, function_object_callee->function_calls, callee);
     }
 
     return call_graph;
@@ -49,7 +51,7 @@ static void add_children(
     parent->n_childs = n_function_calls;
 
     struct function_call * current_function_call = function_call;
-    for(int i = 0; i < n_function_calls; i++) {
+    for (int i = 0; i < n_function_calls; i++) {
         struct call_graph_caller_data * caller_data = malloc(sizeof(struct call_graph_caller_data));
         caller_data->call_bytecode_index = current_function_call->call_bytecode_index;
         caller_data->is_inlined = current_function_call->is_inlined;
