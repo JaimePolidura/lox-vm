@@ -46,7 +46,7 @@ typedef enum {
     OP_CONST_2,           // Index: 38
     OP_NO_OP,             // Index: 39
     OP_PACKAGE_CONST      // Index: 40
-} op_code;
+} bytecode_t;
 
 #define OP_CONSTANT_LENGTH 2
 #define OP_NIL_LENGTH 1
@@ -90,3 +90,5 @@ typedef enum {
 #define OP_PACKAGE_CONST_LENGTH 3
 #define OP_NO_OP_LENGTH 1
 #define OP_EOF_LENGTH 1
+
+int instruction_bytecode_length(bytecode_t instruction);

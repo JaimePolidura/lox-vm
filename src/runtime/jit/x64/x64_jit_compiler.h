@@ -21,7 +21,7 @@
 #include "shared/os/os_utils.h"
 #include "shared/package.h"
 
-#include "compiler/bytecode.h"
+#include "compiler/bytecode/bytecode.h"
 
 struct jit_compiler {
     //Lox function being compiled

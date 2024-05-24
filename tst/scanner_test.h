@@ -1,7 +1,7 @@
 #pragma once
 
 #include "test.h"
-#include "../src/compiler/scanner.h"
+#include "compiler/bytecode/scanner.h"
 
 TEST(simple_scanner_test) {
     auto scanner = alloc_scanner("var nombre = \"jaime\";\nnombre = 1 + 2;\n print nombre;");

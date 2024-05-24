@@ -68,6 +68,23 @@ struct chunk_bytecode_context chunk_restore_context(struct chunk * chunk, struct
     return actual;
 }
 
+struct chunk * copy_chunk(struct chunk * src) {
+    struct chunk * dst = alloc_chunk();
+    dst->capacity = src->capacity;
+    dst->in_use = src->in_use;
+    dst->lines = src->lines;
+
+    dst->code = malloc(sizeof(uint8_t) * src->capacity);
+    memcpy(dst->code, src->code, src->capacity);
+
+    dst->constants.values = malloc(sizeof(lox_value_t) * src->constants.capacity);
+    memcpy(dst->constants.values, src->constants.values, dst->constants.capacity);
+    dst->constants.capacity = src->constants.capacity;
+    dst->constants.in_use = src->constants.in_use;
+
+    return dst;
+}
+
 void chunk_write_context(struct chunk * chunk, struct chunk_bytecode_context prev) {
     for(int i = 0; i < prev.in_use; i++){
         write_chunk(chunk, prev.code[i], prev.lines[i]);

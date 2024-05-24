@@ -43,7 +43,7 @@ static bool identifiers_equal(struct token * a, struct token * b);
 static int resolve_local_variable(struct bytecode_compiler * compiler, struct token * name);
 static void variable_expression_declaration(struct bytecode_compiler * compiler);
 static void if_statement(struct bytecode_compiler * compiler);
-static int emit_jump(struct bytecode_compiler * compiler, op_code jump_opcode);
+static int emit_jump(struct bytecode_compiler * compiler, bytecode_t jump_opcode);
 static void patch_jump_here(struct bytecode_compiler * compiler, int jump_op_index);
 static void and(struct bytecode_compiler * compiler, bool can_assign);
 static void or(struct bytecode_compiler * compiler, bool can_assign);
@@ -401,6 +401,8 @@ static struct function_object * function(struct bytecode_compiler * compiler, bo
 
     struct function_object * function = end_compiler(&function_compiler);
 
+    emit_bytecode(&function_compiler, OP_EOF);
+
     put_hash_table(&compiler->defined_functions, function->name, TO_LOX_VALUE_OBJECT(function));
 
     int function_constant_offset = add_constant_to_chunk(current_chunk(compiler), TO_LOX_VALUE_OBJECT(function));
@@ -528,7 +530,7 @@ static void if_statement(struct bytecode_compiler * compiler) {
     patch_jump_here(compiler, else_jump);
 }
 
-static int emit_jump(struct bytecode_compiler * compiler, op_code jump_opcode) {
+static int emit_jump(struct bytecode_compiler * compiler, bytecode_t jump_opcode) {
     emit_bytecode(compiler, jump_opcode);
     emit_bytecode(compiler, 0x00);
     emit_bytecode(compiler, 0x00);
@@ -1026,7 +1028,6 @@ static void report_error(struct bytecode_compiler * compiler, struct token token
         fprintf(stderr, " at '%.*s'", token.length, token.start);
     }
     fprintf(stderr, ": %s\n", message);
-    compiler->parser->has_error = true;
     exit(1);
 }
 

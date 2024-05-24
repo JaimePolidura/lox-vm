@@ -56,7 +56,7 @@ int n_heap_allocations_in_jit_stack(struct jit_stack * jit_stack) {
     return n_heap_allocations;
 }
 
-bool does_single_pop_vm_stack(op_code opcode) {
+bool does_single_pop_vm_stack(bytecode_t opcode) {
     switch (opcode) {
         case OP_POP:
         case OP_RETURN:

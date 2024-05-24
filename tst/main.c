@@ -36,6 +36,7 @@ int main() {
 #endif
 
 #ifdef RUN_U64_HASH_TABLE_TEST
+    u64_hash_table_put_contains_test_outer();
     u64_hash_table_put_get_test_outer();
 #endif
 

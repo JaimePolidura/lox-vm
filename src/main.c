@@ -2,7 +2,7 @@
 #include <stdlib.h>
 
 #include "shared.h"
-#include "compiler/chunk/chunk.h"
+#include "compiler/bytecode/chunk/chunk.h"
 #include "runtime/vm.h"
 #include "compiler/compiler.h"
 

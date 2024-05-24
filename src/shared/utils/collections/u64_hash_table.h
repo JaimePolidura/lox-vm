@@ -26,3 +26,6 @@ void * get_u64_hash_table(struct u64_hash_table *, uint64_t key);
 
 //Puts the element in the hash table. Returns true if there was already an element with the same key
 bool put_u64_hash_table(struct u64_hash_table *, uint64_t key, void * value);
+
+//Returns true if element with key is present on the map
+bool contains_u64_hash_table(struct u64_hash_table *, uint64_t key);

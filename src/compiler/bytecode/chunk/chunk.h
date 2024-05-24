@@ -29,6 +29,7 @@ int add_constant_to_chunk(struct chunk * chunk_to_write, lox_value_t constant);
 struct chunk * alloc_chunk();
 void init_chunk(struct chunk * chunk);
 void free_chunk(struct chunk * chunk_to_free);
+struct chunk * copy_chunk(struct chunk * src);
 
 struct chunk_bytecode_context chunk_start_new_context(struct chunk * chunk);
 struct chunk_bytecode_context chunk_restore_context(struct chunk * chunk, struct chunk_bytecode_context prev);

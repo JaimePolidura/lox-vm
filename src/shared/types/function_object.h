@@ -2,7 +2,7 @@
 
 #include "runtime/threads/monitor.h"
 #include "string_object.h"
-#include "compiler/chunk/chunk.h"
+#include "compiler/bytecode/chunk/chunk.h"
 #include "shared/utils/collections/trie.h"
 #include "types.h"
 #include "runtime/jit/jit_info.h"

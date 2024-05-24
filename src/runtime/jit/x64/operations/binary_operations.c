@@ -9,7 +9,7 @@ extern lox_value_t addition_lox(lox_value_t a, lox_value_t b);
 static int imm_imm_add_operation(struct jit_compiler *, struct operand, struct operand);
 static int imm_imm_sub_operation(struct jit_compiler *, struct operand, struct operand);
 static int add_operation(struct jit_compiler *,struct operand, struct operand);
-static void set_al_with_cmp_result(struct jit_compiler * jit_compiler, op_code comparation_opcode);
+static void set_al_with_cmp_result(struct jit_compiler * jit_compiler, bytecode_t comparation_opcode);
 static int sub_operation(struct jit_compiler *, struct operand, struct operand);
 static int imm_imm_mul_operation(struct jit_compiler *, struct operand, struct operand);
 static int mul_operation(struct jit_compiler *, struct operand, struct operand);
@@ -163,7 +163,7 @@ static int div_operation(
     return 1;
 }
 
-static void set_al_with_cmp_result(struct jit_compiler * jit_compiler, op_code comparation_opcode) {
+static void set_al_with_cmp_result(struct jit_compiler * jit_compiler, bytecode_t comparation_opcode) {
     switch (comparation_opcode) {
         case OP_EQUAL: emit_sete_al(&jit_compiler->native_compiled_code); break;
         case OP_GREATER: emit_setg_al(&jit_compiler->native_compiled_code); break;

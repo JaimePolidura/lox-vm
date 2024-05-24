@@ -1,13 +1,13 @@
 #pragma once
 
-#include "compiler/chunk/chunk_disassembler.h"
+#include "compiler/bytecode/chunk/chunk_disassembler.h"
 #include "compiler/compilation_result.h"
-#include "compiler/exported_symbol.h"
-#include "compiler/function_call.h"
-#include "compiler/chunk/chunk.h"
+#include "exported_symbol.h"
+#include "function_call.h"
+#include "compiler/bytecode/chunk/chunk.h"
 #include "compiler/inline/call_graph.h"
-#include "compiler/bytecode.h"
-#include "compiler/scanner.h"
+#include "bytecode.h"
+#include "scanner.h"
 
 #include "shared/utils/collections/ptr_arraylist.h"
 #include "shared/types/struct_definition_object.h"

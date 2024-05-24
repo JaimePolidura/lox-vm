@@ -2,7 +2,7 @@
 
 #include "shared.h"
 #include "utils/collections/trie.h"
-#include "compiler/scanner.h"
+#include "compiler/bytecode/scanner.h"
 #include "utils/substring.h"
 #include "utils/utils.h"
 #include "shared/utils/collections/lox_hash_table.h"

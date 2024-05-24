@@ -45,6 +45,10 @@ bool put_u64_hash_table(struct u64_hash_table * hash_hable, uint64_t key, void *
     return key_already_exists;
 }
 
+bool contains_u64_hash_table(struct u64_hash_table * table, uint64_t key) {
+    return get_u64_hash_table(table, key) != NULL;
+}
+
 static struct u64_hash_table_entry * find_u64_hash_table_entry(struct u64_hash_table * u64_hash_table, uint64_t key) {
     uint64_t index = key & (u64_hash_table->capacity - 1);
     struct u64_hash_table_entry * current_entry = u64_hash_table->entries + index;

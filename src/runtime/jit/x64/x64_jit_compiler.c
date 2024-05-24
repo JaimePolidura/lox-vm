@@ -75,7 +75,7 @@ static void record_pending_jump_to_patch(struct jit_compiler *, uint16_t jump_in
 static void record_compiled_bytecode(struct jit_compiler *, uint16_t native_compiled_index, int bytecode_instruction_length);
 static uint16_t get_compiled_native_index_by_bytecode_index(struct jit_compiler *, uint16_t current_bytecode_index);
 static void check_pending_jumps_to_patch(struct jit_compiler *, int bytecode_instruction_length);
-static void set_al_with_cmp_result(struct jit_compiler *, op_code comparation_opcode);
+static void set_al_with_cmp_result(struct jit_compiler *, bytecode_t comparation_opcode);
 static void number_const(struct jit_compiler *, int value, int instruction_length);
 static void free_jit_compiler(struct jit_compiler *);
 static uint16_t cast_lox_object_to_ptr(struct jit_compiler *, register_t lox_object_ptr);
@@ -91,8 +91,8 @@ static struct pop_stack_operand_result pop_stack_operand_jit_stack(struct jit_co
 static struct pop_stack_operand_result pop_stack_operand_jit_stack_as_register(struct jit_compiler *);
 static void record_multiple_compiled_bytecode(struct jit_compiler * jit_compiler,
         int bytecode_instruction_length,int n_instrucion_indexes, ...);
-static void binary_operation(struct jit_compiler * jit_compiler, int instruction_length, op_code instruction);
-static void single_operation(struct jit_compiler * jit_compiler, int instruction_length, op_code instruction);
+static void binary_operation(struct jit_compiler * jit_compiler, int instruction_length, bytecode_t instruction);
+static void single_operation(struct jit_compiler * jit_compiler, int instruction_length, bytecode_t instruction);
 static uint16_t find_native_index_by_compiled_bytecode(struct jit_compiler *, uint16_t bytecode_index);
 static uint16_t load_arguments(struct jit_compiler * jit_compiler, int n_arguments);
 
@@ -268,6 +268,7 @@ static void return_jit(struct jit_compiler * jit_compiler, bool * finish_compila
 
     record_compiled_bytecode(jit_compiler, instruction_index, OP_RETURN_LENGTH);
 
+    //TODO REMOVE
     *finish_compilation_flag = true;
 }
 
@@ -1014,7 +1015,7 @@ static struct pop_stack_operand_result pop_stack_operand_jit_stack(struct jit_co
 static void single_operation(
         struct jit_compiler * jit_compiler,
         int instruction_length,
-        op_code instruction) {
+        bytecode_t instruction) {
     struct pop_stack_operand_result a = pop_stack_operand_jit_stack(jit_compiler);
     struct single_operation binary_operations_instruction = single_operations[instruction];
 
@@ -1040,7 +1041,7 @@ static void single_operation(
 static void binary_operation(
         struct jit_compiler * jit_compiler,
         int instruction_length,
-        op_code instruction
+        bytecode_t instruction
 ) {
     struct pop_stack_operand_result b = pop_stack_operand_jit_stack(jit_compiler);
     struct pop_stack_operand_result a = pop_stack_operand_jit_stack(jit_compiler);
