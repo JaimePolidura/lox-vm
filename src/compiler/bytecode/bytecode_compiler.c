@@ -195,7 +195,7 @@ static struct bytecode_compiler * start_compiling(char * source_code, char * pac
         declaration(compiler);
     }
 
-    write_chunk(current_chunk(compiler), OP_EOF, 0);
+    write_chunk(current_chunk(compiler), OP_EOF);
 
     return compiler;
 }
@@ -978,15 +978,15 @@ static void number(struct bytecode_compiler * compiler, bool can_assign) {
 static void emit_package_constant(struct bytecode_compiler * compiler, lox_value_t value) {
     //TODO Perform content overflow check
     int constant_offset = add_constant_to_chunk(current_chunk(compiler), value);
-    write_chunk(current_chunk(compiler), OP_PACKAGE_CONST, compiler->parser->previous.line);
-    write_chunk(current_chunk(compiler), constant_offset, compiler->parser->previous.line);
+    write_chunk(current_chunk(compiler), OP_PACKAGE_CONST);
+    write_chunk(current_chunk(compiler), constant_offset);
 }
 
 static void emit_constant(struct bytecode_compiler * compiler, lox_value_t value) {
     //TODO Perform content overflow check
     int constant_offset = add_constant_to_chunk(current_chunk(compiler), value);
-    write_chunk(current_chunk(compiler), OP_CONSTANT, compiler->parser->previous.line);
-    write_chunk(current_chunk(compiler), constant_offset, compiler->parser->previous.line);
+    write_chunk(current_chunk(compiler), OP_CONSTANT);
+    write_chunk(current_chunk(compiler), constant_offset);
 }
 
 static void advance(struct bytecode_compiler * compiler) {
@@ -1001,12 +1001,12 @@ static void advance(struct bytecode_compiler * compiler) {
 }
 
 static void emit_bytecodes(struct bytecode_compiler * compiler, uint8_t bytecodeA, uint8_t bytecodeB) {
-    write_chunk(current_chunk(compiler), bytecodeA, compiler->parser->previous.line);
-    write_chunk(current_chunk(compiler), bytecodeB, compiler->parser->previous.line);
+    write_chunk(current_chunk(compiler), bytecodeA);
+    write_chunk(current_chunk(compiler), bytecodeB);
 }
 
 static void emit_bytecode(struct bytecode_compiler * compiler, uint8_t bytecode) {
-    write_chunk(current_chunk(compiler), bytecode, compiler->parser->previous.line);
+    write_chunk(current_chunk(compiler), bytecode);
 }
 
 static void consume(struct bytecode_compiler * compiler, tokenType_t expected_token_type, char * error_message) {

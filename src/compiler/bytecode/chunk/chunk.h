@@ -21,10 +21,9 @@ struct chunk_bytecode_context {
     uint8_t * code;
     int in_use; //nº of code used
     int capacity; //nº of code allocated
-    int * lines;
 };
 
-void write_chunk(struct chunk * chunk_to_write, uint8_t byte, int line);
+void write_chunk(struct chunk * chunk_to_write, uint8_t byte);
 int add_constant_to_chunk(struct chunk * chunk_to_write, lox_value_t constant);
 struct chunk * alloc_chunk();
 void init_chunk(struct chunk * chunk);

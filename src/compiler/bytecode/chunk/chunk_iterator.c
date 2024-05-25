@@ -30,7 +30,7 @@ uint8_t read_u8_chunk_iterator_at(struct chunk_iterator * chunk_iterator, int of
     int last_instruction_size = instruction_bytecode_length(chunk_iterator->last_instruction);
     uint8_t * last_instruction_ptr = chunk_iterator->pc - last_instruction_size;
 
-    return * (last_instruction_ptr + offset_from_bytecode + 1);
+    return *(last_instruction_ptr + offset_from_bytecode + 1);
 }
 
 uint16_t read_u16_chunk_iterator(struct chunk_iterator * chunk_iterator) {

@@ -1,7 +1,8 @@
 #pragma once
 
-#include "shared/types/function_object.h"
+#include "compiler/bytecode/chunk/chunk_iterator.h"
 #include "compiler/bytecode/chunk/chunk.h"
+#include "shared/types/function_object.h"
 
 struct function_inline_result {
     struct chunk inlined_chunk;

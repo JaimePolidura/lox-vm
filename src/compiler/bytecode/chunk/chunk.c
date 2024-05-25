@@ -13,7 +13,7 @@ int add_constant_to_chunk(struct chunk * chunk_to_write, lox_value_t constant) {
     return chunk_to_write->constants.in_use - 1;
 }
 
-void write_chunk(struct chunk * chunk_to_write, uint8_t byte, int line) {
+void write_chunk(struct chunk * chunk_to_write, uint8_t byte) {
     if(chunk_to_write->in_use + 1 > chunk_to_write->capacity) {
         int new_code_capacity = GROW_CAPACITY(chunk_to_write->capacity);
         int old_code_capacity = chunk_to_write->capacity;
@@ -25,7 +25,6 @@ void write_chunk(struct chunk * chunk_to_write, uint8_t byte, int line) {
 
     int index_to_write = chunk_to_write->in_use++;
     chunk_to_write->code[index_to_write] = byte;
-    chunk_to_write->lines[index_to_write] = line;
 }
 
 void init_chunk(struct chunk * chunk) {
@@ -41,7 +40,6 @@ struct chunk_bytecode_context chunk_start_new_context(struct chunk * chunk) {
             .code = chunk->code,
             .in_use = chunk->in_use,
             .capacity = chunk->capacity,
-            .lines = chunk->lines,
     };
 
     chunk->code = NULL;
@@ -57,13 +55,11 @@ struct chunk_bytecode_context chunk_restore_context(struct chunk * chunk, struct
             .code = chunk->code,
             .in_use = chunk->in_use,
             .capacity = chunk->capacity,
-            .lines = chunk->lines,
     };
 
     chunk->code = prev.code;
     chunk->in_use = prev.in_use;
     chunk->capacity = prev.capacity;
-    chunk->lines = prev.lines;
 
     return actual;
 }
@@ -87,9 +83,8 @@ struct chunk * copy_chunk(struct chunk * src) {
 
 void chunk_write_context(struct chunk * chunk, struct chunk_bytecode_context prev) {
     for(int i = 0; i < prev.in_use; i++){
-        write_chunk(chunk, prev.code[i], prev.lines[i]);
+        write_chunk(chunk, prev.code[i]);
     }
 
-    free(prev.lines);
     free(prev.code);
 }
