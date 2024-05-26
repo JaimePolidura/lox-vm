@@ -1,52 +1,63 @@
 #include "bytecode.h"
 
-int instruction_bytecode_length(bytecode_t instruction) {
-    switch (instruction) {
-        case OP_RETURN:
-        case OP_ADD:
-        case OP_SUB:
-        case OP_MUL:
-        case OP_DIV:
-        case OP_GREATER:
-        case OP_LESS:
-        case OP_FALSE:
-        case OP_TRUE:
-        case OP_NIL:
-        case OP_NOT:
-        case OP_EQUAL:
-        case OP_PRINT:
-        case OP_NEGATE:
-        case OP_POP:
-        case OP_CONST_1:
-        case OP_CONST_2:
-        case OP_EOF:
-        case OP_NO_OP:
-        case OP_ENTER_PACKAGE:
-        case OP_EXIT_PACKAGE:
-            return 1;
-        case OP_INITIALIZE_STRUCT:
-        case OP_SET_STRUCT_FIELD:
-        case OP_GET_STRUCT_FIELD:
-        case OP_DEFINE_GLOBAL:
-        case OP_ENTER_MONITOR:
-        case OP_GET_GLOBAL:
-        case OP_SET_GLOBAL:
-        case OP_GET_LOCAL:
-        case OP_SET_LOCAL:
-        case OP_FAST_CONST_8:
-        case OP_EXIT_MONITOR:
-        case OP_CONSTANT:
-        case OP_PACKAGE_CONST:
-            return 2;
-        case OP_JUMP_IF_FALSE:
-        case OP_CALL:
-        case OP_INITIALIZE_ARRAY:
-        case OP_GET_ARRAY_ELEMENT:
-        case OP_SET_ARRAY_ELEMENT:
-        case OP_FAST_CONST_16:
-        case OP_LOOP:
-            return 3;
-        default:
-            return -1;
-    }
+struct bytecode_instruction_data {
+    int size;
+    int n_pops;
+    int n_push;
+};
+
+struct bytecode_instruction_data bytecode_instructions_data[] = {
+        [OP_RETURN] = {.size = 1, .n_pops = 1, .n_push = 1},
+        [OP_ADD] = {.size = 1, .n_pops = 2, .n_push = 1},
+        [OP_SUB] = {.size = 1, .n_pops = 2, .n_push = 1},
+        [OP_MUL] = {.size = 1, .n_pops = 2, .n_push = 1},
+        [OP_DIV] = {.size = 1, .n_pops = 2, .n_push = 1},
+        [OP_GREATER] = {.size = 1, .n_pops = 2, .n_push = 1},
+        [OP_LESS] = {.size = 1, .n_pops = 2, .n_push = 1},
+        [OP_FALSE] =  {.size = 1, .n_pops = 0, .n_push = 1},
+        [OP_TRUE] = {.size = 1, .n_pops = 0, .n_push = 1},
+        [OP_NIL] = {.size = 1, .n_pops = 0, .n_push = 1},
+        [OP_NOT] = {.size = 1, .n_pops = 1, .n_push = 1},
+        [OP_EQUAL] = {.size = 1, .n_pops = 1, .n_push = 1},
+        [OP_PRINT] = {.size = 1, .n_pops = 2, .n_push = 1},
+        [OP_NEGATE] = {.size = 1, .n_pops = 1, .n_push = 1},
+        [OP_POP] = {.size = 1, .n_pops = 1, .n_push = 0},
+        [OP_CONST_1] = {.size = 1, .n_pops = 0, .n_push = 1},
+        [OP_CONST_2] = {.size = 1, .n_pops = 0, .n_push = 1},
+        [OP_EOF] = {.size = 1, .n_pops = 0, .n_push = 0},
+        [OP_NO_OP] = {.size = 1, .n_pops = 0, .n_push = 0},
+        [OP_ENTER_PACKAGE] = {.size = 1, .n_pops = 1, .n_push = 0},
+        [OP_EXIT_PACKAGE] = {.size = 1, .n_pops = 1, .n_push = 0},
+        [OP_INITIALIZE_STRUCT] = {.size = 2, .n_pops = N_VARIABLE_INSTRUCTION_N_POPS, .n_push = 1},
+        [OP_SET_STRUCT_FIELD] = {.size = 2, .n_pops = 2, .n_push = 0},
+        [OP_GET_STRUCT_FIELD] = {.size = 2, .n_pops = 1, .n_push = 1},
+        [OP_DEFINE_GLOBAL] = {.size = 2, .n_pops = 1, .n_push = 0},
+        [OP_ENTER_MONITOR] = {.size = 2, .n_pops = 0, .n_push = 0},
+        [OP_GET_GLOBAL] = {.size = 2, .n_pops = 0, .n_push = 1},
+        [OP_SET_GLOBAL] = {.size = 2, .n_pops = 0, .n_push = 0},
+        [OP_GET_LOCAL] = {.size = 2, .n_pops = 0, .n_push = 1},
+        [OP_SET_LOCAL] = {.size = 2, .n_pops = 0, .n_push = 0},
+        [OP_FAST_CONST_8] = {.size = 2, .n_pops = 0, .n_push = 1},
+        [OP_EXIT_MONITOR] = {.size = 2, .n_pops = 0, .n_push = 0},
+        [OP_CONSTANT] =  {.size = 2, .n_pops = 0, .n_push = 1},
+        [OP_PACKAGE_CONST] = {.size = 2, .n_pops = 0, .n_push = 1},
+        [OP_JUMP_IF_FALSE] = {.size = 3, .n_pops = 0, .n_push = 0},
+        [OP_CALL] = {.size = 3, .n_pops = N_VARIABLE_INSTRUCTION_N_POPS, .n_push = 1}, //TODO
+        [OP_INITIALIZE_ARRAY] = {.size = 3, .n_pops = -N_VARIABLE_INSTRUCTION_N_POPS, .n_push = 1},
+        [OP_GET_ARRAY_ELEMENT] = {.size = 3, .n_pops = 1, .n_push = 1},
+        [OP_SET_ARRAY_ELEMENT] = {.size = 3, .n_pops = 2, .n_push = 0},
+        [OP_FAST_CONST_16] = {.size = 3, .n_pops = 0, .n_push = 1},
+        [OP_LOOP] = {.size = 3, .n_pops = 0, .n_push = 0},
+};
+
+int get_size_bytecode_instruction(bytecode_t instruction) {
+    return bytecode_instructions_data[instruction].size;
+}
+
+int get_n_pop_bytecode_instruction(bytecode_t instruction) {
+    return bytecode_instructions_data[instruction].n_pops;
+}
+
+int get_n_push_bytecode_instruction(bytecode_t instruction) {
+    return bytecode_instructions_data[instruction].n_push;
 }

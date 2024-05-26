@@ -55,23 +55,3 @@ int n_heap_allocations_in_jit_stack(struct jit_stack * jit_stack) {
 
     return n_heap_allocations;
 }
-
-bool does_single_pop_vm_stack(bytecode_t opcode) {
-    switch (opcode) {
-        case OP_POP:
-        case OP_RETURN:
-        case OP_NEGATE:
-        case OP_PRINT:
-        case OP_DEFINE_GLOBAL:
-        case OP_SET_GLOBAL:
-        case OP_SET_LOCAL:
-        case OP_NOT:
-        case OP_JUMP_IF_FALSE:
-        case OP_GET_STRUCT_FIELD:
-        case OP_ENTER_PACKAGE:
-        case OP_GET_ARRAY_ELEMENT:
-            return true;
-        default:
-            return false;
-    }
-}

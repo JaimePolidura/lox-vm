@@ -69,7 +69,7 @@ static void fast_16_const(struct call_frame * call_frame);
 #define READ_BYTECODE(frame) (*frame->pc++)
 #define READ_U16(frame) \
     (frame->pc += 2, (uint16_t)((frame->pc[-2] << 8) | frame->pc[-1]))
-#define READ_CONSTANT(frame) (frame->function->chunk.constants.values[READ_BYTECODE(frame)])
+#define READ_CONSTANT(frame) (frame->function->chunk->constants.values[READ_BYTECODE(frame)])
 #define BINARY_OP(op) \
     do { \
         double b = pop_and_check_number(); \
@@ -632,7 +632,7 @@ static void setup_call_frame_function(struct vm_thread * thread, struct function
     struct call_frame * new_frame = &thread->frames[thread->frames_in_use++];
 
     new_frame->function = function;
-    new_frame->pc = function->chunk.code;
+    new_frame->pc = function->chunk->code;
     new_frame->slots = thread->esp - function->n_arguments - 1;
 }
 

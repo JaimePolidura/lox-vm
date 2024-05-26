@@ -222,7 +222,7 @@ static void mark_root_dependences(struct mark_sweep_global_info * gc_mark_sweep)
             case OBJ_FUNCTION: {
                 struct function_object * function = (struct function_object *) object;
                 mark_object((struct object *) function->name);
-                mark_lox_arraylist(&function->chunk.constants);
+                mark_lox_arraylist(&function->chunk->constants);
                 break;
             }
             case OBJ_ARRAY: {

@@ -16,7 +16,7 @@ lox_value_t read_constant_chunk_iterator(struct chunk_iterator * chunk_iterator)
 bytecode_t next_instruction_chunk_iterator(struct chunk_iterator * chunk_iterator) {
     bytecode_t current_instruction = *chunk_iterator->pc++;
 
-    chunk_iterator->pc += instruction_bytecode_length(current_instruction) - 1;
+    chunk_iterator->pc += get_size_bytecode_instruction(current_instruction) - 1;
     chunk_iterator->last_instruction = current_instruction;
 
     return current_instruction;
@@ -27,7 +27,7 @@ uint8_t read_u8_chunk_iterator(struct chunk_iterator * chunk_iterator) {
 }
 
 uint8_t read_u8_chunk_iterator_at(struct chunk_iterator * chunk_iterator, int offset_from_bytecode) {
-    int last_instruction_size = instruction_bytecode_length(chunk_iterator->last_instruction);
+    int last_instruction_size = get_size_bytecode_instruction(chunk_iterator->last_instruction);
     uint8_t * last_instruction_ptr = chunk_iterator->pc - last_instruction_size;
 
     return *(last_instruction_ptr + offset_from_bytecode + 1);

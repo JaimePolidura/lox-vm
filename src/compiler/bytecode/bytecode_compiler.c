@@ -608,14 +608,14 @@ static void for_loop(struct bytecode_compiler * compiler) {
 
     int loop_jump_if_false_index = for_loop_condition(compiler);
 
-    struct chunk_bytecode_context prev_to_increment_ctx = chunk_start_new_context(&compiler->current_function->chunk);
+    struct chunk_bytecode_context prev_to_increment_ctx = chunk_start_new_context(compiler->current_function->chunk);
     for_loop_increment(compiler);
-    struct chunk_bytecode_context increment_bytecodes = chunk_restore_context(&compiler->current_function->chunk,
+    struct chunk_bytecode_context increment_bytecodes = chunk_restore_context(compiler->current_function->chunk,
             prev_to_increment_ctx);
 
     statement(compiler);
 
-    chunk_write_context(&compiler->current_function->chunk, increment_bytecodes);
+    chunk_write_context(compiler->current_function->chunk, increment_bytecodes);
 
     emit_loop(compiler, loop_start_index);
 
@@ -1252,7 +1252,7 @@ static void end_scope(struct bytecode_compiler * compiler) {
 }
 
 static struct chunk * current_chunk(struct bytecode_compiler * compiler) {
-    return &compiler->current_function->chunk;
+    return compiler->current_function->chunk;
 }
 
 static void emit_empty_return(struct bytecode_compiler * compiler) {
@@ -1269,7 +1269,7 @@ static struct exported_symbol * get_exported_symbol(struct bytecode_compiler * c
 }
 
 static struct struct_definition_object * get_struct_definition(struct package * package, struct token name) {
-    return find_trie(&package->struct_definitions, name.start, name.length);;
+    return find_trie(&package->struct_definitions, name.start, name.length);
 }
 
 static void add_exported_symbol(struct bytecode_compiler * compiler, struct exported_symbol * exported_symbol, struct token name) {
@@ -1297,7 +1297,7 @@ static struct function_call * create_current_function_call(struct bytecode_compi
     current_function_call->package = bytecode_compiler->package_of_external_symbol != NULL ?
                                      bytecode_compiler->package_of_external_symbol :
                                      bytecode_compiler->package;
-    current_function_call->call_bytecode_index = bytecode_compiler->current_function->chunk.in_use - 4;
+    current_function_call->call_bytecode_index = bytecode_compiler->current_function->chunk->in_use - 4;
     current_function_call->function_scope = SCOPE_FUNCTION;
 
     return current_function_call;

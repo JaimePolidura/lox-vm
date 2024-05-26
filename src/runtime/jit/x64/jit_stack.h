@@ -48,6 +48,4 @@ struct jit_stack_item pop_jit_stack(struct jit_stack *);
 
 void init_jit_stack(struct jit_stack * jit_stack);
 
-bool does_single_pop_vm_stack(bytecode_t opcode);
-
 int n_heap_allocations_in_jit_stack(struct jit_stack *);

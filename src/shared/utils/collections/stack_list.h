@@ -25,8 +25,10 @@ void init_stack_list(struct stack_list * stack);
 
 void free_stack_list(struct stack_list * stack);
 
-void push_stack_list(struct stack_list * stack, void * to_push);
-void * pop_stack_list(struct stack_list * stack);
-void * peek_stack_list(struct stack_list * stack);
-bool is_empty_stack_list(struct stack_list * stack);
+void push_stack_list(struct stack_list *, void * to_push);
+void push_n_stack_list(struct stack_list *, void * to_push, int n);
+void * pop_stack_list(struct stack_list *);
+void pop_n_stack_list(struct stack_list *, int n);
+void * peek_stack_list(struct stack_list *);
+bool is_empty_stack_list(struct stack_list *);
 

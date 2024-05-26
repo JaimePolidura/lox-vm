@@ -37,6 +37,12 @@ bool is_empty_stack_list(struct stack_list * stack) {
     return stack->head == NULL;
 }
 
+void push_n_stack_list(struct stack_list * stack_list, void * to_push, int n) {
+    for (int i = 0; i < n; i++) {
+        push_stack_list(stack_list, to_push);
+    }
+}
+
 void push_stack_list(struct stack_list * stack, void * to_push) {
     struct stack_node * new_node = alloc_stack_node();
     struct stack_node * prev_node = stack->head;
@@ -48,6 +54,12 @@ void push_stack_list(struct stack_list * stack, void * to_push) {
     new_node->prev = prev_node;
     new_node->data = to_push;
     stack->head = new_node;
+}
+
+void pop_n_stack_list(struct stack_list * stack, int n) {
+    for (int i = 0; i < n; i++) {
+        pop_stack_list(stack);
+    }
 }
 
 void * pop_stack_list(struct stack_list * stack) {

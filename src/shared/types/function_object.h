@@ -13,7 +13,7 @@
 struct function_object {
     struct object object;
     int n_arguments; //Number of arguments
-    struct chunk chunk;
+    struct chunk * chunk;
     struct string_object * name;
     int n_locals;
     struct function_call * function_calls;

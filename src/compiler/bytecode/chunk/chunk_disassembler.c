@@ -33,7 +33,7 @@ void disassemble_package(struct package * package, long options) {
 }
 
 static void disassemble_package_functions(struct package * package, long options) {
-    struct lox_arraylist package_constants = package->main_function->chunk.constants;
+    struct lox_arraylist package_constants = package->main_function->chunk->constants;
 
     for(int i = 0; i < package_constants.in_use; i++){
         lox_value_t current_constant = package_constants.values[i];
@@ -47,10 +47,10 @@ static void disassemble_package_functions(struct package * package, long options
 }
 
 void disassemble_function(struct function_object * function, long options) {
-    struct chunk_iterator iterator = iterate_chunk(&function->chunk);
+    struct chunk_iterator iterator = iterate_chunk(function->chunk);
 
     while(has_next_chunk_iterator(&iterator)){
-        printf("%4llX:\t", iterator.pc - function->chunk.code);
+        printf("%4llX:\t", iterator.pc - function->chunk->code);
 
         switch (next_instruction_chunk_iterator(&iterator)) {
             case OP_RETURN: SINGLE_INSTRUCTION("OP_RETURN"); break;

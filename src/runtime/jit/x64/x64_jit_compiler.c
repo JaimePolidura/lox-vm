@@ -37,8 +37,8 @@ void switch_native_to_jit_mode(struct jit_compiler *);
 #define READ_BYTECODE(jit_compiler) (*(jit_compiler)->pc++)
 #define READ_U16(jit_compiler) \
     ((jit_compiler)->pc += 2, (uint16_t)(((jit_compiler)->pc[-2] << 8) | (jit_compiler)->pc[-1]))
-#define READ_CONSTANT(jit_compiler) (jit_compiler->function_to_compile->chunk.constants.values[READ_BYTECODE(jit_compiler)])
-#define CURRENT_BYTECODE_INDEX(jit_compiler) (jit_compiler->pc - jit_compiler->function_to_compile->chunk.code)
+#define READ_CONSTANT(jit_compiler) (jit_compiler->function_to_compile->chunk->constants.values[READ_BYTECODE(jit_compiler)])
+#define CURRENT_BYTECODE_INDEX(jit_compiler) (jit_compiler->pc - jit_compiler->function_to_compile->chunk->code)
 
 static struct jit_compiler init_jit_compiler(struct function_object * function);
 static void lox_value(struct jit_compiler *, lox_value_t value, int bytecode_instruction_length);
@@ -95,6 +95,7 @@ static void binary_operation(struct jit_compiler * jit_compiler, int instruction
 static void single_operation(struct jit_compiler * jit_compiler, int instruction_length, bytecode_t instruction);
 static uint16_t find_native_index_by_compiled_bytecode(struct jit_compiler *, uint16_t bytecode_index);
 static uint16_t load_arguments(struct jit_compiler * jit_compiler, int n_arguments);
+static bool does_single_bytecode_instruction(bytecode_t opcode);
 
 struct jit_compilation_result jit_compile_arch(struct function_object * function) {
     struct jit_compiler jit_compiler = init_jit_compiler(function);
@@ -784,15 +785,15 @@ static struct jit_compiler init_jit_compiler(struct function_object * function) 
     struct jit_compiler compiler;
 
     compiler.current_mode = MODE_JIT;
-    compiler.compiled_bytecode_to_native_by_index = malloc(sizeof(uint16_t) * function->chunk.in_use);
-    memset(compiler.compiled_bytecode_to_native_by_index, 0, sizeof(uint16_t) * function->chunk.in_use);
+    compiler.compiled_bytecode_to_native_by_index = malloc(sizeof(uint16_t) * function->chunk->in_use);
+    memset(compiler.compiled_bytecode_to_native_by_index, 0, sizeof(uint16_t) * function->chunk->in_use);
 
-    compiler.pending_jumps_to_patch = malloc(sizeof(void *) * function->chunk.in_use);
-    memset(compiler.pending_jumps_to_patch, 0, sizeof(void *) * function->chunk.in_use);
+    compiler.pending_jumps_to_patch = malloc(sizeof(void *) * function->chunk->in_use);
+    memset(compiler.pending_jumps_to_patch, 0, sizeof(void *) * function->chunk->in_use);
 
     compiler.last_stack_slot_allocated = function->n_arguments > 0 ? function->n_arguments : -1;
     compiler.function_to_compile = function;
-    compiler.pc = function->chunk.code;
+    compiler.pc = function->chunk->code;
     
     init_register_allocator(&compiler.register_allocator);
     init_u8_arraylist(&compiler.native_compiled_code);
@@ -959,7 +960,7 @@ static uint16_t get_compiled_native_index_by_bytecode_index(struct jit_compiler 
 }
 
 static void free_jit_compiler(struct jit_compiler * jit_compiler) {
-    for(int i = 0; i < jit_compiler->function_to_compile->chunk.in_use; i++){
+    for(int i = 0; i < jit_compiler->function_to_compile->chunk->in_use; i++){
         if(jit_compiler->pending_jumps_to_patch[i] != NULL){
             free(jit_compiler->pending_jumps_to_patch[i]);
         }
@@ -1028,7 +1029,7 @@ static void single_operation(
         binary_operations_instruction.reg_operation(jit_compiler, a.operand);
         record_compiled_bytecode(jit_compiler, a.instruction_index, instruction_length);
 
-        if(does_single_pop_vm_stack(*jit_compiler->pc)){
+        if(does_single_bytecode_instruction(*jit_compiler->pc)){
             push_register_jit_stack(&jit_compiler->jit_stack, a.operand.as.reg);
         } else {
             pop_register_allocator(&jit_compiler->register_allocator);
@@ -1095,7 +1096,7 @@ static void binary_operation(
         result_operand = operand_reg.operand;
     }
 
-    if(does_single_pop_vm_stack(*jit_compiler->pc)){
+    if(does_single_bytecode_instruction(*jit_compiler->pc)){
         push_register_jit_stack(&jit_compiler->jit_stack, result_operand.as.reg);
     } else {
         pop_register_allocator(&jit_compiler->register_allocator);
@@ -1112,4 +1113,24 @@ static uint16_t find_native_index_by_compiled_bytecode(struct jit_compiler * jit
     }
 
     return * current_native_index;
+}
+
+static bool does_single_bytecode_instruction(bytecode_t opcode) {
+    switch (opcode) {
+        case OP_POP:
+        case OP_RETURN:
+        case OP_NEGATE:
+        case OP_PRINT:
+        case OP_DEFINE_GLOBAL:
+        case OP_SET_GLOBAL:
+        case OP_SET_LOCAL:
+        case OP_NOT:
+        case OP_JUMP_IF_FALSE:
+        case OP_GET_STRUCT_FIELD:
+        case OP_ENTER_PACKAGE:
+        case OP_GET_ARRAY_ELEMENT:
+            return true;
+        default:
+            return false;
+    }
 }

@@ -91,4 +91,8 @@ typedef enum {
 #define OP_NO_OP_LENGTH 1
 #define OP_EOF_LENGTH 1
 
-int instruction_bytecode_length(bytecode_t instruction);
+#define N_VARIABLE_INSTRUCTION_N_POPS 0xFFFF
+
+int get_size_bytecode_instruction(bytecode_t instruction);
+int get_n_pop_bytecode_instruction(bytecode_t instruction);
+int get_n_push_bytecode_instruction(bytecode_t instruction);
