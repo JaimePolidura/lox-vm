@@ -6,7 +6,7 @@
 #include "function_call.h"
 #include "compiler/bytecode/chunk/chunk.h"
 #include "compiler/inline/call_graph.h"
-#include "bytecode.h"
+#include "shared/bytecode/bytecode.h"
 #include "scanner.h"
 
 #include "shared/utils/collections/ptr_arraylist.h"

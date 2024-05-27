@@ -2,7 +2,7 @@
 
 #include "compiler/bytecode/chunk/chunk_iterator.h"
 #include "compiler/bytecode/chunk/chunk.h"
-#include "compiler/bytecode/bytecode.h"
+#include "shared/bytecode/bytecode.h"
 #include "shared.h"
 
 struct bytecode_list {

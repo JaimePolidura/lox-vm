@@ -1,5 +1,7 @@
 #include "x64_jit_compiler.h"
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wint-to-void-pointer-cast"
 extern __thread struct vm_thread * self_thread;
 
 extern bool get_hash_table(struct lox_hash_table * table, struct string_object * key, lox_value_t *value);
@@ -729,12 +731,6 @@ static void jump(struct jit_compiler * jit_compiler, uint16_t offset) {
     record_compiled_bytecode(jit_compiler, jmp_index, OP_JUMP_LENGTH);
 }
 
-static void pop(struct jit_compiler * jit_compiler) {
-    pop_register_allocator(&jit_compiler->register_allocator);
-    pop_jit_stack(&jit_compiler->jit_stack);
-    record_compiled_bytecode(jit_compiler, NATIVE_INDEX_IN_NEXT_SLOT, OP_POP_LENGTH);
-}
-
 static void loop(struct jit_compiler * jit_compiler, uint16_t bytecode_backward_jump) {
     uint16_t bytecode_index_to_jump = CURRENT_BYTECODE_INDEX(jit_compiler) - bytecode_backward_jump;
     uint16_t native_index_to_jump = find_native_index_by_compiled_bytecode(jit_compiler, bytecode_index_to_jump);
@@ -747,6 +743,12 @@ static void loop(struct jit_compiler * jit_compiler, uint16_t bytecode_backward_
     uint16_t jump_index = emit_near_jmp(&jit_compiler->native_compiled_code, -((int) jmp_offset));
 
     record_compiled_bytecode(jit_compiler, jump_index, OP_LOOP_LENGTH);
+}
+
+static void pop(struct jit_compiler * jit_compiler) {
+    pop_register_allocator(&jit_compiler->register_allocator);
+    pop_jit_stack(&jit_compiler->jit_stack);
+    record_compiled_bytecode(jit_compiler, NATIVE_INDEX_IN_NEXT_SLOT, OP_POP_LENGTH);
 }
 
 static void constant(struct jit_compiler * jit_compiler) {
@@ -764,21 +766,20 @@ static void number_const(struct jit_compiler * jit_compiler, int value, int inst
     record_compiled_bytecode(jit_compiler, NATIVE_INDEX_IN_NEXT_SLOT, instruction_length);
 }
 
-static void record_pending_jump_to_patch(struct jit_compiler * jit_compiler,
+static void record_pending_jump_to_patch(
+        struct jit_compiler * jit_compiler,
         uint16_t jump_instruction_index, //Index to native code where jump instruction starts
         uint16_t bytecode_offset, //Bytecode offset to jump
         uint16_t x64_jump_instruction_body_length //Jump native instruction length (without counting the native jump offset)
 ) {
     uint16_t bytecode_instruction_to_jump = CURRENT_BYTECODE_INDEX(jit_compiler) + bytecode_offset;
 
-    if(jit_compiler->pending_jumps_to_patch[bytecode_instruction_to_jump] == NULL) {
-        jit_compiler->pending_jumps_to_patch[bytecode_instruction_to_jump] = alloc_pending_path_jump();
-    }
-
     //Near jump instruction: (opcode 2 byte) + (offset 4 bytes)
-    add_pending_path_jump(
-            jit_compiler->pending_jumps_to_patch[bytecode_instruction_to_jump],
-            jump_instruction_index + x64_jump_instruction_body_length);
+    add_pending_jump_to_patch(
+            &jit_compiler->pending_jumps_to_patch,
+            bytecode_instruction_to_jump,
+            (void *) (jump_instruction_index + x64_jump_instruction_body_length)
+    );
 }
 
 static struct jit_compiler init_jit_compiler(struct function_object * function) {
@@ -788,13 +789,11 @@ static struct jit_compiler init_jit_compiler(struct function_object * function) 
     compiler.compiled_bytecode_to_native_by_index = malloc(sizeof(uint16_t) * function->chunk->in_use);
     memset(compiler.compiled_bytecode_to_native_by_index, 0, sizeof(uint16_t) * function->chunk->in_use);
 
-    compiler.pending_jumps_to_patch = malloc(sizeof(void *) * function->chunk->in_use);
-    memset(compiler.pending_jumps_to_patch, 0, sizeof(void *) * function->chunk->in_use);
-
     compiler.last_stack_slot_allocated = function->n_arguments > 0 ? function->n_arguments : -1;
     compiler.function_to_compile = function;
     compiler.pc = function->chunk->code;
-    
+
+    init_pending_jumps_to_patch(&compiler.pending_jumps_to_patch, function->chunk->in_use);
     init_register_allocator(&compiler.register_allocator);
     init_u8_arraylist(&compiler.native_compiled_code);
     init_stack_list(&compiler.package_stack);
@@ -870,24 +869,20 @@ static void check_pending_jumps_to_patch(struct jit_compiler * jit_compiler, int
     uint16_t current_bytecode_index = CURRENT_BYTECODE_INDEX(jit_compiler) - bytecode_instruction_length;
     uint16_t current_compiled_index = get_compiled_native_index_by_bytecode_index(jit_compiler, current_bytecode_index);
 
-    struct pending_path_jump * pending_jumps = jit_compiler->pending_jumps_to_patch[current_bytecode_index];
+    struct pending_jump_to_patch pending_jump_to_patch = get_pending_jump_to_patch(&jit_compiler->pending_jumps_to_patch,
+            current_bytecode_index);
 
-    if(pending_jumps != NULL) {
-        for(int i = 0; i < MAX_JUMPS_REFERENCES_TO_LINE; i++){
-            uint16_t compiled_native_jmp_offset_index = pending_jumps->compiled_native_jmp_offset_index[i];
+    for(int i = 0; i < pending_jump_to_patch.in_use; i++){
+        uint16_t compiled_native_jmp_offset_index = (uint16_t) pending_jump_to_patch.pending_patch_data[i];
 
-            if (compiled_native_jmp_offset_index != 0) {
-                //compiled_native_jmp_offset_index points to native jmp offset part of the instruction
-                //-4 to substract the jmp offset since it takes 4 bytes
-                uint16_t native_jmp_offset = current_compiled_index - (compiled_native_jmp_offset_index + 4);
-                uint16_t * compiled_native_jmp_offset_index_ptr = (uint16_t *) (jit_compiler->native_compiled_code.values + compiled_native_jmp_offset_index);
+        if (compiled_native_jmp_offset_index != 0) {
+            //pending_patch_data points to native jmp offset part of the instruction
+            //-4 to substract the jmp offset since it takes 4 bytes
+            uint16_t native_jmp_offset = current_compiled_index - (compiled_native_jmp_offset_index + 4);
+            uint16_t * compiled_native_jmp_offset_index_ptr = (uint16_t *) (jit_compiler->native_compiled_code.values + compiled_native_jmp_offset_index);
 
-                *compiled_native_jmp_offset_index_ptr = native_jmp_offset;
-            }
+            *compiled_native_jmp_offset_index_ptr = native_jmp_offset;
         }
-
-        jit_compiler->pending_jumps_to_patch[current_bytecode_index] = NULL;
-        free(pending_jumps);
     }
 }
 
@@ -960,14 +955,9 @@ static uint16_t get_compiled_native_index_by_bytecode_index(struct jit_compiler 
 }
 
 static void free_jit_compiler(struct jit_compiler * jit_compiler) {
-    for(int i = 0; i < jit_compiler->function_to_compile->chunk->in_use; i++){
-        if(jit_compiler->pending_jumps_to_patch[i] != NULL){
-            free(jit_compiler->pending_jumps_to_patch[i]);
-        }
-    }
-    free_stack_list(&jit_compiler->package_stack);
-    free(jit_compiler->pending_jumps_to_patch);
+    free_pending_jumps_to_patch(&jit_compiler->pending_jumps_to_patch);
     free(jit_compiler->compiled_bytecode_to_native_by_index);
+    free_stack_list(&jit_compiler->package_stack);
 }
 
 static struct pop_stack_operand_result pop_stack_operand_jit_stack_as_register(struct jit_compiler * jit_compiler) {
@@ -1134,3 +1124,4 @@ static bool does_single_bytecode_instruction(bytecode_t opcode) {
             return false;
     }
 }
+#pragma clang diagnostic pop

@@ -1,7 +1,5 @@
 #include "chunk_iterator.h"
 
-static int get_instruction_size(bytecode_t instruction);
-
 struct chunk_iterator iterate_chunk(struct chunk * chunk) {
     return (struct chunk_iterator) {
         .iterating = chunk,
@@ -37,6 +35,13 @@ uint16_t read_u16_chunk_iterator(struct chunk_iterator * chunk_iterator) {
     uint8_t first_half = *(chunk_iterator->pc - 2);
     uint8_t second_half = *(chunk_iterator->pc - 1);
     return first_half << 8 | second_half;
+}
+
+int current_instruction_index_chunk_iterator(struct chunk_iterator * chunk_iterator) {
+    int current_pc_index = chunk_iterator->pc - chunk_iterator->iterating->code;
+    int last_instruction_size = get_size_bytecode_instruction(chunk_iterator->last_instruction);
+
+    return current_pc_index - last_instruction_size;
 }
 
 bool has_next_chunk_iterator(struct chunk_iterator * chunk_iterator) {

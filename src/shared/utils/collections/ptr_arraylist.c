@@ -14,7 +14,6 @@ uint16_t append_ptr_arraylist(struct ptr_arraylist * array, void * value) {
     if(array->in_use + 1 > array->capacity) {
         const int new_capacity = GROW_CAPACITY(array->capacity);
         const int old_capacity = array->capacity;
-
         array->values = GROW_ARRAY(void *, array->values, old_capacity, new_capacity);
         array->capacity = new_capacity;
     }
@@ -22,4 +21,11 @@ uint16_t append_ptr_arraylist(struct ptr_arraylist * array, void * value) {
     array->values[array->in_use++] = value;
 
     return array->in_use - 1;
+}
+
+void resize_ptr_arraylist(struct ptr_arraylist * array, int new_size) {
+    if(array->capacity < new_size){
+        array->values = GROW_ARRAY(void * , array->values, array->capacity, new_size);
+        array->capacity = new_size;
+    }
 }

@@ -97,6 +97,7 @@ struct bytecode_list * create_bytecode_list(struct chunk * chunk) {
 
     while(has_next_chunk_iterator(&chunk_iterator)) {
         bytecode_t current_instruction = next_instruction_chunk_iterator(&chunk_iterator);
+        int current_instruction_index = current_instruction_index_chunk_iterator(&chunk_iterator);
 
         struct bytecode_list * current_node = malloc(sizeof(struct bytecode_list));
         current_node->bytecode = current_instruction;
@@ -124,13 +125,20 @@ struct bytecode_list * create_bytecode_list(struct chunk * chunk) {
             case OP_CALL:
                 current_node->as.pair.u8_1 = read_u8_chunk_iterator_at(&chunk_iterator, 0);
                 current_node->as.pair.u8_2 = read_u8_chunk_iterator_at(&chunk_iterator, 1);
-
             case OP_JUMP_IF_FALSE:
+            case OP_JUMP:
+                int to_jump_index = current_instruction_index - read_u16_chunk_iterator(&chunk_iterator);
+
+                break;
+            case OP_LOOP:
+                int to_jump_instruction_index = current_instruction_index - read_u16_chunk_iterator(&chunk_iterator);
+                current_node->as.jump = get_by_index_bytecode_list(head, to_jump_instruction_index);
+                break;
+
             case OP_INITIALIZE_ARRAY:
             case OP_GET_ARRAY_ELEMENT:
             case OP_SET_ARRAY_ELEMENT:
             case OP_FAST_CONST_16:
-            case OP_LOOP:
                 current_node->as.u16 = read_u16_chunk_iterator(&chunk_iterator);
             default:
         }
