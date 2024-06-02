@@ -61,3 +61,15 @@ int get_n_pop_bytecode_instruction(bytecode_t instruction) {
 int get_n_push_bytecode_instruction(bytecode_t instruction) {
     return bytecode_instructions_data[instruction].n_push;
 }
+
+bool is_jump_bytecode_instruction(bytecode_t instruction) {
+    return instruction == OP_JUMP_IF_FALSE || instruction == OP_JUMP || instruction == OP_LOOP;
+}
+
+bool is_fwd_jump_bytecode_instruction(bytecode_t instruction) {
+    return instruction == OP_JUMP_IF_FALSE || instruction == OP_JUMP;
+}
+
+bool is_bwd_jump_bytecode_instruction(bytecode_t instruction) {
+    return instruction == OP_LOOP;
+}

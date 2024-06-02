@@ -36,6 +36,11 @@ struct compilation_result inline_bytecode_compilation(struct compilation_result 
         }
     }
 
+    free_u64_hash_table(&nodes_already_checked);
+    free_recursive_call_graph(call_graph);
+    free_call_graph_iterator(&iterator);
+    free_stack_list(&pending);
+
     return bytecode_compilation;
 }
 

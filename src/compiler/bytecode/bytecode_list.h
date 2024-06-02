@@ -2,6 +2,8 @@
 
 #include "compiler/bytecode/chunk/chunk_iterator.h"
 #include "compiler/bytecode/chunk/chunk.h"
+
+#include "shared/bytecode/pending_jump_to_patch.h"
 #include "shared/bytecode/bytecode.h"
 #include "shared.h"
 
@@ -19,6 +21,9 @@ struct bytecode_list {
 
     struct bytecode_list * next;
     struct bytecode_list * prev;
+
+    //Only used when converting struct bytecode_list to struct chunk
+    int to_chunk_index;
 };
 
 struct bytecode_list * create_bytecode_list(struct chunk *);

@@ -13,6 +13,8 @@ int add_constant_to_chunk(struct chunk * chunk_to_write, lox_value_t constant) {
     return chunk_to_write->constants.in_use - 1;
 }
 
+//TODO Add method write_chunk_u16
+
 void write_chunk(struct chunk * chunk_to_write, uint8_t byte) {
     if(chunk_to_write->in_use + 1 > chunk_to_write->capacity) {
         int new_code_capacity = GROW_CAPACITY(chunk_to_write->capacity);

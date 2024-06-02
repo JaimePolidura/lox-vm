@@ -1,7 +1,7 @@
 #include "function_inliner.h"
 
 static void rename_local_variables(struct bytecode_list * to_inline, struct function_object * target);
-static void remove_double_emtpy_return(struct bytecode_list * to_inline, struct function_object * target);
+static void remove_double_emtpy_return(struct bytecode_list *to_inline);
 static void remove_return_statements(struct bytecode_list * to_inline, struct function_object * target);
 static void rename_argument_passing(struct function_object * target_function, struct bytecode_list * target_chunk,
         int call_index, int n_arguments);
@@ -9,38 +9,33 @@ static void get_call_args_in_stack(struct stack_list *, struct bytecode_list * t
         struct function_object * target_functions, int call_index);
 static void merge_to_inline_and_target(struct bytecode_list * merge_node, struct bytecode_list * to_inline);
 static void remove_op_call(struct bytecode_list * call_node);
-static void recompute_jump_offsets(struct bytecode_list * inlined);
 
 struct function_inline_result inline_function(
         struct function_object * target,
         int chunk_target_index,
         struct function_object * function_to_inline
 ) {
-    struct bytecode_list * chunk_to_inline = create_bytecode_list(&function_to_inline->chunk);
-    struct bytecode_list * target_chunk = create_bytecode_list(&target->chunk);
+    struct bytecode_list * chunk_to_inline = create_bytecode_list(function_to_inline->chunk);
+    struct bytecode_list * target_chunk = create_bytecode_list(target->chunk);
     struct bytecode_list * target_call = get_by_index_bytecode_list(target_chunk, chunk_target_index);
     int n_arguments_to_inline = function_to_inline->n_arguments;
 
     rename_local_variables(chunk_to_inline, target);
-    remove_double_emtpy_return(chunk_to_inline, target);
+    remove_double_emtpy_return(chunk_to_inline);
     remove_return_statements(chunk_to_inline, target);
 
     rename_argument_passing(target, target_chunk, chunk_target_index, n_arguments_to_inline);
     merge_to_inline_and_target(target_call, chunk_to_inline);
     remove_op_call(target_call);
 
-    recompute_jump_offsets(target_chunk);
-
     struct chunk * result_chunk = to_chunk_bytecode_list(target_chunk);
+
+    free_bytecode_list(target_call);
 
     return (struct function_inline_result) {
         .inlined_chunk = result_chunk,
         .total_size_added = result_chunk->in_use - target->chunk->in_use
     };
-}
-
-static void recompute_jump_offsets(struct bytecode_list * inlined) {
-
 }
 
 static void remove_op_call(struct bytecode_list * call_node) {
@@ -143,7 +138,7 @@ static void rename_local_variables(struct bytecode_list * to_inline, struct func
 //If we had return 1, the compiled bytecode would be "OP_CONST_1 OP_RETURN OP_NIL OP_RETURN" The compiler is inserting
 //An empty return so an item will always be placed in the stack if the user didn't put any return.
 //We want to get rid of "OP_NIL OP_RETURN" If previusly we have already returned, so OP_NIL OP_RETURN doesn't get inlined
-static void remove_double_emtpy_return(struct bytecode_list * to_inline, struct function_object * target) {
+static void remove_double_emtpy_return(struct bytecode_list * to_inline) {
     bytecode_t current_instruction = 0;
     bytecode_t prev_instruction = 0;
     struct bytecode_list * current_node = to_inline;

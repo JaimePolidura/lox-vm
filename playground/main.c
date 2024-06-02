@@ -9,10 +9,9 @@ int main() {
             "}"
             ""
             ""
-            "print suma(1, 2);",
+            "print inline suma(1, 2);",
     "main", NULL);
 
     disassemble_package(result.compiled_package, DISASSEMBLE_PACKAGE_FUNCTIONS);
 
-    struct call_graph * call_graph = create_call_graph(&result);
 }

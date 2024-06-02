@@ -1,6 +1,10 @@
 #include "bytecode_list.h"
 
-static struct bytecode_list * get_last_instruction(struct bytecode_list *instruction);
+static struct bytecode_list * get_last_instruction(struct bytecode_list * instruction);
+static void restore_jump_references(struct bytecode_list * referencee, struct bytecode_list * new_reference);
+static void check_pending_jumps_to_patch(struct pending_jumps_to_patch * pending_jumps, int current_bytecode_index,
+                                         struct bytecode_list * current_node);
+static void calculate_to_chunk_index(struct bytecode_list * head);
 
 struct bytecode_list * alloc_bytecode_list() {
     struct bytecode_list * bytecode_list = malloc(sizeof(struct bytecode_list));
@@ -21,16 +25,25 @@ void free_bytecode_list(struct bytecode_list * bytecode_list) {
 
 struct chunk * to_chunk_bytecode_list(struct bytecode_list * bytecode_list) {
     struct chunk * new_chunk = alloc_chunk();
+    calculate_to_chunk_index(bytecode_list);
 
     struct bytecode_list * current_instruction = bytecode_list;
     while(current_instruction != NULL) {
-        int instruction_length = get_size_bytecode_instruction(current_instruction->bytecode);
+        int current_instruction_size = get_size_bytecode_instruction(current_instruction->bytecode);
+        int current_index = new_chunk->in_use;
 
         write_chunk(new_chunk, current_instruction->bytecode);
 
-        if (instruction_length == 2) {
+        if (is_jump_bytecode_instruction(current_instruction->bytecode)) {
+            int to_jump_index = current_instruction->as.jump->to_chunk_index;
+            int jump_offset = abs(to_jump_index - current_index + current_instruction_size);
+
+            write_chunk(new_chunk, (jump_offset >> 8) & 0xff);
+            write_chunk(new_chunk, jump_offset & 0xff);
+
+        } else if (current_instruction_size == 2) {
             write_chunk(new_chunk, current_instruction->as.u8);
-        } else if(instruction_length == 3) {
+        } else if(current_instruction_size == 3) {
             write_chunk(new_chunk, current_instruction->as.pair.u8_1);
             write_chunk(new_chunk, current_instruction->as.pair.u8_2);
         }
@@ -39,6 +52,17 @@ struct chunk * to_chunk_bytecode_list(struct bytecode_list * bytecode_list) {
     }
 
     return new_chunk;
+}
+
+static void calculate_to_chunk_index(struct bytecode_list * node) {
+    int next_index = 0;
+
+    while(node != NULL) {
+        node->to_chunk_index = next_index;
+        next_index += get_size_bytecode_instruction(node->bytecode);
+
+        node = node->next;
+    }
 }
 
 void add_instructions_bytecode_list(struct bytecode_list * dst, struct bytecode_list * instructions) {
@@ -87,10 +111,26 @@ void unlink_instruciton_bytecode_list(struct bytecode_list * instruction) {
         instruction->next->prev = instruction->prev;
     }
 
+    restore_jump_references(instruction, instruction->next);
+
     free(instruction);
 }
 
+static void restore_jump_references(struct bytecode_list * referencee, struct bytecode_list * new_reference) {
+    struct bytecode_list * current_node = referencee->prev;
+
+    while(current_node != NULL) {
+        if(current_node->as.jump == referencee){
+            current_node->as.jump = new_reference;
+        }
+
+        current_node = current_node->prev;
+    }
+}
+
 struct bytecode_list * create_bytecode_list(struct chunk * chunk) {
+    struct pending_jumps_to_patch pending_jumps;
+    init_pending_jumps_to_patch(&pending_jumps, chunk->in_use);
     struct bytecode_list * head = malloc(sizeof(struct bytecode_list));
     struct bytecode_list * last_allocated = head;
     struct chunk_iterator chunk_iterator = iterate_chunk(chunk);
@@ -105,6 +145,8 @@ struct bytecode_list * create_bytecode_list(struct chunk * chunk) {
         current_node->prev = last_allocated;
 
         last_allocated = current_node;
+
+        check_pending_jumps_to_patch(&pending_jumps, current_instruction_index, current_node);
 
         switch (current_instruction) {
             case OP_INITIALIZE_STRUCT:
@@ -128,7 +170,7 @@ struct bytecode_list * create_bytecode_list(struct chunk * chunk) {
             case OP_JUMP_IF_FALSE:
             case OP_JUMP:
                 int to_jump_index = current_instruction_index - read_u16_chunk_iterator(&chunk_iterator);
-
+                add_pending_jump_to_patch(&pending_jumps, to_jump_index, current_node);
                 break;
             case OP_LOOP:
                 int to_jump_instruction_index = current_instruction_index - read_u16_chunk_iterator(&chunk_iterator);
@@ -143,8 +185,20 @@ struct bytecode_list * create_bytecode_list(struct chunk * chunk) {
             default:
         }
     }
-    
+
+    free_pending_jumps_to_patch(&pending_jumps);
+
     return head;
+}
+
+static void check_pending_jumps_to_patch(struct pending_jumps_to_patch * pending_jumps, int current_bytecode_index,
+        struct bytecode_list * current_node) {
+    struct pending_jump_to_patch pending = get_pending_jump_to_patch(pending_jumps, current_bytecode_index);
+
+    for (int i = 0; i < pending.in_use; i++) {
+        struct bytecode_list * other_node = pending.pending_patch_data[i];
+        other_node->as.jump = current_node;
+    }
 }
 
 static struct bytecode_list * get_last_instruction(struct bytecode_list * instruction) {
