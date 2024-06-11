@@ -11,6 +11,7 @@ static void merge_to_inline_and_target(struct bytecode_list * merge_node, struct
 static void remove_op_call(struct bytecode_list * call_node);
 static void rename_constants(struct bytecode_list * to_inline, int n_constants_in_use_in_target);
 static void copy_consants(struct function_object * target, struct function_object * to_inline);
+static void remove_eof(struct bytecode_list * to_inline);
 
 //target <-- function_to_inline function_to_inline will get inlined in target
 struct function_inline_result inline_function(
@@ -28,6 +29,7 @@ struct function_inline_result inline_function(
     rename_local_variables(chunk_to_inline, target);
     remove_double_emtpy_return(chunk_to_inline);
     remove_return_statements(chunk_to_inline, target);
+    remove_eof(chunk_to_inline);
 
     rename_argument_passing(target, target_chunk, chunk_target_index, n_arguments_to_inline);
     merge_to_inline_and_target(target_call, chunk_to_inline);
@@ -45,6 +47,19 @@ struct function_inline_result inline_function(
         .inlined_chunk = result_chunk,
         .total_size_added = target_size_after_inlining - target_size_before_inlining
     };
+}
+
+static void remove_eof(struct bytecode_list * to_inline) {
+    struct bytecode_list * current = to_inline;
+    while(current != NULL) {
+        struct bytecode_list * next_to_current = current->next;
+
+        if(current->bytecode == OP_EOF){
+            unlink_instruciton_bytecode_list(current);
+        }
+
+        current = next_to_current;
+    }
 }
 
 static void copy_consants(struct function_object * target, struct function_object * to_inline) {

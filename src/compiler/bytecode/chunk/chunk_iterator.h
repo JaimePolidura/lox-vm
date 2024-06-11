@@ -7,6 +7,7 @@ struct chunk_iterator {
     struct chunk * iterating;
     uint8_t * pc;
     bytecode_t last_instruction;
+    bool eof_already_hitted;
 };
 
 struct chunk_iterator iterate_chunk(struct chunk * chunk);

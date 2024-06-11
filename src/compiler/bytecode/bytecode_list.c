@@ -43,11 +43,10 @@ struct chunk * to_chunk_bytecode_list(struct bytecode_list * bytecode_list) {
 
         if (is_jump_bytecode_instruction(current_instruction->bytecode)) {
             int to_jump_index = current_instruction->as.jump->to_chunk_index;
-            int jump_offset = abs(to_jump_index - current_index + current_instruction_size);
+            int jump_offset = abs(to_jump_index - current_index - 3);
 
             write_chunk(new_chunk, (jump_offset >> 8) & 0xff);
             write_chunk(new_chunk, jump_offset & 0xff);
-
         } else if (current_instruction_size == 2) {
             write_chunk(new_chunk, current_instruction->as.u8);
         } else if(current_instruction_size == 3) {
@@ -57,8 +56,6 @@ struct chunk * to_chunk_bytecode_list(struct bytecode_list * bytecode_list) {
 
         current_instruction = current_instruction->next;
     }
-
-    write_chunk(new_chunk, OP_EOF);
 
     return new_chunk;
 }
@@ -183,11 +180,12 @@ struct bytecode_list * create_bytecode_list(struct chunk * chunk) {
                 break;
             case OP_JUMP_IF_FALSE:
             case OP_JUMP:
-                int to_jump_index = current_instruction_index - read_u16_chunk_iterator(&chunk_iterator);
+                int jmp_bytecode_offset = read_u16_chunk_iterator(&chunk_iterator);
+                int to_jump_index = (current_instruction_index + 3) + jmp_bytecode_offset;
                 add_pending_jump_to_patch(&pending_jumps, to_jump_index, current_node);
                 break;
             case OP_LOOP:
-                int to_jump_instruction_index = current_instruction_index - read_u16_chunk_iterator(&chunk_iterator);
+                int to_jump_instruction_index = current_instruction_index_chunk_iterator(&chunk_iterator) - read_u16_chunk_iterator(&chunk_iterator) + 3;
                 current_node->as.jump = get_by_index_bytecode_list(head, to_jump_instruction_index);
                 break;
 

@@ -8,8 +8,8 @@
 #define SINGLE_INSTRUCTION(name) printf("%s\n", name)
 #define BINARY_U8_INSTRUCTION(name, iterator) printf("%s %u\n", name, read_u8_chunk_iterator(&iterator))
 #define BINARY_U16_INSTRUCTION(name, ite) printf("%s %u\n", name, read_u8_chunk_iterator(&ite))
-#define FWD_JUMP_INSTRUCTION(name, pc, chunk, jump) printf("%s %4llX\n", name, (pc + jump) - chunk->code + 1)
-#define BWD_JUMP_INSTRUCTION(name, pc, chunk, jump) printf("%s %4llX\n", name, (pc - jump) - chunk->code + 1)
+#define FWD_JUMP_INSTRUCTION(name, pc, chunk, jump) printf("%s %4llX\n", name, (pc + jump) - chunk->code)
+#define BWD_JUMP_INSTRUCTION(name, pc, chunk, jump) printf("%s %4llX\n", name, (pc - jump) - chunk->code)
 
 #define BINARY_STRING_INSTRUCTION(name, chunk, ite) printf("%s %s\n", name, AS_STRING_OBJECT(read_constant_chunk_iterator(&ite))->chars)
 #define CALL_INSTRUCTION(name, ite) printf("%s %u %d\n", name, \

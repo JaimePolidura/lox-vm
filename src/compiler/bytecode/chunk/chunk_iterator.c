@@ -45,5 +45,12 @@ int current_instruction_index_chunk_iterator(struct chunk_iterator * chunk_itera
 }
 
 bool has_next_chunk_iterator(struct chunk_iterator * chunk_iterator) {
-    return *chunk_iterator->pc != OP_EOF;
+    if(chunk_iterator->eof_already_hitted){
+        return false;
+    }
+    if(*chunk_iterator->pc == OP_EOF){
+        chunk_iterator->eof_already_hitted = true;
+    }
+
+    return true;
 }

@@ -4,7 +4,7 @@ static struct pending_jump_to_patch * alloc_pending_jump_to_patch();
 
 void init_pending_jumps_to_patch(struct pending_jumps_to_patch * pending_path_jump, int size) {
     init_ptr_arraylist(&pending_path_jump->pending);
-    resize_ptr_arraylist(&pending_path_jump->pending, size * sizeof(struct pending_jump_to_patch));
+    resize_ptr_arraylist(&pending_path_jump->pending, size * sizeof(void *));
 }
 
 void free_pending_jumps_to_patch(struct pending_jumps_to_patch * pending_jumps_to_patch) {

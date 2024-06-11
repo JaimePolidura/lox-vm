@@ -378,10 +378,6 @@ static void return_function(struct call_frame * function_to_return_frame) {
     push_stack_vm(returned_value);
 }
 
-static void jump(struct call_frame * current_frame) {
-    current_frame->pc += READ_U16(current_frame);
-}
-
 static void initialize_array(struct call_frame * call_frame) {
     uint16_t n_elements = READ_U16(call_frame);
     struct array_object * array = alloc_array_object(n_elements);
@@ -456,6 +452,10 @@ static void set_struct_field(struct call_frame * call_frame) {
     if(!put_if_present_hash_table(&instance->fields, field_name, new_value)) {
         runtime_panic("Undefined field %s", field_name->chars);
     }
+}
+
+static void jump(struct call_frame * current_frame) {
+    current_frame->pc += READ_U16(current_frame);
 }
 
 static void jump_if_false(struct call_frame * call_frame) {

@@ -8,7 +8,58 @@
 
 extern struct vm current_vm;
 
-TEST(vm_inline_test_simple_function){
+TEST(vm_inline_if_test) {
+    start_vm();
+
+    struct compilation_result compilation = compile_standalone(
+            "fun nada() {"
+            "   var c = 1 + 2;"
+            "   if(c == 3) {"
+            "       print c;"
+            "   }"
+            "}"
+            ""
+            "if (true) {"
+            "   inline nada();"
+            "}"
+            "print 1;"
+    );
+
+    interpret_vm(compilation);
+    stop_vm();
+    reset_vm();
+
+    ASSERT_NEXT_VM_LOG(current_vm, "3.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
+}
+
+TEST(vm_inline_for_loop_test) {
+    start_vm();
+
+    struct compilation_result compilation = compile_standalone(
+            "fun suma(a, b) {"
+            "   return a + b;"
+            "}"
+            ""
+            "for(var i = 0; i < 5; i = i + 1) {"
+            "   print inline suma(i, i);"
+            "}"
+            "print 1;"
+    );
+
+    interpret_vm(compilation);
+    stop_vm();
+    reset_vm();
+
+    ASSERT_NEXT_VM_LOG(current_vm, "0.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "2.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "4.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "6.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "8.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
+}
+
+TEST(vm_inline_simple_function_test) {
     start_vm();
 
     struct compilation_result compilation = compile_standalone(
@@ -24,6 +75,6 @@ TEST(vm_inline_test_simple_function){
     interpret_vm(compilation);
     stop_vm();
     reset_vm();
-    
+
     ASSERT_NEXT_VM_LOG(current_vm, "9.000000");
 }
