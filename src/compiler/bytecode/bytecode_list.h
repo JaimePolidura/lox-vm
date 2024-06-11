@@ -27,6 +27,7 @@ struct bytecode_list {
 };
 
 struct bytecode_list * create_bytecode_list(struct chunk *);
+struct bytecode_list * create_instruction_bytecode_list(bytecode_t bytecode);
 struct bytecode_list * alloc_bytecode_list();
 struct chunk * to_chunk_bytecode_list(struct bytecode_list *);
 void free_bytecode_list(struct bytecode_list *);

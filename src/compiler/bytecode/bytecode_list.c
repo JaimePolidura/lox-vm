@@ -6,6 +6,12 @@ static void check_pending_jumps_to_patch(struct pending_jumps_to_patch * pending
                                          struct bytecode_list * current_node);
 static void calculate_to_chunk_index(struct bytecode_list * head);
 
+struct bytecode_list * create_instruction_bytecode_list(bytecode_t bytecode) {
+    struct bytecode_list * bytecode_list = alloc_bytecode_list();
+    bytecode_list->bytecode = bytecode;
+    return bytecode_list;
+}
+
 struct bytecode_list * alloc_bytecode_list() {
     struct bytecode_list * bytecode_list = malloc(sizeof(struct bytecode_list));
     bytecode_list->to_chunk_index = 0;
@@ -51,6 +57,8 @@ struct chunk * to_chunk_bytecode_list(struct bytecode_list * bytecode_list) {
 
         current_instruction = current_instruction->next;
     }
+
+    write_chunk(new_chunk, OP_EOF);
 
     return new_chunk;
 }

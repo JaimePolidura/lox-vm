@@ -31,6 +31,10 @@ struct call_graph * create_call_graph(struct compilation_result * compilation_re
         struct package * function_package_callee = function_call_callee->package;
         char * function_name_callee = function_call_callee->function_name;
         struct function_object * function_object_callee = get_function_by_name(function_package_callee, function_name_callee);
+        if (function_object_callee == NULL) { //Function not found, maybe it is a native function
+            continue;
+        }
+
         bool callee_node_already_existed = false;
 
         struct call_graph * call_graph_node_callee = get_call_graph_node(&functions_in_call_graph, function_call_callee,
@@ -96,7 +100,11 @@ static void add_children(
 static struct function_object * get_function_by_name(struct package * package, char * function_name_chars) {
     lox_value_t function_lox_value;
     struct string_object * function_name = copy_chars_to_string_object(function_name_chars, strlen(function_name_chars));
-    get_hash_table(&package->defined_functions, function_name, &function_lox_value);
+
+    if(!get_hash_table(&package->defined_functions, function_name, &function_lox_value)) {
+        return NULL; //If not found, it might be a native function
+    }
+
     free(function_name);
 
     return (struct function_object *) AS_OBJECT(function_lox_value);

@@ -11,6 +11,7 @@ set(SOURCES ${SOURCES}
         utils_test.h
         package_test.h
         u64_hash_table_test.h
+        vm_inline_test.h
 )
 
 include_directories(${PROJECT_SOURCE_DIR}/src)

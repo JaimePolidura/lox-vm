@@ -30,7 +30,7 @@ struct compilation_result inline_bytecode_compilation(struct compilation_result 
                 struct function_inline_result inline_result = inline_function(current_function, child_call->call_bytecode_index,
                         function_to_inline);
 
-                function_to_inline->chunk = inline_result.inlined_chunk;
+                current_function->chunk = inline_result.inlined_chunk;
                 update_next_calls_index(current_node, inline_result.total_size_added, i);
             }
         }

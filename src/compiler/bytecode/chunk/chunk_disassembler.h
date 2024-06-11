@@ -10,7 +10,7 @@
 #include "shared/types/package_object.h"
 #include "shared.h"
 
-
+#define DISASSEMBLE_ONLY_MAIN 0
 #define DISASSEMBLE_PACKAGE_FUNCTIONS 1
 
 void disassemble_package(struct package * package, long options);

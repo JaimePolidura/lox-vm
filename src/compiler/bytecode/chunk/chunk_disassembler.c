@@ -109,6 +109,7 @@ void disassemble_function(struct function_object * function, long options) {
             case OP_NO_OP: SINGLE_INSTRUCTION("OP_NO_OP"); break;
             default:
                 perror("Unhandled bytecode op\n");
+                exit(-1);
         }
     }
 }

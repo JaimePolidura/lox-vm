@@ -9,6 +9,8 @@ static void get_call_args_in_stack(struct stack_list *, struct bytecode_list * t
         struct function_object * target_functions, int call_index);
 static void merge_to_inline_and_target(struct bytecode_list * merge_node, struct bytecode_list * to_inline);
 static void remove_op_call(struct bytecode_list * call_node);
+static void rename_constants(struct bytecode_list * to_inline, int n_constants_in_use_in_target);
+static void copy_consants(struct function_object * target, struct function_object * to_inline);
 
 //target <-- function_to_inline function_to_inline will get inlined in target
 struct function_inline_result inline_function(
@@ -20,23 +22,54 @@ struct function_inline_result inline_function(
     struct bytecode_list * target_chunk = create_bytecode_list(target->chunk);
     struct bytecode_list * target_call = get_by_index_bytecode_list(target_chunk, chunk_target_index);
     int n_arguments_to_inline = function_to_inline->n_arguments;
+    int target_size_before_inlining = target->chunk->in_use;
 
+    rename_constants(chunk_to_inline, target->chunk->constants.in_use);
     rename_local_variables(chunk_to_inline, target);
     remove_double_emtpy_return(chunk_to_inline);
     remove_return_statements(chunk_to_inline, target);
 
     rename_argument_passing(target, target_chunk, chunk_target_index, n_arguments_to_inline);
     merge_to_inline_and_target(target_call, chunk_to_inline);
+    copy_consants(target, function_to_inline);
     remove_op_call(target_call);
 
     struct chunk * result_chunk = to_chunk_bytecode_list(target_chunk);
+    result_chunk->constants = target->chunk->constants;
+    result_chunk->lines = NULL;
+    int target_size_after_inlining = target->chunk->in_use;
 
     free_bytecode_list(target_chunk);
 
     return (struct function_inline_result) {
         .inlined_chunk = result_chunk,
-        .total_size_added = result_chunk->in_use - target->chunk->in_use
+        .total_size_added = target_size_after_inlining - target_size_before_inlining
     };
+}
+
+static void copy_consants(struct function_object * target, struct function_object * to_inline) {
+    for(int i = 0; i < to_inline->chunk->constants.in_use; i++){
+        lox_value_t current_constant = to_inline->chunk->constants.values[i];
+        append_lox_arraylist(&target->chunk->constants, current_constant);
+    }
+}
+
+static void rename_constants(struct bytecode_list * to_inline, int n_constants_in_use_in_target) {
+    for(struct bytecode_list * current = to_inline; current != NULL; current = current->next){
+        switch (current->bytecode) {
+            case OP_CONSTANT:
+            case OP_PACKAGE_CONST:
+            case OP_DEFINE_GLOBAL:
+            case OP_GET_GLOBAL:
+            case OP_SET_GLOBAL:
+            case OP_INITIALIZE_STRUCT:
+            case OP_GET_STRUCT_FIELD:
+            case OP_SET_STRUCT_FIELD:
+                int current_constant_offset = current->as.u8;
+                current->as.u8 = current_constant_offset + n_constants_in_use_in_target;
+                break;
+        }
+    }
 }
 
 static void remove_op_call(struct bytecode_list * call_node) {
@@ -67,9 +100,10 @@ static void rename_argument_passing(
         struct bytecode_list * arg_node = pop_stack_list(&stack);
         struct bytecode_list * set_local = alloc_bytecode_list();
         set_local->bytecode = OP_SET_LOCAL;
-        set_local->as.u8 = i + target_function->n_locals;
+        set_local->as.u8 = i + target_function->n_locals + 1; //All functions local variables starts with 1
 
         add_instruction_bytecode_list(arg_node, set_local);
+        add_instruction_bytecode_list(set_local, create_instruction_bytecode_list(OP_POP));
     }
 
     //Remove OP_GET_GLOBAL <function name>
@@ -88,7 +122,7 @@ static void get_call_args_in_stack(
     struct bytecode_list * call_node = get_by_index_bytecode_list(target_chunk, call_index);
     struct bytecode_list * current_node = target_chunk;
 
-    while (current_node < call_node) {
+    while (current_node != call_node) {
         int current_instruction_n_push = get_n_push_bytecode_instruction(current_node->bytecode);
         int current_instruction_n_pop = get_n_pop_bytecode_instruction(current_node->bytecode);
 
