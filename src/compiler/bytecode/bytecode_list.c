@@ -8,6 +8,7 @@ static void calculate_to_chunk_index(struct bytecode_list * head);
 
 struct bytecode_list * alloc_bytecode_list() {
     struct bytecode_list * bytecode_list = malloc(sizeof(struct bytecode_list));
+    bytecode_list->to_chunk_index = 0;
     bytecode_list->bytecode = 0;
     bytecode_list->next = NULL;
     bytecode_list->prev = NULL;
@@ -131,18 +132,22 @@ static void restore_jump_references(struct bytecode_list * referencee, struct by
 struct bytecode_list * create_bytecode_list(struct chunk * chunk) {
     struct pending_jumps_to_patch pending_jumps;
     init_pending_jumps_to_patch(&pending_jumps, chunk->in_use);
-    struct bytecode_list * head = malloc(sizeof(struct bytecode_list));
-    struct bytecode_list * last_allocated = head;
+    struct bytecode_list * head = NULL;
+    struct bytecode_list * last_allocated = NULL;
     struct chunk_iterator chunk_iterator = iterate_chunk(chunk);
 
     while(has_next_chunk_iterator(&chunk_iterator)) {
         bytecode_t current_instruction = next_instruction_chunk_iterator(&chunk_iterator);
         int current_instruction_index = current_instruction_index_chunk_iterator(&chunk_iterator);
 
-        struct bytecode_list * current_node = malloc(sizeof(struct bytecode_list));
+        struct bytecode_list * current_node = alloc_bytecode_list();
         current_node->bytecode = current_instruction;
-        last_allocated->next = current_node;
         current_node->prev = last_allocated;
+
+        if(last_allocated != NULL)
+            last_allocated->next = current_node;
+        if(last_allocated == NULL)
+            head = current_node;
 
         last_allocated = current_node;
 
@@ -167,6 +172,7 @@ struct bytecode_list * create_bytecode_list(struct chunk * chunk) {
             case OP_CALL:
                 current_node->as.pair.u8_1 = read_u8_chunk_iterator_at(&chunk_iterator, 0);
                 current_node->as.pair.u8_2 = read_u8_chunk_iterator_at(&chunk_iterator, 1);
+                break;
             case OP_JUMP_IF_FALSE:
             case OP_JUMP:
                 int to_jump_index = current_instruction_index - read_u16_chunk_iterator(&chunk_iterator);

@@ -11,6 +11,7 @@
 struct function_inline_result {
     struct chunk * inlined_chunk;
     int total_size_added;
+    int total_constants_added;
 };
 
 struct function_inline_result inline_function(struct function_object * target, int chunk_target_index,

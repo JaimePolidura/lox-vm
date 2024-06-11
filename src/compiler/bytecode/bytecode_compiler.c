@@ -1305,7 +1305,7 @@ static struct function_call * create_current_function_call(struct bytecode_compi
     current_function_call->package = bytecode_compiler->package_of_external_symbol != NULL ?
                                      bytecode_compiler->package_of_external_symbol :
                                      bytecode_compiler->package;
-    current_function_call->call_bytecode_index = bytecode_compiler->current_function->chunk->in_use - 4;
+    current_function_call->call_bytecode_index = bytecode_compiler->current_function->chunk->in_use - 3;
     current_function_call->function_scope = SCOPE_FUNCTION;
 
     return current_function_call;

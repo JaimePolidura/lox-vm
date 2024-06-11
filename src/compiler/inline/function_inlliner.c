@@ -10,6 +10,7 @@ static void get_call_args_in_stack(struct stack_list *, struct bytecode_list * t
 static void merge_to_inline_and_target(struct bytecode_list * merge_node, struct bytecode_list * to_inline);
 static void remove_op_call(struct bytecode_list * call_node);
 
+//target <-- function_to_inline function_to_inline will get inlined in target
 struct function_inline_result inline_function(
         struct function_object * target,
         int chunk_target_index,
@@ -30,7 +31,7 @@ struct function_inline_result inline_function(
 
     struct chunk * result_chunk = to_chunk_bytecode_list(target_chunk);
 
-    free_bytecode_list(target_call);
+    free_bytecode_list(target_chunk);
 
     return (struct function_inline_result) {
         .inlined_chunk = result_chunk,
@@ -40,7 +41,6 @@ struct function_inline_result inline_function(
 
 static void remove_op_call(struct bytecode_list * call_node) {
     unlink_instruciton_bytecode_list(call_node);
-    free(call_node);
 }
 
 static void merge_to_inline_and_target(struct bytecode_list * merge_node, struct bytecode_list * to_inline) {
@@ -75,6 +75,8 @@ static void rename_argument_passing(
     //Remove OP_GET_GLOBAL <function name>
     struct bytecode_list * get_function_node = pop_stack_list(&stack);
     unlink_instruciton_bytecode_list(get_function_node);
+
+    free_stack_list(&stack);
 }
 
 static void get_call_args_in_stack(
@@ -146,15 +148,17 @@ static void remove_double_emtpy_return(struct bytecode_list * to_inline) {
     while(current_node != NULL){
         current_instruction = current_node->bytecode;
 
-        if(current_instruction == OP_RETURN &&
+        if(current_instruction == OP_NIL &&
            prev_instruction == OP_RETURN &&
-           current_node->next->bytecode == OP_NIL) {
+           current_node->next->bytecode == OP_RETURN) {
 
-            struct bytecode_list * next_to_current = current_node->next;
+            struct bytecode_list * op_return = current_node->next;
+            struct bytecode_list * next_to_op_return = current_node->next->next;
 
-            unlink_instruciton_bytecode_list(current_node);
+            unlink_instruciton_bytecode_list(current_node); //OP_NIL
+            unlink_instruciton_bytecode_list(op_return); //OP_RETURN
 
-            current_node = next_to_current;
+            current_node = next_to_op_return;
         } else {
             prev_instruction = current_instruction;
             current_node = current_node->next;
@@ -165,15 +169,20 @@ static void remove_double_emtpy_return(struct bytecode_list * to_inline) {
 static void remove_return_statements(struct bytecode_list * to_inline, struct function_object * target) {
     int return_local_variable_num = target->n_locals;
 
-    for(struct bytecode_list * current_to_inline = to_inline;
-        current_to_inline != NULL;
-        current_to_inline = current_to_inline->next) {
+    struct bytecode_list * current_instruction = to_inline;
 
-        if (current_to_inline->bytecode == OP_RETURN) {
+    while (current_instruction != NULL) {
+        if (current_instruction->bytecode == OP_RETURN) {
+            struct bytecode_list * next_to_current = current_instruction->next;
+
             //The callee will always place the return value in the stack
             //The caller will always pop it from the stack or OP_POP instruction will be used
             //So we can discard return statements
-            unlink_instruciton_bytecode_list(current_to_inline);
+            unlink_instruciton_bytecode_list(current_instruction);
+
+            current_instruction = next_to_current;
+        } else {
+            current_instruction = current_instruction->next;
         }
     }
 }
