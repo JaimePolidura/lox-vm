@@ -21,6 +21,7 @@ struct compilation_result compile(char * entrypoint_absolute_path, char * compil
 
 struct compilation_result compile_standalone(char * source_code) {
     struct compilation_result bytecode_compilation = compile_bytecode(source_code, "main", NULL);
+    struct compilation_result inlining_result = inline_bytecode_compilation(bytecode_compilation);
 
-    return bytecode_compilation;
+    return inlining_result;
 }

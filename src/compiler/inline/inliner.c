@@ -5,7 +5,7 @@
 static void update_next_calls_index(struct call_graph * current_node, int inlined_size_added, int inlined_call_index);
 
 struct compilation_result inline_bytecode_compilation(struct compilation_result bytecode_compilation) {
-    if(!bytecode_compilation.success || bytecode_compilation.success){
+    if(!bytecode_compilation.success){
         return bytecode_compilation;
     }
 

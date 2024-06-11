@@ -88,6 +88,7 @@ static void add_current_function_call(struct bytecode_compiler * bytecode_compil
 static void add_function_call(struct bytecode_compiler *, struct function_call *);
 static void add_package_function_call(struct bytecode_compiler *, struct package *);
 static void set_compiling_function_name(struct bytecode_compiler *, char *);
+static void inline_expression(struct bytecode_compiler *, bool can_assign);
 
 //Lowest to highest
 typedef enum {
@@ -115,6 +116,7 @@ struct parse_rule {
 static void parse_precedence(struct bytecode_compiler * compiler, precedence_t precedence);
 
 struct parse_rule rules[] = {
+        [TOKEN_INLINE] = {inline_expression, NULL, PREC_NONE},
         [TOKEN_OPEN_PAREN] = {grouping, function_call, PREC_CALL},
         [TOKEN_CLOSE_PAREN] = {NULL, NULL, PREC_NONE},
         [TOKEN_OPEN_BRACE] = {NULL, NULL, PREC_NONE},
@@ -245,6 +247,12 @@ static void declaration(struct bytecode_compiler * compiler) {
     } else {
         statement(compiler);
     }
+}
+
+static void inline_expression(struct bytecode_compiler * compiler, bool can_assign) {
+    compiler->compiling_inline_call = true;
+    expression(compiler);
+    compiler->compiling_inline_call = false;
 }
 
 static void inline_declaration(struct bytecode_compiler * compiler) {

@@ -120,11 +120,13 @@ void free_recursive_call_graph(struct call_graph * call_graph) {
     }
 }
 
-struct call_graph_iterator iterate_call_graph(struct call_graph *) {
+struct call_graph_iterator iterate_call_graph(struct call_graph * call_graph) {
     struct call_graph_iterator iterator;
     init_u64_hash_table(&iterator.already_checked);
     init_stack_list(&iterator.pending);
     init_stack_list(&iterator.parents);
+    push_stack_list(&iterator.parents, call_graph);
+
     return iterator;
 }
 
