@@ -39,6 +39,9 @@ void switch_native_to_jit_mode(struct jit_compiler *);
 #define READ_BYTECODE(jit_compiler) (*(jit_compiler)->pc++)
 #define READ_U16(jit_compiler) \
     ((jit_compiler)->pc += 2, (uint16_t)(((jit_compiler)->pc[-2] << 8) | (jit_compiler)->pc[-1]))
+#define READ_U64(jit_compiler) \
+    ((jit_compiler)->pc += 8, (uint64_t)(((jit_compiler)->pc[-8] << 54) | ((jit_compiler)->pc[-7] << 48) | ((jit_compiler)->pc[-6] << 40) | \
+    ((jit_compiler)->pc[-5] << 32) | ((jit_compiler)->pc[-4] << 24) | ((jit_compiler)->pc[-3] << 16) | ((jit_compiler)->pc[-2] << 8) | (jit_compiler)->pc[-1]))
 #define READ_CONSTANT(jit_compiler) (jit_compiler->function_to_compile->chunk->constants.values[READ_BYTECODE(jit_compiler)])
 #define CURRENT_BYTECODE_INDEX(jit_compiler) (jit_compiler->pc - jit_compiler->function_to_compile->chunk->code)
 
@@ -67,7 +70,10 @@ static void initialize_array(struct jit_compiler *);
 static void get_array_element(struct jit_compiler *);
 static void set_array_element(struct jit_compiler *);
 static void enter_monitor_jit(struct jit_compiler *);
-static void exti_monitor_jit(struct jit_compiler *);
+static void exit_monitor_jit(struct jit_compiler *);
+static void enter_monitor_explicit_jit(struct jit_compiler *);
+static void exit_monitor_explicit_jit(struct jit_compiler *);
+static uint16_t emit_do_enter_monitor(struct jit_compiler *, struct monitor *);
 static void return_jit(struct jit_compiler *, bool * finish_compilation_flag);
 static void call_jit(struct jit_compiler *);
 static void eof(struct jit_compiler *, bool * finish_compilation_flag);
@@ -82,7 +88,6 @@ static void number_const(struct jit_compiler *, int value, int instruction_lengt
 static void free_jit_compiler(struct jit_compiler *);
 static uint16_t cast_lox_object_to_ptr(struct jit_compiler *, register_t lox_object_ptr);
 static uint16_t cast_ptr_to_lox_object(struct jit_compiler *, register_t lox_object_ptr);
-static void exit_monitor_jit(struct jit_compiler *);
 static uint16_t call_safepoint(struct jit_compiler *);
 static uint16_t call_add_object_to_heap(struct jit_compiler *, register_t);
 static uint16_t emit_lox_push(struct jit_compiler *, register_t);
@@ -151,6 +156,8 @@ struct jit_compilation_result jit_compile_arch(struct function_object * function
             case OP_INITIALIZE_ARRAY: initialize_array(&jit_compiler); break;
             case OP_GET_ARRAY_ELEMENT: get_array_element(&jit_compiler); break;
             case OP_SET_ARRAY_ELEMENT: set_array_element(&jit_compiler); break;
+            case OP_ENTER_MONITOR_EXPLICIT: enter_monitor_explicit_jit(&jit_compiler); break;
+            case OP_EXIT_MONITOR_EXPLICIT: exit_monitor_explicit_jit(&jit_compiler); break;
             case OP_ENTER_MONITOR: enter_monitor_jit(&jit_compiler); break;
             case OP_EXIT_MONITOR: exit_monitor_jit(&jit_compiler); break;
             case OP_RETURN: return_jit(&jit_compiler, &finish_compilation_flag); break;
@@ -275,26 +282,20 @@ static void return_jit(struct jit_compiler * jit_compiler, bool * finish_compila
     *finish_compilation_flag = true;
 }
 
-static void exit_monitor_jit(struct jit_compiler * jit_compiler) {
-    monitor_number_t monitor_number_to_exit = READ_BYTECODE(jit_compiler);
-    struct monitor * monitor = &jit_compiler->function_to_compile->monitors[monitor_number_to_exit];
-
-    uint16_t instruction_index = call_external_c_function(
-            jit_compiler,
-            MODE_JIT,
-            SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
-            FUNCTION_TO_OPERAND(exit_monitor),
-            1,
-            IMMEDIATE_TO_OPERAND((uint64_t) monitor)
-            );
-
-    record_compiled_bytecode(jit_compiler, instruction_index, OP_EXIT_MONITOR_LENGTH);
+static void enter_monitor_explicit_jit(struct jit_compiler * jit_compiler) {
+    struct monitor * monitor = (struct monitor *) READ_U64(jit_compiler);
+    uint16_t instruction_index = emit_do_enter_monitor(jit_compiler, monitor);
+    record_compiled_bytecode(jit_compiler, instruction_index, OP_ENTER_MONITOR_EXPLICIT_LENGTH);
 }
 
 static void enter_monitor_jit(struct jit_compiler * jit_compiler) {
     monitor_number_t monitor_number_to_enter = READ_BYTECODE(jit_compiler);
     struct monitor * monitor_to_enter = &jit_compiler->function_to_compile->monitors[monitor_number_to_enter];
+    uint16_t instruction_index = emit_do_enter_monitor(jit_compiler, monitor_to_enter);
+    record_compiled_bytecode(jit_compiler, instruction_index, OP_ENTER_MONITOR_LENGTH);
+}
 
+static uint16_t emit_do_enter_monitor(struct jit_compiler * jit_compiler, struct monitor * monitor) {
     //set_self_thread_waiting calls safepoint that run in vm mode
     //(another thread might be doing gc, so it will need to read the most up-to-date lox stack)
     uint16_t instruction_index = call_external_c_function(
@@ -310,7 +311,7 @@ static void enter_monitor_jit(struct jit_compiler * jit_compiler) {
             KEEP_MODE_AFTER_CALL,
             FUNCTION_TO_OPERAND(enter_monitor),
             1,
-            IMMEDIATE_TO_OPERAND((uint64_t) monitor_to_enter));
+            IMMEDIATE_TO_OPERAND((uint64_t) monitor));
 
     call_external_c_function(
             jit_compiler,
@@ -322,7 +323,38 @@ static void enter_monitor_jit(struct jit_compiler * jit_compiler) {
     int h_heap_allocations = n_heap_allocations_in_jit_stack(&jit_compiler->jit_stack);
     switch_vm_gc_to_jit_mode(jit_compiler, (struct jit_mode_switch_info) {h_heap_allocations});
 
-    record_compiled_bytecode(jit_compiler, instruction_index, OP_ENTER_MONITOR_LENGTH);
+    return instruction_index;
+}
+
+static void exit_monitor_jit(struct jit_compiler * jit_compiler) {
+    monitor_number_t monitor_number_to_exit = READ_BYTECODE(jit_compiler);
+    struct monitor * monitor = &jit_compiler->function_to_compile->monitors[monitor_number_to_exit];
+
+    uint16_t instruction_index = call_external_c_function(
+            jit_compiler,
+            MODE_JIT,
+            SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
+            FUNCTION_TO_OPERAND(exit_monitor),
+            1,
+            IMMEDIATE_TO_OPERAND((uint64_t) monitor)
+    );
+
+    record_compiled_bytecode(jit_compiler, instruction_index, OP_EXIT_MONITOR_LENGTH);
+}
+
+static void exit_monitor_explicit_jit(struct jit_compiler * jit_compiler) {
+    struct monitor * monitor = (struct monitor *) READ_U64(jit_compiler);
+
+    uint16_t instruction_index = call_external_c_function(
+            jit_compiler,
+            MODE_JIT,
+            SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
+            FUNCTION_TO_OPERAND(exit_monitor),
+            1,
+            IMMEDIATE_TO_OPERAND((uint64_t) monitor)
+    );
+
+    record_compiled_bytecode(jit_compiler, instruction_index, OP_EXIT_MONITOR_EXPLICIT_LENGTH);
 }
 
 static void set_array_element(struct jit_compiler * jit_compiler) {

@@ -65,10 +65,15 @@ static void initialize_array(struct call_frame * call_frame);
 static void get_array_element(struct call_frame * call_frame);
 static void set_array_element(struct call_frame * call_frame);
 static void fast_16_const(struct call_frame * call_frame);
+static void enter_monitor_vm_explicit(struct call_frame * call_frame);
+static void exit_monitor_vm_explicit(struct call_frame * call_frame);
 
 #define READ_BYTECODE(frame) (*frame->pc++)
 #define READ_U16(frame) \
     (frame->pc += 2, (uint16_t)((frame->pc[-2] << 8) | frame->pc[-1]))
+#define READ_U64(frame) \
+    (frame->pc += 8, (uint64_t)((frame->pc[-8] << 54) | (frame->pc[-7] << 48) | (frame->pc[-6] << 40) | \
+    (frame->pc[-5] << 32) | (frame->pc[-4] << 24) | (frame->pc[-3] << 16) | (frame->pc[-2] << 8) | frame->pc[-1]))
 #define READ_CONSTANT(frame) (frame->function->chunk->constants.values[READ_BYTECODE(frame)])
 #define BINARY_OP(op) \
     do { \
@@ -139,6 +144,8 @@ static interpret_result_t run() {
             case OP_ENTER_PACKAGE: enter_package(); current_frame = get_current_frame(); break;
             case OP_EXIT_PACKAGE: exit_package(); current_frame = get_current_frame(); break;
             case OP_ENTER_MONITOR: enter_monitor_vm(current_frame); break;
+            case OP_ENTER_MONITOR_EXPLICIT: enter_monitor_vm_explicit(current_frame); break;
+            case OP_EXIT_MONITOR_EXPLICIT: exit_monitor_vm_explicit(current_frame); break;
             case OP_EXIT_MONITOR: exit_monitor_vm(current_frame); break;
             case OP_INITIALIZE_ARRAY: initialize_array(current_frame); break;
             case OP_GET_ARRAY_ELEMENT: get_array_element(current_frame); break;
@@ -165,6 +172,18 @@ static void enter_monitor_vm(struct call_frame * call_frame) {
     set_self_thread_waiting();
     enter_monitor(monitor_to_enter);
     set_self_thread_runnable();
+}
+
+static void enter_monitor_vm_explicit(struct call_frame * call_frame) {
+    struct monitor * monitor_to_enter = (struct monitor *) READ_U64(call_frame);
+    set_self_thread_waiting();
+    enter_monitor(monitor_to_enter);
+    set_self_thread_runnable();
+}
+
+static void exit_monitor_vm_explicit(struct call_frame * call_frame) {
+    struct monitor * monitor_to_exit = (struct monitor *) READ_U64(call_frame);
+    exit_monitor(monitor_to_exit);
 }
 
 static void exit_monitor_vm(struct call_frame * call_frame) {

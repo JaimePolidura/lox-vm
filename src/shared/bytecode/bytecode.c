@@ -48,8 +48,10 @@ struct bytecode_instruction_data bytecode_instructions_data[] = {
         [OP_SET_ARRAY_ELEMENT] = {.size = 3, .n_pops = 2, .n_push = 0},
         [OP_FAST_CONST_16] = {.size = 3, .n_pops = 0, .n_push = 1},
         [OP_LOOP] = {.size = 3, .n_pops = 0, .n_push = 0},
-        [OP_JUMP] = {.size = 3, .n_pops = 0, .n_push = 0}
-};
+        [OP_JUMP] = {.size = 3, .n_pops = 0, .n_push = 0},
+        [OP_ENTER_MONITOR_EXPLICIT] = {.size = 9, .n_pops = 0, .n_push = 0},
+        [OP_EXIT_MONITOR_EXPLICIT] = {.size = 9, .n_pops = 0, .n_push = 0},
+ };
 
 int get_size_bytecode_instruction(bytecode_t instruction) {
     return bytecode_instructions_data[instruction].size;

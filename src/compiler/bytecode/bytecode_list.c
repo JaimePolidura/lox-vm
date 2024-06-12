@@ -194,6 +194,10 @@ struct bytecode_list * create_bytecode_list(struct chunk * chunk) {
             case OP_SET_ARRAY_ELEMENT:
             case OP_FAST_CONST_16:
                 current_node->as.u16 = read_u16_chunk_iterator(&chunk_iterator);
+            case OP_ENTER_MONITOR_EXPLICIT:
+            case OP_EXIT_MONITOR_EXPLICIT:
+                current_node->as.u64 = read_u64_chunk_iterator(&chunk_iterator);
+                break;
             default:
         }
     }

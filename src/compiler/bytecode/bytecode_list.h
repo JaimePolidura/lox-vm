@@ -12,6 +12,7 @@ struct bytecode_list {
     union {
         uint8_t u8;
         uint16_t u16;
+        uint64_t u64;
         struct {
             uint8_t u8_1;
             uint8_t u8_2;

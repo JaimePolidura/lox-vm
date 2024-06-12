@@ -8,6 +8,7 @@
 #define SINGLE_INSTRUCTION(name) printf("%s\n", name)
 #define BINARY_U8_INSTRUCTION(name, iterator) printf("%s %u\n", name, read_u8_chunk_iterator(&iterator))
 #define BINARY_U16_INSTRUCTION(name, ite) printf("%s %u\n", name, read_u8_chunk_iterator(&ite))
+#define BINARY_U64_INSTRUCTION(name, ite) printf("%s %llu\n", name, read_u64_chunk_iterator(&ite))
 #define FWD_JUMP_INSTRUCTION(name, pc, chunk, jump) printf("%s %4llX\n", name, (pc + jump) - chunk->code)
 #define BWD_JUMP_INSTRUCTION(name, pc, chunk, jump) printf("%s %4llX\n", name, (pc - jump) - chunk->code)
 
@@ -107,6 +108,8 @@ void disassemble_function(struct function_object * function, long options) {
             case OP_PACKAGE_CONST: PACKAGE_CONST_INSTRUCTION("OP_ENTER_PACKAGE", iterator); break;
             case OP_EOF: SINGLE_INSTRUCTION("OP_EOF"); return;
             case OP_NO_OP: SINGLE_INSTRUCTION("OP_NO_OP"); break;
+            case OP_ENTER_MONITOR_EXPLICIT: BINARY_U64_INSTRUCTION("OP_ENTER_MONITOR_EXPLICIT", iterator); break;
+            case OP_EXIT_MONITOR_EXPLICIT: BINARY_U64_INSTRUCTION("OP_EXIT_MONITOR_EXPLICIT", iterator); break;
             default:
                 perror("Unhandled bytecode op\n");
                 exit(-1);

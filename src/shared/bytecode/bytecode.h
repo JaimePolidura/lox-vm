@@ -3,49 +3,51 @@
 #include "shared.h"
 
 typedef enum {
-    OP_CONSTANT,          // Index: 0
-    OP_NIL,               // Index: 1
-    OP_TRUE,              // Index: 2
-    OP_FALSE,             // Index: 3
-    OP_POP,               // Index: 4
-    OP_EQUAL,             // Index: 5
-    OP_GREATER,           // Index: 6
-    OP_LESS,              // Index: 7
-    OP_RETURN,            // Index: 8
-    OP_NEGATE,            // Index: 9
-    OP_PRINT,             // Index: 10
-    OP_EOF,               // Index: 11
-    OP_ADD,               // Index: 12
-    OP_SUB,               // Index: 13
-    OP_DEFINE_GLOBAL,     // Index: 14
-    OP_GET_GLOBAL,        // Index: 15
-    OP_SET_GLOBAL,        // Index: 16
-    OP_GET_LOCAL,         // Index: 17
-    OP_SET_LOCAL,         // Index: 18
-    OP_MUL,               // Index: 19
-    OP_DIV,               // Index: 20
-    OP_NOT,               // Index: 21
-    OP_JUMP_IF_FALSE,     // Index: 22
-    OP_JUMP,              // Index: 23
-    OP_LOOP,              // Index: 24
-    OP_CALL,              // Index: 25
+    OP_CONSTANT,                 // Index: 0
+    OP_NIL,                      // Index: 1
+    OP_TRUE,                     // Index: 2
+    OP_FALSE,                    // Index: 3
+    OP_POP,                      // Index: 4
+    OP_EQUAL,                    // Index: 5
+    OP_GREATER,                  // Index: 6
+    OP_LESS,                     // Index: 7
+    OP_RETURN,                   // Index: 8
+    OP_NEGATE,                   // Index: 9
+    OP_PRINT,                    // Index: 10
+    OP_EOF,                      // Index: 11
+    OP_ADD,                      // Index: 12
+    OP_SUB,                      // Index: 13
+    OP_DEFINE_GLOBAL,            // Index: 14
+    OP_GET_GLOBAL,               // Index: 15
+    OP_SET_GLOBAL,               // Index: 16
+    OP_GET_LOCAL,                // Index: 17
+    OP_SET_LOCAL,                // Index: 18
+    OP_MUL,                      // Index: 19
+    OP_DIV,                      // Index: 20
+    OP_NOT,                      // Index: 21
+    OP_JUMP_IF_FALSE,            // Index: 22
+    OP_JUMP,                     // Index: 23
+    OP_LOOP,                     // Index: 24
+    OP_CALL,                     // Index: 25
 
-    OP_INITIALIZE_STRUCT, // Index: 26
-    OP_GET_STRUCT_FIELD,  // Index: 27
-    OP_SET_STRUCT_FIELD,  // Index: 28
-    OP_ENTER_PACKAGE,     // Index: 29
-    OP_EXIT_PACKAGE,      // Index: 30
-    OP_ENTER_MONITOR,     // Index: 31
-    OP_EXIT_MONITOR,      // Index: 32
-    OP_INITIALIZE_ARRAY,  // Index: 33
-    OP_GET_ARRAY_ELEMENT, // Index: 34
-    OP_SET_ARRAY_ELEMENT, // Index: 35
-    OP_FAST_CONST_8,      // Index: 36
-    OP_FAST_CONST_16,     // Index: 37
-    OP_CONST_1,           // Index: 38
-    OP_CONST_2,           // Index: 38
-    OP_NO_OP,             // Index: 39
-    OP_PACKAGE_CONST      // Index: 40
+    OP_INITIALIZE_STRUCT,        // Index: 26
+    OP_GET_STRUCT_FIELD,         // Index: 27
+    OP_SET_STRUCT_FIELD,         // Index: 28
+    OP_ENTER_PACKAGE,            // Index: 29
+    OP_EXIT_PACKAGE,             // Index: 30
+    OP_ENTER_MONITOR,            // Index: 31
+    OP_EXIT_MONITOR,             // Index: 32
+    OP_INITIALIZE_ARRAY,         // Index: 33
+    OP_GET_ARRAY_ELEMENT,        // Index: 34
+    OP_SET_ARRAY_ELEMENT,        // Index: 35
+    OP_FAST_CONST_8,             // Index: 36
+    OP_FAST_CONST_16,            // Index: 37
+    OP_CONST_1,                  // Index: 38
+    OP_CONST_2,                  // Index: 38
+    OP_NO_OP,                    // Index: 39
+    OP_PACKAGE_CONST,            // Index: 40
+    OP_ENTER_MONITOR_EXPLICIT,   // Index: 41
+    OP_EXIT_MONITOR_EXPLICIT,    // Index: 42
 } bytecode_t;
 
 #define OP_CONSTANT_LENGTH 2
@@ -90,6 +92,8 @@ typedef enum {
 #define OP_PACKAGE_CONST_LENGTH 3
 #define OP_NO_OP_LENGTH 1
 #define OP_EOF_LENGTH 1
+#define OP_ENTER_MONITOR_EXPLICIT_LENGTH 9
+#define OP_EXIT_MONITOR_EXPLICIT_LENGTH 9
 
 #define N_VARIABLE_INSTRUCTION_N_POPS 0xFFFF
 
