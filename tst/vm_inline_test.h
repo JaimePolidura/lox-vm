@@ -8,6 +8,30 @@
 
 extern struct vm current_vm;
 
+TEST(vm_inline_monitor_test){
+    start_vm();
+
+    struct compilation_result compilation = compile_standalone(
+            "fun sync nada() {"
+            "   sync {"
+            "       print 1;"
+            "   }"
+            "   sync {"
+            "       print 2;"
+            "   }"
+            "}"
+            ""
+            "inline nada();"
+    );
+
+    interpret_vm(compilation);
+    stop_vm();
+    reset_vm();
+
+    ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "2.000000");
+}
+
 TEST(vm_inline_if_test) {
     start_vm();
 

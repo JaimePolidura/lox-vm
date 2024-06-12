@@ -52,6 +52,15 @@ struct chunk * to_chunk_bytecode_list(struct bytecode_list * bytecode_list) {
         } else if(current_instruction_size == 3) {
             write_chunk(new_chunk, current_instruction->as.pair.u8_1);
             write_chunk(new_chunk, current_instruction->as.pair.u8_2);
+        } else if (current_instruction_size == 9) {
+            write_chunk(new_chunk, (current_instruction->as.u64 >> 54) & 0xff);
+            write_chunk(new_chunk, (current_instruction->as.u64 >> 48) & 0xff);
+            write_chunk(new_chunk, (current_instruction->as.u64 >> 40) & 0xff);
+            write_chunk(new_chunk, (current_instruction->as.u64 >> 32) & 0xff);
+            write_chunk(new_chunk, (current_instruction->as.u64 >> 24) & 0xff);
+            write_chunk(new_chunk, (current_instruction->as.u64 >> 16) & 0xff);
+            write_chunk(new_chunk, (current_instruction->as.u64 >>  8) & 0xff);
+            write_chunk(new_chunk, (current_instruction->as.u64 >>  0) & 0xff);
         }
 
         current_instruction = current_instruction->next;
