@@ -34,6 +34,6 @@ struct chunk * to_chunk_bytecode_list(struct bytecode_list *);
 void free_bytecode_list(struct bytecode_list *);
 
 struct bytecode_list * get_by_index_bytecode_list(struct bytecode_list *, int target_index);
-void unlink_instruciton_bytecode_list(struct bytecode_list * instruction);
+void unlink_instruction_bytecode_list(struct bytecode_list * instruction);
 void add_instruction_bytecode_list(struct bytecode_list * dst, struct bytecode_list * instruction);
 void add_instructions_bytecode_list(struct bytecode_list * dst, struct bytecode_list * instructions);

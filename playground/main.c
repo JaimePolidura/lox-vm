@@ -4,36 +4,33 @@
 #include "compiler/compiler.h"
 
 int main() {
-    puts("Sin inline:");
-    auto result = compile_bytecode(
-            "fun nada() {"
-            "   var c = 1 + 2;"
-            "   if(c == 3) {"
-            "       print c;"
+    puts("Con inline:");
+    auto result1 = compile_bytecode(
+            "fun numero(a) {"
+            "   if (a > 100) {"
+            "       print 1;"
+            "   } else {"
+            "       print 2;"
             "   }"
             "}"
             ""
-            "if (true) {"
-            "   inline nada();"
+            "print inline numero(101);",
+            "main", NULL);
+
+    disassemble_package(result1.compiled_package, DISASSEMBLE_PACKAGE_FUNCTIONS);
+    puts("\n\n");
+
+    puts("Sin inline:");
+    auto result2 = compile_standalone(
+            "fun numero(a) {"
+            "   if (a > 100) {"
+            "       return 1;"
+            "   } else {"
+            "       return 2;"
+            "   }"
             "}"
-            "print 1;",
-    "main", NULL);
+            ""
+            "print inline numero(101);");
 
-    disassemble_package(result.compiled_package, DISASSEMBLE_PACKAGE_FUNCTIONS);
-
-//    printf("\n\n\n");
-//    puts("Con inline:");
-//
-//    auto result2 = compile_standalone(
-//            "fun suma(a, b) {"
-//            "   return a + b;"
-//            "}"
-//            ""
-//            "for(var i = 0; i < 5; i = i + 1) {"
-//            "   print inline suma(i, i);"
-//            "}"
-//            "print 1;"
-//    );
-//
-//    disassemble_package(result2.compiled_package, DISASSEMBLE_ONLY_MAIN);
+    disassemble_package(result2.compiled_package, DISASSEMBLE_ONLY_MAIN);
 }

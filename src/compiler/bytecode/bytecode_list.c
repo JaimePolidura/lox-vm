@@ -118,7 +118,7 @@ struct bytecode_list * get_by_index_bytecode_list(struct bytecode_list * head_in
     return current_bytecode;
 }
 
-void unlink_instruciton_bytecode_list(struct bytecode_list * instruction) {
+void unlink_instruction_bytecode_list(struct bytecode_list * instruction) {
     if(instruction->prev != NULL){
         instruction->prev->next = instruction->next;
     }

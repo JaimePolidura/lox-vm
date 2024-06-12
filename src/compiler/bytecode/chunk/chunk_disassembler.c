@@ -80,8 +80,9 @@ void disassemble_function(struct function_object * function, long options) {
                 break;
             }
             case OP_JUMP: {
+                bytecode_t bute = *iterator.pc;
                 uint16_t jump = read_u16_chunk_iterator(&iterator);
-                BWD_JUMP_INSTRUCTION("OP_JUMP", iterator.pc, iterator.iterating, jump);
+                FWD_JUMP_INSTRUCTION("OP_JUMP", iterator.pc, iterator.iterating, jump);
                 break;
             }
             case OP_SET_LOCAL: BINARY_U8_INSTRUCTION("OP_SET_LOCAL", iterator); break;
