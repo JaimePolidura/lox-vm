@@ -17,13 +17,13 @@ TEST(vm_inline_packages_test){
             "main"
     );
 
-    disassemble_all_packages(DISASSEMBLE_PACKAGE_FUNCTIONS);
+    disassemble_package_name("main", DISASSEMBLE_PACKAGE_FUNCTIONS);
 
-//    disassemble_all_packages(DISASSEMBLE_PACKAGE_FUNCTIONS);
+    interpret_vm(compilation);
+    stop_vm();
+    reset_vm();
 
-//    interpret_vm(compilation);
-//    stop_vm();
-//    reset_vm();
+    ASSERT_NEXT_VM_LOG(current_vm, "100.000000");
 }
 
 TEST(vm_inline_multiple_returns_test){
@@ -38,8 +38,12 @@ TEST(vm_inline_multiple_returns_test){
             "   }"
             "}"
             ""
-            "print inline numero(101);"
-            "print inline numero(99);"
+            "fun func() {"
+            "   print inline numero(101);"
+            "   print inline numero(99);"
+            "}"
+            ""
+            "func();"
     );
 
     interpret_vm(compilation);
@@ -63,7 +67,11 @@ TEST(vm_inline_monitor_test){
             "   }"
             "}"
             ""
-            "inline nada();"
+            "fun func() {"
+            "   inline nada();"
+            "}"
+            ""
+            "func();"
     );
 
     interpret_vm(compilation);
@@ -85,10 +93,14 @@ TEST(vm_inline_if_test) {
             "   }"
             "}"
             ""
-            "if (true) {"
-            "   inline nada();"
+            "fun func() {"
+            "   if (true) {"
+            "      inline nada();"
+            "   }"
+            "   print 1;"
             "}"
-            "print 1;"
+            ""
+            "func();"
     );
 
     interpret_vm(compilation);
@@ -107,10 +119,15 @@ TEST(vm_inline_for_loop_test) {
             "   return a + b;"
             "}"
             ""
-            "for(var i = 0; i < 5; i = i + 1) {"
-            "   print inline suma(i, i);"
+            ""
+            "fun func() {"
+            "   for(var i = 0; i < 5; i = i + 1) {"
+            "      print inline suma(i, i);"
+            "   }"
+            "   print 1;"
             "}"
-            "print 1;"
+            ""
+            "func();"
     );
 
     interpret_vm(compilation);
@@ -133,9 +150,13 @@ TEST(vm_inline_simple_function_test) {
             "   return a + b;"
             "}"
             ""
-            "var a = inline suma(1, 2);"
-            "var b = inline suma(3, 3);"
-            "print a + b;"
+            "fun func() {"
+            "   var a = inline suma(1, 2);"
+            "   var b = inline suma(3, 3);"
+            "   print a + b;"
+            "}"
+            ""
+            "func();"
     );
 
     interpret_vm(compilation);

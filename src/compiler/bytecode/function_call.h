@@ -8,7 +8,6 @@ struct function_call {
     bool is_inlined;
     struct package * package;
     int call_bytecode_index;
-    scope_type_t function_scope;
 
     struct function_call * prev;
 };

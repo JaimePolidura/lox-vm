@@ -80,6 +80,26 @@ static void calculate_to_chunk_index(struct bytecode_list * node) {
     }
 }
 
+void add_first_instruction_bytecode_list(struct bytecode_list * head, struct bytecode_list * instruction) {
+    struct bytecode_list * current = head;
+    while (current->prev != NULL) {
+        current = current->prev;
+    }
+
+    current->prev = instruction;
+    instruction->next = current;
+}
+
+void add_last_instruction_bytecode_list(struct bytecode_list * head, struct bytecode_list * instruction) {
+    struct bytecode_list * current = head;
+    while (current->next != NULL) {
+        current = current->next;
+    }
+
+    current->next = instruction;
+    instruction->prev = current;
+}
+
 void add_instructions_bytecode_list(struct bytecode_list * dst, struct bytecode_list * instructions) {
     struct bytecode_list * src_most_next = get_last_instruction(instructions);
     struct bytecode_list * next_dst = dst->next;
@@ -232,4 +252,14 @@ static struct bytecode_list * get_last_instruction(struct bytecode_list * instru
     }
 
     return instruction;
+}
+
+struct bytecode_list * get_first_bytecode_list(struct bytecode_list * head) {
+    struct bytecode_list * current = head;
+
+    while (head->prev != NULL) {
+        current = current->prev;
+    }
+
+    return current;
 }

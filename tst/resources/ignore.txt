@@ -1,19 +1,33 @@
-55 48 89 e5   48 8b 8b 20   0a 00 00 48   8b 93 20 0a
-   00 00 48 83   ea 18 48 83   c1 14 49 89   cf 41 52 49
-   ba b1 02 7d   f9 f7 7f 00   00 51 52 41   50 51 52 48
-   c7 c1 a0 1a   64 00 48 c7   c2 20 6f 64   00 4d 89 f8
-   48 83 ec 20   41 ff d2 48   83 c4 20 5a   59 41 58 5a
-   59 41 5a 4d   8b 7f 00 48   83 c1 10 4c   8b 72 10 4c
-   89 71 f0 4c   8b 72 08 4c   89 71 f8 48   89 8b 20 0a
-   00 00 41 52   49 ba 91 e1   7c f9 f7 7f   00 00 51 52
-   41 50 51 52   4c 89 f9 48   c7 c2 02 00   00 00 49 c7
-   c0 00 00 00   00 48 83 ec   20 41 ff d2   48 83 c4 20
-   5a 59 41 58   5a 59 41 5a   48 8b 8b 20   0a 00 00 4c
-   8b 79 f8 4c   89 7a 18 49   89 ce 41 52   49 ba b1 02
-   7d f9 f7 7f   00 00 51 52   41 50 51 52   48 c7 c1 a0
-   1a 64 00 48   c7 c2 e0 86   64 00 4d 89   f0 48 83 ec
-   20 41 ff d2   48 83 c4 20   5a 59 41 58   5a 59 41 5a
-   4d 8b 76 00   4c 8b 6a 18   4d 01 f5 4d   89 ee 41 52
-   49 ba 81 ee   7c f9 f7 7f   00 00 51 52   48 83 ec 20
-   41 ff d2 48   83 c4 20 5a   59 41 5a 48   89 d1 4c 89
-   71 00 48 83   c1 08 48 89   8b 20 0a 00   00 5d c3
+<func>:
+   0:	OP_FAST_CONST_8 10
+   2:	OP_SET_LOCAL 1
+   4:	OP_POP
+   5:	OP_PACKAGE_CONST <package_name: inline>
+   7:	OP_ENTER_PACKAGE
+   8:	OP_FAST_CONST_8 0
+   A:	OP_SET_LOCAL 2
+   C:	OP_FAST_CONST_8 0
+   E:	OP_SET_LOCAL 3
+  10:	OP_GET_LOCAL 3
+  12:	OP_GET_LOCAL 1
+  14:	OP_LESS
+  15:	OP_JUMP_IF_FALSE   2B
+  18:	OP_POP
+  19:	OP_GET_LOCAL 2
+  1B:	OP_GET_GLOBAL ��i
+  1D:	OP_ADD
+  1E:	OP_SET_LOCAL 2
+  20:	OP_POP
+  21:	OP_GET_LOCAL 3
+  23:	OP_CONST_1
+  24:	OP_ADD
+  25:	OP_SET_LOCAL 3
+  27:	OP_POP
+  28:	OP_LOOP   10
+  2B:	OP_POP
+  2C:	OP_GET_LOCAL 2
+  2E:	OP_EXIT_PACKAGE
+  2F:	OP_PRINT
+  30:	OP_NIL
+  31:	OP_RETURN
+  32:	OP_EOF

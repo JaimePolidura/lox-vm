@@ -37,3 +37,6 @@ struct bytecode_list * get_by_index_bytecode_list(struct bytecode_list *, int ta
 void unlink_instruction_bytecode_list(struct bytecode_list * instruction);
 void add_instruction_bytecode_list(struct bytecode_list * dst, struct bytecode_list * instruction);
 void add_instructions_bytecode_list(struct bytecode_list * dst, struct bytecode_list * instructions);
+void add_first_instruction_bytecode_list(struct bytecode_list * head, struct bytecode_list * instruction);
+void add_last_instruction_bytecode_list(struct bytecode_list * head, struct bytecode_list * instruction);
+struct bytecode_list * get_first_bytecode_list(struct bytecode_list * head);

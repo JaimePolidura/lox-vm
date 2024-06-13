@@ -1,3 +1,7 @@
 use "inline.lox";
 
-print Inline::sumar(10);
+fun func() {
+    print inline Inline::sumar(10);
+}
+
+func();

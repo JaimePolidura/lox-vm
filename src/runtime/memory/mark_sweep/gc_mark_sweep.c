@@ -203,8 +203,10 @@ static void for_each_package_callback(void * trie_node_ptr, void * extra_ignored
 
     for(int i = 0; i < package->global_variables.capacity && package->state != PENDING_COMPILATION; i++) {
         struct hash_table_entry * entry = &package->global_variables.entries[i];
-        mark_value(&entry->value);
-        mark_object(&entry->key->object);
+        if(entry != NULL && entry->key != NULL){
+            mark_value(&entry->value);
+            mark_object(&entry->key->object);
+        }
     }
 }
 

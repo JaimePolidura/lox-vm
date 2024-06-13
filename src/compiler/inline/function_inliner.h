@@ -7,12 +7,16 @@
 #include "shared/types/struct_definition_object.h"
 #include "shared/utils/collections/stack_list.h"
 #include "shared/types/function_object.h"
+#include "shared/package.h"
 
 struct function_inline_result {
     struct chunk * inlined_chunk;
     int total_size_added;
-    int total_constants_added;
+    int n_locals_added;
 };
 
-struct function_inline_result inline_function(struct function_object * target, int chunk_target_index,
-        struct function_object * function_to_inline);
+struct function_inline_result inline_function(
+        struct function_object * target,
+        int chunk_target_index,
+        struct function_object * to_inline
+);

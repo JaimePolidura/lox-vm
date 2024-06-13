@@ -86,7 +86,6 @@ static int array_inline_initialization_elements(struct bytecode_compiler * compi
 static void inline_declaration(struct bytecode_compiler * compiler);
 static void add_current_function_call(struct bytecode_compiler * bytecode_compiler);
 static void add_function_call(struct bytecode_compiler *, struct function_call *);
-static void add_package_function_call(struct bytecode_compiler *, struct package *);
 static void set_compiling_function_name(struct bytecode_compiler *, char *);
 static void inline_expression(struct bytecode_compiler *, bool can_assign);
 
@@ -250,12 +249,20 @@ static void declaration(struct bytecode_compiler * compiler) {
 }
 
 static void inline_expression(struct bytecode_compiler * compiler, bool can_assign) {
+    if(compiler->current_scope == SCOPE_PACKAGE){
+        report_error(compiler, compiler->parser->previous, "Cannot inline in top level code");
+    }
+
     compiler->compiling_inline_call = true;
     expression(compiler);
     compiler->compiling_inline_call = false;
 }
 
 static void inline_declaration(struct bytecode_compiler * compiler) {
+    if(compiler->current_scope == SCOPE_PACKAGE){
+        report_error(compiler, compiler->parser->previous, "Cannot inline in top level code");
+    }
+
     compiler->compiling_inline_call = true;
     expression_statement(compiler);
     compiler->compiling_inline_call = false;
@@ -436,7 +443,7 @@ static void function_call(struct bytecode_compiler * compiler, bool can_assign) 
 
     if (compiler->compiling_extermal_symbol_call) {
         lox_value_t package_lox_type = to_lox_package(compiler->package_of_external_symbol);
-        emit_constant(compiler, package_lox_type);
+        emit_package_constant(compiler, package_lox_type);
         emit_bytecode(compiler, OP_ENTER_PACKAGE);
     }
 
@@ -713,19 +720,9 @@ static void variable(struct bytecode_compiler * compiler, bool can_assign) {
     }
 
     if(is_from_function) {
-        int function_name_length = 0;
-        char * function_name = NULL;
-
-        if(is_from_function && is_from_package) {
-            function_name_length = variable_name.length + 2 + package_name.length;
-            function_name = copy_string(package_name.start, function_name_length);
-            string_replace(function_name, function_name_length, ':', '_'); //Tris cannot store :, only _
-        } else if(is_from_function && !is_from_package) {
-            function_name = copy_string(variable_name.start, variable_name.length);
-        }
-
+        int function_name_length = variable_name.length;
+        char * function_name = copy_string(variable_name.start, function_name_length);
         compiler->current_function_call_name = function_name;
-
         put_trie(&compiler->function_call_list, function_name, function_name_length, NULL);
     }
 }
@@ -744,7 +741,6 @@ static struct package * load_package(struct bytecode_compiler * compiler) {
     }
     if(package->state == PENDING_COMPILATION){
         compile_package(compiler, package);
-        add_package_function_call(compiler, package);
     }
 
     emit_package_constant(compiler, to_lox_package(package));
@@ -834,10 +830,8 @@ static void named_variable(struct bytecode_compiler * compiler,
 
         variable_identifier = exported_symbol->constant_identifier;
 
-        if(array_index.type != TOKEN_NO_TOKEN) {
-            compiler->package_of_external_symbol = external_package;
-            compiler->compiling_extermal_symbol_call = true;
-        }
+        compiler->package_of_external_symbol = external_package;
+        compiler->compiling_extermal_symbol_call = true;
     }
 
     if(is_set_op) {
@@ -845,7 +839,7 @@ static void named_variable(struct bytecode_compiler * compiler,
     }
 
     //The opcode const of the package is added by load_package()
-    if(is_from_external_package) {
+    if (is_from_external_package) {
         emit_bytecode(compiler, OP_ENTER_PACKAGE);
     }
 
@@ -1287,17 +1281,6 @@ static void add_exported_symbol(struct bytecode_compiler * compiler, struct expo
     }
 }
 
-static void add_package_function_call(struct bytecode_compiler * bytecode_compiler, struct package * other_package) {
-    struct function_call * current_function_call = alloc_function_call();
-    current_function_call->is_inlined = false;
-    current_function_call->package = other_package;
-    current_function_call->call_bytecode_index = 0;
-    current_function_call->function_name = other_package->name;
-    current_function_call->function_scope = SCOPE_PACKAGE;
-
-    add_function_call(bytecode_compiler, current_function_call);
-}
-
 static struct function_call * create_current_function_call(struct bytecode_compiler * bytecode_compiler) {
     struct function_call * current_function_call = alloc_function_call();
     current_function_call->is_inlined = bytecode_compiler->compiling_inline_call;
@@ -1306,7 +1289,6 @@ static struct function_call * create_current_function_call(struct bytecode_compi
                                      bytecode_compiler->package_of_external_symbol :
                                      bytecode_compiler->package;
     current_function_call->call_bytecode_index = bytecode_compiler->current_function->chunk->in_use - 3;
-    current_function_call->function_scope = SCOPE_FUNCTION;
 
     return current_function_call;
 }

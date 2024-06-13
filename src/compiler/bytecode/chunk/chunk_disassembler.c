@@ -74,7 +74,7 @@ static void disassemble_package_functions(struct package * package, long options
 
 void disassemble_function(struct function_object * function, long options) {
     struct chunk_iterator iterator = iterate_chunk(function->chunk);
-    struct chunk * function_chunk = function->chunk;
+    struct lox_arraylist function_constants = function->chunk->constants;
 
     while(has_next_chunk_iterator(&iterator)){
         printf("%4llX:\t", iterator.pc - function->chunk->code);
@@ -123,13 +123,13 @@ void disassemble_function(struct function_object * function, long options) {
             case OP_SET_STRUCT_FIELD: STRUCT_INSTRUCTION("OP_SET_STRUCT_FIELD", pc, iterator); break;
             case OP_PACKAGE_CONST: {
                 struct package * package = READ_PACKAGE_CONST(iterator);
-                PACKAGE_CONST_INSTRUCTION("OP_ENTER_PACKAGE", iterator);
-                iterator.iterating = package->main_function->chunk;
+                PACKAGE_CONST_INSTRUCTION("OP_PACKAGE_CONST", iterator);
+                iterator.iterating->constants = package->main_function->chunk->constants;
                 break;
             }
             case OP_ENTER_PACKAGE: SINGLE_INSTRUCTION("OP_ENTER_PACKAGE"); break;
             case OP_EXIT_PACKAGE: {
-                iterator.iterating = function_chunk;
+                iterator.iterating->constants = function_constants;
                 SINGLE_INSTRUCTION("OP_EXIT_PACKAGE");
                 break;
             }

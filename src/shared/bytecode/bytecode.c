@@ -27,7 +27,7 @@ struct bytecode_instruction_data bytecode_instructions_data[] = {
         [OP_EOF] = {.size = 1, .n_pops = 0, .n_push = 0},
         [OP_NO_OP] = {.size = 1, .n_pops = 0, .n_push = 0},
         [OP_ENTER_PACKAGE] = {.size = 1, .n_pops = 1, .n_push = 0},
-        [OP_EXIT_PACKAGE] = {.size = 1, .n_pops = 1, .n_push = 0},
+        [OP_EXIT_PACKAGE] = {.size = 1, .n_pops = 0, .n_push = 0},
         [OP_INITIALIZE_STRUCT] = {.size = 2, .n_pops = N_VARIABLE_INSTRUCTION_N_POPS, .n_push = 1},
         [OP_SET_STRUCT_FIELD] = {.size = 2, .n_pops = 2, .n_push = 0},
         [OP_GET_STRUCT_FIELD] = {.size = 2, .n_pops = 1, .n_push = 1},

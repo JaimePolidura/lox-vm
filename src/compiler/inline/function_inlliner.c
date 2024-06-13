@@ -3,7 +3,7 @@
 static void rename_local_variables(struct bytecode_list * to_inline, struct function_object * target);
 static void remove_double_emtpy_return(struct bytecode_list *to_inline);
 static void rename_return_statements(struct bytecode_list * to_inline, struct function_object * target);
-static void rename_argument_passing(struct function_object * target_function, struct bytecode_list * target_chunk,
+static void rename_argument_passing(struct function_object * target_function, struct bytecode_list ** target_chunk,
         int call_index, int n_arguments);
 static void get_call_args_in_stack(struct stack_list *, struct bytecode_list * target_chunk,
         struct function_object * target_functions, int call_index);
@@ -16,6 +16,7 @@ static void rename_monitors(struct function_object *, struct bytecode_list * to_
 static void resolve_pending_jumps(struct bytecode_list *to_inline_head, struct bytecode_list *target_first_instruction_after_inlined);
 static void mark_jumps_as_pending_to_resolve(struct bytecode_list *, struct bytecode_list *);
 static void move_jump_references_to_next_instruction(struct bytecode_list * head, struct bytecode_list * call_node);
+static void add_packages_instructions(struct package * target_package, struct bytecode_list * chunk_to_inline, struct package * to_inline_package);
 
 #define PENDING_TO_RESOLVE_RETURN ((void *) 0xffffffffffffffff)
 
@@ -39,12 +40,13 @@ struct function_inline_result inline_function(
     remove_eof(chunk_to_inline);
     rename_monitors(function_to_inline, chunk_to_inline);
 
-    rename_argument_passing(target, target_chunk, chunk_target_index, n_arguments_to_inline);
+    rename_argument_passing(target, &target_chunk, chunk_target_index, n_arguments_to_inline);
     merge_to_inline_and_target(target_call, chunk_to_inline);
     resolve_pending_jumps(chunk_to_inline, next_to_target_call);
     copy_consants(target, function_to_inline);
     remove_op_call(target_chunk, target_call);
 
+    target_chunk = get_first_bytecode_list(target_chunk);
     struct chunk * result_chunk = to_chunk_bytecode_list(target_chunk);
     result_chunk->constants = target->chunk->constants;
     result_chunk->lines = NULL;
@@ -53,8 +55,9 @@ struct function_inline_result inline_function(
     free_bytecode_list(target_chunk);
 
     return (struct function_inline_result) {
+        .total_size_added = target_size_after_inlining - target_size_before_inlining,
+        .n_locals_added = function_to_inline->n_locals,
         .inlined_chunk = result_chunk,
-        .total_size_added = target_size_after_inlining - target_size_before_inlining
     };
 }
 
@@ -152,7 +155,7 @@ static void merge_to_inline_and_target(struct bytecode_list * merge_node, struct
 
 static void rename_argument_passing(
         struct function_object * target_function,
-        struct bytecode_list * target_chunk,
+        struct bytecode_list ** target_chunk,
         int call_index,
         int n_arguments
 ) {
@@ -160,11 +163,11 @@ static void rename_argument_passing(
         return;
     }
 
-    struct bytecode_list * call_node = get_by_index_bytecode_list(target_chunk, call_index);
+    struct bytecode_list * call_node = get_by_index_bytecode_list(*target_chunk, call_index);
 
     struct stack_list stack;
     init_stack_list(&stack);
-    get_call_args_in_stack(&stack, target_chunk, target_function, call_index);
+    get_call_args_in_stack(&stack, *target_chunk, target_function, call_index);
 
     for (int i = 0; i < n_arguments; i++) {
         struct bytecode_list * arg_node = pop_stack_list(&stack);
@@ -178,6 +181,23 @@ static void rename_argument_passing(
 
     //Remove OP_GET_GLOBAL <function name>
     struct bytecode_list * get_function_node = pop_stack_list(&stack);
+
+    //This functinos belongs to a package, we also need to remove the enter/exit package instructions
+    if (get_function_node->next->bytecode == OP_EXIT_PACKAGE) {
+        if (*target_chunk == get_function_node ||
+            *target_chunk == get_function_node->prev->prev ||
+            *target_chunk == get_function_node->prev ||
+            *target_chunk == get_function_node->next) {
+
+            *target_chunk = get_function_node->next->next;
+        }
+        unlink_instruction_bytecode_list(get_function_node->prev->prev); //Unlink OP_PACKAGE_CONST
+        unlink_instruction_bytecode_list(get_function_node->prev); //Unlink OP_ENTER_PACKAGE
+        unlink_instruction_bytecode_list(get_function_node->next); //Unlink OP_EXIT_PACKAGE
+    } else if (get_function_node == *target_chunk) {
+        *target_chunk = get_function_node->next;
+    }
+
     unlink_instruction_bytecode_list(get_function_node);
 
     free_stack_list(&stack);

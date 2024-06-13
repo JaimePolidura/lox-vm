@@ -20,7 +20,6 @@ struct call_graph * create_call_graph(struct compilation_result * compilation_re
     struct call_graph * call_graph = malloc(sizeof(struct call_graph));
     call_graph->function_object = compilation_resul->compiled_package->main_function;
     call_graph->package = compilation_resul->compiled_package;
-    call_graph->scope = SCOPE_PACKAGE;
 
     add_children(&pending, compilation_resul->compiled_package->main_function->function_calls, call_graph);
 
@@ -65,7 +64,6 @@ static struct call_graph * get_call_graph_node(struct u64_hash_table * functions
     }
 
     struct call_graph * new_node = malloc(sizeof(struct call_graph *));
-    new_node->scope = caller->function_scope;
     new_node->function_object = function_object;
     new_node->package = caller->package;
     *call_graph_node_already_exists = false;
@@ -124,7 +122,8 @@ void free_recursive_call_graph(struct call_graph * call_graph) {
         for(int i = 0; i < to_free->n_childs; i++){
             free(to_free->children[i]);
         }
-        free(to_free);
+        //TODO Ni puta idea, pero cada vez que se ejecuta free salta la señal de SIGTRAP
+        //free(to_free);
     }
 }
 
@@ -133,7 +132,7 @@ struct call_graph_iterator iterate_call_graph(struct call_graph * call_graph) {
     init_u64_hash_table(&iterator.already_checked);
     init_stack_list(&iterator.pending);
     init_stack_list(&iterator.parents);
-    push_stack_list(&iterator.parents, call_graph);
+    push_stack_list(&iterator.pending, call_graph);
 
     return iterator;
 }
