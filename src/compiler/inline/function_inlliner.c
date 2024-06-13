@@ -9,8 +9,8 @@ static void get_call_args_in_stack(struct stack_list *, struct bytecode_list * t
         struct function_object * target_functions, int call_index);
 static void merge_to_inline_and_target(struct bytecode_list * merge_node, struct bytecode_list * to_inline);
 static void remove_op_call(struct bytecode_list * head, struct bytecode_list * call_node);
-static void rename_constants(struct bytecode_list * to_inline, int n_constants_in_use_in_target);
-static void copy_consants(struct function_object * target, struct function_object * to_inline);
+static void rename_constants(struct bytecode_list *to_inline, int n_constants_in_use_in_target, bool is_from_external_package);
+static void copy_consants(struct function_object *target, struct function_object *to_inline, bool is_from_external_package);
 static void remove_eof(struct bytecode_list * to_inline);
 static void rename_monitors(struct function_object *, struct bytecode_list * to_inline);
 static void resolve_pending_jumps(struct bytecode_list *to_inline_head, struct bytecode_list *target_first_instruction_after_inlined);
@@ -24,7 +24,8 @@ static void add_packages_instructions(struct package * target_package, struct by
 struct function_inline_result inline_function(
         struct function_object * target,
         int chunk_target_index,
-        struct function_object * function_to_inline
+        struct function_object * function_to_inline,
+        bool is_from_external_package
 ) {
     struct bytecode_list * chunk_to_inline = create_bytecode_list(function_to_inline->chunk);
     struct bytecode_list * target_chunk = create_bytecode_list(target->chunk);
@@ -33,7 +34,7 @@ struct function_inline_result inline_function(
     int n_arguments_to_inline = function_to_inline->n_arguments;
     int target_size_before_inlining = target->chunk->in_use;
 
-    rename_constants(chunk_to_inline, target->chunk->constants.in_use);
+    rename_constants(chunk_to_inline, target->chunk->constants.in_use, is_from_external_package);
     rename_local_variables(chunk_to_inline, target);
     remove_double_emtpy_return(chunk_to_inline);
     rename_return_statements(chunk_to_inline, target);
@@ -43,7 +44,7 @@ struct function_inline_result inline_function(
     rename_argument_passing(target, &target_chunk, chunk_target_index, n_arguments_to_inline);
     merge_to_inline_and_target(target_call, chunk_to_inline);
     resolve_pending_jumps(chunk_to_inline, next_to_target_call);
-    copy_consants(target, function_to_inline);
+    copy_consants(target, function_to_inline, is_from_external_package);
     remove_op_call(target_chunk, target_call);
 
     target_chunk = get_first_bytecode_list(target_chunk);
@@ -56,6 +57,7 @@ struct function_inline_result inline_function(
 
     return (struct function_inline_result) {
         .total_size_added = target_size_after_inlining - target_size_before_inlining,
+        .n_constants_added = function_to_inline->chunk->constants.in_use,
         .n_locals_added = function_to_inline->n_locals,
         .inlined_chunk = result_chunk,
     };
@@ -103,27 +105,31 @@ static void remove_eof(struct bytecode_list * to_inline) {
     }
 }
 
-static void copy_consants(struct function_object * target, struct function_object * to_inline) {
-    for(int i = 0; i < to_inline->chunk->constants.in_use; i++){
-        lox_value_t current_constant = to_inline->chunk->constants.values[i];
-        append_lox_arraylist(&target->chunk->constants, current_constant);
+static void copy_consants(struct function_object *target, struct function_object *to_inline, bool is_from_external_package) {
+    if(!is_from_external_package){
+        for (int i = 0; i < to_inline->chunk->constants.in_use; i++) {
+            lox_value_t current_constant = to_inline->chunk->constants.values[i];
+            append_lox_arraylist(&target->chunk->constants, current_constant);
+        }
     }
 }
 
-static void rename_constants(struct bytecode_list * to_inline, int n_constants_in_use_in_target) {
-    for(struct bytecode_list * current = to_inline; current != NULL; current = current->next){
-        switch (current->bytecode) {
-            case OP_CONSTANT:
-            case OP_PACKAGE_CONST:
-            case OP_DEFINE_GLOBAL:
-            case OP_GET_GLOBAL:
-            case OP_SET_GLOBAL:
-            case OP_INITIALIZE_STRUCT:
-            case OP_GET_STRUCT_FIELD:
-            case OP_SET_STRUCT_FIELD:
-                int current_constant_offset = current->as.u8;
-                current->as.u8 = current_constant_offset + n_constants_in_use_in_target;
-                break;
+static void rename_constants(struct bytecode_list *to_inline, int n_constants_in_use_in_target, bool is_from_external_package) {
+    if(!is_from_external_package) {
+        for(struct bytecode_list * current = to_inline; current != NULL; current = current->next){
+            switch (current->bytecode) {
+                case OP_CONSTANT:
+                case OP_PACKAGE_CONST:
+                case OP_DEFINE_GLOBAL:
+                case OP_GET_GLOBAL:
+                case OP_SET_GLOBAL:
+                case OP_INITIALIZE_STRUCT:
+                case OP_GET_STRUCT_FIELD:
+                case OP_SET_STRUCT_FIELD:
+                    int current_constant_offset = current->as.u8;
+                    current->as.u8 = current_constant_offset + n_constants_in_use_in_target;
+                    break;
+            }
         }
     }
 }

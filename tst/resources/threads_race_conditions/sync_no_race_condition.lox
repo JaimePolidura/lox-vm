@@ -1,13 +1,13 @@
 var numero1 = 0;
 var numero2 = 0;
 
-fun sync calcular2() {
+fun sync calcularB() {
     for(var i = 0; i < 10000; i = i + 1) {
         numero2 = numero2 + 1;
     }
 }
 
-fun calcular1() {
+fun calcularA() {
     for(var i = 0; i < 10000; i = i + 1) {
         sync {
             numero1 = numero1 + 1;
@@ -16,18 +16,18 @@ fun calcular1() {
 }
 
 fun empezarHilos() {
-    parallel calcular1();
-    parallel calcular1();
-    parallel calcular1();
-    parallel calcular1();
+    parallel calcularA();
+    parallel calcularA();
+    parallel calcularA();
+    parallel calcularA();
 
     join();
     print numero1;
 
-    parallel calcular2();
-    parallel calcular2();
-    parallel calcular2();
-    parallel calcular2();
+    parallel calcularB();
+    parallel calcularB();
+    parallel calcularB();
+    parallel calcularB();
 
     join();
     print numero2;

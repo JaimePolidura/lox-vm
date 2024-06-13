@@ -26,14 +26,17 @@ struct compilation_result inline_bytecode_compilation(struct compilation_result 
 
             if (child_call->is_inlined) {
                 struct function_object * function_to_inline = child_call->call_graph->function_object;
+                bool is_from_external_package = child_call->call_graph->package != current_node->package;
 
                 struct function_inline_result inline_result = inline_function(
                         current_function,
                         child_call->call_bytecode_index,
-                        function_to_inline
+                        function_to_inline,
+                        is_from_external_package
                 );
 
                 update_next_calls_index(current_node, inline_result.total_size_added, i);
+
                 current_function->n_locals += inline_result.n_locals_added;
                 current_function->chunk = inline_result.inlined_chunk;
             }

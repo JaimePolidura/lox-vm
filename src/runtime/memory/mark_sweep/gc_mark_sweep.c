@@ -301,8 +301,10 @@ static void mark_value(lox_value_t * value) {
 }
 
 static void mark_object(struct object * object) {
-    object->gc_marked = true;
-    add_value_gc_info(object);
+    if(!object->gc_marked){
+        object->gc_marked = true;
+        add_value_gc_info(object);
+    }
 }
 
 static void add_value_gc_info(struct object * value) {

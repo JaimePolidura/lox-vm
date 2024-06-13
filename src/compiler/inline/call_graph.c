@@ -31,6 +31,8 @@ struct call_graph * create_call_graph(struct compilation_result * compilation_re
         char * function_name_callee = function_call_callee->function_name;
         struct function_object * function_object_callee = get_function_by_name(function_package_callee, function_name_callee);
         if (function_object_callee == NULL) { //Function not found, maybe it is a native function
+            caller_data->call_graph = NULL;
+            free(pending_call);
             continue;
         }
 
@@ -117,14 +119,18 @@ static struct pending_call * create_pending_call(struct function_call * main, st
 
 void free_recursive_call_graph(struct call_graph * call_graph) {
     struct call_graph_iterator iterator = iterate_call_graph(call_graph);
+
     while(has_next_call_graph(&iterator)){
-        struct call_graph * to_free =  next_call_graph(&iterator);
-        for(int i = 0; i < to_free->n_childs; i++){
+        struct call_graph * to_free = next_call_graph(&iterator);
+
+        for (int i = 0; i < to_free->n_childs; i++) {
             free(to_free->children[i]);
         }
         //TODO Ni puta idea, pero cada vez que se ejecuta free salta la señal de SIGTRAP
-        //free(to_free);
+//        free(to_free);
     }
+
+    free_call_graph_iterator(&iterator);
 }
 
 struct call_graph_iterator iterate_call_graph(struct call_graph * call_graph) {
@@ -151,16 +157,21 @@ struct call_graph * next_call_graph(struct call_graph_iterator * iterator) {
     while(!is_empty_stack_list(&iterator->pending)) {
         struct call_graph * pending_node = pop_stack_list(&iterator->pending);
 
+        if (contains_u64_hash_table(&iterator->already_checked, (uint64_t) pending_node)) {
+            continue;
+        }
+
         bool all_children_are_leafs = true;
         for (int i = 0; i < pending_node->n_childs; i++) {
             struct call_graph_caller_data * pending_node_child = pending_node->children[i];
-            if(!contains_u64_hash_table(&iterator->already_checked, (uint64_t) pending_node_child->call_graph)){
+            if(pending_node_child->call_graph != NULL && !contains_u64_hash_table(&iterator->already_checked, (uint64_t) pending_node_child->call_graph)){
                 push_stack_list(&iterator->pending, pending_node_child->call_graph);
                 all_children_are_leafs = false;
             }
         }
 
-        if(all_children_are_leafs){
+        if (all_children_are_leafs) {
+            put_u64_hash_table(&iterator->already_checked, (uint64_t) pending_node, (void *) 0x01);
             return pending_node;
         } else {
             push_stack_list(&iterator->parents, pending_node);

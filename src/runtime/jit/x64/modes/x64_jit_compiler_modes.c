@@ -15,14 +15,8 @@ struct jit_mode_switch_info setup_vm_to_jit_mode(struct jit_compiler * jit_compi
     emit_mov(code, LOX_EBP_REG_OPERAND, DISPLACEMENT_TO_OPERAND(SELF_THREAD_ADDR_REG, offsetof(struct vm_thread, esp)));
 
     //Really similar to setup_call_frame_function in vm.c Setup ebp
-    size_t n_bytes_adjust_rbp = sizeof(lox_value_t) + jit_compiler->function_to_compile->n_arguments * sizeof(lox_value_t);
+    size_t n_bytes_adjust_rbp = sizeof(lox_value_t) + jit_compiler->function_to_compile->n_locals * sizeof(lox_value_t);
     emit_sub(code, LOX_EBP_REG_OPERAND, IMMEDIATE_TO_OPERAND(n_bytes_adjust_rbp));
-
-    size_t n_bytes_adjust_esp = jit_compiler->function_to_compile->n_locals - jit_compiler->function_to_compile->n_arguments;
-    if(n_bytes_adjust_esp > 0){
-        n_bytes_adjust_esp = sizeof(lox_value_type) + n_bytes_adjust_esp * sizeof(lox_value_t);
-        emit_add(code, LOX_ESP_REG_OPERAND, IMMEDIATE_TO_OPERAND(n_bytes_adjust_esp));
-    }
 
     jit_compiler->current_mode = MODE_JIT;
 

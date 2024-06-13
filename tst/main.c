@@ -9,16 +9,16 @@
 #include "trie_test.h"
 #include "vm_test.h"
 
-//#define RUN_U64_HASH_TABLE_TEST
-//#define RUN_HASH_TABLE_TEST
+#define RUN_U64_HASH_TABLE_TEST
+#define RUN_HASH_TABLE_TEST
 #define RUN_VM_INLINE_TEST
-//#define RUN_COMPILER_TEST
-//#define RUN_PACKAGE_TEST
-//#define RUN_VM_JIT_TEST
-//#define RUN_TRIE_TEST
-//#define RUN_VM_TEST
-//#define RUN_STACK_TEST
-//#define RUN_UTILS_TEST
+#define RUN_COMPILER_TEST
+#define RUN_PACKAGE_TEST
+#define RUN_VM_JIT_TEST
+#define RUN_TRIE_TEST
+#define RUN_VM_TEST
+#define RUN_STACK_TEST
+#define RUN_UTILS_TEST
 
 extern struct trie_list * compiled_packages;
 extern const char * compiling_base_dir;

@@ -15,9 +15,6 @@ void runtime_panic(char * format, ...) {
 
     struct call_frame * current_frame = get_current_frame();
 
-    size_t instruction = ((uint8_t *) current_frame->pc) - current_frame->function->chunk->code - 1;
-    int line = current_frame->function->chunk->lines[instruction];
-    fprintf(stderr, "[Runtime] [line %d] in script\n", line);
     print_frame_stack_trace();
 
     exit(1);
@@ -33,8 +30,6 @@ static void print_frame_stack_trace() {
         struct function_object * function = frame->function;
 
         size_t instruction = frame->pc - function->chunk->code - 1;
-        fprintf(stderr, "[line %d] in ",
-                function->chunk->lines[instruction]);
         if (function->name == NULL) {
             fprintf(stderr, "script\n");
         } else {

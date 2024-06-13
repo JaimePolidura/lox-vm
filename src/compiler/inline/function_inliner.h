@@ -11,6 +11,7 @@
 
 struct function_inline_result {
     struct chunk * inlined_chunk;
+    int n_constants_added;
     int total_size_added;
     int n_locals_added;
 };
@@ -18,5 +19,6 @@ struct function_inline_result {
 struct function_inline_result inline_function(
         struct function_object * target,
         int chunk_target_index,
-        struct function_object * to_inline
+        struct function_object * to_inline,
+        bool is_from_external_package
 );

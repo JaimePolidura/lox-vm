@@ -17,8 +17,6 @@ TEST(vm_inline_packages_test){
             "main"
     );
 
-    disassemble_package_name("main", DISASSEMBLE_PACKAGE_FUNCTIONS);
-
     interpret_vm(compilation);
     stop_vm();
     reset_vm();
