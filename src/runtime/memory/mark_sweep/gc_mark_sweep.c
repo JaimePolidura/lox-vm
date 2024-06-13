@@ -7,7 +7,7 @@ extern struct trie_list * compiled_packages;
 extern struct vm current_vm;
 
 static struct gc_result start_gc();
-static void for_each_package_callback(void * package_ptr);
+static void for_each_package_callback(void * trie_node_ptr, void * extra_ignored);
 static void mark_thread_stack(struct vm_thread * parent, struct vm_thread * child, int index, void * ignore);
 static void await_all_threads_signal_start_gc();
 static void notify_start_gc_signal_acked();
@@ -195,11 +195,11 @@ static void remove_terminated_threads(struct stack_list * terminated_threads) {
 }
 
 static void mark_globals() {
-    for_each_node(compiled_packages, for_each_package_callback);
+    for_each_node(compiled_packages, NULL, for_each_package_callback);
 }
 
-static void for_each_package_callback(void * package_ptr) {
-    struct package * package = (struct package *) package_ptr;
+static void for_each_package_callback(void * trie_node_ptr, void * extra_ignored) {
+    struct package * package = (struct package *) ((struct trie_node *) trie_node_ptr)->data;
 
     for(int i = 0; i < package->global_variables.capacity && package->state != PENDING_COMPILATION; i++) {
         struct hash_table_entry * entry = &package->global_variables.entries[i];

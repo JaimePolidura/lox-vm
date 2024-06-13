@@ -5,7 +5,7 @@
 
 int trie_test_for_each_counter = 0;
 
-static void trie_test_for_each_callback(void * ptr) {
+static void trie_test_for_each_callback(void * ptr, void * extra_ignored) {
     trie_test_for_each_counter++;
 }
 
@@ -18,7 +18,7 @@ TEST(trie_test_for_each) {
     ASSERT_TRUE(put_trie(trie_list, "PSOE", 4, (void *) 0x05));
     ASSERT_FALSE(put_trie(trie_list, "psoe", 4, (void *) 0x05));
 
-    for_each_node(trie_list, trie_test_for_each_callback);
+    for_each_node(trie_list, NULL, trie_test_for_each_callback);
 
     ASSERT_EQ(trie_test_for_each_counter, 5);
 }

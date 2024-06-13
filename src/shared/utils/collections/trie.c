@@ -60,22 +60,22 @@ void clear_trie_recursive(struct trie_node * node) {
     }
  }
 
-static void for_each_node_recursive(struct trie_node * node, consumer_t consumer_callback) {
+static void for_each_node_recursive(struct trie_node * node, void * extra, consumer_t consumer_callback) {
     for(int i = 0; i < TRIE_CHARS; i++){
         if(node->nodes[i] != NULL){
-            for_each_node_recursive(node->nodes[i], consumer_callback);
+            for_each_node_recursive(node->nodes[i], extra, consumer_callback);
         }
     }
 
     if(node->data != NULL){
-        consumer_callback(node);
+        consumer_callback(node, extra);
     }
 }
 
-void for_each_node(struct trie_list * trie, consumer_t consumer_callback) {
+void for_each_node(struct trie_list * trie, void * extra, consumer_t consumer_callback) {
     for(int i = 0; i < TRIE_CHARS; i++){
         if(trie->head->nodes[i] != NULL){
-            for_each_node_recursive(trie->head->nodes[i], consumer_callback);
+            for_each_node_recursive(trie->head->nodes[i], extra, consumer_callback);
         }
     }
 }

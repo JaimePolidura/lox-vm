@@ -8,6 +8,24 @@
 
 extern struct vm current_vm;
 
+TEST(vm_inline_packages_test){
+    start_vm();
+
+    struct compilation_result compilation = compile(
+            "C:\\programacion\\lox-vm\\tst\\resources\\inline\\main.lox",
+            "C:\\programacion\\lox-vm\\tst\\resources\\inline",
+            "main"
+    );
+
+    disassemble_all_packages(DISASSEMBLE_PACKAGE_FUNCTIONS);
+
+//    disassemble_all_packages(DISASSEMBLE_PACKAGE_FUNCTIONS);
+
+//    interpret_vm(compilation);
+//    stop_vm();
+//    reset_vm();
+}
+
 TEST(vm_inline_multiple_returns_test){
     start_vm();
 

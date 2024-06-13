@@ -1,0 +1,3 @@
+use "inline.lox";
+
+print Inline::sumar(10);

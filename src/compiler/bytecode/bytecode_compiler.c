@@ -400,9 +400,9 @@ static struct function_object * function(struct bytecode_compiler * compiler, bo
     function_parameters(&function_compiler);
     consume(&function_compiler, TOKEN_OPEN_BRACE, "Expect '{' after current_function parenthesis.");
 
-    if(is_protected_by_monitor) 
+    if(is_protected_by_monitor)
         emit_enter_monitor(&function_compiler);
-    
+
     block(&function_compiler);
 
     emit_exit_all_monitors(&function_compiler);
@@ -506,7 +506,7 @@ static void return_statement(struct bytecode_compiler * compiler) {
     if (compiler->current_scope == SCOPE_PACKAGE) {
         report_error(compiler, compiler->parser->previous, "Can't return from top level code");
     }
-    
+
     if (match(compiler, TOKEN_SEMICOLON)) {
         emit_exit_all_monitors(compiler);
         emit_empty_return(compiler);
@@ -1151,7 +1151,7 @@ static void string(struct bytecode_compiler * compiler, bool can_assign) {
     emit_constant(compiler, TO_LOX_VALUE_OBJECT(add_result.string_object));
 }
 
-static void free_trie_node_key_string(void * key) {
+static void free_trie_node_key_string(void * key, void * extra_ignored) {
     struct trie_node * trie_node = key;
     free(trie_node->key);
 }
@@ -1160,7 +1160,7 @@ static void free_compiler(struct bytecode_compiler * compiler) {
     free_scanner(compiler->scanner);
     free(compiler->parser);
     free(compiler->scanner);
-    for_each_node(&compiler->function_call_list, free_trie_node_key_string);
+    for_each_node(&compiler->function_call_list, NULL, free_trie_node_key_string);
     free_trie_list(&compiler->function_call_list);
     free(compiler);
 }

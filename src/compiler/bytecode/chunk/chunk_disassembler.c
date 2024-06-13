@@ -18,11 +18,36 @@
 #define INITIALIZE_STRUCT_INSTRUCTION(namexd, ite) printf("%s <struct_definition: %s>\n", \
     namexd, ((struct struct_definition_object *) AS_OBJECT(read_constant_chunk_iterator(&ite)))->name->chars)
 #define STRUCT_INSTRUCTION(name, pc, ite) printf("%s <field_name: %s>\n", name, AS_STRING_OBJECT(read_constant_chunk_iterator(&ite))->chars)
-#define PACKAGE_CONST_INSTRUCTION(namexd, ite) printf("%s <package_name: %s>\n", namexd, ((struct package_object *) \
-    AS_OBJECT(read_constant_chunk_iterator(&ite)))->package->name)
+#define READ_PACKAGE_CONST(ite) (((struct package_object *) AS_OBJECT(read_constant_chunk_iterator(&ite)))->package)
+#define PACKAGE_CONST_INSTRUCTION(namexd, ite) printf("%s <package_name: %s>\n", namexd, READ_PACKAGE_CONST(iterator)->name)
 
 static void disassemble_function(struct function_object * function, long options);
 static void disassemble_package_functions(struct package * package, long options);
+
+extern struct trie_list * compiled_packages;
+
+static void foreach_package_disassemble_package(void * pacakge_ptr, void * extra) {
+    struct package * package = ((struct trie_node *) pacakge_ptr)->data;
+
+    if(package->state != PENDING_COMPILATION){
+        long options = (long) extra;
+        printf("\n[Package: %s]:\n", package->name);
+        disassemble_package(package, options);
+    }
+}
+
+void disassemble_all_packages(long options) {
+    for_each_node(compiled_packages, (void *) options, foreach_package_disassemble_package);
+}
+
+void disassemble_package_name(char * name, long options) {
+    struct package * package = find_trie(compiled_packages, name, strlen(name));
+    if(package == NULL || package->state == PENDING_COMPILATION){
+        fprintf(stderr, "Package %s not found!\n", name);
+    }
+
+    disassemble_package(package, options);
+}
 
 void disassemble_package(struct package * package, long options) {
     printf("<main>:\n");
@@ -49,6 +74,7 @@ static void disassemble_package_functions(struct package * package, long options
 
 void disassemble_function(struct function_object * function, long options) {
     struct chunk_iterator iterator = iterate_chunk(function->chunk);
+    struct chunk * function_chunk = function->chunk;
 
     while(has_next_chunk_iterator(&iterator)){
         printf("%4llX:\t", iterator.pc - function->chunk->code);
@@ -95,8 +121,18 @@ void disassemble_function(struct function_object * function, long options) {
             case OP_INITIALIZE_STRUCT: INITIALIZE_STRUCT_INSTRUCTION("OP_INITIALIZE_STRUCT", iterator); break;
             case OP_GET_STRUCT_FIELD: STRUCT_INSTRUCTION("OP_GET_STRUCT_FIELD", pc, iterator); break;
             case OP_SET_STRUCT_FIELD: STRUCT_INSTRUCTION("OP_SET_STRUCT_FIELD", pc, iterator); break;
-            case OP_ENTER_PACKAGE: /*Ignored, printed by OP_PACKAGE_CONST*/ break;
-            case OP_EXIT_PACKAGE: SINGLE_INSTRUCTION("OP_EXIT_PACKAGE"); break;
+            case OP_PACKAGE_CONST: {
+                struct package * package = READ_PACKAGE_CONST(iterator);
+                PACKAGE_CONST_INSTRUCTION("OP_ENTER_PACKAGE", iterator);
+                iterator.iterating = package->main_function->chunk;
+                break;
+            }
+            case OP_ENTER_PACKAGE: SINGLE_INSTRUCTION("OP_ENTER_PACKAGE"); break;
+            case OP_EXIT_PACKAGE: {
+                iterator.iterating = function_chunk;
+                SINGLE_INSTRUCTION("OP_EXIT_PACKAGE");
+                break;
+            }
             case OP_ENTER_MONITOR: BINARY_U8_INSTRUCTION("OP_ENTER_MONITOR", iterator); break;
             case OP_EXIT_MONITOR: BINARY_U8_INSTRUCTION("OP_EXIT_MONITOR", iterator); break;
             case OP_INITIALIZE_ARRAY: BINARY_U16_INSTRUCTION("OP_INITIALIZE_ARRAY", iterator); break;
@@ -106,7 +142,6 @@ void disassemble_function(struct function_object * function, long options) {
             case OP_FAST_CONST_16: BINARY_U16_INSTRUCTION("OP_FAST_CONST_8", iterator); break;
             case OP_CONST_1: SINGLE_INSTRUCTION("OP_CONST_1"); break;
             case OP_CONST_2: SINGLE_INSTRUCTION("OP_CONST_2"); break;
-            case OP_PACKAGE_CONST: PACKAGE_CONST_INSTRUCTION("OP_ENTER_PACKAGE", iterator); break;
             case OP_EOF: SINGLE_INSTRUCTION("OP_EOF"); return;
             case OP_NO_OP: SINGLE_INSTRUCTION("OP_NO_OP"); break;
             case OP_ENTER_MONITOR_EXPLICIT: BINARY_U64_INSTRUCTION("OP_ENTER_MONITOR_EXPLICIT", iterator); break;

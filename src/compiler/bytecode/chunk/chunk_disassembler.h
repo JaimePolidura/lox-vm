@@ -13,4 +13,6 @@
 #define DISASSEMBLE_ONLY_MAIN 0
 #define DISASSEMBLE_PACKAGE_FUNCTIONS 1
 
+void disassemble_all_packages(long options);
+void disassemble_package_name(char * name, long options);
 void disassemble_package(struct package * package, long options);

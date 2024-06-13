@@ -1,0 +1,10 @@
+var CONSTANTE = 10;
+
+pub fun sumar(n) {
+    var resultado = 0;
+    for(var i = 0; i < n; i = i + 1){
+        resultado = resultado + CONSTANTE;
+    }
+
+    return resultado;
+}
