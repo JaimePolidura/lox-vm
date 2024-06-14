@@ -40,6 +40,9 @@ static register_t args_call_convention[] = {
 
 struct jit_compiler;
 
+//As every operating system in x64 have different calling convetions when calling an already compiled C function
+//We need some way to abstract ourselves from these details. So when we need to call a C function, we call this function
+//which emits the native instructions to call it
 uint16_t call_external_c_function(
         struct jit_compiler * jit_compiler,
         jit_mode_t function_mode,

@@ -3,10 +3,12 @@
 #include "compiler/bytecode/chunk/chunk_iterator.h"
 #include "compiler/bytecode/chunk/chunk.h"
 
-#include "shared/bytecode/pending_jump_to_patch.h"
+#include "shared/bytecode/pending_jump_to_resolve.h"
 #include "shared/bytecode/bytecode.h"
 #include "shared.h"
 
+//This is a linked list of bytecode instructions stored in a chunk
+//This is used to simplify bytecode modification
 struct bytecode_list {
     bytecode_t bytecode;
     union {
@@ -17,6 +19,7 @@ struct bytecode_list {
             uint8_t u8_1;
             uint8_t u8_2;
         } pair;
+        //When building bytecode_list from chunk, jumps are automaticly resolved
         struct bytecode_list * jump;
     } as;
 

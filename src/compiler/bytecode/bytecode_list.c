@@ -2,8 +2,8 @@
 
 static struct bytecode_list * get_last_instruction(struct bytecode_list * instruction);
 static void restore_jump_references(struct bytecode_list * referencee, struct bytecode_list * new_reference);
-static void check_pending_jumps_to_patch(struct pending_jumps_to_patch * pending_jumps, int current_bytecode_index,
-                                         struct bytecode_list * current_node);
+static void check_pending_jumps_to_resolve(struct pending_jumps_to_resolve * pending_jumps, int current_bytecode_index,
+                                           struct bytecode_list * current_node);
 static void calculate_to_chunk_index(struct bytecode_list * head);
 
 struct bytecode_list * create_instruction_bytecode_list(bytecode_t bytecode) {
@@ -164,8 +164,8 @@ static void restore_jump_references(struct bytecode_list * referencee, struct by
 }
 
 struct bytecode_list * create_bytecode_list(struct chunk * chunk) {
-    struct pending_jumps_to_patch pending_jumps;
-    init_pending_jumps_to_patch(&pending_jumps, chunk->in_use);
+    struct pending_jumps_to_resolve pending_jumps;
+    init_pending_jumps_to_resolve(&pending_jumps, chunk->in_use);
     struct bytecode_list * head = NULL;
     struct bytecode_list * last_allocated = NULL;
     struct chunk_iterator chunk_iterator = iterate_chunk(chunk);
@@ -185,7 +185,7 @@ struct bytecode_list * create_bytecode_list(struct chunk * chunk) {
 
         last_allocated = current_node;
 
-        check_pending_jumps_to_patch(&pending_jumps, current_instruction_index, current_node);
+        check_pending_jumps_to_resolve(&pending_jumps, current_instruction_index, current_node);
 
         switch (current_instruction) {
             case OP_INITIALIZE_STRUCT:
@@ -211,7 +211,7 @@ struct bytecode_list * create_bytecode_list(struct chunk * chunk) {
             case OP_JUMP:
                 int jmp_bytecode_offset = read_u16_chunk_iterator(&chunk_iterator);
                 int to_jump_index = (current_instruction_index + 3) + jmp_bytecode_offset;
-                add_pending_jump_to_patch(&pending_jumps, to_jump_index, current_node);
+                add_pending_jump_to_resolve(&pending_jumps, to_jump_index, current_node);
                 break;
             case OP_LOOP:
                 int to_jump_instruction_index = current_instruction_index_chunk_iterator(&chunk_iterator) - read_u16_chunk_iterator(&chunk_iterator) + 3;
@@ -231,17 +231,17 @@ struct bytecode_list * create_bytecode_list(struct chunk * chunk) {
         }
     }
 
-    free_pending_jumps_to_patch(&pending_jumps);
+    free_pending_jumps_to_resolve(&pending_jumps);
 
     return head;
 }
 
-static void check_pending_jumps_to_patch(struct pending_jumps_to_patch * pending_jumps, int current_bytecode_index,
-        struct bytecode_list * current_node) {
-    struct pending_jump_to_patch pending = get_pending_jump_to_patch(pending_jumps, current_bytecode_index);
+static void check_pending_jumps_to_resolve(struct pending_jumps_to_resolve * pending_jumps, int current_bytecode_index,
+                                           struct bytecode_list * current_node) {
+    struct pending_jump_to_resolve pending = get_pending_jump_to_resolve(pending_jumps, current_bytecode_index);
 
     for (int i = 0; i < pending.in_use; i++) {
-        struct bytecode_list * other_node = pending.pending_patch_data[i];
+        struct bytecode_list * other_node = pending.pending_resolve_data[i];
         other_node->as.jump = current_node;
     }
 }

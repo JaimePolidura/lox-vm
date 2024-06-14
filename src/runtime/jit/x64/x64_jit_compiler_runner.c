@@ -9,9 +9,10 @@ static inline __attribute__((always_inline)) void pop_cpu_regs();
 
 extern bool restore_prev_call_frame();
 
+//When we run a jit compile method from vm.c this function will get code
 void run_jit_compiled_arch(struct function_object * function_object) {
     push_cpu_regs(); //Save caller regs
-    load_self_thread_register();
+    load_self_thread_register(); //We save the self_thread address in a register
     function_object->jit_info.compiled_jit();
     pop_cpu_regs(); //Resotre caller regs
 }

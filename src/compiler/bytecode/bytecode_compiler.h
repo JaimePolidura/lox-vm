@@ -70,7 +70,6 @@ struct bytecode_compiler {
     //Indicates if the current function call being compiled is inlined
     bool compiling_inline_call;
 
-
     //Keeps information of every function call even if it is repeated.
     struct function_call * function_calls;
 

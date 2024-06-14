@@ -15,36 +15,36 @@ typedef enum {
 } package_state_t;
 
 struct package {
-    // Package name. Defined by the name of the lox file
+    //Package name. Defined by the name of the lox file
     const char * name;
 
-    // Absolute path of package in the file system
-    // Only set when package is local (not part of stdlib)
-    // Only used in compile time
+    //Absolute path of package in the file system
+    //Only set when package is local (not part of stdlib)
+    //Only used in compile time
     const char * absolute_path;
 
-    // Maintains mapping of names with global variables, this might include functions, packages, variables etc.
-    // Only modified by the runtime when executing instruction OP_DEFINE_GLOBAL in scope SCOPE_PACKAGE (top level code)
-    // This might be modified concurrently. lox_hash_table has rw mutex
+    //Maintains mapping of names with global variables, this might include functions, packages, variables etc.
+    //Only modified by the runtime when executing instruction OP_DEFINE_GLOBAL in scope SCOPE_PACKAGE (top level code)
+    //This might be modified concurrently. lox_hash_table has rw mutex
     struct lox_hash_table global_variables;
 
-    // Used at runtime & bytecode_compiler
-    // This might be modified concurrently by runtime Protected by state_mutex
+    //Used at runtime & bytecode_compiler
+    //This might be modified concurrently by runtime Protected by state_mutex
     package_state_t state;
     pthread_mutex_t state_mutex;
 
     struct function_object * main_function;
 
-    // Includes functions, vars & structs
-    // Only used and modified at compile time
+    //Includes functions, vars & structs
+    //Only used and modified at compile time
     struct trie_list exported_symbols;
 
-    // May include public & private
-    // Only used and modified at compile time
+    //May include public & private
+    //Only used and modified at compile time
     struct trie_list struct_definitions; //Stores struct_definition
 
-    // May include public & private
-    // Modified and used at compile time & maybe used in runtime
+    //May include public & private
+    //Modified and used at compile time & maybe used in runtime
     struct lox_hash_table defined_functions;
 
     uint32_t package_id;
@@ -55,11 +55,11 @@ void free_package(struct package * package);
 struct package * alloc_package();
 void init_package(struct package * package);
 
-// Takes an import path and a length, and returns the package name.
+//Takes an import path and a length, and returns the package name.
 //
-// Packages names are included in the import path.
-// An import could be in these types: math, math.lox, utils/math.lox
-// This method should return math in these cases
+//Packages names are included in the import path.
+//An import could be in these types: math, math.lox, utils/math.lox
+//This method should return math in these cases
 struct substring read_package_name(char * import_name, int import_name_length);
 
 char * read_package_source_code(char * absolute_path);

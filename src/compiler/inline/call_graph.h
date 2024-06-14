@@ -11,6 +11,9 @@
 
 struct call_graph;
 
+//This allows us to create a call graph of functions calls to other functions.
+//This is useful when inlining functions, so we can iterate the graph avoiding cycles
+
 struct call_graph_caller_data {
     int call_bytecode_index;
     bool is_inlined;

@@ -127,17 +127,17 @@ static interpret_result_t run() {
             case OP_NIL: push_stack_vm(NIL_VALUE); break;
             case OP_NOT: push_stack_vm(TO_LOX_VALUE_BOOL(!check_boolean())); break;
             case OP_EQUAL: push_stack_vm(values_equal(pop_stack_vm(), pop_stack_vm())); break;
-            case OP_PRINT: print(); break; //Checks for start gc signal
+            case OP_PRINT: print(); break;
             case OP_POP: pop_stack_vm(); break;
-            case OP_DEFINE_GLOBAL: define_global(current_frame); break; //Checks for start gc signal
+            case OP_DEFINE_GLOBAL: define_global(current_frame); break;
             case OP_GET_GLOBAL: get_global(current_frame); break;
             case OP_SET_GLOBAL: set_global(current_frame); break;
             case OP_GET_LOCAL: get_local(current_frame); break;
-            case OP_JUMP_IF_FALSE: jump_if_false(current_frame); break; //Checks for start gc signal
-            case OP_JUMP: jump(current_frame); break; //Checks for start gc signal
+            case OP_JUMP_IF_FALSE: jump_if_false(current_frame); break;
+            case OP_JUMP: jump(current_frame); break;
             case OP_SET_LOCAL: set_local(current_frame); break;
-            case OP_LOOP: loop(current_frame); break; //Checks for start gc signal
-            case OP_CALL: call_vm(current_frame); current_frame = get_current_frame(); break; //Checks for start gc signal
+            case OP_LOOP: loop(current_frame); break;
+            case OP_CALL: call_vm(current_frame); current_frame = get_current_frame(); break;
             case OP_INITIALIZE_STRUCT: initialize_struct(current_frame); break;
             case OP_GET_STRUCT_FIELD: get_struct_field(current_frame); break;
             case OP_SET_STRUCT_FIELD: set_struct_field(current_frame); break;

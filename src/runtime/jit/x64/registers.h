@@ -1,7 +1,5 @@
 #pragma once
 
-#define N_MAX_REGISTERS 16
-
 typedef enum {
     RAX =  0, // 0000
     RCX =  1, // 0001

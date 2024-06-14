@@ -16,6 +16,8 @@ struct function_inline_result {
     int n_locals_added;
 };
 
+//This takes a target function and a function to inline. The function to inline will get "merged" into target
+//at chunk_target_index index
 struct function_inline_result inline_function(
         struct function_object * target,
         int chunk_target_index,

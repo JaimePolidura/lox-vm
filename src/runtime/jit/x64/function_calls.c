@@ -47,13 +47,9 @@ uint16_t call_external_c_function(
             switch_to_function_mode(jit_compiler, function_mode, mode_switch_config);
 
     save_caller_registers(native_code, n_arguments, function_address);
-
     load_arguments_into_registers(native_code, arguments, n_arguments);
-
     emit_call(native_code, R10_REGISTER_OPERAND);
-
     restore_caller_registers(native_code, n_arguments);
-
     switch_to_prev_mode(jit_compiler, jit_mode_switch_info, prev_mode, mode_switch_config);
 
     return instruction_index;

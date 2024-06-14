@@ -38,7 +38,6 @@ struct mark_sweep_thread_info {
 
     size_t next_gc;
 
-    //Linked list of heap allocated objects
+    //Linked list of heap allocated objects maitained per each thread
     struct object * heap;
-
 };

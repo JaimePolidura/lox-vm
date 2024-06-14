@@ -807,8 +807,8 @@ static void record_pending_jump_to_patch(
     uint16_t bytecode_instruction_to_jump = CURRENT_BYTECODE_INDEX(jit_compiler) + bytecode_offset;
 
     //Near jump instruction: (opcode 2 byte) + (offset 4 bytes)
-    add_pending_jump_to_patch(
-            &jit_compiler->pending_jumps_to_patch,
+    add_pending_jump_to_resolve(
+            &jit_compiler->pending_jumps_to_resolve,
             bytecode_instruction_to_jump,
             (void *) (jump_instruction_index + x64_jump_instruction_body_length)
     );
@@ -825,7 +825,7 @@ static struct jit_compiler init_jit_compiler(struct function_object * function) 
     compiler.function_to_compile = function;
     compiler.pc = function->chunk->code;
 
-    init_pending_jumps_to_patch(&compiler.pending_jumps_to_patch, function->chunk->in_use);
+    init_pending_jumps_to_resolve(&compiler.pending_jumps_to_resolve, function->chunk->in_use);
     init_register_allocator(&compiler.register_allocator);
     init_u8_arraylist(&compiler.native_compiled_code);
     init_stack_list(&compiler.package_stack);
@@ -901,14 +901,15 @@ static void check_pending_jumps_to_patch(struct jit_compiler * jit_compiler, int
     uint16_t current_bytecode_index = CURRENT_BYTECODE_INDEX(jit_compiler) - bytecode_instruction_length;
     uint16_t current_compiled_index = get_compiled_native_index_by_bytecode_index(jit_compiler, current_bytecode_index);
 
-    struct pending_jump_to_patch pending_jump_to_patch = get_pending_jump_to_patch(&jit_compiler->pending_jumps_to_patch,
+    struct pending_jump_to_resolve pending_jump_to_patch = get_pending_jump_to_resolve(
+            &jit_compiler->pending_jumps_to_resolve,
             current_bytecode_index);
 
     for(int i = 0; i < pending_jump_to_patch.in_use; i++){
-        uint16_t compiled_native_jmp_offset_index = (uint16_t) pending_jump_to_patch.pending_patch_data[i];
+        uint16_t compiled_native_jmp_offset_index = (uint16_t) pending_jump_to_patch.pending_resolve_data[i];
 
         if (compiled_native_jmp_offset_index != 0) {
-            //pending_patch_data points to native jmp offset part of the instruction
+            //pending_resolve_data points to native jmp offset part of the instruction
             //-4 to substract the jmp offset since it takes 4 bytes
             uint16_t native_jmp_offset = current_compiled_index - (compiled_native_jmp_offset_index + 4);
             uint16_t * compiled_native_jmp_offset_index_ptr = (uint16_t *) (jit_compiler->native_compiled_code.values + compiled_native_jmp_offset_index);
@@ -987,7 +988,7 @@ static uint16_t get_compiled_native_index_by_bytecode_index(struct jit_compiler 
 }
 
 static void free_jit_compiler(struct jit_compiler * jit_compiler) {
-    free_pending_jumps_to_patch(&jit_compiler->pending_jumps_to_patch);
+    free_pending_jumps_to_resolve(&jit_compiler->pending_jumps_to_resolve);
     free(jit_compiler->compiled_bytecode_to_native_by_index);
     free_stack_list(&jit_compiler->package_stack);
 }
