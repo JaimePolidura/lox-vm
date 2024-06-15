@@ -8,6 +8,34 @@
 
 extern struct vm current_vm;
 
+TEST(vm_inline_multiple_calls) {
+    start_vm();
+
+    struct compilation_result compilation = compile_standalone(
+            "fun b() {"
+            "   print 1;"
+            "}"
+            ""
+            "fun a() {"
+            "   inline b();"
+            "}"
+            ""
+            "fun func() {"
+            "   inline a(101);"
+            "   b();"
+            "}"
+            ""
+            "func();"
+    );
+
+    interpret_vm(compilation);
+    stop_vm();
+    reset_vm();
+
+    ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
+}
+
 TEST(vm_inline_packages_test){
     start_vm();
 

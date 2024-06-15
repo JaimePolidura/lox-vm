@@ -7,10 +7,11 @@
 
 #define SINGLE_INSTRUCTION(name) printf("%s\n", name)
 #define BINARY_U8_INSTRUCTION(name, iterator) printf("%s %u\n", name, read_u8_chunk_iterator(&iterator))
-#define BINARY_U16_INSTRUCTION(name, ite) printf("%s %u\n", name, read_u8_chunk_iterator(&ite))
+#define BINARY_U16_INSTRUCTION(name, ite) printf("%s %u\n", name, read_u16_chunk_iterator(&ite))
 #define BINARY_U64_INSTRUCTION(name, ite) printf("%s %llu\n", name, read_u64_chunk_iterator(&ite))
 #define FWD_JUMP_INSTRUCTION(name, pc, chunk, jump) printf("%s %4llX\n", name, (pc + jump) - chunk->code)
 #define BWD_JUMP_INSTRUCTION(name, pc, chunk, jump) printf("%s %4llX\n", name, (pc - jump) - chunk->code)
+#define INITIALIZE_ARRAY_INSTRUCTION(ite) printf("OP_INITIALIZE_ARRAY %u %s\n", read_u16_chunk_iterator(&ite), read_u8_chunk_iterator(&ite) == 1 ? "<empty>" : "<with elements>")
 
 #define BINARY_STRING_INSTRUCTION(name, chunk, ite) printf("%s %s\n", name, AS_STRING_OBJECT(read_constant_chunk_iterator(&ite))->chars)
 #define CALL_INSTRUCTION(name, ite) printf("%s %u %d\n", name, \
@@ -135,11 +136,11 @@ void disassemble_function(struct function_object * function, long options) {
             }
             case OP_ENTER_MONITOR: BINARY_U8_INSTRUCTION("OP_ENTER_MONITOR", iterator); break;
             case OP_EXIT_MONITOR: BINARY_U8_INSTRUCTION("OP_EXIT_MONITOR", iterator); break;
-            case OP_INITIALIZE_ARRAY: BINARY_U16_INSTRUCTION("OP_INITIALIZE_ARRAY", iterator); break;
+            case OP_INITIALIZE_ARRAY: INITIALIZE_ARRAY_INSTRUCTION(iterator); break;
             case OP_GET_ARRAY_ELEMENT: BINARY_U16_INSTRUCTION("OP_GET_ARRAY_ELEMENT", iterator); break;
             case OP_SET_ARRAY_ELEMENT: BINARY_U16_INSTRUCTION("OP_SET_ARRAY_ELEMENT", iterator); break;
             case OP_FAST_CONST_8: BINARY_U8_INSTRUCTION("OP_FAST_CONST_8", iterator); break;
-            case OP_FAST_CONST_16: BINARY_U16_INSTRUCTION("OP_FAST_CONST_8", iterator); break;
+            case OP_FAST_CONST_16: BINARY_U16_INSTRUCTION("OP_FAST_CONST_16", iterator); break;
             case OP_CONST_1: SINGLE_INSTRUCTION("OP_CONST_1"); break;
             case OP_CONST_2: SINGLE_INSTRUCTION("OP_CONST_2"); break;
             case OP_EOF: SINGLE_INSTRUCTION("OP_EOF"); return;

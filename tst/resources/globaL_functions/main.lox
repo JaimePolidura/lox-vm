@@ -7,4 +7,3 @@ print "Opened file " + file.fd;
 Files::read(file, 10);
 
 Files::close(file);
-

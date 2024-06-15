@@ -345,15 +345,15 @@ void call(lox_value_t callee_lox, int n_args, bool is_parallel) {
 }
 
 static void call_function(struct function_object * function, int n_args, bool is_parallel) {
-    if(n_args != function->n_arguments){
+    if (n_args != function->n_arguments) {
         runtime_panic("Cannot call %s with %i args. Required %i nº args", function->name->chars, n_args,
                       function->n_arguments);
     }
-    if(self_thread->frames_in_use >= FRAME_MAX){
+    if (self_thread->frames_in_use >= FRAME_MAX) {
         runtime_panic("Stack overflow. Max allowed frames: %i", FRAME_MAX);
     }
 
-    if(is_parallel) {
+    if (is_parallel) {
         start_child_thread(function);
         return;
     }
@@ -399,9 +399,10 @@ static void return_function(struct call_frame * function_to_return_frame) {
 
 static void initialize_array(struct call_frame * call_frame) {
     uint16_t n_elements = READ_U16(call_frame);
+    bool empty_initialization = READ_BYTECODE(call_frame);
     struct array_object * array = alloc_array_object(n_elements);
 
-    for(int i = 0; i < n_elements; i++) {
+    for(int i = 0; i < n_elements && !empty_initialization; i++) {
         lox_value_t value = pop_stack_vm();
         int index = n_elements - i - 1;
 
@@ -694,7 +695,7 @@ static int add_child_to_parent_list(struct vm_thread * new_child_thread) {
         return index;
     }
 
-    runtime_panic("Exceeded max immediate of child threads_race_conditions %i per thread", MAX_THREADS_PER_THREAD);
+    runtime_panic("Exceeded max immediate of child %i per thread", MAX_THREADS_PER_THREAD);
 
     return -1;
 }
@@ -709,8 +710,11 @@ static int try_add_child_to_parent_list(struct vm_thread * new_child_thread) {
         } else if(current_thread_slot != NULL &&
                 current_thread_slot->state == THREAD_TERMINATED &&
                 current_thread_slot->terminated_state == THREAD_TERMINATED_GC_DONE) {
-            self_thread->children[i] = NULL;
+
+            new_child_thread->gc_info = current_thread_slot->gc_info;
             free(current_thread_slot);
+            self_thread->children[i] = new_child_thread;
+            return i;
         }
     }
 

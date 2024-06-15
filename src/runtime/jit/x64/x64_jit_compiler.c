@@ -412,6 +412,7 @@ static void get_array_element(struct jit_compiler * jit_compiler) {
 
 static void initialize_array(struct jit_compiler * jit_compiler) {
     int n_elements = READ_U16(jit_compiler);
+    bool is_emtpy_initialization = READ_BYTECODE(jit_compiler);
 
     //Allocate array object & add to heap list
     uint16_t instruction_index = call_external_c_function(
@@ -439,7 +440,7 @@ static void initialize_array(struct jit_compiler * jit_compiler) {
                      offsetof(struct lox_arraylist, values)));
 
     //Load array values from lox stack into array_values_addr_reg
-    for(int i = 0; i < n_elements; i++){
+    for(int i = 0; i < n_elements && !is_emtpy_initialization; i++){
         struct pop_stack_operand_result pop_result = pop_stack_operand_jit_stack_as_register(jit_compiler);
         size_t current_array_offset = (n_elements - i - 1) * sizeof(lox_value_t);
 

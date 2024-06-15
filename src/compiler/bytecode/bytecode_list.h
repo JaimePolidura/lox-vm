@@ -21,6 +21,10 @@ struct bytecode_list {
         } pair;
         //When building bytecode_list from chunk, jumps are automaticly resolved
         struct bytecode_list * jump;
+        struct {
+            uint16_t n_elements;
+            bool is_emtpy_initializaion;
+        } initialize_array;
     } as;
 
     struct bytecode_list * next;

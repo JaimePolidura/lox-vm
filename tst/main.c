@@ -26,9 +26,10 @@ extern const char * compiling_base_dir;
 //Run in debug mode
 int main() {
 #ifdef RUN_VM_INLINE_TEST
+    vm_inline_monitor_test_outer();
+    vm_inline_multiple_calls_outer();
     vm_inline_packages_test_outer();
     vm_inline_multiple_returns_test_outer();
-    vm_inline_monitor_test_outer();
     vm_inline_if_test_outer();
     vm_inline_for_loop_test_outer();
     vm_inline_simple_function_test_outer();

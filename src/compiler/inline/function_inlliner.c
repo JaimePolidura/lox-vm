@@ -232,16 +232,19 @@ static void get_call_args_in_stack(
                     struct struct_definition_object * struct_definition = (struct struct_definition_object *) AS_OBJECT(
                             target_function->chunk->constants.values[struct_definition_constant]);
                     int n_fields = struct_definition->n_fields;
-
                     pop_n_stack_list(stack, n_fields);
+                    break;
 
-                    break;
                 case OP_INITIALIZE_ARRAY:
-                    pop_n_stack_list(stack, current_node->as.u16);
+                    if(!current_node->as.initialize_array.is_emtpy_initializaion){
+                        pop_n_stack_list(stack, current_node->as.initialize_array.n_elements);
+                    }
                     break;
+
                 case OP_CALL:
                     pop_n_stack_list(stack, current_node->as.pair.u8_1);
                     break;
+
                 default:
                     break;
             }

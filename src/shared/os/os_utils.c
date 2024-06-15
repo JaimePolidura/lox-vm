@@ -36,3 +36,11 @@ uint8_t * allocate_executable(size_t size) {
         0);
 #endif
 }
+
+void sleep_ms(uint64_t ms) {
+#ifdef _WIN32
+    Sleep(ms);
+#else
+    usleep(ms * 1000);
+#endif
+}

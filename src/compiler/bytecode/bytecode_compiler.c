@@ -332,9 +332,10 @@ static void emtpy_array_initialization(struct bytecode_compiler * compiler) {
 
     int n_elements = strtod(number_elements_token.start, NULL);
 
-    struct array_object * array_object = alloc_array_object(n_elements);
-
-    emit_constant(compiler, TO_LOX_VALUE_OBJECT(array_object));
+    emit_bytecode(compiler, OP_INITIALIZE_ARRAY);
+    emit_bytecode(compiler, (n_elements >> 8) & 0xFF);
+    emit_bytecode(compiler, n_elements & 0xFF);
+    emit_bytecode(compiler, 1); //Emtpy intialization
 }
 
 static void var_declaration(struct bytecode_compiler * compiler, bool is_public) {
@@ -878,9 +879,9 @@ static void array_inline_initialization(struct bytecode_compiler * compiler, boo
     uint16_t n_elements = (uint16_t) array_inline_initialization_elements(compiler);
 
     emit_bytecode(compiler, OP_INITIALIZE_ARRAY);
-
     emit_bytecode(compiler, (n_elements >> 8) & 0xFF);
     emit_bytecode(compiler, n_elements & 0xFF);
+    emit_bytecode(compiler, 0); //Not emtpy intialization
 }
 
 static int array_inline_initialization_elements(struct bytecode_compiler * compiler) {

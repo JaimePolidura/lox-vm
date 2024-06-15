@@ -61,6 +61,10 @@ struct chunk * to_chunk_bytecode_list(struct bytecode_list * bytecode_list) {
             write_chunk(new_chunk, (current_instruction->as.u64 >> 16) & 0xff);
             write_chunk(new_chunk, (current_instruction->as.u64 >>  8) & 0xff);
             write_chunk(new_chunk, (current_instruction->as.u64 >>  0) & 0xff);
+        } else if (current_instruction_size == 4 && current_instruction->bytecode == OP_INITIALIZE_ARRAY) {
+            write_chunk(new_chunk, (current_instruction->as.initialize_array.n_elements >> 8) & 0xff);
+            write_chunk(new_chunk, current_instruction->as.initialize_array.n_elements & 0xff);
+            write_chunk(new_chunk, current_instruction->as.initialize_array.is_emtpy_initializaion & 0xff);
         }
 
         current_instruction = current_instruction->next;
@@ -203,15 +207,18 @@ struct bytecode_list * create_bytecode_list(struct chunk * chunk) {
             case OP_PACKAGE_CONST:
                 current_node->as.u8 = read_u8_chunk_iterator(&chunk_iterator);
                 break;
+
             case OP_CALL:
                 current_node->as.pair.u8_1 = read_u8_chunk_iterator_at(&chunk_iterator, 0);
                 current_node->as.pair.u8_2 = read_u8_chunk_iterator_at(&chunk_iterator, 1);
                 break;
+
             case OP_JUMP_IF_FALSE:
             case OP_JUMP:
                 int jmp_bytecode_offset = read_u16_chunk_iterator(&chunk_iterator);
                 int to_jump_index = (current_instruction_index + 3) + jmp_bytecode_offset;
                 add_pending_jump_to_resolve(&pending_jumps, to_jump_index, current_node);
+
                 break;
             case OP_LOOP:
                 int to_jump_instruction_index = current_instruction_index_chunk_iterator(&chunk_iterator) - read_u16_chunk_iterator(&chunk_iterator) + 3;
@@ -219,10 +226,16 @@ struct bytecode_list * create_bytecode_list(struct chunk * chunk) {
                 break;
 
             case OP_INITIALIZE_ARRAY:
+                current_node->as.initialize_array.n_elements = read_u16_chunk_iterator(&chunk_iterator);
+                current_node->as.initialize_array.is_emtpy_initializaion = read_u8_chunk_iterator(&chunk_iterator);
+                break;
+
             case OP_GET_ARRAY_ELEMENT:
             case OP_SET_ARRAY_ELEMENT:
             case OP_FAST_CONST_16:
                 current_node->as.u16 = read_u16_chunk_iterator(&chunk_iterator);
+                break;
+
             case OP_ENTER_MONITOR_EXPLICIT:
             case OP_EXIT_MONITOR_EXPLICIT:
                 current_node->as.u64 = read_u64_chunk_iterator(&chunk_iterator);

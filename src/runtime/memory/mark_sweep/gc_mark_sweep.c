@@ -260,6 +260,7 @@ static void sweep_heap_thread(struct vm_thread * parent_ignore, struct vm_thread
             object = object->next;
         } else {
             struct object * unreached = object;
+
             object = object->next;
             if (previous != NULL) {
                 previous->next = object;
