@@ -2,11 +2,13 @@
 
 struct string_pool global_string_pool;
 
-struct string_pool_add_result add_substring_to_global_string_pool(struct substring substring) {
-    return add_to_global_string_pool(start_substring(substring), length_substring(substring));
+extern struct string_object * alloc_string_gc_alg(char * chars, int length);
+
+struct string_pool_add_result add_substring_to_global_string_pool(struct substring substring, bool runtime) {
+    return add_to_global_string_pool(start_substring(substring), length_substring(substring), runtime);
 }
 
-struct string_pool_add_result add_to_global_string_pool(char * string_ptr, int length) {
+struct string_pool_add_result add_to_global_string_pool(char * string_ptr, int length, bool runtime) {
     lock_mutex(&global_string_pool.lock);
 
     uint32_t string_hash = hash_string(string_ptr, length);
@@ -14,8 +16,9 @@ struct string_pool_add_result add_to_global_string_pool(char * string_ptr, int l
     bool string_already_in_pool = pooled_string != NULL;
 
     if(!string_already_in_pool) {
-        struct string_object * string = copy_chars_to_string_object(string_ptr, length);
-        string->hash = string_hash;
+        struct string_object * string = runtime ?
+                alloc_string_gc_alg(string_ptr, length) :
+                copy_chars_to_string_object(string_ptr, length);
 
         put_hash_table(&global_string_pool.strings, string, NIL_VALUE);
 

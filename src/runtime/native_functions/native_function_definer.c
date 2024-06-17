@@ -21,7 +21,7 @@ void setup_native_functions() {
 
 static void define_native(struct native_function_object * native_function_object) {
     put_hash_table(&self_thread->current_package->global_variables,
-                   add_to_global_string_pool(native_function_object->name, strlen(native_function_object->name))
+                   add_to_global_string_pool(native_function_object->name, strlen(native_function_object->name), true)
                         .string_object,
                    TO_LOX_VALUE_OBJECT(native_function_object));
 }

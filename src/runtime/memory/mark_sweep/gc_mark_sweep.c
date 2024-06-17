@@ -363,3 +363,30 @@ static void finish_gc() {
     gc_mark_sweep->gray_count = 0;
     gc_mark_sweep->state = GC_NONE;
 }
+
+struct struct_instance_object * alloc_struct_instance_gc_alg(struct struct_definition_object * definition) {
+    struct struct_instance_object * instance = malloc(sizeof(struct struct_instance_object));
+    init_struct_instance_object(instance, definition);
+    add_object_to_heap_gc_alg(&instance->object);
+    return instance;
+}
+
+struct string_object * alloc_string_gc_alg(char * chars, int length) {
+    struct string_object * string = malloc(sizeof(struct string_object));
+    init_object(&string->object, OBJ_STRING);
+    string->length = length;
+    string->hash = hash_string(chars, length);
+    string->chars = malloc(sizeof(char) * length + 1);
+    memcpy(string->chars, chars, length);
+    string->chars[length] = '\0';
+    add_object_to_heap_gc_alg(&string->object);
+    return string;
+}
+
+struct array_object * alloc_array_gc_alg(int n_elements) {
+    struct array_object * array_object = malloc(sizeof(struct array_object));
+    init_lox_arraylist_with_size(&array_object->values, n_elements);
+    init_object(&array_object->object, OBJ_ARRAY);
+    add_object_to_heap_gc_alg(&array_object->object);
+    return array_object;
+}

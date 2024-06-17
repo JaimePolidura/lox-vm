@@ -294,11 +294,11 @@ static void struct_declaration(struct bytecode_compiler * compiler, bool is_publ
     }
 
     struct_definition->n_fields = n_fields;
-    struct_definition->name = add_to_global_string_pool(struct_name.start, struct_name.length).string_object;
+    struct_definition->name = add_to_global_string_pool(struct_name.start, struct_name.length, false).string_object;
     struct_definition->field_names = malloc(sizeof(struct token) * n_fields);
     for(int i = 0; i < n_fields; i++) {
         struct token field = fields[i];
-        struct_definition->field_names[i] = add_to_global_string_pool(field.start, field.length).string_object;
+        struct_definition->field_names[i] = add_to_global_string_pool(field.start, field.length, false).string_object;
     }
 
     put_trie(&compiler->package->struct_definitions, struct_definition->name->chars,
@@ -1079,7 +1079,7 @@ static struct package * add_package_to_compiled_packages(char * package_import_n
     //If it is not found, it means it is a local package -> a path is used as an import name
     if(package_in_compiled_packages == NULL) {
         struct package * new_package = alloc_package();
-        char * package_string = add_substring_to_global_string_pool(package_substring).string_object->chars;
+        char * package_string = add_substring_to_global_string_pool(package_substring, false).string_object->chars;
         new_package->state = PENDING_COMPILATION;
         new_package->name = package_string;
         if(!is_stand_alone_mode) { //If used in standalone mode no local packages is allowed to use
@@ -1141,7 +1141,7 @@ static void string(struct bytecode_compiler * compiler, bool can_assign) {
     char * string_ptr = compiler->parser->previous.start + 1;
     int string_length = compiler->parser->previous.length - 2;
 
-    struct string_pool_add_result add_result = add_to_global_string_pool(string_ptr, string_length);
+    struct string_pool_add_result add_result = add_to_global_string_pool(string_ptr, string_length, false);
 
     emit_constant(compiler, TO_LOX_VALUE_OBJECT(add_result.string_object));
 }
@@ -1230,7 +1230,7 @@ static uint8_t add_string_constant(struct bytecode_compiler * compiler, struct t
     int variable_name_length = string_token.length;
 
     //TODO Reuse constant offsets
-    struct string_pool_add_result result_add = add_to_global_string_pool(variable_name, variable_name_length);
+    struct string_pool_add_result result_add = add_to_global_string_pool(variable_name, variable_name_length, false);
 
     return add_constant_to_chunk(current_chunk(compiler), TO_LOX_VALUE_OBJECT(result_add.string_object));
 }

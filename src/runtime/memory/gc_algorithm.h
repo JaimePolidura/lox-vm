@@ -6,7 +6,9 @@
 
 //When a thread heap allocates an object, this function will get called.
 //This function may trigger a garbage collection.
-void add_object_to_heap_gc_alg(struct object * object);
+struct struct_instance_object * alloc_struct_instance_gc_alg(struct struct_definition_object * definition);
+struct string_object * alloc_string_gc_alg(char * chars, int length);
+struct array_object * alloc_array_gc_alg(int n_elements);
 
 //Called by runtime when it reaches a "safe point".
 //Checkpoints are called periodicaly in static places by threads (at loop, function calls...)

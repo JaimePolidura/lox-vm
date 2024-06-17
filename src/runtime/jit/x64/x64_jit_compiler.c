@@ -4,13 +4,12 @@
 #pragma clang diagnostic ignored "-Wint-to-void-pointer-cast"
 extern __thread struct vm_thread * self_thread;
 
+extern struct struct_instance_object * alloc_struct_instance_gc_alg(struct struct_definition_object *);
+extern struct array_object * alloc_array_gc_alg(int n_elements);
 extern bool get_hash_table(struct lox_hash_table * table, struct string_object * key, lox_value_t *value);
 extern bool put_hash_table(struct lox_hash_table * table, struct string_object * key, lox_value_t value);
 extern struct call_frame * get_current_frame_vm_thread(struct vm_thread *);
 extern bool set_element_array(struct array_object * array, int index, lox_value_t value);
-extern struct struct_instance_object * alloc_struct_instance_object(struct struct_definition_object *);
-extern void add_object_to_heap_gc_alg(struct object * object);
-extern struct array_object * alloc_array_object(int size);
 extern void enter_monitor(struct monitor * monitor);
 extern void exit_monitor(struct monitor * monitor);
 extern void print_lox_value(lox_value_t value);
@@ -89,7 +88,6 @@ static void free_jit_compiler(struct jit_compiler *);
 static uint16_t cast_lox_object_to_ptr(struct jit_compiler *, register_t lox_object_ptr);
 static uint16_t cast_ptr_to_lox_object(struct jit_compiler *, register_t lox_object_ptr);
 static uint16_t call_safepoint(struct jit_compiler *);
-static uint16_t call_add_object_to_heap(struct jit_compiler *, register_t);
 static uint16_t emit_lox_push(struct jit_compiler *, register_t);
 static uint16_t emit_lox_pop(struct jit_compiler *, register_t);
 static uint16_t emit_increase_lox_stack(struct jit_compiler *, int);
@@ -417,9 +415,9 @@ static void initialize_array(struct jit_compiler * jit_compiler) {
     //Allocate array object & add to heap list
     uint16_t instruction_index = call_external_c_function(
             jit_compiler,
-            MODE_JIT,
+            MODE_VM_GC,
             SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
-            FUNCTION_TO_OPERAND(alloc_array_object),
+            FUNCTION_TO_OPERAND(alloc_array_gc_alg),
             1,
             IMMEDIATE_TO_OPERAND((uint64_t) n_elements));
 
@@ -460,8 +458,6 @@ static void initialize_array(struct jit_compiler * jit_compiler) {
     cast_ptr_to_lox_object(jit_compiler, register_array_lox_addr_reg);
 
     push_heap_allocated_register_jit_stack(&jit_compiler->jit_stack, register_array_lox_addr_reg);
-
-    call_add_object_to_heap(jit_compiler, array_addr_reg);
 
     //Pop array_values_addr_reg & register_array_lox_addr_reg
     pop_register_allocator(&jit_compiler->register_allocator);
@@ -557,7 +553,7 @@ static void initialize_struct(struct jit_compiler * jit_compiler) {
             jit_compiler,
             MODE_JIT,
             SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
-            FUNCTION_TO_OPERAND(alloc_struct_instance_object),
+            FUNCTION_TO_OPERAND(alloc_struct_instance_gc_alg),
             1,
             IMMEDIATE_TO_OPERAND((uint64_t) struct_definition)
     );
@@ -601,8 +597,6 @@ static void initialize_struct(struct jit_compiler * jit_compiler) {
     cast_lox_object_to_ptr(jit_compiler, struct_lox_addr_reg);
 
     push_heap_allocated_register_jit_stack(&jit_compiler->jit_stack, struct_lox_addr_reg);
-
-    call_add_object_to_heap(jit_compiler, struct_addr_reg);
 
     //pop struct_lox_addr_reg
     pop_register_allocator(&jit_compiler->register_allocator);
@@ -931,16 +925,6 @@ static uint16_t call_safepoint(struct jit_compiler * jit_compiler) {
             SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
             FUNCTION_TO_OPERAND(check_gc_on_safe_point_alg),
             0);
-}
-
-static uint16_t call_add_object_to_heap(struct jit_compiler * jit_compiler, register_t object_addr_reg) {
-    return call_external_c_function(
-            jit_compiler,
-            MODE_VM_GC,
-            SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
-            FUNCTION_TO_OPERAND(add_object_to_heap_gc_alg),
-            1,
-            REGISTER_TO_OPERAND(object_addr_reg));
 }
 
 //Se x64_stack.h

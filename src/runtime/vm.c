@@ -2,10 +2,11 @@
 
 extern struct trie_list * compiled_packages;
 extern void check_gc_on_safe_point_alg();
-extern void add_object_to_heap_gc_alg(struct object * object);
 extern struct gc_result try_start_gc_alg();
 extern void * alloc_gc_thread_info_alg();
 extern void * alloc_gc_alg();
+extern struct struct_instance_object * alloc_struct_instance_gc_alg(struct struct_definition_object *);
+extern struct array_object * alloc_array_gc_alg(int n_elements);
 
 extern void print_lox_value(lox_value_t value);
 extern void runtime_panic(char * format, ...);
@@ -400,7 +401,7 @@ static void return_function(struct call_frame * function_to_return_frame) {
 static void initialize_array(struct call_frame * call_frame) {
     uint16_t n_elements = READ_U16(call_frame);
     bool empty_initialization = READ_BYTECODE(call_frame);
-    struct array_object * array = alloc_array_object(n_elements);
+    struct array_object * array = alloc_array_gc_alg(n_elements);
 
     for(int i = 0; i < n_elements && !empty_initialization; i++) {
         lox_value_t value = pop_stack_vm();
@@ -410,8 +411,6 @@ static void initialize_array(struct call_frame * call_frame) {
     }
 
     push_stack_vm(TO_LOX_VALUE_OBJECT(array));
-
-    add_object_to_heap_gc_alg(&array->object);
 }
 
 static void get_array_element(struct call_frame * call_frame) {
@@ -439,7 +438,7 @@ static void set_array_element(struct call_frame * call_frame) {
 
 static void initialize_struct(struct call_frame * call_frame) {
     struct struct_definition_object * struct_definition = (struct struct_definition_object *) AS_OBJECT(READ_CONSTANT(call_frame));
-    struct struct_instance_object * struct_instance = alloc_struct_instance_object(struct_definition);
+    struct struct_instance_object * struct_instance = alloc_struct_instance_gc_alg(struct_definition);
     int n_fields = struct_definition->n_fields;
 
     for(int i = 0; i < n_fields; i++) {
@@ -448,8 +447,6 @@ static void initialize_struct(struct call_frame * call_frame) {
     }
 
     push_stack_vm(TO_LOX_VALUE_OBJECT(struct_instance));
-
-    add_object_to_heap_gc_alg(&struct_instance->object);
 }
 
 static void get_struct_field(struct call_frame * call_frame) {
