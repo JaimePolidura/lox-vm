@@ -32,12 +32,19 @@ static void finish_gc();
 void signal_threads_start_gc_alg_and_await();
 void signal_threads_gc_finished_alg();
 
+#define SET_UNMARKED(object) object->gc_info = (void *) (((uint64_t) object->gc_info & 0x7FFFFFFFFFFFFFFF))
+#define SET_MARKED(object) object->gc_info = (void *) (((uint64_t) object->gc_info) | 0x8000000000000000)
+#define IS_MARKED(object) ((uint64_t) object->gc_info >> 63)
+
+#define SET_NEXT_GC_HEAP(object, next) object->gc_info = (void *) ((uint64_t) next | ((uint64_t) object->gc_info & 0x8000000000000000))
+#define GET_NEXT_GC_HEAP(object) (struct object *) ((uint64_t) object->gc_info & 0x7FFFFFFFFFFFFFFF)
+
 void add_object_to_heap_gc_alg(struct object * object) {
     struct mark_sweep_thread_info * gc_thread_info = self_thread->gc_info;
     size_t allocated_heap_size = sizeof_heap_allocated_lox_object(object);
     gc_thread_info->bytes_allocated += allocated_heap_size;
-    
-    object->next = gc_thread_info->heap;
+
+    SET_NEXT_GC_HEAP(object, gc_thread_info->heap);
     gc_thread_info->heap = object;
 
     gc_thread_info->bytes_allocated += allocated_heap_size;
@@ -141,6 +148,10 @@ void check_gc_on_safe_point_alg() {
     }
 }
 
+void * alloc_gc_object_info_alg() {
+    return NULL;
+}
+
 void * alloc_gc_thread_info_alg() {
     struct mark_sweep_thread_info * gc_thread_info_ms = malloc(sizeof(struct mark_sweep_thread_info));
     gc_thread_info_ms->mark_sweep = current_vm.gc;
@@ -151,7 +162,7 @@ void * alloc_gc_thread_info_alg() {
     return (struct mark_sweep_thread_info *) gc_thread_info_ms;
 }
 
-void * alloc_gc_alg() {
+void * alloc_gc_vm_info_alg() {
     struct mark_sweep_global_info * gc_mark_sweep = malloc(sizeof(struct mark_sweep_global_info));
     gc_mark_sweep->number_threads_ack_start_gc_signal = 0;
     gc_mark_sweep->gray_stack = NULL;
@@ -254,16 +265,16 @@ static void sweep_heap_thread(struct vm_thread * parent_ignore, struct vm_thread
     struct object * previous = NULL;
 
     while (object != NULL) {
-        if (object->gc_marked) {
-            object->gc_marked = false;
+        if (IS_MARKED(object)) {
+            SET_UNMARKED(object);
             previous = object;
-            object = object->next;
+            object = GET_NEXT_GC_HEAP(object);
         } else {
             struct object * unreached = object;
 
-            object = object->next;
+            object = GET_NEXT_GC_HEAP(object);
             if (previous != NULL) {
-                previous->next = object;
+                SET_NEXT_GC_HEAP(previous, object);
             } else {
                 gc_info->heap = object;
             }
@@ -302,8 +313,11 @@ static void mark_value(lox_value_t * value) {
 }
 
 static void mark_object(struct object * object) {
-    if(!object->gc_marked){
-        object->gc_marked = true;
+    uint64_t a =  (uint64_t) object;
+    uint64_t b = ((uint64_t) object->gc_info << 56) >> 56;
+
+    if(!IS_MARKED(object)){
+        SET_MARKED(object);
         add_value_gc_info(object);
     }
 }

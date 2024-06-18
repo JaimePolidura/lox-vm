@@ -9,8 +9,7 @@
     .hash = hash_string(string_chars, strlen(string_chars)), \
     .chars = string_chars, \
     .object = { \
-        .next = NULL, \
-        .type = OBJ_STRING \
+        .gc_info = NULL \
     }}
 
 TEST(hash_table_put_if_absent){

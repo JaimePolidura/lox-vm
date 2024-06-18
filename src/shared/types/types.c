@@ -1,6 +1,8 @@
 #include "types.h"
 #include "string_object.h"
 
+extern void * alloc_gc_vm_info_alg();
+
 bool cast_to_boolean(lox_value_t value) {
 #ifdef NAN_BOXING
     return AS_BOOL(value);
@@ -11,8 +13,7 @@ bool cast_to_boolean(lox_value_t value) {
 
 void init_object(struct object * object, object_type_t type) {
     object->type = type;
-    object->next = NULL;
-    object->gc_marked = false;
+    object->gc_info = alloc_gc_vm_info_alg();
 }
 
 struct object * allocate_object(size_t size, object_type_t type) {

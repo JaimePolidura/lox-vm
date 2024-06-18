@@ -37,18 +37,31 @@ struct array_object * __attribute__((weak)) alloc_array_gc_alg(int n_elements) {
     return array;
 }
 
+void * __attribute__((weak)) alloc_gc_object_info_alg() {
+    return NULL;
+}
+
 void * __attribute__((weak)) alloc_gc_thread_info_alg() {
     struct generational_thread_gc * generational_gc = malloc(sizeof(struct generational_thread_gc));
     generational_gc->eden = alloc_eden_thread();
     return generational_gc;
 }
 
-void * __attribute__((weak)) alloc_gc_alg() {
+void * __attribute__((weak)) alloc_gc_vm_info_alg() {
     struct generational_gc * generational_gc = malloc(sizeof(struct generational_gc));
     generational_gc->survivor = alloc_survivor(config);
     generational_gc->eden = alloc_eden(config);
     generational_gc->old = alloc_old(config);
     return generational_gc;
+}
+
+struct gc_result __attribute__((weak)) try_start_gc_alg() {
+    start_minor_generational_gc();
+
+    return (struct gc_result) {
+            .bytes_allocated_before_gc = 0,
+            .bytes_allocated_after_gc = 0,
+    };
 }
 
 static struct object * try_alloc_object(size_t size_bytes) {

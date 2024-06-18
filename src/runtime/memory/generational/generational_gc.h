@@ -4,6 +4,8 @@
 #include "runtime/memory/generational/eden.h"
 #include "runtime/memory/generational/old.h"
 #include "runtime/memory/gc_algorithm.h"
+#include "runtime/memory/gc_result.h"
+
 
 #include "runtime/threads/vm_thread.h"
 #include "runtime/vm.h"

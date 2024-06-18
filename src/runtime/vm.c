@@ -4,7 +4,7 @@ extern struct trie_list * compiled_packages;
 extern void check_gc_on_safe_point_alg();
 extern struct gc_result try_start_gc_alg();
 extern void * alloc_gc_thread_info_alg();
-extern void * alloc_gc_alg();
+extern void * alloc_gc_vm_info_alg();
 extern struct struct_instance_object * alloc_struct_instance_gc_alg(struct struct_definition_object *);
 extern struct array_object * alloc_array_gc_alg(int n_elements);
 
@@ -549,7 +549,7 @@ static lox_value_t pop_stack_vm() {
 }
 
 void start_vm() {
-    current_vm.gc = alloc_gc_alg();
+    current_vm.gc = alloc_gc_vm_info_alg();
     current_vm.number_current_threads = 0;
     current_vm.last_thread_id = 0;
 

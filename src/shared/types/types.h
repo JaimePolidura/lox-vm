@@ -22,11 +22,10 @@ typedef enum {
 
 struct object {
     object_type_t type;
-    bool gc_marked; //TODO Replace this with specific gc algorithm custom struct
-    struct object * next; //Next object heap allocated
+    void * gc_info;
 };
 
-#define LOX_OBJECT(a) ((struct object) {.type = a, .gc_marked = false, .next = NULL} )
+#define LOX_OBJECT(a) ((struct object) {.type = a, .gc_info = NULL} )
 
 #ifdef NAN_BOXING
 
