@@ -12,6 +12,7 @@ struct string_object {
     char * chars;
 };
 
+//Only used in compile time. This cannot be used in runtime because it won't be traced by the gc
 struct string_object * copy_chars_to_string_object(const char * chars, int length);
 //Only used for testing
 struct string_object * alloc_string_object(char *);
