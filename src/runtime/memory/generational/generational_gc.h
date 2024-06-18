@@ -3,6 +3,10 @@
 #include "runtime/memory/generational/survivor.h"
 #include "runtime/memory/generational/eden.h"
 #include "runtime/memory/generational/old.h"
+#include "runtime/memory/gc_algorithm.h"
+
+#include "runtime/threads/vm_thread.h"
+#include "runtime/vm.h"
 
 //Global struct. Maintained in vm.h
 struct generational_gc {
@@ -15,6 +19,3 @@ struct generational_gc {
 struct generational_thread_gc {
     struct eden_thread * eden;
 };
-
-void * alloc_gc_thread_info_alg();
-void * alloc_gc_alg();

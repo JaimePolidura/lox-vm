@@ -2,6 +2,11 @@
 
 #include "shared.h"
 
+#include "shared/types/struct_definition_object.h"
+#include "shared/types/struct_instance_object.h"
+#include "shared/types/string_object.h"
+#include "shared/types/array_object.h"
+
 //Every gc algorithm will have to implement these methods
 
 //When a thread heap allocates an object, this function will get called.
