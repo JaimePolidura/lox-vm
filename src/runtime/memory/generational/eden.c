@@ -10,6 +10,8 @@ struct eden * alloc_eden(struct config config) {
     eden->start = eden_ptr;
     eden->end = eden_ptr + size_in_bytes;
 
+    eden->mark_bitmap = alloc_mark_bitmap((int) round_up_8(size_in_bytes / 8), (uint64_t) eden->start);
+
     return eden;
 }
 
@@ -19,6 +21,10 @@ struct eden_thread * alloc_eden_thread() {
     eden_thread->start_block = NULL;
     eden_thread->end_block = NULL;
     return eden_thread;
+}
+
+bool belongs_to_eden(struct eden * eden, uintptr_t ptr) {
+    return ((uintptr_t) eden->start) <= ptr && ((uintptr_t) eden->end) > ptr;
 }
 
 struct eden_block_allocation try_claim_eden_block(struct eden * eden, int n_blocks) {

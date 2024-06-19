@@ -12,5 +12,7 @@ struct config {
         int survivor_size_mb;
 
         int old_size_mb;
+
+        uint8_t n_generations_to_old;
     } generational_gc_config;
 };

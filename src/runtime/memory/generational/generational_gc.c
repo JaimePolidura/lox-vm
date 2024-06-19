@@ -28,7 +28,8 @@ struct string_object * __attribute__((weak)) alloc_string_gc_alg(char * chars, i
 }
 
 struct array_object * __attribute__((weak)) alloc_array_gc_alg(int n_elements) {
-    struct array_object * array = (struct array_object *) try_alloc_object(sizeof(struct array_object) + (n_elements * sizeof(lox_value_t)));
+    int n_elements_rounded_up = round_up_8(n_elements);
+    struct array_object * array = (struct array_object *) try_alloc_object(sizeof(struct array_object) + (n_elements_rounded_up * sizeof(lox_value_t)));
     init_object(&array->object, OBJ_ARRAY);
     array->values.values = (lox_value_t *) array + sizeof(struct array_object);
     array->values.capacity = n_elements;

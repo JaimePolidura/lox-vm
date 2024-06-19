@@ -288,7 +288,7 @@ static void remove_double_emtpy_return(struct bytecode_list * to_inline) {
             struct bytecode_list * op_return = current_node->next;
             struct bytecode_list * next_to_op_return = current_node->next->next;
 
-            //Maybe some jumps point to OP_NIL, so we need to mark them as pending to resolve
+            //Maybe some jumps point to OP_NIL, so we need to traverse_heap_and_move them as pending to resolve
             //So later, they will be resolved to point to the first instruction of target after the inlining instructions
             mark_jumps_as_pending_to_resolve(to_inline, current_node);
 
@@ -303,7 +303,7 @@ static void remove_double_emtpy_return(struct bytecode_list * to_inline) {
     }
 }
 
-//We mark jumps as unresolved if they refer to to_reference
+//We traverse_heap_and_move jumps as unresolved if they refer to to_reference
 static void mark_jumps_as_pending_to_resolve(struct bytecode_list * head, struct bytecode_list * to_reference) {
     struct bytecode_list * current = head;
 

@@ -1,10 +1,14 @@
 #pragma once
 
-#include "shared/types/types.h"
+#include "runtime/memory/generational/mark_bitmap.h"
+
 #include "shared/config/config.h"
+#include "shared/types/types.h"
 #include "shared.h"
 
 struct eden {
+    struct mark_bitmap * mark_bitmap;
+
     uint8_t * start;
     uint8_t * end;
     uint8_t * current;
@@ -30,3 +34,4 @@ struct eden_block_allocation {
 struct eden_block_allocation try_claim_eden_block(struct eden *, int n_blocks);
 bool can_allocate_object_in_block_eden(struct eden_thread *, size_t size_bytes);
 struct object * allocate_object_in_block_eden(struct eden_thread *, size_t size_bytes);
+bool belongs_to_eden(struct eden *, uintptr_t ptr);

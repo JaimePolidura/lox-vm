@@ -313,9 +313,6 @@ static void mark_value(lox_value_t * value) {
 }
 
 static void mark_object(struct object * object) {
-    uint64_t a =  (uint64_t) object;
-    uint64_t b = ((uint64_t) object->gc_info << 56) >> 56;
-
     if(!IS_MARKED(object)){
         SET_MARKED(object);
         add_value_gc_info(object);

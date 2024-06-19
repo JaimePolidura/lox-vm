@@ -5,6 +5,8 @@
 #include "shared/utils/concurrency/rw_mutex.h"
 #include "shared/utils/utils.h"
 
+typedef void (*lox_hashtable_consumer_t)(lox_value_t, void *);
+
 struct hash_table_entry {
     struct string_object * key;
     lox_value_t value;
@@ -17,7 +19,7 @@ struct lox_hash_table {
     struct hash_table_entry * entries;
 };
 
-void for_each_value_hash_table(struct lox_hash_table * table, lox_type_consumer_t consumer);
+void for_each_value_hash_table(struct lox_hash_table * table, void * extra, lox_hashtable_consumer_t consumer);
 
 //Get the value of the associated key in the value parameter. Returns false if the element is not found
 bool get_hash_table(struct lox_hash_table * table, struct string_object * key, lox_value_t * value);
