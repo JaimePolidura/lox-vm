@@ -22,6 +22,7 @@ static void traverse_lox_hashtable(struct lox_hash_table hash_table, struct stac
 static uint8_t * move_to_new_space(struct object *);
 static void update_references();
 static void reset_mark_bitmaps();
+static void remove_terminated_threads(struct stack_list * terminated_threads);
 
 void start_minor_generational_gc() {
     struct generational_gc * generational_gc = current_vm.gc;
@@ -33,6 +34,16 @@ void start_minor_generational_gc() {
 
     swap_from_to_survivor_space(generational_gc->survivor);
     reset_mark_bitmaps();
+    remove_terminated_threads(&terminated_threads);
+}
+
+static void remove_terminated_threads(struct stack_list * terminated_threads) {
+    while(!is_empty_stack_list(terminated_threads)){
+        struct vm_thread * terminated_thread = pop_stack_list(terminated_threads);
+
+        free_vm_thread(terminated_thread);
+        terminated_thread->terminated_state = THREAD_TERMINATED_GC_DONE;
+    }
 }
 
 static void update_references() {
@@ -109,29 +120,6 @@ static void traverse_value_and_move(lox_value_t root_value) {
     }
 }
 
-static bool can_be_moved(struct object * object) {
-    struct generational_gc * generational_gc = current_vm.gc;
-    uintptr_t object_ptr = (uintptr_t) object;
-
-    bool belongs_to_eden_or_survivor = belongs_to_survivor(generational_gc->survivor, object_ptr) ||
-                                       belongs_to_eden(generational_gc->eden, object_ptr);
-    bool it_hasnt_already_been_moved = !is_marked_bitmap(generational_gc->eden->mark_bitmap, object_ptr) &&
-            !is_marked_bitmap(generational_gc->survivor->from->mark_bitmap, object_ptr);
-
-    return belongs_to_eden_or_survivor && it_hasnt_already_been_moved;
-}
-
-static void mark_object(struct object * object) {
-    struct generational_gc * generational_gc = current_vm.gc;
-    uintptr_t object_ptr = (uintptr_t) object;
-
-    if (belongs_to_eden(generational_gc->eden, object_ptr)) {
-        set_marked_bitmap(generational_gc->eden->mark_bitmap, object_ptr);
-    } else {
-        set_marked_bitmap(generational_gc->survivor->from->mark_bitmap, object_ptr);
-    }
-}
-
 static void traverse_lox_arraylist(struct lox_arraylist array_list, struct stack_list * pending) {
     for(int i = 0; i < array_list.in_use; i++){
         if(IS_OBJECT(array_list.values[i])){
@@ -149,6 +137,29 @@ static void traverse_lox_hashtable_entry(lox_value_t value, void * extra) {
 
 static void traverse_lox_hashtable(struct lox_hash_table hash_table, struct stack_list * pending) {
     for_each_value_hash_table(&hash_table, pending, traverse_lox_hashtable_entry);
+}
+
+static bool can_be_moved(struct object * object) {
+    struct generational_gc * generational_gc = current_vm.gc;
+    uintptr_t object_ptr = (uintptr_t) object;
+
+    bool belongs_to_eden_or_survivor = belongs_to_survivor(generational_gc->survivor, object_ptr) ||
+                                       belongs_to_eden(generational_gc->eden, object_ptr);
+    bool it_hasnt_already_been_moved = !is_marked_bitmap(generational_gc->eden->mark_bitmap, object_ptr) &&
+            !is_marked_bitmap(generational_gc->survivor->from_space_mark_bitmap, object_ptr);
+
+    return belongs_to_eden_or_survivor && it_hasnt_already_been_moved;
+}
+
+static void mark_object(struct object * object) {
+    struct generational_gc * generational_gc = current_vm.gc;
+    uintptr_t object_ptr = (uintptr_t) object;
+
+    if (belongs_to_eden(generational_gc->eden, object_ptr)) {
+        set_marked_bitmap(generational_gc->eden->mark_bitmap, object_ptr);
+    } else {
+        set_marked_bitmap(generational_gc->survivor->from_space_mark_bitmap, object_ptr);
+    }
 }
 
 static void move_object(struct object * object) {

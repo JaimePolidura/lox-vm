@@ -1,5 +1,6 @@
 #pragma once
 
+#include "runtime/memory/generational/memory_space.h"
 #include "runtime/memory/generational/mark_bitmap.h"
 
 #include "shared/config/config.h"
@@ -9,11 +10,9 @@
 struct eden {
     struct mark_bitmap * mark_bitmap;
 
-    uint8_t * start;
-    uint8_t * end;
-    uint8_t * current;
+    struct memory_space memory_space;
 
-    uint64_t size_blocks_in_bytes;
+    size_t size_blocks_in_bytes;
 };
 
 struct eden_thread {

@@ -1,0 +1,45 @@
+#include "memory_space.h"
+
+struct memory_space * alloc_memory_space(size_t size_in_bytes) {
+    struct memory_space * memory_space = malloc(sizeof(struct memory_space));
+    init_memory_space(memory_space, size_in_bytes);
+    return memory_space;
+}
+
+void init_memory_space(struct memory_space * memory_space, size_t size_in_bytes) {
+    memory_space->start = malloc(size_in_bytes);
+    memory_space->current = memory_space->start;
+    memory_space->end = memory_space->start + size_in_bytes;
+    memory_space->size_in_bytes = size_in_bytes;
+}
+
+uint8_t * alloc_data_memory_space(struct memory_space * memory_space, size_t size_in_bytes) {
+    if(memory_space->current + size_in_bytes > memory_space->end){
+        return NULL;
+    }
+
+    uint8_t * ptr = memory_space->current;
+    memory_space->current += size_in_bytes;
+    return ptr;
+}
+
+uint8_t * copy_data_memory_space(struct memory_space * memory_space, uint8_t * src, size_t size) {
+    if (memory_space->current + size > memory_space->end) {
+        return NULL;
+    }
+
+    uint8_t * dst = memory_space->current;
+    uint8_t * start_moved = memory_space->current;
+
+    for (int i = 0; i < size; i++) {
+        *(dst++) = *(src++);
+    }
+
+    memory_space->current = dst + 1;
+
+    return start_moved;
+}
+
+bool belongs_to_memory_space(struct memory_space * memory_space, uintptr_t ptr) {
+    return ((uintptr_t) memory_space->start) <= ptr && ((uintptr_t) memory_space->end) > ptr;
+}
