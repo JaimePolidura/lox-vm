@@ -15,6 +15,6 @@
 #define GET_GENERATION(object_ptr) ((uint8_t) object_ptr->gc_info >> 61)
 
 #define SET_FORWARDING_PTR(object_ptr, new_ptr) (object_ptr)->gc_info = (void *) ((uint64_t) (new_ptr) | ((uint64_t) object->gc_info & 0xE000000000000000))
-#define GET_FORWARDING_PTR(object_ptr) ((uint8_t *) ((uint64_t) object->gc_info & 0x1FFFFFFFFFFFFFFF))
+#define GET_FORWARDING_PTR(object_ptr) ((lox_value_t *) ((uint64_t) object_ptr->gc_info & 0x1FFFFFFFFFFFFFFF))
 
 int get_n_bytes_allocated_object(struct object * object);

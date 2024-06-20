@@ -5,7 +5,8 @@
 #include "shared/utils/concurrency/rw_mutex.h"
 #include "shared/utils/utils.h"
 
-typedef void (*lox_hashtable_consumer_t)(lox_value_t, void *);
+//Value, reference holder, extra ptr passed by the user in for_each_value_hash_table()
+typedef void (*lox_hashtable_consumer_t)(lox_value_t, lox_value_t*, void *);
 
 struct hash_table_entry {
     struct string_object * key;

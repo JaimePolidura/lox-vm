@@ -5,7 +5,9 @@ struct eden * alloc_eden(struct config config) {
     size_t size_eden_in_bytes = config.generational_gc_config.eden_size_mb * 1024 * 1024;
 
     struct eden * eden = malloc(sizeof(struct eden));
-    eden->mark_bitmap = alloc_mark_bitmap((int) round_up_8(size_eden_in_bytes / 8), (uint64_t) eden->memory_space.start);
+    int n_addresses = (int) round_up_8(size_eden_in_bytes / 8);
+    eden->updated_references_mark_bitmap = alloc_mark_bitmap(n_addresses, (uint64_t) eden->memory_space.start);
+    eden->moved_mark_bitmap = alloc_mark_bitmap(n_addresses, (uint64_t) eden->memory_space.start);
     init_memory_space(&eden->memory_space, size_eden_in_bytes);
     eden->size_blocks_in_bytes = size_blocks_in_bytes;
 

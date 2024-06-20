@@ -7,8 +7,9 @@ struct survivor * alloc_survivor(struct config config) {
     survivor->from = alloc_memory_space(size_in_bytes);
     survivor->to = alloc_memory_space(size_in_bytes);
 
-    struct mark_bitmap * from_space_mark_bitmap = alloc_mark_bitmap((int) round_up_8(size_in_bytes / 8), (uint64_t) survivor->from->start);
-    survivor->from_space_mark_bitmap = from_space_mark_bitmap;
+    int n_addresses = (int) round_up_8(size_in_bytes / 8);
+    survivor->fromspace_updated_references_mark_bitmap = alloc_mark_bitmap(n_addresses, (uint64_t) survivor->from->start);
+    survivor->fromspace_moved_mark_bitmap = alloc_mark_bitmap(n_addresses, (uint64_t) survivor->from->start);
 
     return survivor;
 }

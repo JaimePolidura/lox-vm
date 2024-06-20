@@ -65,6 +65,7 @@ enum {
     //Useless, enabled by default. This might clarity the intentions of the caller of for_each_thread()
     THREADS_OPT_RECURSIVE = 0,
     THREADS_OPT_INCLUSIVE = 0,
+    THREADS_OPT_ONLY_ALIVE = 0,
 
     THREADS_OPT_EXCLUSIVE = 1,
     THREADS_OPT_NOT_RECURSIVE = 1 << 2,

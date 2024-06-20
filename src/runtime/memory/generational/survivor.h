@@ -9,7 +9,9 @@
 #include "shared.h"
 
 struct survivor {
-    struct mark_bitmap * from_space_mark_bitmap;
+    struct mark_bitmap * fromspace_updated_references_mark_bitmap;
+    struct mark_bitmap * fromspace_moved_mark_bitmap;
+
     struct memory_space * from;
     struct memory_space * to;
 };

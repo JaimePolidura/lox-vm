@@ -2,8 +2,12 @@
 
 struct old * alloc_old(struct config config) {
     struct old * old = malloc(sizeof(struct old));
-    size_t size_old_bytes = config.generational_gc_config.old_size_mb * 1024 * 1024;
-    init_memory_space(&old->memory_space, size_old_bytes);
+    size_t size_old_in_bytes = config.generational_gc_config.old_size_mb * 1024 * 1024;
+    init_memory_space(&old->memory_space, size_old_in_bytes);
+
+    int n_addresses = (int) round_up_8(size_old_in_bytes / 8);
+    old->updated_references_mark_bitmap = alloc_mark_bitmap(n_addresses, (uint64_t) old->memory_space.start);
+
     return old;
 }
 

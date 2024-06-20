@@ -195,7 +195,7 @@ void for_each_value_hash_table(struct lox_hash_table * table, void * extra, lox_
         struct hash_table_entry * entry = &table->entries[i];
 
         if(entry->key != NULL && !is_tombstone(entry)){
-            consumer(entry->value, extra);
+            consumer(entry->value, &entry->value, extra);
         }
     }
 }

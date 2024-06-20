@@ -8,7 +8,8 @@
 #include "shared.h"
 
 struct eden {
-    struct mark_bitmap * mark_bitmap;
+    struct mark_bitmap * updated_references_mark_bitmap;
+    struct mark_bitmap * moved_mark_bitmap;
 
     struct memory_space memory_space;
 

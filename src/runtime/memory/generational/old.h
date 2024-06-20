@@ -1,6 +1,7 @@
 #pragma once
 
 #include "runtime/memory/generational/memory_space.h"
+#include "runtime/memory/generational/mark_bitmap.h"
 #include "runtime/memory/generational/utils.h"
 
 #include "shared/types/types.h"
@@ -9,6 +10,7 @@
 
 struct old {
     struct memory_space memory_space;
+    struct mark_bitmap * updated_references_mark_bitmap;
 };
 
 struct old * alloc_old(struct config);
