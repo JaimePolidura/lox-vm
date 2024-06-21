@@ -2,6 +2,7 @@
 
 #include "runtime/memory/generational/mark_bitmap.h"
 #include "runtime/memory/generational/memory_space.h"
+#include "runtime/memory/generational/card_table.h"
 #include "runtime/memory/generational/utils.h"
 
 #include "shared/config/config.h"
@@ -9,8 +10,9 @@
 #include "shared.h"
 
 struct survivor {
-    struct mark_bitmap * fromspace_updated_references_mark_bitmap;
-    struct mark_bitmap * fromspace_moved_mark_bitmap;
+    //Used in marking & updating references
+    struct mark_bitmap fromspace_mark_bitmap;
+    struct card_table fromspace_card_table;
 
     struct memory_space * from;
     struct memory_space * to;
