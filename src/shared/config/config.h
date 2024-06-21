@@ -14,5 +14,7 @@ struct config {
         int old_size_mb;
 
         uint8_t n_generations_to_old;
+
+        int n_addresses_per_card_table;
     } generational_gc_config;
 };

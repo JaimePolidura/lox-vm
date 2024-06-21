@@ -2,6 +2,7 @@
 
 #include "runtime/memory/generational/memory_space.h"
 #include "runtime/memory/generational/mark_bitmap.h"
+#include "runtime/memory/generational/card_table.h"
 
 #include "shared/config/config.h"
 #include "shared/types/types.h"

@@ -292,12 +292,12 @@ static void sweep_heap_thread(struct vm_thread * parent_ignore, struct vm_thread
     gc_result->bytes_allocated_after_gc += gc_info->bytes_allocated;
 }
 
-static void mark_hash_table_entry(lox_value_t value) {
+static void mark_hash_table_entry(lox_value_t value, lox_value_t * value_reference_holder, void * extra_ignored) {
     mark_value(&value);
 }
 
 static void mark_hash_table(struct lox_hash_table * table) {
-    for_each_value_hash_table(table, mark_hash_table_entry);
+    for_each_value_hash_table(table, NULL, mark_hash_table_entry);
 }
 
 static void mark_lox_arraylist(struct lox_arraylist * array) {
