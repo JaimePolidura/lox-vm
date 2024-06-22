@@ -12,6 +12,7 @@ struct mark_bitmap {
 
 struct mark_bitmap * alloc_mark_bitmap(int n_addresses, uint64_t start_address);
 void init_mark_bitmap(struct mark_bitmap *, int n_addresses, uint64_t start_address);
+void free_mark_bitmap(struct mark_bitmap *);
 
 void set_marked_bitmap(struct mark_bitmap *, uintptr_t address);
 bool is_marked_bitmap(struct mark_bitmap *, uintptr_t address);

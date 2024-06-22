@@ -15,3 +15,7 @@ uint8_t * move_to_old(struct old * old, struct object * object) {
     int n_bytes_allocated = get_n_bytes_allocated_object(object);
     return copy_data_memory_space(&old->memory_space, (uint8_t *) object, n_bytes_allocated);
 }
+
+bool belongs_to_old(struct old * old, uintptr_t ptr) {
+    return belongs_to_memory_space(&old->memory_space, ptr);
+}

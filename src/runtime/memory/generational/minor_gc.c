@@ -29,15 +29,19 @@ static void traverse_lox_arraylist(struct lox_arraylist array_list, struct stack
 static void traverse_lox_hashtable(struct lox_hash_table hash_table, struct stack_list * pending);
 static uint8_t * move_to_new_space(struct object *);
 static void update_references();
-static void reset_bitmaps();
+static void clear_bitmaps();
 static void remove_terminated_threads(struct stack_list * terminated_threads);
-static void update_object_references(struct object * object);
-static void update_lox_value_reference(lox_value_t * value);
 static bool has_been_updated(struct object *);
 static void mark_as_updated(struct object *);
 static void traverse_package_globals_to_update_references(void * trie_node_ptr, void * extra_ignored);
 static void for_each_card_table_entry_function(uint64_t * card_table_dirty_address);
 static void traverse_object_and_move(struct object * root_object);
+static struct card_table * get_card_table(uintptr_t ptr);
+static void clear_card_tables();
+static void update_card_tables();
+static void mark_references_in_card_table(struct object * object_root_in_old);
+static void traverse_struct_instance_to_update_card_table(struct struct_instance_object *, struct stack_list *);
+static void traverse_array_to_update_card_table(struct array_object *, struct stack_list *);
 
 void start_minor_generational_gc() {
     struct generational_gc * generational_gc = current_vm.gc;
@@ -45,12 +49,25 @@ void start_minor_generational_gc() {
     init_stack_list(&terminated_threads);
 
     traverse_heap_and_move(&terminated_threads);
-    reset_bitmaps();
+    clear_bitmaps();
     update_references();
+    clear_card_tables();
+    update_card_tables();
 
     swap_from_to_survivor_space(generational_gc->survivor);
-    reset_bitmaps();
+    clear_bitmaps();
     remove_terminated_threads(&terminated_threads);
+}
+
+static void update_card_tables() {
+    struct generational_gc * gc = current_vm.gc;
+    struct old * old = gc->old;
+
+    for(uint8_t * current_ptr = old->memory_space.start; current_ptr < old->memory_space.current;) {
+        struct object * current_object = (struct object *) current_ptr;
+        mark_references_in_card_table(current_object);
+        current_ptr += get_n_bytes_allocated_object(current_object);
+    }
 }
 
 static void remove_terminated_threads(struct stack_list * terminated_threads) {
@@ -92,6 +109,66 @@ static void traverse_thread_stack_to_update_references(struct vm_thread * parent
     for(lox_value_t * value = child->stack; value < child->esp; value++) {
         if (IS_OBJECT(*value)) {
             traverse_value_and_update_references(*value, value);
+        }
+    }
+}
+
+static void mark_references_in_card_table(struct object * object_root_in_old) {
+    struct generational_gc * gc = current_vm.gc;
+    struct stack_list pending;
+    init_stack_list(&pending);
+    push_stack_list(&pending, object_root_in_old);
+
+    while (!is_empty_stack_list(&pending)) {
+        struct object * current_object = pop_stack_list(&pending);
+
+        switch (current_object->type) {
+            case OBJ_ARRAY:
+                traverse_array_to_update_card_table((struct array_object *) current_object, &pending);
+                break;
+            case OBJ_STRUCT_INSTANCE:
+                traverse_struct_instance_to_update_card_table((struct struct_instance_object *) current_object, &pending);
+                break;
+        }
+    }
+}
+
+static void traverse_struct_instance_entry_to_update_card_table(lox_value_t value, lox_value_t * reference_holder, void * extra) {
+    struct generational_gc * gc = current_vm.gc;
+    struct stack_list * pending = extra;
+
+    if (IS_OBJECT(value)) {
+        struct object * object = AS_OBJECT(value);
+
+        if (belongs_to_old(gc->old, (uintptr_t) object)) {
+            push_stack_list(pending, object);
+        } else {
+            struct card_table * card = get_card_table((uintptr_t) object);
+            mark_dirty_card_table(card, (uint64_t *) object);
+        }
+    }
+}
+
+static void traverse_struct_instance_to_update_card_table(struct struct_instance_object * instance, struct stack_list * pending) {
+    struct generational_gc * gc = current_vm.gc;
+    for_each_value_hash_table(&instance->fields, pending, traverse_struct_instance_entry_to_update_card_table);
+}
+
+static void traverse_array_to_update_card_table(struct array_object * array, struct stack_list * pending) {
+    struct generational_gc * gc = current_vm.gc;
+
+    for (int i = 0; i < array->values.in_use; i++) {
+        lox_value_t current_array_value = array->values.values[i];
+
+        if (IS_OBJECT(current_array_value)) {
+            struct object * current_array_object = AS_OBJECT(current_array_value);
+
+            if (belongs_to_old(gc->old, (uintptr_t) current_array_object)) {
+                push_stack_list(pending, current_array_object);
+            } else {
+                struct card_table * card = get_card_table((uintptr_t) current_array_object);
+                mark_dirty_card_table(card, (uint64_t *) current_array_object);
+            }
         }
     }
 }
@@ -156,7 +233,13 @@ static void mark_as_updated(struct object * object) {
     }
 }
 
-static void reset_bitmaps() {
+static void clear_card_tables() {
+    struct generational_gc * generational_gc = current_vm.gc;
+    clear_card_table(&generational_gc->survivor->fromspace_card_table);
+    clear_card_table(&generational_gc->eden->card_table);
+}
+
+static void clear_bitmaps() {
     struct generational_gc * generational_gc = current_vm.gc;
 
     reset_mark_bitmap(generational_gc->eden->mark_bitmap);
@@ -239,7 +322,6 @@ static void traverse_object_and_move(struct object * root_object) {
     }
 }
 
-
 static void traverse_lox_arraylist(struct lox_arraylist array_list, struct stack_list * pending) {
     for (int i = 0; i < array_list.in_use; i++) {
         if (IS_OBJECT(array_list.values[i])) {
@@ -310,4 +392,15 @@ static struct object_to_traverse * alloc_object_to_traverse(struct object * obje
     to_traverse->reference_holder = reference_holder;
     to_traverse->object = object;
     return to_traverse;
+}
+
+static struct card_table * get_card_table(uintptr_t ptr) {
+    struct generational_gc * gc = current_vm.gc;
+    if (belongs_to_survivor(gc->survivor, ptr)) {
+        return &gc->survivor->fromspace_card_table;
+    } else if (belongs_to_eden(gc->eden, ptr)) {
+        return &gc->eden->card_table;
+    }
+
+    return NULL;
 }

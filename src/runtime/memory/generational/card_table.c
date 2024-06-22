@@ -31,6 +31,15 @@ bool is_dirty_card_table(struct card_table * card_table, uint64_t * address) {
     return is_marked_bitmap(card, (uintptr_t) address);
 }
 
+void clear_card_table(struct card_table * table) {
+    for (int i = 0; i < table->n_cards; ++i) {
+        if (table->cards[i] != NULL) {
+            free_mark_bitmap(table->cards[i]);
+        }
+    }
+    free(table->cards);
+}
+
 static struct mark_bitmap * find_card(struct card_table * card_table, uint64_t * address) {
     int index = (card_table->start_address_memory_space - address) / card_table->n_addresses_per_card_table;
     struct mark_bitmap * card = card_table->cards[index];

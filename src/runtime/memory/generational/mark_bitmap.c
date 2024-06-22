@@ -15,6 +15,10 @@ void init_mark_bitmap(struct mark_bitmap * mark_bitmap, int n_addresses, uint64_
     mark_bitmap->start = ptr;
 }
 
+void free_mark_bitmap(struct mark_bitmap * mark_bitmap) {
+    free(mark_bitmap->start);
+}
+
 void set_marked_bitmap(struct mark_bitmap * mark_bitmap, uintptr_t address) {
     uint8_t index_in_slot = address >> 61;
     mark_bitmap->start[address - mark_bitmap->start_address] |= index_in_slot << 0x01;
