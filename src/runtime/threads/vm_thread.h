@@ -55,7 +55,7 @@ struct vm_thread {
     void * gc_info;
 };
 
-typedef void (*thread_consumer_t)(struct vm_thread * parent, struct vm_thread * child, int index, void * extra);
+typedef bool (*thread_consumer_t)(struct vm_thread * parent, struct vm_thread * child, int index, void * extra);
 
 struct vm_thread * alloc_vm_thread();
 void free_vm_thread(struct vm_thread * vm_thread);

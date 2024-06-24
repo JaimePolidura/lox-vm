@@ -1146,9 +1146,10 @@ static void string(struct bytecode_compiler * compiler, bool can_assign) {
     emit_constant(compiler, TO_LOX_VALUE_OBJECT(add_result.string_object));
 }
 
-static void free_trie_node_key_string(void * key, void * extra_ignored) {
+static bool free_trie_node_key_string(void * key, void * extra_ignored) {
     struct trie_node * trie_node = key;
     free(trie_node->key);
+    return true;
 }
 
 static void free_compiler(struct bytecode_compiler * compiler) {

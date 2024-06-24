@@ -7,8 +7,8 @@ extern struct trie_list * compiled_packages;
 extern struct vm current_vm;
 
 static struct gc_result start_gc();
-static void for_each_package_callback(void * trie_node_ptr, void * extra_ignored);
-static void mark_thread_stack(struct vm_thread * parent, struct vm_thread * child, int index, void * ignore);
+static bool for_each_package_callback(void * trie_node_ptr, void * extra_ignored);
+static bool mark_thread_stack(struct vm_thread * parent, struct vm_thread * child, int index, void * ignore);
 static void await_all_threads_signal_start_gc();
 static void notify_start_gc_signal_acked();
 static void await_until_gc_finished();
@@ -24,7 +24,7 @@ static void mark_hash_table(struct lox_hash_table * table);
 
 static void sweep_heap(struct gc_result * gc_result);
 static void sweep_string_pool();
-static void sweep_heap_thread(struct vm_thread * parent_ignore, struct vm_thread * vm_thread, int index, void * ignore);
+static bool sweep_heap_thread(struct vm_thread * parent_ignore, struct vm_thread * vm_thread, int index, void * ignore);
 
 static void remove_terminated_threads(struct stack_list * terminated_threads);
 static void finish_gc();
@@ -185,7 +185,7 @@ static void mark_stack(struct stack_list * terminated_threads) {
                     THREADS_OPT_INCLUSIVE);
 }
 
-static void mark_thread_stack(struct vm_thread * parent, struct vm_thread * child, int index, void * terminated_threads_ptr) {
+static bool mark_thread_stack(struct vm_thread * parent, struct vm_thread * child, int index, void * terminated_threads_ptr) {
     if(child->state == THREAD_TERMINATED && child->terminated_state == THREAD_TERMINATED_PENDING_GC) {
         struct stack_list * terminated_threads = terminated_threads_ptr;
         push_stack_list(terminated_threads, child);
@@ -194,6 +194,8 @@ static void mark_thread_stack(struct vm_thread * parent, struct vm_thread * chil
             mark_value(value);
         }
     }
+
+    return true;
 }
 
 static void remove_terminated_threads(struct stack_list * terminated_threads) {
@@ -209,7 +211,7 @@ static void mark_globals() {
     for_each_node(compiled_packages, NULL, for_each_package_callback);
 }
 
-static void for_each_package_callback(void * trie_node_ptr, void * extra_ignored) {
+static bool for_each_package_callback(void * trie_node_ptr, void * extra_ignored) {
     struct package * package = (struct package *) ((struct trie_node *) trie_node_ptr)->data;
 
     for(int i = 0; i < package->global_variables.capacity && package->state != PENDING_COMPILATION; i++) {
@@ -255,7 +257,7 @@ static void sweep_heap(struct gc_result * gc_result) {
                     THREADS_OPT_INCLUDE_TERMINATED);
 }
 
-static void sweep_heap_thread(struct vm_thread * parent_ignore, struct vm_thread * vm_thread, int index, void * gc_result_ptr) {
+static bool sweep_heap_thread(struct vm_thread * parent_ignore, struct vm_thread * vm_thread, int index, void * gc_result_ptr) {
     struct mark_sweep_thread_info * gc_info = vm_thread->gc_info;
     struct gc_result * gc_result = gc_result_ptr;
 

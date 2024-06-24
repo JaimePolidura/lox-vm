@@ -60,7 +60,7 @@ static struct mark_bitmap * add_card(struct card_table * card_table, int index) 
     return card;
 }
 
-void for_each_card_table(struct card_table * table, card_table_consumer_t consumer) {
+void for_each_card_table(struct card_table * table, void * extra, card_table_consumer_t consumer) {
     for (int i = 0; i < table->n_cards; i++) {
         struct mark_bitmap * card = table->cards[i];
         if (card != NULL) {

@@ -27,7 +27,7 @@ static void disassemble_package_functions(struct package * package, long options
 
 extern struct trie_list * compiled_packages;
 
-static void foreach_package_disassemble_package(void * pacakge_ptr, void * extra) {
+static bool foreach_package_disassemble_package(void * pacakge_ptr, void * extra) {
     struct package * package = ((struct trie_node *) pacakge_ptr)->data;
 
     if(package->state != PENDING_COMPILATION){
@@ -35,6 +35,8 @@ static void foreach_package_disassemble_package(void * pacakge_ptr, void * extra
         printf("\n[Package: %s]:\n", package->name);
         disassemble_package(package, options);
     }
+
+    return true;
 }
 
 void disassemble_all_packages(long options) {

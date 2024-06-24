@@ -19,6 +19,6 @@ struct survivor {
 };
 
 struct survivor * alloc_survivor(struct config);
-void swap_from_to_survivor_space(struct survivor *);
+void swap_from_to_survivor_space(struct survivor *, struct config);
 bool belongs_to_survivor(struct survivor *, uintptr_t ptr);
 uint8_t * move_to_survivor_space(struct survivor *, struct object * object);

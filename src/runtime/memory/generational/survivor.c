@@ -14,10 +14,11 @@ struct survivor * alloc_survivor(struct config config) {
     return survivor;
 }
 
-void swap_from_to_survivor_space(struct survivor * survivor) {
+void swap_from_to_survivor_space(struct survivor * survivor, struct config config) {
     struct memory_space * from_memory_space = survivor->from;
     survivor->from = survivor->to;
     survivor->to = from_memory_space;
+    init_card_table(&survivor->fromspace_card_table, config, (uint64_t *) survivor->from->start, (uint64_t *) survivor->from->end);
 }
 
 bool belongs_to_survivor(struct survivor * survivor, uintptr_t ptr) {

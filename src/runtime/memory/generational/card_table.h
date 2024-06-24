@@ -5,7 +5,7 @@
 #include "runtime/memory/generational/mark_bitmap.h"
 #include "shared/config/config.h"
 
-typedef void (*card_table_consumer_t)(uint64_t * address);
+typedef bool (*card_table_consumer_t)(uint64_t * address, void * extra);
 
 struct card_table {
     uint64_t * start_address_memory_space;
@@ -22,6 +22,6 @@ void mark_dirty_card_table(struct card_table *, uint64_t * address);
 
 bool is_dirty_card_table(struct card_table *, uint64_t * address);
 
-void for_each_card_table(struct card_table * table, card_table_consumer_t);
+void for_each_card_table(struct card_table * table, void * extra, card_table_consumer_t);
 
 void clear_card_table(struct card_table * table);

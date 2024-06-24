@@ -2,8 +2,9 @@
 
 extern __thread struct vm_thread * self_thread;
 
-static void join_thread(struct vm_thread * parent_ignored, struct vm_thread * thread, int index_ignored, void * extra) {
+static bool join_thread(struct vm_thread * parent_ignored, struct vm_thread * thread, int index_ignored, void * extra) {
     pthread_join(thread->native_thread, NULL);
+    return true;
 }
 
 static lox_value_t join_native(int n_args, lox_value_t * args) {

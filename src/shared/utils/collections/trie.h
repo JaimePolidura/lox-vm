@@ -7,7 +7,7 @@
 
 #define TO_TRIE_INDEX_KEY(key) (TO_UPPER_CASE(key) - 65)
 
-typedef void (*consumer_t)(void *, void *);
+typedef bool (*consumer_t)(void *, void *);
 
 // All keys are set to lowercase. The keys also include _
 struct trie_node {

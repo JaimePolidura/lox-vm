@@ -5,8 +5,9 @@
 
 int trie_test_for_each_counter = 0;
 
-static void trie_test_for_each_callback(void * ptr, void * extra_ignored) {
+static bool trie_test_for_each_callback(void * ptr, void * extra_ignored) {
     trie_test_for_each_counter++;
+    return true;
 }
 
 TEST(trie_test_for_each) {

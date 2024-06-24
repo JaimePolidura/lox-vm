@@ -10,21 +10,28 @@ extern struct vm current_vm;
 extern struct trie_list * compiled_packages;
 extern struct config config;
 
+extern void start_major_generational_gc();
+
 struct object_to_traverse {
     lox_value_t * reference_holder;
     struct object * object;
 };
 
+struct for_each_thread_traverse_and_move {
+    struct stack_list * pending;
+    bool * moved_all_successfuly;
+};
+
 static struct object_to_traverse * alloc_object_to_traverse(struct object * object, lox_value_t * reference_holder);
-static void traverse_thread_stack_to_move(struct vm_thread *, struct vm_thread *, int index, void *);
-static void traverse_heap_and_move(struct stack_list * terminated_threads);
-static void traverse_thread_stack_to_update_references(struct vm_thread *, struct vm_thread *, int index, void *);
-static void traverse_package_globals_to_move(void *, void *);
+static bool traverse_thread_stack_to_move(struct vm_thread *, struct vm_thread *, int index, void *);
+static bool traverse_heap_and_move(struct stack_list * terminated_threads);
+static bool traverse_thread_stack_to_update_references(struct vm_thread *, struct vm_thread *, int index, void *);
+static bool traverse_package_globals_to_move(void *, void *);
 static void traverse_value_and_update_references(lox_value_t root_value, lox_value_t * root_reference_holder);
-static void traverse_value_and_move(lox_value_t root_value);
+static bool traverse_value_and_move(lox_value_t root_value);
 static bool can_be_moved(struct object * object);
 static void mark_object(struct object * object);
-static void move_object(struct object * object);
+static bool move_object(struct object * object);
 static void traverse_lox_arraylist(struct lox_arraylist array_list, struct stack_list * pending);
 static void traverse_lox_hashtable(struct lox_hash_table hash_table, struct stack_list * pending);
 static uint8_t * move_to_new_space(struct object *);
@@ -33,9 +40,9 @@ static void clear_bitmaps();
 static void remove_terminated_threads(struct stack_list * terminated_threads);
 static bool has_been_updated(struct object *);
 static void mark_as_updated(struct object *);
-static void traverse_package_globals_to_update_references(void * trie_node_ptr, void * extra_ignored);
-static void for_each_card_table_entry_function(uint64_t * card_table_dirty_address);
-static void traverse_object_and_move(struct object * root_object);
+static bool traverse_package_globals_to_update_references(void * trie_node_ptr, void * extra_ignored);
+static bool for_each_card_table_entry_function(uint64_t * card_table_dirty_address, void * extra);
+static bool traverse_object_and_move(struct object * root_object);
 static struct card_table * get_card_table(uintptr_t ptr);
 static void clear_card_tables();
 static void update_card_tables();
@@ -48,13 +55,17 @@ void start_minor_generational_gc() {
     struct stack_list terminated_threads;
     init_stack_list(&terminated_threads);
 
-    traverse_heap_and_move(&terminated_threads);
+    if (!traverse_heap_and_move(&terminated_threads)) {
+       start_major_generational_gc();
+       return;
+    }
+
     clear_bitmaps();
     update_references();
     clear_card_tables();
     update_card_tables();
 
-    swap_from_to_survivor_space(generational_gc->survivor);
+    swap_from_to_survivor_space(generational_gc->survivor, config);
     clear_bitmaps();
     remove_terminated_threads(&terminated_threads);
 }
@@ -90,7 +101,7 @@ static void update_references() {
     for_each_node(compiled_packages, NULL, traverse_package_globals_to_update_references);
 }
 
-static void traverse_package_globals_to_update_references(void * trie_node_ptr, void * extra_ignored) {
+static bool traverse_package_globals_to_update_references(void * trie_node_ptr, void * extra_ignored) {
     struct package * package = (struct package *) ((struct trie_node *) trie_node_ptr)->data;
 
     for(int i = 0; i < package->global_variables.capacity && package->state != PENDING_COMPILATION; i++) {
@@ -103,14 +114,18 @@ static void traverse_package_globals_to_update_references(void * trie_node_ptr, 
             }
         }
     }
+
+    return true;
 }
 
-static void traverse_thread_stack_to_update_references(struct vm_thread * parent, struct vm_thread * child, int index, void * terminated_threads_ptr) {
+static bool traverse_thread_stack_to_update_references(struct vm_thread * parent, struct vm_thread * child, int index, void * terminated_threads_ptr) {
     for(lox_value_t * value = child->stack; value < child->esp; value++) {
         if (IS_OBJECT(*value)) {
             traverse_value_and_update_references(*value, value);
         }
     }
+
+    return true;
 }
 
 static void mark_references_in_card_table(struct object * object_root_in_old) {
@@ -247,55 +262,80 @@ static void clear_bitmaps() {
     reset_mark_bitmap(generational_gc->old->updated_references_mark_bitmap);
 }
 
-static void traverse_heap_and_move(struct stack_list * terminated_threads) {
+static bool traverse_heap_and_move(struct stack_list * terminated_threads) {
+    bool moved_all_successfuly = true;
+
     //Thread stacks
-    for_each_thread(current_vm.root, traverse_thread_stack_to_move, terminated_threads,
+    struct for_each_thread_traverse_and_move for_each_thread_data = (struct for_each_thread_traverse_and_move) {
+        .pending = terminated_threads,
+        .moved_all_successfuly = &moved_all_successfuly
+    };
+    for_each_thread(current_vm.root, traverse_thread_stack_to_move, &for_each_thread_data,
                     THREADS_OPT_INCLUDE_TERMINATED |
                     THREADS_OPT_RECURSIVE |
                     THREADS_OPT_INCLUSIVE);
     //Globals
-    for_each_node(compiled_packages, NULL, traverse_package_globals_to_move);
+    for_each_node(compiled_packages, &moved_all_successfuly, traverse_package_globals_to_move);
 
     //Card tables
     struct generational_gc * generational_gc = current_vm.gc;
-    for_each_card_table(&generational_gc->survivor->fromspace_card_table, for_each_card_table_entry_function);
-    for_each_card_table(&generational_gc->eden->card_table, for_each_card_table_entry_function);
+    for_each_card_table(&generational_gc->survivor->fromspace_card_table, &moved_all_successfuly, for_each_card_table_entry_function);
+    for_each_card_table(&generational_gc->eden->card_table, &moved_all_successfuly, for_each_card_table_entry_function);
+
+    return moved_all_successfuly;
 }
 
-static void for_each_card_table_entry_function(uint64_t * card_table_dirty_address) {
-    traverse_object_and_move((struct object *) card_table_dirty_address);
+static bool for_each_card_table_entry_function(uint64_t * card_table_dirty_address, void * extra) {
+    bool moved_successfuly = traverse_object_and_move((struct object *) card_table_dirty_address);
+    *((bool *) extra) = moved_successfuly;
+    return moved_successfuly;
 }
 
-static void traverse_thread_stack_to_move(struct vm_thread * parent, struct vm_thread * child, int index, void * terminated_threads_ptr) {
+static bool traverse_thread_stack_to_move(struct vm_thread * parent, struct vm_thread * child, int index, void * terminated_threads_ptr) {
+    struct for_each_thread_traverse_and_move * data = terminated_threads_ptr;
+
     if(child->state == THREAD_TERMINATED && child->terminated_state == THREAD_TERMINATED_PENDING_GC) {
-        struct stack_list * terminated_threads = terminated_threads_ptr;
+        struct stack_list * terminated_threads = data->pending;
         push_stack_list(terminated_threads, child);
     } else {
         for(lox_value_t * value = child->stack; value < child->esp; value++) {
-            traverse_value_and_move(*value);
+            if(!traverse_value_and_move(*value)) {
+                *data->moved_all_successfuly = false;
+                return false;
+            }
         }
     }
+
+    return true;
 }
 
-static void traverse_package_globals_to_move(void * trie_node_ptr, void * extra_ignored) {
+static bool traverse_package_globals_to_move(void * trie_node_ptr, void * extra_ignored) {
     struct package * package = (struct package *) ((struct trie_node *) trie_node_ptr)->data;
+    bool * moved_successfuly = (bool *) extra_ignored;
 
-    for(int i = 0; i < package->global_variables.capacity && package->state != PENDING_COMPILATION; i++) {
+    for (int i = 0; i < package->global_variables.capacity && package->state != PENDING_COMPILATION; i++) {
         struct hash_table_entry * entry = &package->global_variables.entries[i];
-        if(entry != NULL && entry->key != NULL){
-            traverse_value_and_move(entry->value);
-            traverse_value_and_move(TO_LOX_VALUE_OBJECT(&entry->key->object));
+        if (entry != NULL && entry->key != NULL) {
+            if (!traverse_value_and_move(entry->value)) {
+                *moved_successfuly = false;
+                return false; //Stop iterating
+            }
+            if (!traverse_value_and_move(TO_LOX_VALUE_OBJECT(&entry->key->object))) {
+                *moved_successfuly = false;
+                return false; //Stop iterating
+            }
         }
     }
+
+    //Continue iteraring
+    return true;
 }
 
-static void traverse_value_and_move(lox_value_t root_value) {
-    if (IS_OBJECT(root_value)) {
-        traverse_object_and_move(AS_OBJECT(root_value));
-    }
+static bool traverse_value_and_move(lox_value_t root_value) {
+    return !IS_OBJECT(root_value) || traverse_object_and_move(AS_OBJECT(root_value));
 }
 
-static void traverse_object_and_move(struct object * root_object) {
+static bool traverse_object_and_move(struct object * root_object) {
     struct generational_gc * generational_gc = current_vm.gc;
     struct stack_list pending;
     init_stack_list(&pending);
@@ -308,7 +348,10 @@ static void traverse_object_and_move(struct object * root_object) {
 
         if (can_be_moved(current)) {
             mark_object(current);
-            move_object(current);
+            //Cannot be moved
+            if (!move_object(current)) {
+                return false;
+            }
 
             switch (current->type) {
                 case OBJ_STRUCT_INSTANCE:
@@ -320,6 +363,8 @@ static void traverse_object_and_move(struct object * root_object) {
             }
         }
     }
+
+    return true;
 }
 
 static void traverse_lox_arraylist(struct lox_arraylist array_list, struct stack_list * pending) {
@@ -367,13 +412,19 @@ static void mark_object(struct object * object) {
     }
 }
 
-static void move_object(struct object * object) {
+static bool move_object(struct object * object) {
     struct generational_gc * generational_gc = current_vm.gc;
     struct memory_space * to_space = generational_gc->survivor->to;
 
     uint8_t * new_ptr = move_to_new_space(object);
-    SET_FORWARDING_PTR(object, new_ptr);
-    SET_FORWARDING_PTR((struct object *) new_ptr, object);
+    bool moved_successfully = new_ptr != NULL;
+
+    if (moved_successfully) {
+        SET_FORWARDING_PTR(object, new_ptr);
+        SET_FORWARDING_PTR((struct object *) new_ptr, object);
+    }
+
+    return moved_successfully;
 }
 
 static uint8_t * move_to_new_space(struct object * object) {
