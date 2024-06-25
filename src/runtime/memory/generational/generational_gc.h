@@ -6,7 +6,6 @@
 #include "runtime/memory/gc_algorithm.h"
 #include "runtime/memory/gc_result.h"
 
-
 #include "runtime/threads/vm_thread.h"
 #include "runtime/vm.h"
 
@@ -23,3 +22,4 @@ struct generational_thread_gc {
 };
 
 bool belongs_to_young(struct generational_gc *, uintptr_t ptr);
+struct card_table * get_card_table(struct generational_gc *, uintptr_t ptr);

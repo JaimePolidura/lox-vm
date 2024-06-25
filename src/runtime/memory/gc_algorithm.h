@@ -29,12 +29,12 @@ void * alloc_gc_vm_info_alg(); //The returned value is stored in vm.h as a globa
 //May fail if there is a garbage colection going on or other thread concurretly tries to start a gc
 struct gc_result try_start_gc_alg();
 
-typedef bool (*set_struct_field_barrier_t)(struct struct_instance_object *, struct object *);
-typedef bool (*set_array_element_barrier_t)(struct array_object *, struct object *);
+typedef void (*write_struct_field_barrier_t)(struct struct_instance_object *, struct object *);
+typedef void (*write_array_element_barrier_t)(struct array_object *, struct object *);
 
 struct gc_barriers {
-    set_array_element_barrier_t set_array_element;
-    set_struct_field_barrier_t set_struct_field;
+    write_array_element_barrier_t write_array_element;
+    write_struct_field_barrier_t write_struct_field;
 };
 
 struct gc_barriers get_barriers_gc_alg();

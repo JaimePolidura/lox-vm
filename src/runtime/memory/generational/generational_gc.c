@@ -4,10 +4,19 @@ extern __thread struct vm_thread * self_thread;
 extern struct config config;
 extern struct vm current_vm;
 extern void start_minor_generational_gc();
+extern void write_struct_field_barrier_generational_gc(struct struct_instance_object *, struct object *);
+extern void write_array_element_barrier_generational_gc(struct array_object *, struct object *);
 
 static struct object * try_alloc_object(size_t size);
 static void try_claim_eden_block_or_start_gc(size_t size_bytes);
 static void save_new_eden_block_info(struct eden_block_allocation);
+
+struct gc_barriers __attribute__((weak)) get_barriers_gc_alg() {
+    return (struct gc_barriers) {
+        .write_array_element = write_array_element_barrier_generational_gc,
+        .write_struct_field = write_struct_field_barrier_generational_gc
+    };
+}
 
 struct struct_instance_object * __attribute__((weak)) alloc_struct_instance_gc_alg(struct struct_definition_object * definition) {
     struct struct_instance_object * instance = (struct struct_instance_object *) try_alloc_object(sizeof(struct struct_instance_object));
@@ -100,4 +109,14 @@ static void save_new_eden_block_info(struct eden_block_allocation eden_block_all
 
 bool belongs_to_young(struct generational_gc * gc, uintptr_t ptr) {
     return belongs_to_eden(gc->eden, ptr) || belongs_to_survivor(gc->survivor, ptr);
+}
+
+struct card_table * get_card_table(struct generational_gc * gc, uintptr_t ptr) {
+    if (belongs_to_survivor(gc->survivor, ptr)) {
+        return &gc->survivor->fromspace_card_table;
+    } else if (belongs_to_eden(gc->eden, ptr)) {
+        return &gc->eden->card_table;
+    }
+
+    return NULL;
 }

@@ -43,7 +43,6 @@ static void mark_as_updated(struct object *);
 static bool traverse_package_globals_to_update_references(void * trie_node_ptr, void * extra_ignored);
 static bool for_each_card_table_entry_function(uint64_t * card_table_dirty_address, void * extra);
 static bool traverse_object_and_move(struct object * root_object);
-static struct card_table * get_card_table(uintptr_t ptr);
 static void clear_card_tables();
 static void update_card_tables();
 static void mark_references_in_card_table(struct object * object_root_in_old);
@@ -158,7 +157,7 @@ static void traverse_struct_instance_entry_to_update_card_table(lox_value_t valu
         if (belongs_to_old(gc->old, (uintptr_t) object)) {
             push_stack_list(pending, object);
         } else {
-            struct card_table * card = get_card_table((uintptr_t) object);
+            struct card_table * card = get_card_table(gc, (uintptr_t) object);
             mark_dirty_card_table(card, (uint64_t *) object);
         }
     }
@@ -181,7 +180,7 @@ static void traverse_array_to_update_card_table(struct array_object * array, str
             if (belongs_to_old(gc->old, (uintptr_t) current_array_object)) {
                 push_stack_list(pending, current_array_object);
             } else {
-                struct card_table * card = get_card_table((uintptr_t) current_array_object);
+                struct card_table * card = get_card_table(gc, (uintptr_t) current_array_object);
                 mark_dirty_card_table(card, (uint64_t *) current_array_object);
             }
         }
@@ -455,15 +454,4 @@ static struct object_to_traverse * alloc_object_to_traverse(struct object * obje
     to_traverse->reference_holder = reference_holder;
     to_traverse->object = object;
     return to_traverse;
-}
-
-static struct card_table * get_card_table(uintptr_t ptr) {
-    struct generational_gc * gc = current_vm.gc;
-    if (belongs_to_survivor(gc->survivor, ptr)) {
-        return &gc->survivor->fromspace_card_table;
-    } else if (belongs_to_eden(gc->eden, ptr)) {
-        return &gc->eden->card_table;
-    }
-
-    return NULL;
 }

@@ -436,8 +436,8 @@ static void set_array_element(struct call_frame * call_frame) {
 
     array->values.values[array_index] = new_value;
 
-    if (IS_OBJECT(new_value) && get_barriers_gc_alg().set_array_element != NULL) {
-        get_barriers_gc_alg().set_array_element(array, AS_OBJECT(new_value));
+    if (IS_OBJECT(new_value) && get_barriers_gc_alg().write_array_element != NULL) {
+        get_barriers_gc_alg().write_array_element(array, AS_OBJECT(new_value));
     }
 }
 
@@ -475,8 +475,8 @@ static void set_struct_field(struct call_frame * call_frame) {
         runtime_panic("Undefined field %s", field_name->chars);
     }
 
-    if (IS_OBJECT(new_value) && get_barriers_gc_alg().set_struct_field != NULL) {
-        get_barriers_gc_alg().set_struct_field(instance, AS_OBJECT(new_value));
+    if (IS_OBJECT(new_value) && get_barriers_gc_alg().write_struct_field != NULL) {
+        get_barriers_gc_alg().write_struct_field(instance, AS_OBJECT(new_value));
     }
 }
 
