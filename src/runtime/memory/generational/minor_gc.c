@@ -36,7 +36,6 @@ static void traverse_lox_arraylist(struct lox_arraylist array_list, struct stack
 static void traverse_lox_hashtable(struct lox_hash_table hash_table, struct stack_list * pending);
 static uint8_t * move_to_new_space(struct object *);
 static void update_references();
-static void clear_bitmaps();
 static void remove_terminated_threads(struct stack_list * terminated_threads);
 static bool has_been_updated(struct object *);
 static void mark_as_updated(struct object *);
@@ -50,23 +49,26 @@ static void traverse_struct_instance_to_update_card_table(struct struct_instance
 static void traverse_array_to_update_card_table(struct array_object *, struct stack_list *);
 
 void start_minor_generational_gc() {
-    struct generational_gc * generational_gc = current_vm.gc;
+    struct generational_gc * gc = current_vm.gc;
     struct stack_list terminated_threads;
     init_stack_list(&terminated_threads);
 
     if (!traverse_heap_and_move(&terminated_threads)) {
        start_major_generational_gc();
-       return;
+       goto end;
     }
 
-    clear_bitmaps();
+    clear_mark_bitmaps_generational_gc(gc);
     update_references();
     clear_card_tables();
     update_card_tables();
 
-    swap_from_to_survivor_space(generational_gc->survivor, config);
-    clear_bitmaps();
+    swap_from_to_survivor_space(gc->survivor, config);
+    clear_mark_bitmaps_generational_gc(gc);
     remove_terminated_threads(&terminated_threads);
+
+    end:
+    free_stack_list(&terminated_threads);
 }
 
 static void update_card_tables() {
@@ -157,7 +159,7 @@ static void traverse_struct_instance_entry_to_update_card_table(lox_value_t valu
         if (belongs_to_old(gc->old, (uintptr_t) object)) {
             push_stack_list(pending, object);
         } else {
-            struct card_table * card = get_card_table(gc, (uintptr_t) object);
+            struct card_table * card = get_card_table_generational_gc(gc, (uintptr_t) object);
             mark_dirty_card_table(card, (uint64_t *) object);
         }
     }
@@ -180,7 +182,7 @@ static void traverse_array_to_update_card_table(struct array_object * array, str
             if (belongs_to_old(gc->old, (uintptr_t) current_array_object)) {
                 push_stack_list(pending, current_array_object);
             } else {
-                struct card_table * card = get_card_table(gc, (uintptr_t) current_array_object);
+                struct card_table * card = get_card_table_generational_gc(gc, (uintptr_t) current_array_object);
                 mark_dirty_card_table(card, (uint64_t *) current_array_object);
             }
         }
@@ -224,41 +226,21 @@ static void traverse_value_and_update_references(lox_value_t root_value, lox_val
 static bool has_been_updated(struct object * object) {
     struct generational_gc * generational_gc = current_vm.gc;
     uintptr_t object_ptr = (uintptr_t) object;
-
-    if (belongs_to_eden(generational_gc->eden, object_ptr)) {
-        return is_marked_bitmap(generational_gc->eden->mark_bitmap, object_ptr);
-    } else if (belongs_to_survivor(generational_gc->survivor, (uintptr_t) object)) {
-        return is_marked_bitmap(&generational_gc->survivor->fromspace_mark_bitmap, object_ptr);
-    } else { //Old
-        return is_marked_bitmap(generational_gc->old->updated_references_mark_bitmap, object_ptr);
-    }
+    struct mark_bitmap * mark_bitmap = get_mark_bitmap_generational_gc(generational_gc, object_ptr);
+    return is_marked_bitmap(mark_bitmap, object_ptr);
 }
 
 static void mark_as_updated(struct object * object) {
     struct generational_gc * generational_gc = current_vm.gc;
     uintptr_t object_ptr = (uintptr_t) object;
-
-    if (belongs_to_eden(generational_gc->eden, object_ptr)) {
-        set_marked_bitmap(generational_gc->eden->mark_bitmap, object_ptr);
-    } else if (belongs_to_survivor(generational_gc->survivor, (uintptr_t) object)) {
-        set_marked_bitmap(&generational_gc->survivor->fromspace_mark_bitmap, object_ptr);
-    } else { //Old
-        set_marked_bitmap(generational_gc->old->updated_references_mark_bitmap, object_ptr);
-    }
+    struct mark_bitmap * mark_bitmap = get_mark_bitmap_generational_gc(generational_gc, object_ptr);
+    set_marked_bitmap(mark_bitmap, object_ptr);
 }
 
 static void clear_card_tables() {
     struct generational_gc * generational_gc = current_vm.gc;
     clear_card_table(&generational_gc->survivor->fromspace_card_table);
     clear_card_table(&generational_gc->eden->card_table);
-}
-
-static void clear_bitmaps() {
-    struct generational_gc * generational_gc = current_vm.gc;
-
-    reset_mark_bitmap(generational_gc->eden->mark_bitmap);
-    reset_mark_bitmap(&generational_gc->survivor->fromspace_mark_bitmap);
-    reset_mark_bitmap(generational_gc->old->updated_references_mark_bitmap);
 }
 
 static bool traverse_heap_and_move(struct stack_list * terminated_threads) {
@@ -293,7 +275,7 @@ static bool for_each_card_table_entry_function(uint64_t * card_table_dirty_addre
 static bool traverse_thread_stack_to_move(struct vm_thread * parent, struct vm_thread * child, int index, void * terminated_threads_ptr) {
     struct for_each_thread_traverse_and_move * data = terminated_threads_ptr;
 
-    if(child->state == THREAD_TERMINATED && child->terminated_state == THREAD_TERMINATED_PENDING_GC) {
+    if (child->state == THREAD_TERMINATED && child->terminated_state == THREAD_TERMINATED_PENDING_GC) {
         struct stack_list * terminated_threads = data->pending;
         push_stack_list(terminated_threads, child);
     } else {
@@ -334,7 +316,7 @@ static bool traverse_value_and_move(lox_value_t root_value) {
     if (!IS_OBJECT(root_value)) {
         return true;
     }
-    if (!belongs_to_young(current_vm.gc, (uintptr_t) AS_OBJECT(root_value))) {
+    if (!belongs_to_young_generational_gc(current_vm.gc, (uintptr_t) AS_OBJECT(root_value))) {
         return true;
     }
 
@@ -404,8 +386,7 @@ static bool can_be_moved(struct object * object) {
     struct generational_gc * generational_gc = current_vm.gc;
     uintptr_t object_ptr = (uintptr_t) object;
 
-    bool belongs_to_eden_or_survivor = belongs_to_survivor(generational_gc->survivor, object_ptr) ||
-                                       belongs_to_eden(generational_gc->eden, object_ptr);
+    bool belongs_to_eden_or_survivor = belongs_to_young_generational_gc(generational_gc, object_ptr);
     bool it_hasnt_already_been_moved = !is_marked_bitmap(generational_gc->eden->mark_bitmap, object_ptr) &&
                                        !is_marked_bitmap(&generational_gc->survivor->fromspace_mark_bitmap, object_ptr);
 
@@ -415,12 +396,8 @@ static bool can_be_moved(struct object * object) {
 static void mark_object(struct object * object) {
     struct generational_gc * generational_gc = current_vm.gc;
     uintptr_t object_ptr = (uintptr_t) object;
-
-    if (belongs_to_eden(generational_gc->eden, object_ptr)) {
-        set_marked_bitmap(generational_gc->eden->mark_bitmap, object_ptr);
-    } else {
-        set_marked_bitmap(&generational_gc->survivor->fromspace_mark_bitmap, object_ptr);
-    }
+    struct mark_bitmap * mark_bitmap = get_mark_bitmap_generational_gc(generational_gc, object_ptr);
+    set_marked_bitmap(mark_bitmap, object_ptr);
 }
 
 static bool move_object(struct object * object) {

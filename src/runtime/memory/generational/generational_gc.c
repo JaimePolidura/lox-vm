@@ -107,11 +107,11 @@ static void save_new_eden_block_info(struct eden_block_allocation eden_block_all
     eden_thread_info->end_block = eden_block_allocation.end_block;
 }
 
-bool belongs_to_young(struct generational_gc * gc, uintptr_t ptr) {
+bool belongs_to_young_generational_gc(struct generational_gc * gc, uintptr_t ptr) {
     return belongs_to_eden(gc->eden, ptr) || belongs_to_survivor(gc->survivor, ptr);
 }
 
-struct card_table * get_card_table(struct generational_gc * gc, uintptr_t ptr) {
+struct card_table * get_card_table_generational_gc(struct generational_gc * gc, uintptr_t ptr) {
     if (belongs_to_survivor(gc->survivor, ptr)) {
         return &gc->survivor->fromspace_card_table;
     } else if (belongs_to_eden(gc->eden, ptr)) {
@@ -119,4 +119,28 @@ struct card_table * get_card_table(struct generational_gc * gc, uintptr_t ptr) {
     }
 
     return NULL;
+}
+
+bool belongs_to_heap_generational_gc(struct generational_gc * gc, uintptr_t ptr) {
+    return belongs_to_eden(gc->eden, ptr) ||
+            belongs_to_survivor(gc->survivor, ptr) ||
+            belongs_to_old(gc->old, ptr);
+}
+
+void clear_mark_bitmaps(struct generational_gc * generational_gc) {
+    reset_mark_bitmap(generational_gc->eden->mark_bitmap);
+    reset_mark_bitmap(&generational_gc->survivor->fromspace_mark_bitmap);
+    reset_mark_bitmap(generational_gc->old->updated_references_mark_bitmap);
+}
+
+struct mark_bitmap * get_mark_bitmap_generational_gc(struct generational_gc * gc, uintptr_t ptr) {
+    if(belongs_to_eden(gc->eden, ptr)){
+        return gc->eden->mark_bitmap;
+    } else if (belongs_to_survivor(gc->survivor, ptr)) {
+        return &gc->survivor->fromspace_mark_bitmap;
+    } else if (belongs_to_old(gc->old, ptr)) {
+        return gc->old->updated_references_mark_bitmap;
+    } else {
+        return NULL;
+    }
 }
