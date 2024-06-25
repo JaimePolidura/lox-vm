@@ -15,5 +15,6 @@ void init_mark_bitmap(struct mark_bitmap *, int n_addresses, uint64_t start_addr
 void free_mark_bitmap(struct mark_bitmap *);
 
 void set_marked_bitmap(struct mark_bitmap *, uintptr_t address);
+void set_unmarked_bitmap(struct mark_bitmap *, uintptr_t address);
 bool is_marked_bitmap(struct mark_bitmap *, uintptr_t address);
 void reset_mark_bitmap(struct mark_bitmap *);

@@ -130,7 +130,7 @@ bool belongs_to_heap_generational_gc(struct generational_gc * gc, uintptr_t ptr)
 void clear_mark_bitmaps(struct generational_gc * generational_gc) {
     reset_mark_bitmap(generational_gc->eden->mark_bitmap);
     reset_mark_bitmap(&generational_gc->survivor->fromspace_mark_bitmap);
-    reset_mark_bitmap(generational_gc->old->updated_references_mark_bitmap);
+    reset_mark_bitmap(generational_gc->old->mark_bitmap);
 }
 
 struct mark_bitmap * get_mark_bitmap_generational_gc(struct generational_gc * gc, uintptr_t ptr) {
@@ -139,7 +139,7 @@ struct mark_bitmap * get_mark_bitmap_generational_gc(struct generational_gc * gc
     } else if (belongs_to_survivor(gc->survivor, ptr)) {
         return &gc->survivor->fromspace_mark_bitmap;
     } else if (belongs_to_old(gc->old, ptr)) {
-        return gc->old->updated_references_mark_bitmap;
+        return gc->old->mark_bitmap;
     } else {
         return NULL;
     }

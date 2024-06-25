@@ -53,9 +53,12 @@ void start_minor_generational_gc() {
     struct stack_list terminated_threads;
     init_stack_list(&terminated_threads);
 
+    //Start major gc and restart minor gc
     if (!traverse_heap_and_move(&terminated_threads)) {
        start_major_generational_gc();
-       goto end;
+       free_stack_list(&terminated_threads);
+       start_minor_generational_gc();
+       return;
     }
 
     clear_mark_bitmaps_generational_gc(gc);
@@ -67,7 +70,6 @@ void start_minor_generational_gc() {
     clear_mark_bitmaps_generational_gc(gc);
     remove_terminated_threads(&terminated_threads);
 
-    end:
     free_stack_list(&terminated_threads);
 }
 
@@ -204,11 +206,11 @@ static void traverse_value_and_update_references(lox_value_t root_value, lox_val
 
         if (!has_been_updated(current)) {
             lox_value_t * current_forwading_ptr = GET_FORWARDING_PTR(current);
-
             mark_as_updated(current);
 
             if (current_forwading_ptr != NULL) {
                 *current_reference_holder = *current_forwading_ptr;
+                SET_FORWARDING_PTR(current, NULL);
             }
 
             switch (current->type) {
@@ -409,7 +411,7 @@ static bool move_object(struct object * object) {
 
     if (moved_successfully) {
         SET_FORWARDING_PTR(object, new_ptr);
-        SET_FORWARDING_PTR((struct object *) new_ptr, object);
+        SET_FORWARDING_PTR(((struct object *) new_ptr), object);
     }
 
     return moved_successfully;

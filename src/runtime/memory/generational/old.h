@@ -10,7 +10,7 @@
 
 struct old {
     struct memory_space memory_space;
-    struct mark_bitmap * updated_references_mark_bitmap;
+    struct mark_bitmap * mark_bitmap;
 };
 
 struct old * alloc_old(struct config);

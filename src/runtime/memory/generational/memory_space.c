@@ -23,15 +23,25 @@ uint8_t * alloc_data_memory_space(struct memory_space * memory_space, size_t siz
     return ptr;
 }
 
-uint8_t * copy_data_memory_space(struct memory_space * memory_space, uint8_t * src, size_t size) {
-    if (memory_space->current + size > memory_space->end) {
+void copy_data_at_memory_space(struct memory_space * memory_space, uint8_t * dst, uint8_t * src, size_t size_in_bytes) {
+    if (memory_space->current + size_in_bytes > memory_space->end) {
+        return;
+    }
+
+    for (int i = 0; i < size_in_bytes; i++) {
+        *(dst++) = *(src++);
+    }
+}
+
+uint8_t * copy_data_memory_space(struct memory_space * memory_space, uint8_t * src, size_t size_in_bytes) {
+    if (memory_space->current + size_in_bytes > memory_space->end) {
         return NULL;
     }
 
     uint8_t * dst = memory_space->current;
     uint8_t * start_moved = memory_space->current;
 
-    for (int i = 0; i < size; i++) {
+    for (int i = 0; i < size_in_bytes; i++) {
         *(dst++) = *(src++);
     }
 
