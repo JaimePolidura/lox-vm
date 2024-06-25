@@ -32,14 +32,14 @@ typedef enum {
 
     OP_INITIALIZE_STRUCT,        // Index: 26
     OP_GET_STRUCT_FIELD,         // Index: 27
-    OP_SET_STRUCT_FIELD,         // Index: 28
+    OP_SET_STRUCT_FIELD,         // Index: 28 WB
     OP_ENTER_PACKAGE,            // Index: 29
     OP_EXIT_PACKAGE,             // Index: 30
     OP_ENTER_MONITOR,            // Index: 31
     OP_EXIT_MONITOR,             // Index: 32
     OP_INITIALIZE_ARRAY,         // Index: 33
     OP_GET_ARRAY_ELEMENT,        // Index: 34
-    OP_SET_ARRAY_ELEMENT,        // Index: 35
+    OP_SET_ARRAY_ELEMENT,        // Index: 35 WB
     OP_FAST_CONST_8,             // Index: 36
     OP_FAST_CONST_16,            // Index: 37
     OP_CONST_1,                  // Index: 38

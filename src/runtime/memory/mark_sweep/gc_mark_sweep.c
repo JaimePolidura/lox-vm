@@ -39,6 +39,13 @@ void signal_threads_gc_finished_alg();
 #define SET_NEXT_GC_HEAP(object, next) object->gc_info = (void *) ((uint64_t) next | ((uint64_t) object->gc_info & 0x8000000000000000))
 #define GET_NEXT_GC_HEAP(object) (struct object *) ((uint64_t) object->gc_info & 0x7FFFFFFFFFFFFFFF)
 
+struct gc_barriers get_barriers_gc_alg() {
+    return (struct gc_barriers) {
+        .set_array_element = NULL,
+        .set_struct_field = NULL,
+    };
+}
+
 void add_object_to_heap_gc_alg(struct object * object) {
     struct mark_sweep_thread_info * gc_thread_info = self_thread->gc_info;
     size_t allocated_heap_size = sizeof_heap_allocated_lox_object(object);

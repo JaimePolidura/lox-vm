@@ -11,6 +11,7 @@ extern struct array_object * alloc_array_gc_alg(int n_elements);
 extern void print_lox_value(lox_value_t value);
 extern void runtime_panic(char * format, ...);
 extern lox_value_t addition_lox(lox_value_t a, lox_value_t b);
+extern struct gc_barriers get_barriers_gc_alg();
 
 __thread struct vm_thread * self_thread;
 const uint8_t eof = OP_EOF;
@@ -429,11 +430,15 @@ static void set_array_element(struct call_frame * call_frame) {
     struct array_object * array = (struct array_object *) AS_OBJECT(pop_stack_vm());
     lox_value_t new_value = pop_stack_vm();
 
-    if(array_index >= array->values.in_use) {
+    if (array_index >= array->values.in_use) {
         runtime_panic("Index out of bounds");
     }
 
     array->values.values[array_index] = new_value;
+
+    if (IS_OBJECT(new_value) && get_barriers_gc_alg().set_array_element != NULL) {
+        get_barriers_gc_alg().set_array_element(array, AS_OBJECT(new_value));
+    }
 }
 
 static void initialize_struct(struct call_frame * call_frame) {
@@ -468,6 +473,10 @@ static void set_struct_field(struct call_frame * call_frame) {
 
     if(!put_if_present_hash_table(&instance->fields, field_name, new_value)) {
         runtime_panic("Undefined field %s", field_name->chars);
+    }
+
+    if (IS_OBJECT(new_value) && get_barriers_gc_alg().set_struct_field != NULL) {
+        get_barriers_gc_alg().set_struct_field(instance, AS_OBJECT(new_value));
     }
 }
 

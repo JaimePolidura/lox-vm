@@ -332,7 +332,14 @@ static bool traverse_package_globals_to_move(void * trie_node_ptr, void * extra_
 }
 
 static bool traverse_value_and_move(lox_value_t root_value) {
-    return !IS_OBJECT(root_value) || traverse_object_and_move(AS_OBJECT(root_value));
+    if (!IS_OBJECT(root_value)) {
+        return true;
+    }
+    if (!belongs_to_young(current_vm.gc, (uintptr_t) AS_OBJECT(root_value))) {
+        return true;
+    }
+
+    return traverse_object_and_move(AS_OBJECT(root_value));
 }
 
 static bool traverse_object_and_move(struct object * root_object) {
@@ -340,6 +347,7 @@ static bool traverse_object_and_move(struct object * root_object) {
     struct stack_list pending;
     init_stack_list(&pending);
     push_stack_list(&pending, alloc_object_to_traverse(root_object, NULL));
+    bool moved_all_successfuly = true;
 
     while (!is_empty_stack_list(&pending)) {
         struct object_to_traverse * to_traverse = pop_stack_list(&pending);
@@ -348,9 +356,10 @@ static bool traverse_object_and_move(struct object * root_object) {
 
         if (can_be_moved(current)) {
             mark_object(current);
-            //Cannot be moved
+            //Failed move alloccation, start major gc
             if (!move_object(current)) {
-                return false;
+                moved_all_successfuly = false;
+                goto end;
             }
 
             switch (current->type) {
@@ -364,7 +373,10 @@ static bool traverse_object_and_move(struct object * root_object) {
         }
     }
 
-    return true;
+    end:
+    free_stack_list(&pending);
+
+    return moved_all_successfuly;
 }
 
 static void traverse_lox_arraylist(struct lox_arraylist array_list, struct stack_list * pending) {

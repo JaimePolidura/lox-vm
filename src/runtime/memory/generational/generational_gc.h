@@ -21,3 +21,5 @@ struct generational_gc {
 struct generational_thread_gc {
     struct eden_thread * eden;
 };
+
+bool belongs_to_young(struct generational_gc *, uintptr_t ptr);

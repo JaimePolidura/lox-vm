@@ -97,3 +97,7 @@ static void save_new_eden_block_info(struct eden_block_allocation eden_block_all
     eden_thread_info->current_block = eden_block_allocation.start_block;
     eden_thread_info->end_block = eden_block_allocation.end_block;
 }
+
+bool belongs_to_young(struct generational_gc * gc, uintptr_t ptr) {
+    return belongs_to_eden(gc->eden, ptr) || belongs_to_survivor(gc->survivor, ptr);
+}
