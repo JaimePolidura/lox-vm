@@ -12,7 +12,7 @@ struct card_table * alloc_card_table(struct config config, uint64_t * memory_spa
 }
 
 void init_card_table(struct card_table * card_table, struct config config, uint64_t * memory_space_start_address, uint64_t * memory_space_end_address) {
-    int n_cards = ceil((memory_space_end_address - memory_space_start_address) / config.generational_gc_config.n_addresses_per_card_table);
+    int n_cards = ceil((memory_space_end_address - memory_space_start_address) / (double) config.generational_gc_config.n_addresses_per_card_table);
     card_table->cards = malloc(sizeof(struct mark_bitmap *) * n_cards);
     memset(card_table->cards, 0, sizeof(struct mark_bitmap *) * n_cards);
 

@@ -5,7 +5,6 @@
 #include "shared/types/string_object.h"
 #include "shared/types/array_object.h"
 
-
 #define INCREMENT_GENERATION(object) \
     do {                                 \
         uint8_t new_generation = GET_GENERATION(object) + 1; \

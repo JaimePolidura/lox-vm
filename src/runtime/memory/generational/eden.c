@@ -37,7 +37,7 @@ struct eden_block_allocation try_claim_eden_block(struct eden * eden, int n_bloc
         if(new_current > (uint64_t) eden->memory_space.end){
             return (struct eden_block_allocation) {.success = false};
         }
-    }while(!atomic_compare_exchange_strong(eden->memory_space.current, (uint8_t *) &actual_current, new_current));
+    }while(!atomic_compare_exchange_strong((uint8_t *) &eden->memory_space.current, (uint8_t *) &actual_current, new_current));
 
     return (struct eden_block_allocation) {
         .start_block = (uint8_t *) (uint64_t) new_current - (n_blocks * eden->size_blocks_in_bytes),

@@ -1,3 +1,5 @@
+#ifdef USING_GEN_GC_ALG
+
 #include "generational_gc.h"
 
 extern __thread struct vm_thread * self_thread;
@@ -11,53 +13,62 @@ static struct object * try_alloc_object(size_t size);
 static void try_claim_eden_block_or_start_gc(size_t size_bytes);
 static void save_new_eden_block_info(struct eden_block_allocation);
 
-struct gc_barriers __attribute__((weak)) get_barriers_gc_alg() {
+struct gc_barriers get_barriers_gc_alg() {
     return (struct gc_barriers) {
         .write_array_element = write_array_element_barrier_generational_gc,
         .write_struct_field = write_struct_field_barrier_generational_gc
     };
 }
 
-struct struct_instance_object * __attribute__((weak)) alloc_struct_instance_gc_alg(struct struct_definition_object * definition) {
-    struct struct_instance_object * instance = (struct struct_instance_object *) try_alloc_object(sizeof(struct struct_instance_object));
+void check_gc_on_safe_point_alg() {
+
+}
+
+//TODO Memory leak, internal struct hashmap is not being freed
+struct struct_instance_object * alloc_struct_instance_gc_alg(struct struct_definition_object * definition) {
+    size_t aligned_size = align(sizeof(struct struct_instance_object), sizeof(struct object));
+    struct struct_instance_object * instance = (struct struct_instance_object *) try_alloc_object(aligned_size);
     init_struct_instance_object(instance, definition);
     return instance;
 }
 
-struct string_object * __attribute__((weak)) alloc_string_gc_alg(char * chars, int length) {
-    //TODO Add chars into eden space
-    struct string_object * string = (struct string_object *) try_alloc_object(sizeof(struct string_object));
-    init_object(&string->object, OBJ_STRING);
-    string->length = length;
-    string->hash = hash_string(chars, length);
-    string->chars = malloc(sizeof(char) * length + 1);
-    memcpy(string->chars, chars, length);
-    string->chars[length] = '\0';
-    return string;
+struct string_object * alloc_string_gc_alg(char * chars, int length) {
+    size_t aligned_total_size = align(sizeof(struct string_object) + length + 1, sizeof(struct object));
+    struct string_object * string_ptr = (struct string_object *) try_alloc_object(aligned_total_size);
+    init_object(&string_ptr->object, OBJ_STRING);
+    string_ptr->length = length;
+    string_ptr->hash = hash_string(chars, length);
+    string_ptr->chars = (char *) ((uint8_t *) string_ptr + sizeof(struct string_object));
+    memcpy(string_ptr->chars, chars, length);
+    string_ptr->chars[length] = '\0';
+
+    return string_ptr;
 }
 
-struct array_object * __attribute__((weak)) alloc_array_gc_alg(int n_elements) {
-    int n_elements_rounded_up = round_up_8(n_elements);
-    struct array_object * array = (struct array_object *) try_alloc_object(sizeof(struct array_object) + (n_elements_rounded_up * sizeof(lox_value_t)));
+struct array_object * alloc_array_gc_alg(int n_elements) {
+    size_t not_aligned_size = sizeof(struct array_object) + (n_elements * sizeof(lox_value_t));
+    size_t total_size_aligned = align(not_aligned_size, sizeof(struct object));
+    struct array_object * array = (struct array_object *) try_alloc_object(total_size_aligned);
+
     init_object(&array->object, OBJ_ARRAY);
-    array->values.values = (lox_value_t *) array + sizeof(struct array_object);
+    array->values.values = (lox_value_t *) (((uint8_t *) array) + sizeof(struct array_object));
     array->values.capacity = n_elements;
     array->values.in_use = 0;
 
     return array;
 }
 
-void * __attribute__((weak)) alloc_gc_object_info_alg() {
+void * alloc_gc_object_info_alg() {
     return NULL;
 }
 
-void * __attribute__((weak)) alloc_gc_thread_info_alg() {
+void * alloc_gc_thread_info_alg() {
     struct generational_thread_gc * generational_gc = malloc(sizeof(struct generational_thread_gc));
     generational_gc->eden = alloc_eden_thread();
     return generational_gc;
 }
 
-void * __attribute__((weak)) alloc_gc_vm_info_alg() {
+void * alloc_gc_vm_info_alg() {
     struct generational_gc * generational_gc = malloc(sizeof(struct generational_gc));
     generational_gc->survivor = alloc_survivor(config);
     generational_gc->eden = alloc_eden(config);
@@ -66,7 +77,7 @@ void * __attribute__((weak)) alloc_gc_vm_info_alg() {
     return generational_gc;
 }
 
-struct gc_result __attribute__((weak)) try_start_gc_alg() {
+struct gc_result try_start_gc_alg() {
     start_minor_generational_gc();
 
     return (struct gc_result) {
@@ -88,7 +99,7 @@ static struct object * try_alloc_object(size_t size_bytes) {
 
 static void try_claim_eden_block_or_start_gc(size_t size_bytes) {
     struct generational_gc * global_gc_info = current_vm.gc;
-    int n_blocks = (int) ceil(size_bytes / config.generational_gc_config.eden_block_size_kb * 1024);
+    int n_blocks = (int) ceil(size_bytes / ((double) config.generational_gc_config.eden_block_size_kb * 1024));
     struct eden_block_allocation block_allocation = try_claim_eden_block(global_gc_info->eden, n_blocks);
 
     if (!block_allocation.success) {
@@ -128,7 +139,7 @@ bool belongs_to_heap_generational_gc(struct generational_gc * gc, uintptr_t ptr)
             belongs_to_old(gc->old, ptr);
 }
 
-void clear_mark_bitmaps(struct generational_gc * generational_gc) {
+void clear_mark_bitmaps_generational_gc(struct generational_gc * generational_gc) {
     reset_mark_bitmap(generational_gc->eden->mark_bitmap);
     reset_mark_bitmap(&generational_gc->survivor->fromspace_mark_bitmap);
     reset_mark_bitmap(generational_gc->old->mark_bitmap);
@@ -151,3 +162,5 @@ void clear_card_tables_generational_gc(struct generational_gc * gc) {
     clear_card_table(&generational_gc->survivor->fromspace_card_table);
     clear_card_table(&generational_gc->eden->card_table);
 }
+
+#endif

@@ -61,3 +61,11 @@ int string_replace(char * string, int length, char old, char new) {
 
     return n_replaced;
 }
+
+int round_up_8(int number) {
+    return ceil(number / 8.0) * 8;
+}
+
+int align(int not_aligned, int value_to_align) {
+    return ((not_aligned + value_to_align - 1) / value_to_align) * value_to_align;
+}

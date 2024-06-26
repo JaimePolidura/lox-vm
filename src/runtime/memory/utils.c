@@ -46,7 +46,3 @@ void * grow_array(size_t new_size, void * original_array, size_t old_size) {
 
     return new_array;
 }
-
-inline int round_up_8(int number) {
-    return ceil(number / 8.0) * 8;
-}

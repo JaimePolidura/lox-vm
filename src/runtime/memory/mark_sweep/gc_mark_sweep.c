@@ -1,3 +1,5 @@
+#ifdef USING_MS_GC_ALG
+
 #include "gc_mark_sweep.h"
 
 extern void on_gc_finished_vm(struct gc_result result);
@@ -410,3 +412,5 @@ struct array_object * alloc_array_gc_alg(int n_elements) {
     add_object_to_heap_gc_alg(&array_object->object);
     return array_object;
 }
+
+#endif

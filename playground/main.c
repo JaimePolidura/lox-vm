@@ -2,35 +2,26 @@
 #include "compiler/bytecode/bytecode_compiler.h"
 #include "compiler/inline/call_graph.h"
 #include "compiler/compiler.h"
+#include "runtime/vm.h"
 
 int main() {
-    puts("Con inline:");
-    auto result1 = compile_bytecode(
-            "fun numero(a) {"
-            "   if (a > 100) {"
-            "       print 1;"
-            "   } else {"
-            "       print 2;"
-            "   }"
+    start_vm();
+
+    interpret_vm(compile_bytecode(
+            "struct Persona{"
+            "   nombre;"
+            "   edad;"
             "}"
             ""
-            "print inline numero(101);",
-            "main", NULL);
+            "var jaime = Persona{\"Jaime\", 21};"
+            "var jaime2 = Persona{\"Jaime\", 22};"
+            "var jaime3 = Persona{\"Jaime\", 23};"
+            "var jaime4 = Persona{\"Jaime\", 24};"
+            "print jaime.edad;"
+            "print jaime2.edad;"
+            "print jaime3.edad;"
+            "print jaime4.edad;",
+            "main", NULL));
 
-    disassemble_package(result1.compiled_package, DISASSEMBLE_PACKAGE_FUNCTIONS);
-    puts("\n\n");
-
-    puts("Sin inline:");
-    auto result2 = compile_standalone(
-            "fun numero(a) {"
-            "   if (a > 100) {"
-            "       return 1;"
-            "   } else {"
-            "       return 2;"
-            "   }"
-            "}"
-            ""
-            "print inline numero(101);");
-
-    disassemble_package(result2.compiled_package, DISASSEMBLE_ONLY_MAIN);
+    stop_vm();
 }

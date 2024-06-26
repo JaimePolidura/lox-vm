@@ -33,4 +33,5 @@ uint32_t hash_string(const char * string_ptr, int length);
 char * copy_string(char * source, int end);
 int string_replace(char * string, int length, char old, char new);
 void * grow_array(size_t new_size, void * original_array, size_t old_size);
-inline int round_up_8(int number);
+int round_up_8(int number);
+int align(int not_aligned, int value_to_align);
