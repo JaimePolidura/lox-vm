@@ -13,6 +13,7 @@ static void traverse_object_to_mark(struct object *);
 static void traverse_lox_hashtable(struct stack_list *, struct lox_hash_table);
 static void traverse_lox_arraylist(struct stack_list *, struct lox_arraylist);
 static bool can_be_marked(uintptr_t ptr);
+static void remove_terminated_threads(struct stack_list * terminated_threads);
 
 static void compact_old();
 static void update_references();
@@ -26,6 +27,11 @@ static bool traverse_globals_to_update_references(void * trie_node_ptr, void * e
 static void traverse_value_and_update_references(lox_value_t * root_value);
 static bool can_reference_be_updated(lox_value_t * value);
 
+static void update_card_tables(struct generational_gc *);
+static void update_card_table_object(struct object *);
+static void update_card_table_struct(struct struct_instance_object *);
+static void update_card_table_array(struct array_object *);
+
 void start_major_generational_gc() {
     struct generational_gc * gc = current_vm.gc;
     struct stack_list terminated_threads;
@@ -36,7 +42,76 @@ void start_major_generational_gc() {
     compact_old();
     clear_mark_bitmaps_generational_gc(gc);
     update_references();
+    update_card_tables(gc);
+    clear_mark_bitmaps_generational_gc(gc);
+    remove_terminated_threads(&terminated_threads);
+
+    free_stack_list(&terminated_threads);
 }
+
+static void remove_terminated_threads(struct stack_list * terminated_threads) {
+    while(!is_empty_stack_list(terminated_threads)){
+        struct vm_thread * terminated_thread = pop_stack_list(terminated_threads);
+
+        free_vm_thread(terminated_thread);
+        terminated_thread->terminated_state = THREAD_TERMINATED_GC_DONE;
+    }
+}
+
+static void update_card_tables(struct generational_gc * gc) {
+    clear_card_tables_generational_gc(gc);
+
+    struct old * old = gc->old;
+
+    for (struct object * current_old_ptr = (struct object *) old->memory_space.start;
+        current_old_ptr < (struct object *) old->memory_space.end;
+        current_old_ptr++) {
+
+        if (is_marked_bitmap(old->mark_bitmap, (uintptr_t) current_old_ptr)) {
+            update_card_table_object(current_old_ptr);
+        }
+    }
+}
+
+static void update_card_table_object(struct object * object) {
+    switch (object->type) {
+        case OBJ_STRUCT_INSTANCE:
+            update_card_table_struct((struct struct_instance_object *) object);
+            break;
+        case OBJ_ARRAY:
+            update_card_table_array((struct array_object *) object);
+            break;
+    }
+}
+
+static void update_card_table_struct_field_entry(lox_value_t value, lox_value_t * reference_holder, void * extra) {
+    struct generational_gc * gc = current_vm.gc;
+    struct object * object_in_struct = AS_OBJECT(value);
+
+    if (IS_OBJECT(value) && belongs_to_young_generational_gc(gc, (uint64_t) object_in_struct)) {
+        struct card_table * card_table = get_card_table_generational_gc(gc, (uint64_t) object_in_struct);
+        mark_dirty_card_table(card_table, (uint64_t *) object_in_struct);
+    }
+}
+
+static void update_card_table_struct(struct struct_instance_object * instance) {
+    for_each_value_hash_table(&instance->fields, NULL, update_card_table_struct_field_entry);
+}
+
+static void update_card_table_array(struct array_object * array) {
+    struct generational_gc * gc = current_vm.gc;
+
+    for (int i = 0; i < array->values.in_use; i++) {
+        lox_value_t value_in_array = array->values.values[i];
+        struct object * object_in_array = AS_OBJECT(value_in_array);
+
+        if (IS_OBJECT(value_in_array) && belongs_to_young_generational_gc(gc, (uint64_t) object_in_array)) {
+            struct card_table * card_table = get_card_table_generational_gc(gc, (uint64_t) object_in_array);
+            mark_dirty_card_table(card_table, (uint64_t *) object_in_array);
+        }
+    }
+}
+
 
 static void update_references() {
     //Thread stacks
@@ -114,7 +189,7 @@ static bool can_reference_be_updated(lox_value_t * value) {
     struct mark_bitmap * mark_bit_map = get_mark_bitmap_generational_gc(gc, current_value_ptr);
 
     return belongs_to_heap_generational_gc(gc, current_value_ptr) &&
-        is_marked_bitmap(mark_bit_map, current_value_ptr);
+        !is_marked_bitmap(mark_bit_map, current_value_ptr);
 }
 
 static void compact_old() {

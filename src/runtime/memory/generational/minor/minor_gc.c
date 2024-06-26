@@ -42,7 +42,6 @@ static void mark_as_updated(struct object *);
 static bool traverse_package_globals_to_update_references(void * trie_node_ptr, void * extra_ignored);
 static bool for_each_card_table_entry_function(uint64_t * card_table_dirty_address, void * extra);
 static bool traverse_object_and_move(struct object * root_object);
-static void clear_card_tables();
 static void update_card_tables();
 static void mark_references_in_card_table(struct object * object_root_in_old);
 static void traverse_struct_instance_to_update_card_table(struct struct_instance_object *, struct stack_list *);
@@ -63,7 +62,7 @@ void start_minor_generational_gc() {
 
     clear_mark_bitmaps_generational_gc(gc);
     update_references();
-    clear_card_tables();
+    clear_card_tables_generational_gc(gc);
     update_card_tables();
 
     swap_from_to_survivor_space(gc->survivor, config);
@@ -237,12 +236,6 @@ static void mark_as_updated(struct object * object) {
     uintptr_t object_ptr = (uintptr_t) object;
     struct mark_bitmap * mark_bitmap = get_mark_bitmap_generational_gc(generational_gc, object_ptr);
     set_marked_bitmap(mark_bitmap, object_ptr);
-}
-
-static void clear_card_tables() {
-    struct generational_gc * generational_gc = current_vm.gc;
-    clear_card_table(&generational_gc->survivor->fromspace_card_table);
-    clear_card_table(&generational_gc->eden->card_table);
 }
 
 static bool traverse_heap_and_move(struct stack_list * terminated_threads) {

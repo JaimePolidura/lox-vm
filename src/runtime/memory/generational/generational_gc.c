@@ -144,3 +144,9 @@ struct mark_bitmap * get_mark_bitmap_generational_gc(struct generational_gc * gc
         return NULL;
     }
 }
+
+void clear_card_tables_generational_gc(struct generational_gc * gc) {
+    struct generational_gc * generational_gc = current_vm.gc;
+    clear_card_table(&generational_gc->survivor->fromspace_card_table);
+    clear_card_table(&generational_gc->eden->card_table);
+}
