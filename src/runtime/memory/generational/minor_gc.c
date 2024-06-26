@@ -10,6 +10,7 @@ extern struct vm current_vm;
 extern struct trie_list * compiled_packages;
 extern struct config config;
 
+extern void runtime_panic(char * format, ...);
 extern void start_major_generational_gc();
 
 struct object_to_traverse {
@@ -54,6 +55,10 @@ void start_minor_generational_gc() {
 
     //Start major gc and restart minor gc
     if (!traverse_heap_and_move(&terminated_threads)) {
+        if (gc->previous_major) {
+            runtime_panic("Out of memory!");
+        }
+
        start_major_generational_gc();
        free_stack_list(&terminated_threads);
        start_minor_generational_gc();
@@ -64,12 +69,12 @@ void start_minor_generational_gc() {
     update_references();
     clear_card_tables_generational_gc(gc);
     update_card_tables();
-
     swap_from_to_survivor_space(gc->survivor, config);
     clear_mark_bitmaps_generational_gc(gc);
     remove_terminated_threads(&terminated_threads);
 
     free_stack_list(&terminated_threads);
+    gc->previous_major = false;
 }
 
 static void update_card_tables() {

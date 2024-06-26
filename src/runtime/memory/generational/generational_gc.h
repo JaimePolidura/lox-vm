@@ -14,6 +14,7 @@ struct generational_gc {
     struct eden * eden;
     struct survivor * survivor;
     struct old * old;
+    bool previous_major;
 };
 
 //Pert thread. Maintained in vm_thread.h

@@ -36,6 +36,7 @@ void start_major_generational_gc() {
     struct generational_gc * gc = current_vm.gc;
     struct stack_list terminated_threads;
     init_stack_list(&terminated_threads);
+    gc->previous_major = true;
 
     clear_mark_bitmaps_generational_gc(gc);
     mark(&terminated_threads);

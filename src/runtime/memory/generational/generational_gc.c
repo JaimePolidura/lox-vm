@@ -62,6 +62,7 @@ void * __attribute__((weak)) alloc_gc_vm_info_alg() {
     generational_gc->survivor = alloc_survivor(config);
     generational_gc->eden = alloc_eden(config);
     generational_gc->old = alloc_old(config);
+    generational_gc->previous_major = false;
     return generational_gc;
 }
 
