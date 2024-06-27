@@ -457,6 +457,7 @@ static void initialize_struct(struct call_frame * call_frame) {
 static void get_struct_field(struct call_frame * call_frame) {
     struct struct_instance_object * instance = (struct struct_instance_object *) AS_OBJECT(pop_stack_vm());
     struct string_object * field_name = (struct string_object *) AS_OBJECT(READ_CONSTANT(call_frame));
+    uint64_t xd = (uint64_t) instance;
 
     lox_value_t field_value;
     if(!get_hash_table(&instance->fields, field_name, &field_value)) {

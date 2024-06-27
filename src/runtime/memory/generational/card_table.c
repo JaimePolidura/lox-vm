@@ -2,8 +2,6 @@
 
 static struct mark_bitmap * find_card(struct card_table *, uint64_t * address);
 static struct mark_bitmap * add_card(struct card_table *, int index);
-static bool traverse_card_byte(uint8_t * byte_ptr, struct mark_bitmap * card, void * extra, card_table_consumer_t consumer);
-static bool traverse_card(struct mark_bitmap * card, void * extra, card_table_consumer_t consumer);
 
 struct card_table * alloc_card_table(struct config config, uint64_t * memory_space_start_address, uint64_t * memory_space_end_address) {
     struct card_table * card_table = malloc(sizeof(struct card_table));
@@ -23,21 +21,22 @@ void init_card_table(struct card_table * card_table, struct config config, uint6
 
 void mark_dirty_card_table(struct card_table * card_table, uint64_t * address) {
     struct mark_bitmap * card = find_card(card_table, address);
-    set_marked_bitmap(card, (uintptr_t) address);
+    set_marked_bitmap(card, address);
 }
 
 bool is_dirty_card_table(struct card_table * card_table, uint64_t * address) {
     struct mark_bitmap * card = find_card(card_table, address);
-    return is_marked_bitmap(card, (uintptr_t) address);
+    return is_marked_bitmap(card, address);
 }
 
 void clear_card_table(struct card_table * table) {
     for (int i = 0; i < table->n_cards; ++i) {
         if (table->cards[i] != NULL) {
             free_mark_bitmap(table->cards[i]);
+            free(table->cards[i]);
+            table->cards[i] = NULL;
         }
     }
-    free(table->cards);
 }
 
 static struct mark_bitmap * find_card(struct card_table * card_table, uint64_t * address) {
@@ -54,46 +53,18 @@ static struct mark_bitmap * find_card(struct card_table * card_table, uint64_t *
 static struct mark_bitmap * add_card(struct card_table * card_table, int index) {
     int n_addresses = card_table->n_addresses_per_card_table;
     uint64_t * card_start_address = card_table->start_address_memory_space + (index * n_addresses * sizeof(void *));
-    struct mark_bitmap * card = alloc_mark_bitmap(n_addresses, (uint64_t) card_start_address);
+    struct mark_bitmap * card = alloc_mark_bitmap(n_addresses, card_start_address);
     card_table->cards[index] = card;
-
     return card;
 }
 
-void for_each_card_table(struct card_table * table, void * extra, card_table_consumer_t consumer) {
+void for_each_card_table(struct card_table * table, void * extra, mark_bitmap_consumer_t consumer) {
     bool continue_iterating = true;
 
     for (int i = 0; i < table->n_cards && continue_iterating; i++) {
         struct mark_bitmap * card = table->cards[i];
         if (card != NULL) {
-            continue_iterating = traverse_card(card, extra, consumer);
+            continue_iterating = for_each_marked_bitmap(card, extra, consumer);
         }
     }
-}
-
-static bool traverse_card(struct mark_bitmap * card, void * extra, card_table_consumer_t consumer) {
-    bool continue_iterating = true;
-
-    for (uint8_t * actual = card->start; actual < card->end && continue_iterating; actual++) {
-        if (*actual != 0) {
-            continue_iterating = traverse_card_byte(actual, card, extra, consumer);
-        }
-    }
-
-    return continue_iterating;
-}
-
-static bool traverse_card_byte(uint8_t * byte_ptr, struct mark_bitmap * card, void * extra, card_table_consumer_t consumer) {
-    uint8_t byte_value = *byte_ptr;
-    bool continue_iterating = true;
-
-    for (int i = 0; i < sizeof(uint8_t) && continue_iterating; i++) {
-        if ((byte_value >> i & 0x1) != 0) {
-            int index_in_bits_in_card = byte_ptr - card->start + i;
-            uint8_t *address = index_in_bits_in_card + card->start;
-            continue_iterating = consumer((uint64_t *) address, extra);
-        }
-    }
-
-    return continue_iterating;
 }

@@ -9,7 +9,7 @@ struct survivor * alloc_survivor(struct config config) {
 
     int n_addresses = (int) round_up_8(size_in_bytes / 8);
     init_card_table(&survivor->fromspace_card_table, config, (uint64_t *) survivor->from->start, (uint64_t *) survivor->from->end);
-    init_mark_bitmap(&survivor->fromspace_mark_bitmap, n_addresses, (uint64_t) survivor->from->start);
+    init_mark_bitmap(&survivor->fromspace_mark_bitmap, n_addresses, survivor->from->start);
 
     return survivor;
 }

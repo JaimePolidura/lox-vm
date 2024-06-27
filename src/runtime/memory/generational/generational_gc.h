@@ -28,3 +28,4 @@ void clear_mark_bitmaps_generational_gc(struct generational_gc *);
 bool belongs_to_heap_generational_gc(struct generational_gc *, uintptr_t ptr);
 void clear_card_tables_generational_gc(struct generational_gc *);
 struct mark_bitmap * get_mark_bitmap_generational_gc(struct generational_gc *, uintptr_t ptr);
+bool is_marked_generational_gc(struct generational_gc *, uintptr_t ptr);

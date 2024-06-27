@@ -163,4 +163,16 @@ void clear_card_tables_generational_gc(struct generational_gc * gc) {
     clear_card_table(&generational_gc->eden->card_table);
 }
 
+bool is_marked_generational_gc(struct generational_gc * gc, uintptr_t ptr) {
+    if (belongs_to_eden(gc->eden, ptr)) {
+        return is_marked_bitmap(gc->eden->mark_bitmap, (void *) ptr);
+    } else if (belongs_to_survivor(gc->survivor, ptr)) {
+        return is_marked_bitmap(&gc->survivor->fromspace_mark_bitmap, (void *) ptr);
+    } else if (belongs_to_old(gc->old, ptr)) {
+        return is_marked_bitmap(gc->old->mark_bitmap, (void *) ptr);
+    } else {
+        return false;
+    }
+}
+
 #endif

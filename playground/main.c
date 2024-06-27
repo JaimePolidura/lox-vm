@@ -21,7 +21,11 @@ int main() {
             "print jaime2.edad;"
             "print jaime3.edad;"
             "print jaime4.edad;"
-            "forceGC();",
+            "forceGC();"
+            "print jaime.edad;"
+            "print jaime2.edad;"
+            "print jaime3.edad;"
+            "print jaime4.edad;",
             "main", NULL));
 
     stop_vm();

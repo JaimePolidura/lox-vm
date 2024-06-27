@@ -41,7 +41,7 @@ static void remove_terminated_threads(struct stack_list * terminated_threads);
 static bool has_been_updated(struct object *);
 static void mark_as_updated(struct object *);
 static bool traverse_package_globals_to_update_references(void * trie_node_ptr, void * extra_ignored);
-static bool for_each_card_table_entry_function(uint64_t * card_table_dirty_address, void * extra);
+static bool for_each_card_table_entry_function(void * card_table_dirty_address, void * extra);
 static bool traverse_object_and_move(struct object * root_object);
 static void update_card_tables();
 static void mark_references_in_card_table(struct object * object_root_in_old);
@@ -210,14 +210,13 @@ static void traverse_value_and_update_references(lox_value_t root_value, lox_val
         bool belongs_to_heap = belongs_to_heap_generational_gc(generational_gc, (uintptr_t) current);
 
         if (belongs_to_heap && !has_been_updated(current)) {
-            lox_value_t * current_forwading_ptr = GET_FORWARDING_PTR(current);
+            lox_value_t current_forwading_ptr = GET_FORWARDING_PTR(current);
             mark_as_updated(current);
 
-            if (current_forwading_ptr != NULL) {
-                *current_reference_holder = *current_forwading_ptr;
+            if (current_forwading_ptr != 0) {
+                *current_reference_holder = current_forwading_ptr;
                 SET_FORWARDING_PTR(current, NULL);
             }
-
             switch (current->type) {
                 case OBJ_STRUCT_INSTANCE:
                     traverse_lox_hashtable(((struct struct_instance_object *) current)->fields, &pending);
@@ -268,8 +267,8 @@ static bool traverse_heap_and_move(struct stack_list * terminated_threads) {
     return moved_all_successfuly;
 }
 
-static bool for_each_card_table_entry_function(uint64_t * card_table_dirty_address, void * extra) {
-    bool moved_successfuly = traverse_object_and_move((struct object *) card_table_dirty_address);
+static bool for_each_card_table_entry_function(void * card_table_dirty_address, void * extra) {
+    bool moved_successfuly = traverse_object_and_move(card_table_dirty_address);
     *((bool *) extra) = moved_successfuly;
     return moved_successfuly;
 }
@@ -389,13 +388,10 @@ static void traverse_lox_hashtable(struct lox_hash_table hash_table, struct stac
 
 static bool can_be_moved(struct object * object) {
     struct generational_gc * generational_gc = current_vm.gc;
-    uint64_t * object_ptr = (uint64_t *) object;
+    uintptr_t object_ptr = (uintptr_t) object;
 
-    bool belongs_to_eden_or_survivor = belongs_to_young_generational_gc(generational_gc, (uintptr_t) object_ptr);
-    bool it_hasnt_already_been_moved = !is_marked_bitmap(generational_gc->eden->mark_bitmap, object_ptr) &&
-                                       !is_marked_bitmap(&generational_gc->survivor->fromspace_mark_bitmap, object_ptr);
-
-    return belongs_to_eden_or_survivor && it_hasnt_already_been_moved;
+    return belongs_to_young_generational_gc(generational_gc, object_ptr) &&
+        !is_marked_generational_gc(generational_gc, object_ptr);
 }
 
 static void mark_object(struct object * object) {
@@ -413,8 +409,8 @@ static bool move_object(struct object * object) {
     bool moved_successfully = new_ptr != NULL;
 
     if (moved_successfully) {
-        SET_FORWARDING_PTR(object, new_ptr);
-        SET_FORWARDING_PTR(((struct object *) new_ptr), object);
+        SET_FORWARDING_PTR(object, TO_LOX_VALUE_OBJECT(new_ptr));
+        SET_FORWARDING_PTR(((struct object *) new_ptr), TO_LOX_VALUE_OBJECT(object));
     }
 
     return moved_successfully;
