@@ -68,7 +68,7 @@ static void update_card_tables(struct generational_gc * gc) {
         current_old_ptr < (struct object *) old->memory_space.end;
         current_old_ptr++) {
 
-        if (is_marked_bitmap(old->mark_bitmap, (uintptr_t) current_old_ptr)) {
+        if (is_marked_bitmap(old->mark_bitmap, (uint64_t *) current_old_ptr)) {
             update_card_table_object(current_old_ptr);
         }
     }
@@ -161,7 +161,7 @@ static void traverse_value_and_update_references(lox_value_t * root_value) {
         if (can_reference_be_updated(current_value)) {
             uintptr_t current_value_ptr = (uintptr_t) AS_OBJECT(* current_value);
             struct mark_bitmap * mark_bit_map = get_mark_bitmap_generational_gc(gc, current_value_ptr);
-            set_marked_bitmap(mark_bit_map, current_value_ptr);
+            set_marked_bitmap(mark_bit_map, (uint64_t *) current_value_ptr);
             struct object * current_object = AS_OBJECT(* current_value);
             void * forwading_ptr = GET_FORWARDING_PTR(current_object);
 
@@ -190,7 +190,7 @@ static bool can_reference_be_updated(lox_value_t * value) {
     struct mark_bitmap * mark_bit_map = get_mark_bitmap_generational_gc(gc, current_value_ptr);
 
     return belongs_to_heap_generational_gc(gc, current_value_ptr) &&
-        !is_marked_bitmap(mark_bit_map, current_value_ptr);
+        !is_marked_bitmap(mark_bit_map, (uint64_t *) current_value_ptr);
 }
 
 static void compact_old() {
@@ -225,15 +225,15 @@ static void move_compacted_objects(struct old * old, struct object * free, struc
     //Store forwading pointer
     scan->gc_info = (void * ) free;
 
-    set_marked_bitmap(old->mark_bitmap, (uint64_t) free);
-    set_unmarked_bitmap(old->mark_bitmap, (uint64_t) scan);
+    set_marked_bitmap(old->mark_bitmap, (uint64_t *) free);
+    set_unmarked_bitmap(old->mark_bitmap, (uint64_t *) scan);
 }
 
 static size_t free_size(struct old * old, struct object * ptr) {
     struct object * start = ptr;
     struct object * end = ptr;
 
-    while (!is_marked_bitmap(old->mark_bitmap, (uint64_t) end)) {
+    while (!is_marked_bitmap(old->mark_bitmap, (uint64_t *) end)) {
         end++;
     }
 
@@ -243,7 +243,7 @@ static size_t free_size(struct old * old, struct object * ptr) {
 static struct object * next_scan(struct old * old, struct object * prev) {
     struct object * current_scan = prev;
 
-    while (!is_marked_bitmap(old->mark_bitmap, (uintptr_t) current_scan) &&
+    while (!is_marked_bitmap(old->mark_bitmap, (uintptr_t *) current_scan) &&
         ((uint8_t *) current_scan) >= old->memory_space.start) {
 
         current_scan -= 1;
@@ -255,7 +255,7 @@ static struct object * next_scan(struct old * old, struct object * prev) {
 static struct object * next_free(struct old * old, struct object * prev) {
     struct object * current_free = prev;
 
-    while (is_marked_bitmap(old->mark_bitmap, (uintptr_t) current_free) &&
+    while (is_marked_bitmap(old->mark_bitmap, (uint64_t *) current_free) &&
            ((uint8_t *) current_free) < old->memory_space.end) {
         current_free += 1;
     }
@@ -323,7 +323,7 @@ static void traverse_object_to_mark(struct object * object) {
         struct mark_bitmap * mark_bitmap = get_mark_bitmap_generational_gc(gc, current_ptr);
 
         if (can_be_marked(current_ptr)) {
-            set_marked_bitmap(mark_bitmap, current_ptr);
+            set_marked_bitmap(mark_bitmap, (uint64_t *) current_ptr);
 
             switch (current->type) {
                 case OBJ_STRUCT_INSTANCE:
@@ -342,7 +342,7 @@ static void traverse_object_to_mark(struct object * object) {
 static bool can_be_marked(uintptr_t ptr) {
     struct generational_gc * gc = current_vm.gc;
     return belongs_to_heap_generational_gc(gc, ptr) &&
-        !is_marked_bitmap(get_mark_bitmap_generational_gc(gc, ptr), ptr);
+        !is_marked_bitmap(get_mark_bitmap_generational_gc(gc, ptr), (uint64_t *) ptr);
 }
 
 static void traverse_lox_hashtable_entry(lox_value_t value, lox_value_t * reference_holder, void * extra) {

@@ -207,8 +207,9 @@ static void traverse_value_and_update_references(lox_value_t root_value, lox_val
         lox_value_t * current_reference_holder = to_traverse->reference_holder;
         struct object * current = to_traverse->object;
         free(to_traverse);
+        bool belongs_to_heap = belongs_to_heap_generational_gc(generational_gc, (uintptr_t) current);
 
-        if (!has_been_updated(current)) {
+        if (belongs_to_heap && !has_been_updated(current)) {
             lox_value_t * current_forwading_ptr = GET_FORWARDING_PTR(current);
             mark_as_updated(current);
 
@@ -229,18 +230,19 @@ static void traverse_value_and_update_references(lox_value_t root_value, lox_val
     }
 }
 
+//Expect object to be in the heap
 static bool has_been_updated(struct object * object) {
     struct generational_gc * generational_gc = current_vm.gc;
     uintptr_t object_ptr = (uintptr_t) object;
     struct mark_bitmap * mark_bitmap = get_mark_bitmap_generational_gc(generational_gc, object_ptr);
-    return is_marked_bitmap(mark_bitmap, object_ptr);
+    return is_marked_bitmap(mark_bitmap, (uint64_t *) object);
 }
 
 static void mark_as_updated(struct object * object) {
     struct generational_gc * generational_gc = current_vm.gc;
     uintptr_t object_ptr = (uintptr_t) object;
     struct mark_bitmap * mark_bitmap = get_mark_bitmap_generational_gc(generational_gc, object_ptr);
-    set_marked_bitmap(mark_bitmap, object_ptr);
+    set_marked_bitmap(mark_bitmap, (uint64_t *) object);
 }
 
 static bool traverse_heap_and_move(struct stack_list * terminated_threads) {
@@ -335,6 +337,9 @@ static bool traverse_object_and_move(struct object * root_object) {
         struct object * current = to_traverse->object;
         free(to_traverse);
 
+        if (!belongs_to_heap_generational_gc(generational_gc, (uintptr_t) current)) {
+            continue;
+        }
         if (can_be_moved(current)) {
             mark_object(current);
             //Failed move alloccation, start major gc
@@ -384,9 +389,9 @@ static void traverse_lox_hashtable(struct lox_hash_table hash_table, struct stac
 
 static bool can_be_moved(struct object * object) {
     struct generational_gc * generational_gc = current_vm.gc;
-    uintptr_t object_ptr = (uintptr_t) object;
+    uint64_t * object_ptr = (uint64_t *) object;
 
-    bool belongs_to_eden_or_survivor = belongs_to_young_generational_gc(generational_gc, object_ptr);
+    bool belongs_to_eden_or_survivor = belongs_to_young_generational_gc(generational_gc, (uintptr_t) object_ptr);
     bool it_hasnt_already_been_moved = !is_marked_bitmap(generational_gc->eden->mark_bitmap, object_ptr) &&
                                        !is_marked_bitmap(&generational_gc->survivor->fromspace_mark_bitmap, object_ptr);
 
@@ -397,7 +402,7 @@ static void mark_object(struct object * object) {
     struct generational_gc * generational_gc = current_vm.gc;
     uintptr_t object_ptr = (uintptr_t) object;
     struct mark_bitmap * mark_bitmap = get_mark_bitmap_generational_gc(generational_gc, object_ptr);
-    set_marked_bitmap(mark_bitmap, object_ptr);
+    set_marked_bitmap(mark_bitmap, (uint64_t *) object);
 }
 
 static bool move_object(struct object * object) {

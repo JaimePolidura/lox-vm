@@ -6,8 +6,8 @@ struct eden * alloc_eden(struct config config) {
 
     struct eden * eden = malloc(sizeof(struct eden));
     int n_addresses = (int) round_up_8(size_eden_in_bytes / 8);
-    eden->mark_bitmap = alloc_mark_bitmap(n_addresses, (uint64_t) eden->memory_space.start);
     init_memory_space(&eden->memory_space, size_eden_in_bytes);
+    eden->mark_bitmap = alloc_mark_bitmap(n_addresses, (uint64_t *) eden->memory_space.start);
     eden->size_blocks_in_bytes = size_blocks_in_bytes;
     init_card_table(&eden->card_table, config, (uint64_t *) eden->memory_space.start, (uint64_t *) eden->memory_space.end);
 
