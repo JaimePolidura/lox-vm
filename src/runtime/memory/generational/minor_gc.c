@@ -158,10 +158,9 @@ static void mark_references_in_card_table(struct object * object_root_in_old) {
 static void traverse_struct_instance_entry_to_update_card_table(lox_value_t value, lox_value_t * reference_holder, void * extra) {
     struct generational_gc * gc = current_vm.gc;
     struct stack_list * pending = extra;
+    struct object * object = AS_OBJECT(value);
 
-    if (IS_OBJECT(value)) {
-        struct object * object = AS_OBJECT(value);
-
+    if (IS_OBJECT(value) && belongs_to_heap_generational_gc(gc, (uintptr_t) object)) {
         if (belongs_to_old(gc->old, (uintptr_t) object)) {
             push_stack_list(pending, object);
         } else {
@@ -420,6 +419,8 @@ static uint8_t * move_to_new_space(struct object * object) {
     struct generational_gc * generational_gc = current_vm.gc;
 
     INCREMENT_GENERATION(object);
+    uint8_t b = GET_GENERATION(object);
+
     if (GET_GENERATION(object) >= config.generational_gc_config.n_generations_to_old) {
         return move_to_old(generational_gc->old, object);
     } else {

@@ -71,6 +71,8 @@ int main() {
     compiling_base_dir = NULL;
     compiled_packages = NULL;
 
+    simple_vm_test_gc_old_gen_outer();
+    simple_vm_test_gc_local_objects_may_be_moved_outer();
     simple_vm_test_gc_global_objects_may_be_moved_outer();
 
 //    vm_global_functions_test_outer();

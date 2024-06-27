@@ -8,7 +8,79 @@ extern struct vm current_vm;
 extern struct trie_list * compiled_packages;
 extern const char * compiling_base_dir;
 
-TEST(simple_vm_test_gc_global_objects_may_be_moved){
+TEST (simple_vm_test_gc_old_gen) {
+    start_vm();
+
+    interpret_result_t result = interpret_vm(compile_bytecode(
+            "struct Persona{"
+            "   nombre;"
+            "   edad;"
+            "}"
+            ""
+            "var jaime = Persona{\"Jaime\", 21};"
+            "var walo = Persona{\"Walo\", 19};"
+            "forceGC();"
+            "var molon = Persona{\"Molon\", 19};"
+            "forceGC();"
+            "forceGC();"
+            "forceGC();"
+            ""
+            "print jaime.edad;"
+            "print jaime.nombre;"
+            "print molon.edad;"
+            "print molon.nombre;",
+            "main", NULL));
+
+    ASSERT_TRUE(result == INTERPRET_OK);
+    ASSERT_NEXT_VM_LOG(current_vm, "21.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "Jaime");
+
+    ASSERT_NEXT_VM_LOG(current_vm, "19.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "Molon");
+
+    stop_vm();
+    reset_vm();
+}
+
+TEST (simple_vm_test_gc_local_objects_may_be_moved) {
+    start_vm();
+
+    interpret_result_t result = interpret_vm(compile_bytecode(
+            "struct Persona{"
+            "   nombre;"
+            "   edad;"
+            "}"
+            ""
+            "fun function() {"
+            "   var jaime = Persona{\"Jaime\", 21};"
+            "   print jaime.edad;"
+            "   forceGC();"
+            "   var molon = Persona{\"Molon\", 19};"
+            "   print jaime.edad;"
+            "   print molon.edad;"
+            "   forceGC();"
+            "   print jaime.edad;"
+            "   print molon.edad;"
+            "   forceGC();"
+            "}"
+            ""
+            "function();"
+            "",
+            "main", NULL));
+
+    ASSERT_TRUE(result == INTERPRET_OK);
+    ASSERT_NEXT_VM_LOG(current_vm, "21.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "21.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "19.000000");
+
+    ASSERT_NEXT_VM_LOG(current_vm, "21.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "19.000000");
+
+    stop_vm();
+    reset_vm();
+}
+
+TEST (simple_vm_test_gc_global_objects_may_be_moved) {
     start_vm();
 
     interpret_result_t result = interpret_vm(compile_bytecode(
