@@ -163,9 +163,9 @@ static void traverse_value_and_update_references(lox_value_t * root_value) {
             struct mark_bitmap * mark_bit_map = get_mark_bitmap_generational_gc(gc, current_value_ptr);
             set_marked_bitmap(mark_bit_map, (uint64_t *) current_value_ptr);
             struct object * current_object = AS_OBJECT(* current_value);
-            void * forwading_ptr = GET_FORWARDING_PTR(current_object);
+            lox_value_t forwading_ptr = GET_FORWARDING_PTR(current_object);
 
-            if (forwading_ptr != NULL) {
+            if (forwading_ptr != 0) {
                 SET_FORWARDING_PTR(current_object, NULL);
                 *current_value = TO_LOX_VALUE_OBJECT((struct object *) forwading_ptr);
             }
@@ -312,14 +312,19 @@ static void traverse_value_to_mark(lox_value_t root_value) {
 }
 
 static void traverse_object_to_mark(struct object * object) {
+    struct generational_gc * gc = current_vm.gc;
     struct stack_list pending;
     init_stack_list(&pending);
     push_stack_list(&pending, object);
-    struct generational_gc * gc = current_vm.gc;
 
     while (!is_empty_stack_list(&pending)) {
         struct object * current = pop_stack_list(&pending);
         uintptr_t current_ptr = (uintptr_t) current;
+
+        if (!belongs_to_heap_generational_gc(gc, current_ptr)) {
+            continue;
+        }
+
         struct mark_bitmap * mark_bitmap = get_mark_bitmap_generational_gc(gc, current_ptr);
 
         if (can_be_marked(current_ptr)) {
