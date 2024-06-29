@@ -84,6 +84,8 @@ void start_minor_generational_gc() {
     free_stack_list(&terminated_threads);
     gc->previous_major = false;
 
+    atomic_thread_fence(memory_order_release);
+
     signal_threads_gc_finished_alg();
 }
 

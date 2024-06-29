@@ -108,6 +108,8 @@ static struct gc_result start_gc() {
     remove_terminated_threads(&terminated_threads);
     finish_gc();
 
+    atomic_thread_fence(memory_order_release);
+
     signal_threads_gc_finished_alg();
 
     return gc_result;
