@@ -27,27 +27,27 @@ bool belongs_to_eden(struct eden * eden, uintptr_t ptr) {
 }
 
 struct eden_block_allocation try_claim_eden_block(struct eden * eden, int n_blocks) {
-    uint64_t actual_current = 0;
-    uint64_t new_current = 0;
+    uint8_t * actual_current_start = 0;
+    uint8_t * next_current_end = 0;
 
     do {
-        actual_current = (uint64_t) eden->memory_space.current;
-        new_current = (uint64_t) actual_current + (n_blocks * eden->size_blocks_in_bytes);
+        actual_current_start = atomic_load(&eden->memory_space.current);
+        next_current_end = actual_current_start + (n_blocks * eden->size_blocks_in_bytes);
 
-        if(new_current > (uint64_t) eden->memory_space.end){
+        if (next_current_end > eden->memory_space.end) {
             return (struct eden_block_allocation) {.success = false};
         }
-    }while(!atomic_compare_exchange_strong((uint8_t *) &eden->memory_space.current, (uint8_t *) &actual_current, new_current));
+    } while (!atomic_compare_exchange_strong(&eden->memory_space.current, &actual_current_start, next_current_end));
 
     return (struct eden_block_allocation) {
-        .start_block = (uint8_t *) (uint64_t) new_current - (n_blocks * eden->size_blocks_in_bytes),
-        .end_block = (uint8_t *) new_current,
+        .start_block = (uint8_t *) (uint64_t) actual_current_start,
+        .end_block = (uint8_t *) next_current_end,
         .success = true
     };
 }
 
 bool can_allocate_object_in_block_eden(struct eden_thread * eden_thread, size_t size_bytes) {
-    return eden_thread->start_block != NULL && eden_thread->current_block + size_bytes <= eden_thread->end_block;
+    return eden_thread->start_block != NULL && eden_thread->current_block + size_bytes <= eden_thread->end_block;;
 }
 
 struct object * allocate_object_in_block_eden(struct eden_thread * eden_thread, size_t size_bytes) {

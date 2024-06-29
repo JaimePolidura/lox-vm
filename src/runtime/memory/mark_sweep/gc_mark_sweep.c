@@ -75,12 +75,12 @@ struct gc_result try_start_gc_alg() {
     struct mark_sweep_global_info * gc_global_info = current_vm.gc;
     struct gc_result gc_result;
     init_gc_result(&gc_result);
-    gc_state_t expected = GC_NONE;
+    gc_mark_sweep_state_t expected = GC_NONE;
 
     if(atomic_compare_exchange_strong(&gc_global_info->state, &expected, GC_WAITING)) {
-        gc_global_info->state = GC_WAITING;
+        atomic_store(&gc_global_info->state, GC_WAITING);
         gc_result = start_gc();
-        gc_global_info->state = GC_NONE;
+        atomic_store(&gc_global_info->state, GC_NONE);
 
         on_gc_finished_vm(gc_result);
     } else { //Someone else has started a gc
@@ -133,7 +133,7 @@ void signal_threads_gc_finished_alg() {
 
 void check_gc_on_safe_point_alg() {
     struct mark_sweep_global_info * gc_mark_sweep = current_vm.gc;
-    gc_state_t current_gc_state = gc_mark_sweep->state;
+    gc_mark_sweep_state_t current_gc_state = atomic_load(&gc_mark_sweep->state);
 
     switch (current_gc_state) {
         case GC_NONE: return;

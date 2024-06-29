@@ -53,3 +53,7 @@ uint8_t * copy_data_memory_space(struct memory_space * memory_space, uint8_t * s
 bool belongs_to_memory_space(struct memory_space * memory_space, uintptr_t ptr) {
     return ((uintptr_t) memory_space->start) <= ptr && ((uintptr_t) memory_space->end) > ptr;
 }
+
+size_t get_allocated_bytes_memory_space(struct memory_space * memory_space) {
+    return memory_space->current - memory_space->start;
+}

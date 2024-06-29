@@ -12,6 +12,8 @@ extern void write_array_element_barrier_generational_gc(struct array_object *, s
 static struct object * try_alloc_object(size_t size);
 static void try_claim_eden_block_or_start_gc(size_t size_bytes);
 static void save_new_eden_block_info(struct eden_block_allocation);
+static void notify_start_gc_signal_acked();
+static void await_until_gc_finished();
 
 struct gc_barriers get_barriers_gc_alg() {
     return (struct gc_barriers) {
@@ -20,8 +22,31 @@ struct gc_barriers get_barriers_gc_alg() {
     };
 }
 
+//TODO Same code as gc_mark_sweep
 void check_gc_on_safe_point_alg() {
+    struct generational_gc * gc = current_vm.gc;
+    gc_gen_state_t current_gc_state = atomic_load(&gc->state);
 
+    switch (current_gc_state) {
+        case GC_NONE: return;
+        case GC_WAITING: {
+            //There is a race condition if a thread terminates and the gc starts.
+            //The gc started thread might have read a stale value of the number_current_threads, and if other thread
+            //has termianted, the gc thread will block forever
+            //To solve this we want to wake up the gc thread to revaluate its waiting condition.
+            //This will work because, calling this method, number_current_threads has been decreased (see runtime code)
+            atomic_fetch_add(&gc->number_threads_ack_start_gc_signal, 1);
+            notify_start_gc_signal_acked();
+
+            if(self_thread->state != THREAD_TERMINATED) {
+                await_until_gc_finished();
+            }
+        }
+            //If this gets run this means we have been sleeping
+        case GC_IN_PROGRESS:
+            await_until_gc_finished();
+            break;
+    }
 }
 
 //TODO Memory leak, internal struct hashmap is not being freed
@@ -38,9 +63,10 @@ struct string_object * alloc_string_gc_alg(char * chars, int length) {
     init_object(&string_ptr->object, OBJ_STRING);
     string_ptr->length = length;
     string_ptr->hash = hash_string(chars, length);
-    string_ptr->chars = (char *) ((uint8_t *) string_ptr + sizeof(struct string_object));
+    string_ptr->chars = (char *) (((uint8_t *) string_ptr) + sizeof(struct string_object));
     memcpy(string_ptr->chars, chars, length);
     string_ptr->chars[length] = '\0';
+    free(chars);
 
     return string_ptr;
 }
@@ -53,7 +79,7 @@ struct array_object * alloc_array_gc_alg(int n_elements) {
     init_object(&array->object, OBJ_ARRAY);
     array->values.values = (lox_value_t *) (((uint8_t *) array) + sizeof(struct array_object));
     array->values.capacity = n_elements;
-    array->values.in_use = 0;
+    array->values.in_use = n_elements;
 
     return array;
 }
@@ -74,16 +100,39 @@ void * alloc_gc_vm_info_alg() {
     generational_gc->eden = alloc_eden(config);
     generational_gc->old = alloc_old(config);
     generational_gc->previous_major = false;
+    generational_gc->state = GC_NONE;
+    pthread_cond_init(&generational_gc->await_ack_start_gc_signal_cond, NULL);
+    init_mutex(&generational_gc->await_ack_start_gc_signal_mutex);
+    pthread_cond_init(&generational_gc->await_gc_cond, NULL);
+    init_mutex(&generational_gc->await_gc_cond_mutex);
+    generational_gc->number_threads_ack_start_gc_signal = 0;
+
     return generational_gc;
 }
 
 struct gc_result try_start_gc_alg() {
-    start_minor_generational_gc();
+    struct generational_gc * gc = current_vm.gc;
+    gc_gen_state_t expected = GC_NONE;
 
-    return (struct gc_result) {
-            .bytes_allocated_before_gc = 0,
-            .bytes_allocated_after_gc = 0,
-    };
+    if (atomic_compare_exchange_strong(&gc->state, &expected, GC_WAITING)) {
+        size_t bytes_allocated_before_gc = get_bytes_allocated_generational_gc(gc);
+        start_minor_generational_gc();
+        size_t bytes_allocated_after_gc = get_bytes_allocated_generational_gc(gc);
+
+        atomic_store_explicit(&gc->state, GC_NONE, memory_order_release);
+
+        return (struct gc_result) {
+            .bytes_allocated_before_gc = bytes_allocated_before_gc,
+            .bytes_allocated_after_gc = bytes_allocated_after_gc
+        };
+
+    } else {
+        check_gc_on_safe_point_alg();
+        return (struct gc_result) {
+                .bytes_allocated_before_gc = 0,
+                .bytes_allocated_after_gc = 0,
+        };
+    }
 }
 
 static struct object * try_alloc_object(size_t size_bytes) {
@@ -103,7 +152,7 @@ static void try_claim_eden_block_or_start_gc(size_t size_bytes) {
     struct eden_block_allocation block_allocation = try_claim_eden_block(global_gc_info->eden, n_blocks);
 
     if (!block_allocation.success) {
-        start_minor_generational_gc();
+        try_start_gc_alg();
         block_allocation = try_claim_eden_block(global_gc_info->eden, n_blocks);
     }
 
@@ -175,4 +224,35 @@ bool is_marked_generational_gc(struct generational_gc * gc, uintptr_t ptr) {
     }
 }
 
+static void await_until_gc_finished() {
+    struct generational_gc * gc = current_vm.gc;
+
+    lock_mutex(&gc->await_gc_cond_mutex);
+
+    while(gc->state != GC_NONE) {
+        pthread_cond_wait(&gc->await_gc_cond, &gc->await_gc_cond_mutex.native_mutex);
+    }
+
+    unlock_mutex(&gc->await_gc_cond_mutex);
+}
+
+static void notify_start_gc_signal_acked() {
+    struct generational_gc * gc = current_vm.gc;
+
+    lock_mutex(&gc->await_ack_start_gc_signal_mutex);
+
+    pthread_cond_signal(&gc->await_ack_start_gc_signal_cond);
+
+    unlock_mutex(&gc->await_ack_start_gc_signal_mutex);
+}
+
+size_t get_bytes_allocated_generational_gc(struct generational_gc * gc) {
+    size_t allocated_eden = get_allocated_bytes_memory_space(&gc->eden->memory_space);
+    size_t allocated_survivor = get_allocated_bytes_memory_space(gc->survivor->from);
+    size_t allocated_old = get_allocated_bytes_memory_space(&gc->old->memory_space);
+
+    return allocated_eden + allocated_survivor + allocated_old;
+}
+
 #endif
+

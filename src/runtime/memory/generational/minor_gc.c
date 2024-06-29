@@ -47,11 +47,18 @@ static void update_card_tables();
 static void mark_references_in_card_table(struct object * object_root_in_old);
 static void traverse_struct_instance_to_update_card_table(struct struct_instance_object *, struct stack_list *);
 static void traverse_array_to_update_card_table(struct array_object *, struct stack_list *);
+static void signal_threads_start_gc_alg_and_await();
+static void await_all_threads_signal_start_gc();
+static void notify_start_gc_signal_acked();
+static void await_until_gc_finished();
+static void signal_threads_gc_finished_alg();
 
 void start_minor_generational_gc() {
     struct generational_gc * gc = current_vm.gc;
     struct stack_list terminated_threads;
     init_stack_list(&terminated_threads);
+
+    signal_threads_start_gc_alg_and_await();
 
     //Start major gc and restart minor gc
     if (!traverse_heap_and_move(&terminated_threads)) {
@@ -75,6 +82,8 @@ void start_minor_generational_gc() {
 
     free_stack_list(&terminated_threads);
     gc->previous_major = false;
+
+    signal_threads_gc_finished_alg();
 }
 
 static void update_card_tables() {
@@ -433,4 +442,35 @@ static struct object_to_traverse * alloc_object_to_traverse(struct object * obje
     to_traverse->reference_holder = reference_holder;
     to_traverse->object = object;
     return to_traverse;
+}
+
+static void signal_threads_start_gc_alg_and_await() {
+    struct generational_gc * gc = current_vm.gc;
+
+    //Threads who are waiting, are included as already ack the start gc signal
+    // + 1 to count self thread44
+    atomic_fetch_add(&gc->number_threads_ack_start_gc_signal, current_vm.number_waiting_threads + 1);
+
+    await_all_threads_signal_start_gc();
+
+    gc->state = GC_IN_PROGRESS;
+}
+
+static void await_all_threads_signal_start_gc() {
+    struct generational_gc * gc = current_vm.gc;
+
+    lock_mutex(&gc->await_ack_start_gc_signal_mutex);
+
+    while(current_vm.number_current_threads > gc->number_threads_ack_start_gc_signal){
+        pthread_cond_wait(&gc->await_ack_start_gc_signal_cond,
+                          &gc->await_ack_start_gc_signal_mutex.native_mutex);
+    }
+
+    unlock_mutex(&gc->await_ack_start_gc_signal_mutex);
+}
+
+static void signal_threads_gc_finished_alg() {
+    struct generational_gc * gc = current_vm.gc;
+
+    pthread_cond_broadcast(&gc->await_gc_cond);
 }

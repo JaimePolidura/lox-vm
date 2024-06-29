@@ -9,12 +9,26 @@
 #include "runtime/threads/vm_thread.h"
 #include "runtime/vm.h"
 
+typedef enum {
+    GC_NONE, //No gc is being performed
+    GC_WAITING, //Waiting to all threads_race_conditions to stop
+    GC_IN_PROGRESS, //Performing GC
+} gc_gen_state_t;
+
 //Global struct. Maintained in vm.h
 struct generational_gc {
     struct eden * eden;
     struct survivor * survivor;
     struct old * old;
     bool previous_major;
+
+    volatile gc_gen_state_t state;
+
+    volatile int number_threads_ack_start_gc_signal;
+    pthread_cond_t await_ack_start_gc_signal_cond;
+    struct mutex await_ack_start_gc_signal_mutex;
+    pthread_cond_t await_gc_cond;
+    struct mutex await_gc_cond_mutex;
 };
 
 //Pert thread. Maintained in vm_thread.h
@@ -29,3 +43,4 @@ bool belongs_to_heap_generational_gc(struct generational_gc *, uintptr_t ptr);
 void clear_card_tables_generational_gc(struct generational_gc *);
 struct mark_bitmap * get_mark_bitmap_generational_gc(struct generational_gc *, uintptr_t ptr);
 bool is_marked_generational_gc(struct generational_gc *, uintptr_t ptr);
+size_t get_bytes_allocated_generational_gc(struct generational_gc *);

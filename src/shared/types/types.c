@@ -58,6 +58,6 @@ char * to_string(lox_value_t value) {
             }
     };
 #endif
-    perror("Cannot print");
+    perror("Cannot parse to string");
     exit(-1);
 }

@@ -247,9 +247,9 @@ TEST(vm_file_global_variables_test) {
     reset_vm();
 }
 
-TEST(simple_vm_test_inline_array_initilization) {
+TEST (simple_vm_test_inline_array_initilization) {
     struct compilation_result compilation_result = compile_standalone(
-            "var array = [1, 2, 3, 4]; "
+            "var array = [1, 2, 3, 4];"
             "print array[2];"
             "var array2[10]; "
             "array2[9] = 10; "
