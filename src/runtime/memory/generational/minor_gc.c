@@ -52,12 +52,14 @@ static void await_all_threads_signal_start_gc();
 static void notify_start_gc_signal_acked();
 static void await_until_gc_finished();
 static void signal_threads_gc_finished_alg();
+static void reset_eden_threads_data();
+static bool reset_eden_thread_data(struct vm_thread *, struct vm_thread *, int, void *);
 
 void start_minor_generational_gc() {
     struct generational_gc * gc = current_vm.gc;
     struct stack_list terminated_threads;
     init_stack_list(&terminated_threads);
-
+    
     signal_threads_start_gc_alg_and_await();
 
     //Start major gc and restart minor gc
@@ -80,6 +82,7 @@ void start_minor_generational_gc() {
     clear_mark_bitmaps_generational_gc(gc);
     remove_terminated_threads(&terminated_threads);
     reset_eden(gc->eden);
+    reset_eden_threads_data();
 
     free_stack_list(&terminated_threads);
     gc->previous_major = false;
@@ -87,6 +90,21 @@ void start_minor_generational_gc() {
     atomic_thread_fence(memory_order_release);
 
     signal_threads_gc_finished_alg();
+}
+
+static void reset_eden_threads_data() {
+    for_each_thread(current_vm.root, reset_eden_thread_data, NULL,
+                    THREADS_OPT_ONLY_ALIVE |
+                    THREADS_OPT_RECURSIVE |
+                    THREADS_OPT_INCLUSIVE);
+}
+
+static bool reset_eden_thread_data(struct vm_thread * parent, struct vm_thread * child, int index, void * terminated_threads_ptr) {
+    struct generational_thread_gc * gc_thread_info = child->gc_info;
+    gc_thread_info->eden->current_block = NULL;
+    gc_thread_info->eden->start_block = NULL;
+    gc_thread_info->eden->end_block = NULL;
+    return true;
 }
 
 static void update_card_tables() {

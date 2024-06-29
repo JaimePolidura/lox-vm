@@ -31,7 +31,7 @@ struct generational_gc {
     struct mutex await_gc_cond_mutex;
 };
 
-//Pert thread. Maintained in vm_thread.h
+//Per thread. Maintained in vm_thread.h
 struct generational_thread_gc {
     struct eden_thread * eden;
 };
