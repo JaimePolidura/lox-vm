@@ -8,6 +8,7 @@ extern struct vm current_vm;
 extern void start_minor_generational_gc();
 extern void write_struct_field_barrier_generational_gc(struct struct_instance_object *, struct object *);
 extern void write_array_element_barrier_generational_gc(struct array_object *, struct object *);
+extern void on_gc_finished_vm(struct gc_result result);
 
 static struct object * try_alloc_object(size_t size);
 static void try_claim_eden_block_or_start_gc(size_t size_bytes);
@@ -121,11 +122,14 @@ struct gc_result try_start_gc_alg() {
 
         atomic_store_explicit(&gc->state, GC_NONE, memory_order_release);
 
-        return (struct gc_result) {
-            .bytes_allocated_before_gc = bytes_allocated_before_gc,
-            .bytes_allocated_after_gc = bytes_allocated_after_gc
+        struct gc_result result = (struct gc_result) {
+                .bytes_allocated_before_gc = bytes_allocated_before_gc,
+                .bytes_allocated_after_gc = bytes_allocated_after_gc
         };
 
+        on_gc_finished_vm(result);
+
+        return result;
     } else {
         check_gc_on_safe_point_alg();
         return (struct gc_result) {
