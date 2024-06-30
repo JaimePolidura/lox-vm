@@ -20,7 +20,7 @@ struct string_pool_add_result add_to_global_string_pool(char * string_ptr, int l
                 alloc_string_gc_alg(string_ptr, length) :
                 copy_chars_to_string_object(string_ptr, length);
 
-        put_hash_table(&global_string_pool.strings, string, NIL_VALUE);
+        put_hash_table(&global_string_pool.strings, string, TO_LOX_VALUE_OBJECT(string));
 
         unlock_mutex(&global_string_pool.lock);
 

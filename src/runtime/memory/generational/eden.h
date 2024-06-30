@@ -37,4 +37,3 @@ struct eden_block_allocation try_claim_eden_block(struct eden *, int n_blocks);
 bool can_allocate_object_in_block_eden(struct eden_thread *, size_t size_bytes);
 struct object * allocate_object_in_block_eden(struct eden_thread *, size_t size_bytes);
 bool belongs_to_eden(struct eden *, uintptr_t ptr);
-void reset_eden(struct eden *);

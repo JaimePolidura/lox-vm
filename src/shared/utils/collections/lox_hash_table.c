@@ -191,11 +191,11 @@ static void adjust_hash_table_capacity(struct lox_hash_table * table, int new_ca
 }
 
 void for_each_value_hash_table(struct lox_hash_table * table, void * extra, lox_hashtable_consumer_t consumer) {
-    for(int i = 0; i < table->capacity; i++){
+    for (int i = 0; i < table->capacity; i++) {
         struct hash_table_entry * entry = &table->entries[i];
 
-        if(entry->key != NULL && !is_tombstone(entry)){
-            consumer(entry->value, &entry->value, extra);
+        if (entry->key != NULL && !is_tombstone(entry)) {
+            consumer(entry->key, &entry->key, entry->value, &entry->value, extra);
         }
     }
 }

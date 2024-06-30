@@ -55,7 +55,3 @@ struct object * allocate_object_in_block_eden(struct eden_thread * eden_thread, 
     eden_thread->current_block += size_bytes;
     return ptr;
 }
-
-void reset_eden(struct eden * eden) {
-    eden->memory_space.current = eden->memory_space.start;
-}

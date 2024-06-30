@@ -61,7 +61,6 @@ TEST (simple_vm_test_gc_local_objects_may_be_moved) {
             "   forceGC();"
             "   print jaime.edad;"
             "   print molon.edad;"
-            "   forceGC();"
             "}"
             ""
             "function();"

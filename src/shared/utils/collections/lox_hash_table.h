@@ -6,7 +6,13 @@
 #include "shared/utils/utils.h"
 
 //Value, reference holder, extra ptr passed by the user in for_each_value_hash_table()
-typedef void (*lox_hashtable_consumer_t)(lox_value_t, lox_value_t*, void *);
+typedef void (*lox_hashtable_consumer_t)(
+        struct string_object * key,
+        struct string_object ** key_reference_holder,
+        lox_value_t value,
+        lox_value_t * value_reference_holder,
+        void * extra
+);
 
 struct hash_table_entry {
     struct string_object * key;

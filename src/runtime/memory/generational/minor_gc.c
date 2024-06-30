@@ -9,6 +9,7 @@
 extern struct vm current_vm;
 extern struct trie_list * compiled_packages;
 extern struct config config;
+extern struct string_pool global_string_pool;
 
 extern void runtime_panic(char * format, ...);
 extern void start_major_generational_gc();
@@ -54,12 +55,13 @@ static void await_until_gc_finished();
 static void signal_threads_gc_finished_alg();
 static void reset_eden_threads_data();
 static bool reset_eden_thread_data(struct vm_thread *, struct vm_thread *, int, void *);
+static void update_string_pool_references();
 
 void start_minor_generational_gc() {
     struct generational_gc * gc = current_vm.gc;
     struct stack_list terminated_threads;
     init_stack_list(&terminated_threads);
-    
+
     signal_threads_start_gc_alg_and_await();
 
     //Start major gc and restart minor gc
@@ -81,7 +83,7 @@ void start_minor_generational_gc() {
     swap_from_to_survivor_space(gc->survivor, config);
     clear_mark_bitmaps_generational_gc(gc);
     remove_terminated_threads(&terminated_threads);
-    reset_eden(gc->eden);
+    reset_memory_space(&gc->eden->memory_space);
     reset_eden_threads_data();
 
     free_stack_list(&terminated_threads);
@@ -136,6 +138,36 @@ static void update_references() {
 
     //Globals
     for_each_node(compiled_packages, NULL, traverse_package_globals_to_update_references);
+
+    update_string_pool_references();
+}
+
+static void for_each_string_pool_entry(
+        struct string_object * key,
+        struct string_object ** key_reference_holder,
+        lox_value_t value,
+        lox_value_t * value_reference_holder,
+        void * extra
+) {
+    struct string_object * string = (struct string_object *) AS_OBJECT(value);
+    struct generational_gc * gc = current_vm.gc;
+    lox_value_t forwading_ptr = GET_FORWARDING_PTR((&string->object));
+    bool belongs_to_young_heap = belongs_to_young_generational_gc(gc, (uintptr_t) string);
+    bool belongs_to_heap = belongs_to_heap_generational_gc(gc, (uintptr_t) string);
+    bool has_been_moved = forwading_ptr != 0;
+
+    if (belongs_to_heap && has_been_moved) {
+        *key_reference_holder = (struct string_object *) AS_OBJECT(forwading_ptr);
+        *value_reference_holder = forwading_ptr;
+    } else if (belongs_to_young_heap && !has_been_moved) {
+        //Objects in young heap are always moved in every gc. If they haven't been moved, the string is unreachable,
+        //so we need to reclaim its hash_table entry
+        remove_hash_table(&global_string_pool.strings, string);
+    }
+}
+
+static void update_string_pool_references() {
+    for_each_value_hash_table(&global_string_pool.strings, NULL, for_each_string_pool_entry);
 }
 
 static bool traverse_package_globals_to_update_references(void * trie_node_ptr, void * extra_ignored) {
@@ -185,7 +217,13 @@ static void mark_references_in_card_table(struct object * object_root_in_old) {
     }
 }
 
-static void traverse_struct_instance_entry_to_update_card_table(lox_value_t value, lox_value_t * reference_holder, void * extra) {
+static void traverse_struct_instance_entry_to_update_card_table(
+        struct string_object * key,
+        struct string_object ** key_reference_holder,
+        lox_value_t value,
+        lox_value_t * reference_holder,
+        void * extra
+) {
     struct generational_gc * gc = current_vm.gc;
     struct stack_list * pending = extra;
     struct object * object = AS_OBJECT(value);
@@ -343,6 +381,8 @@ static bool traverse_package_globals_to_move(void * trie_node_ptr, void * extra_
 }
 
 static bool traverse_value_and_move(lox_value_t root_value) {
+    struct struct_instance_object * instance = (struct struct_instance_object *) AS_OBJECT(root_value);
+
     if (!IS_OBJECT(root_value)) {
         return true;
     }
@@ -359,6 +399,8 @@ static bool traverse_object_and_move(struct object * root_object) {
     init_stack_list(&pending);
     push_stack_list(&pending, alloc_object_to_traverse(root_object, NULL));
     bool moved_all_successfuly = true;
+
+    struct struct_instance_object * instnce = (struct struct_instance_object *) root_object;
 
     while (!is_empty_stack_list(&pending)) {
         struct object_to_traverse * to_traverse = pop_stack_list(&pending);
@@ -403,7 +445,13 @@ static void traverse_lox_arraylist(struct lox_arraylist array_list, struct stack
     }
 }
 
-static void traverse_lox_hashtable_entry(lox_value_t value, lox_value_t * reference_holder, void * extra) {
+static void traverse_lox_hashtable_entry(
+        struct string_object * key,
+        struct string_object ** key_reference_holder,
+        lox_value_t value,
+        lox_value_t * reference_holder,
+        void * extra
+) {
     struct stack_list * pending = extra;
     if (IS_OBJECT(value)) {
         struct object * object = AS_OBJECT(value);
@@ -420,7 +468,7 @@ static bool can_be_moved(struct object * object) {
     uintptr_t object_ptr = (uintptr_t) object;
 
     return belongs_to_young_generational_gc(generational_gc, object_ptr) &&
-        !is_marked_generational_gc(generational_gc, object_ptr);
+        !is_marked_generational_gc(generational_gc, object_ptr); //Not already moved
 }
 
 static void mark_object(struct object * object) {
@@ -432,7 +480,6 @@ static void mark_object(struct object * object) {
 
 static bool move_object(struct object * object) {
     struct generational_gc * generational_gc = current_vm.gc;
-    struct memory_space * to_space = generational_gc->survivor->to;
 
     uint8_t * new_ptr = move_to_new_space(object);
     bool moved_successfully = new_ptr != NULL;
@@ -449,7 +496,6 @@ static uint8_t * move_to_new_space(struct object * object) {
     struct generational_gc * generational_gc = current_vm.gc;
 
     INCREMENT_GENERATION(object);
-    uint8_t b = GET_GENERATION(object);
 
     if (GET_GENERATION(object) >= config.generational_gc_config.n_generations_to_old) {
         return move_to_old(generational_gc->old, object);

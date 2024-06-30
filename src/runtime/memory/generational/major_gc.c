@@ -85,7 +85,13 @@ static void update_card_table_object(struct object * object) {
     }
 }
 
-static void update_card_table_struct_field_entry(lox_value_t value, lox_value_t * reference_holder, void * extra) {
+static void update_card_table_struct_field_entry(
+        struct string_object * key,
+        struct string_object ** key_reference_holder,
+        lox_value_t value,
+        lox_value_t * reference_holder,
+        void * extra
+) {
     struct generational_gc * gc = current_vm.gc;
     struct object * object_in_struct = AS_OBJECT(value);
 
@@ -350,7 +356,13 @@ static bool can_be_marked(uintptr_t ptr) {
         !is_marked_bitmap(get_mark_bitmap_generational_gc(gc, ptr), (uint64_t *) ptr);
 }
 
-static void traverse_lox_hashtable_entry(lox_value_t value, lox_value_t * reference_holder, void * extra) {
+static void traverse_lox_hashtable_entry(
+        struct string_object * key,
+        struct string_object ** key_reference_holder,
+        lox_value_t value,
+        lox_value_t * reference_holder,
+        void * extra
+) {
     struct stack_list * pending = extra;
     if (IS_OBJECT(value)) {
         struct object * object = AS_OBJECT(value);

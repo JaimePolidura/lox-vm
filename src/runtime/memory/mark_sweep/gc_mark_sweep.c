@@ -305,7 +305,13 @@ static bool sweep_heap_thread(struct vm_thread * parent_ignore, struct vm_thread
     gc_result->bytes_allocated_after_gc += gc_info->bytes_allocated;
 }
 
-static void mark_hash_table_entry(lox_value_t value, lox_value_t * value_reference_holder, void * extra_ignored) {
+static void mark_hash_table_entry(
+        struct string_object * key,
+        struct string_object ** key_reference_holder,
+        lox_value_t value,
+        lox_value_t * value_reference_holder,
+        void * extra_ignored)
+{
     mark_value(&value);
 }
 

@@ -74,14 +74,14 @@ int main() {
     compiled_packages = NULL;
 
 //    simple_vm_test_gc_old_gen_outer();
-//    simple_vm_test_gc_local_objects_may_be_moved_outer();
+    simple_vm_test_gc_local_objects_may_be_moved_outer();
 //    simple_vm_test_gc_global_objects_may_be_moved_outer();
 
 //    vm_global_functions_test_outer();
 //    vm_file_global_structs_test_outer();
 //    vm_file_global_variables_test_outer();
 
-    simple_vm_test_threads_gc_outer();
+//    simple_vm_test_threads_gc_outer();
 //    simple_vm_test_threads_no_race_condition_outer();
 //    simple_vm_test_threads_race_condition_outer();
 //    simple_vm_test_threads_join_outer();

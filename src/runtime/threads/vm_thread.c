@@ -25,6 +25,7 @@ static void init_vm_thread(struct vm_thread * vm_thread) {
 }
 
 void free_vm_thread(struct vm_thread * vm_thread) {
+    //TODO Free vm_thread::gc
 }
 
 void for_each_thread(struct vm_thread * start_thread, thread_consumer_t callback, void * extra, long options) {
