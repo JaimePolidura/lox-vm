@@ -448,7 +448,8 @@ static void initialize_struct(struct call_frame * call_frame) {
 
     for(int i = 0; i < n_fields; i++) {
         struct string_object * field_name = struct_definition->field_names[struct_definition->n_fields - i - 1];
-        put_hash_table(&struct_instance->fields, field_name, pop_stack_vm());
+        lox_value_t value = pop_stack_vm();
+        put_hash_table(&struct_instance->fields, field_name, value);
     }
 
     push_stack_vm(TO_LOX_VALUE_OBJECT(struct_instance));

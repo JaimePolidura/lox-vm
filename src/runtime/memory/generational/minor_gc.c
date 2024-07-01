@@ -83,8 +83,8 @@ void start_minor_generational_gc() {
     swap_from_to_survivor_space(gc->survivor, config);
     clear_mark_bitmaps_generational_gc(gc);
     remove_terminated_threads(&terminated_threads);
-    reset_memory_space(&gc->eden->memory_space);
     reset_eden_threads_data();
+    reset_memory_space(&gc->eden->memory_space);
 
     free_stack_list(&terminated_threads);
     gc->previous_major = false;

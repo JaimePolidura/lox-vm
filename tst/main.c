@@ -1,4 +1,5 @@
 #include "u64_hash_table_test.h"
+#include "mark_bitmap_test.h"
 #include "hash_table_test.h"
 #include "vm_inline_test.h"
 #include "package_test.h"
@@ -11,22 +12,26 @@
 
 #include "params.h"
 
-//#define RUN_U64_HASH_TABLE_TEST
-//#define RUN_HASH_TABLE_TEST
-//#define RUN_VM_INLINE_TEST
-//#define RUN_COMPILER_TEST
-//#define RUN_PACKAGE_TEST
-//#define RUN_VM_JIT_TEST
-//#define RUN_TRIE_TEST
+#define RUN_U64_HASH_TABLE_TEST
+#define RUN_MARK_BITMAP_TEST
+#define RUN_HASH_TABLE_TEST
+#define RUN_VM_INLINE_TEST
+#define RUN_COMPILER_TEST
+#define RUN_PACKAGE_TEST
+#define RUN_VM_JIT_TEST
+#define RUN_TRIE_TEST
 #define RUN_VM_TEST
-//#define RUN_STACK_TEST
-//#define RUN_UTILS_TEST
+#define RUN_STACK_TEST
+#define RUN_UTILS_TEST
 
 extern struct trie_list * compiled_packages;
 extern const char * compiling_base_dir;
 
 //Run in debug mode
 int main() {
+#ifdef RUN_MARK_BITMAP_TEST
+    mark_bitmap_test_outer();
+#endif
 #ifdef RUN_VM_INLINE_TEST
     vm_inline_monitor_test_outer();
     vm_inline_multiple_calls_outer();
@@ -73,27 +78,27 @@ int main() {
     compiling_base_dir = NULL;
     compiled_packages = NULL;
 
-//    simple_vm_test_gc_old_gen_outer();
+    simple_vm_test_gc_old_gen_outer();
     simple_vm_test_gc_local_objects_may_be_moved_outer();
-//    simple_vm_test_gc_global_objects_may_be_moved_outer();
+    simple_vm_test_gc_global_objects_may_be_moved_outer();
 
-//    vm_global_functions_test_outer();
-//    vm_file_global_structs_test_outer();
-//    vm_file_global_variables_test_outer();
+    vm_global_functions_test_outer();
+    vm_file_global_structs_test_outer();
+    vm_file_global_variables_test_outer();
 
-//    simple_vm_test_threads_gc_outer();
-//    simple_vm_test_threads_no_race_condition_outer();
-//    simple_vm_test_threads_race_condition_outer();
-//    simple_vm_test_threads_join_outer();
-//    simple_vm_test_with_structs_outer();
-//    simple_vm_test_with_while_outer();
-//    simple_vm_test_with_ifs_outer();
-//    simple_vm_test_with_scope_variables_outer();
-//    simple_vm_test_with_functions_outer();
-//    simple_vm_test_with_nested_functions_outer();
-//    simple_vm_test_with_for_loops_outer();
-//    simple_vm_test_inline_array_initilization_outer();
-//    simple_vm_test_empty_array_initilization_outer();
+    simple_vm_test_threads_gc_outer();
+    simple_vm_test_threads_no_race_condition_outer();
+    simple_vm_test_threads_race_condition_outer();
+    simple_vm_test_threads_join_outer();
+    simple_vm_test_with_structs_outer();
+    simple_vm_test_with_while_outer();
+    simple_vm_test_with_ifs_outer();
+    simple_vm_test_with_scope_variables_outer();
+    simple_vm_test_with_functions_outer();
+    simple_vm_test_with_nested_functions_outer();
+    simple_vm_test_with_for_loops_outer();
+    simple_vm_test_inline_array_initilization_outer();
+    simple_vm_test_empty_array_initilization_outer();
 #endif
 
 #ifdef RUN_HASH_TABLE_TEST

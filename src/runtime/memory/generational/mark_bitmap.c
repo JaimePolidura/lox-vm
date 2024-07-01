@@ -4,7 +4,7 @@ static inline uint64_t * get_slot_ptr(struct mark_bitmap *, void * addresss);
 static inline uint8_t get_index_in_slot(void * address);
 
 struct mark_bitmap * alloc_mark_bitmap(int n_addresses, void * start_address) {
-    struct mark_bitmap * bitmap = malloc(sizeof(struct mark_bitmap *));
+    struct mark_bitmap * bitmap = malloc(sizeof(struct mark_bitmap));
     init_mark_bitmap(bitmap, n_addresses, start_address);
     return bitmap;
 }
@@ -14,7 +14,7 @@ void init_mark_bitmap(struct mark_bitmap * mark_bitmap, int n_addresses, void * 
     void * ptr = malloc(size_bitmap);
 
     mark_bitmap->start_address = start_address;
-    mark_bitmap->end = ptr + size_bitmap;
+    mark_bitmap->end = ((uint8_t *) ptr) + size_bitmap;
     mark_bitmap->start = ptr;
     memset(ptr, 0, size_bitmap);
 }
@@ -26,13 +26,13 @@ void free_mark_bitmap(struct mark_bitmap * mark_bitmap) {
 void set_unmarked_bitmap(struct mark_bitmap * mark_bitmap, void * address) {
     uint8_t index_in_slot = get_index_in_slot(address);
     uint64_t * slot = get_slot_ptr(mark_bitmap, address);
-    *slot ^= index_in_slot << 0x01;
+    *slot &= ~(0x01 << index_in_slot);
 }
 
 void set_marked_bitmap(struct mark_bitmap * mark_bitmap, void * address) {
     uint8_t index_in_slot = get_index_in_slot(address);
     uint64_t * slot = get_slot_ptr(mark_bitmap, address);
-    *slot |= index_in_slot << 0x01;
+    *slot |= (0x01 << index_in_slot);
 }
 
 bool is_marked_bitmap(struct mark_bitmap * mark_bitmap, void * address) {
@@ -43,7 +43,7 @@ bool is_marked_bitmap(struct mark_bitmap * mark_bitmap, void * address) {
 
 void reset_mark_bitmap(struct mark_bitmap * mark_bitmap) {
     uint64_t * current = (uint64_t *) mark_bitmap->start;
-    uint64_t * end = (uint64_t *) mark_bitmap->start;
+    uint64_t * end = (uint64_t *) mark_bitmap->end;
 
     while(current < end){
         *current++ = 0;
@@ -70,11 +70,10 @@ bool for_each_marked_bitmap(struct mark_bitmap * bitmap, void * extra, mark_bitm
     return continue_iterating;
 }
 
-//The first 3 lsb are 0. Every slot contains 2^6 address. (64 - (3 + 6))
 static inline uint8_t get_index_in_slot(void * address) {
-    return  *((uint64_t *) address) >> 55;
+    return ((uint64_t) address) & 0x07;
 }
 
 static inline uint64_t * get_slot_ptr(struct mark_bitmap * this, void * address) {
-    return (uint64_t *) this->start + (address - this->start_address);
+    return this->start + ((uint64_t *) address - (uint64_t *) this->start_address);
 }

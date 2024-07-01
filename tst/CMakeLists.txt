@@ -12,6 +12,7 @@ set(SOURCES ${SOURCES}
         package_test.h
         u64_hash_table_test.h
         vm_inline_test.h
+        mark_bitmap_test.h
 )
 
 include_directories(${PROJECT_SOURCE_DIR}/src)
