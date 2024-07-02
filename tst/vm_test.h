@@ -8,6 +8,35 @@ extern struct vm current_vm;
 extern struct trie_list * compiled_packages;
 extern const char * compiling_base_dir;
 
+#ifdef USING_GEN_GC_ALG
+TEST (simple_vm_test_major_gc) {
+    start_vm();
+    
+    interpret_result_t result = interpret_vm(compile_bytecode(
+            "struct Persona{"
+            "   nombre;"
+            "   edad;"
+            "}"
+            ""
+            "var jaime = Persona{\"Jaime\", 21};"
+            "forceGC();"
+            "var molon = Persona{\"Molon\", 19};"
+            "forceGC();"
+            "var juanito = Persona{\"Juanito\", 11};"
+            "forceGC();"
+            ""
+            "print jaime.edad;"
+            "print molon.edad;"
+            "print juanito.edad;",
+            "main", NULL));
+
+    ASSERT_TRUE(result == INTERPRET_OK);
+    ASSERT_NEXT_VM_LOG(current_vm, "21.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "19.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "11.000000");
+}
+#endif
+
 TEST (simple_vm_test_gc_old_gen) {
     start_vm();
 

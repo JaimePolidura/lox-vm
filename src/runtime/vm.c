@@ -2,7 +2,7 @@
 
 extern struct trie_list * compiled_packages;
 extern void check_gc_on_safe_point_alg();
-extern struct gc_result try_start_gc_alg();
+extern struct gc_result try_start_gc_alg(int n_args, lox_value_t * args);
 extern void * alloc_gc_thread_info_alg();
 extern void * alloc_gc_vm_info_alg();
 extern struct struct_instance_object * alloc_struct_instance_gc_alg(struct struct_definition_object *);
@@ -695,7 +695,7 @@ static int add_child_to_parent_list(struct vm_thread * new_child_thread) {
         return index;
     }
 
-    try_start_gc_alg();
+    try_start_gc_alg(0, NULL);
 
     //The gc will remove termianted threads
     if((index = try_add_child_to_parent_list(new_child_thread)) != -1) {

@@ -5,7 +5,7 @@
 extern __thread struct vm_thread * self_thread;
 extern struct config config;
 extern struct vm current_vm;
-extern void start_minor_generational_gc();
+extern void start_minor_generational_gc(bool start_major);
 extern void write_struct_field_barrier_generational_gc(struct struct_instance_object *, struct object *);
 extern void write_array_element_barrier_generational_gc(struct array_object *, struct object *);
 extern void on_gc_finished_vm(struct gc_result result);
@@ -111,13 +111,14 @@ void * alloc_gc_vm_info_alg() {
     return generational_gc;
 }
 
-struct gc_result try_start_gc_alg() {
+struct gc_result try_start_gc_alg(int n_args, lox_value_t * args) {
     struct generational_gc * gc = current_vm.gc;
     gc_gen_state_t expected = GC_NONE;
+    bool start_major = args != NULL && args[0] == TRUE_VALUE;
 
     if (atomic_compare_exchange_strong(&gc->state, &expected, GC_WAITING)) {
         size_t bytes_allocated_before_gc = get_bytes_allocated_generational_gc(gc);
-        start_minor_generational_gc();
+        start_minor_generational_gc(start_major);
         size_t bytes_allocated_after_gc = get_bytes_allocated_generational_gc(gc);
 
         atomic_store_explicit(&gc->state, GC_NONE, memory_order_release);
@@ -156,7 +157,7 @@ static void try_claim_eden_block_or_start_gc(size_t size_bytes) {
     struct eden_block_allocation block_allocation = try_claim_eden_block(global_gc_info->eden, n_blocks);
 
     if (!block_allocation.success) {
-        try_start_gc_alg();
+        try_start_gc_alg(0, NULL);
         block_allocation = try_claim_eden_block(global_gc_info->eden, n_blocks);
     }
 

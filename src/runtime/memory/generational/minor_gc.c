@@ -57,7 +57,7 @@ static void reset_eden_threads_data();
 static bool reset_eden_thread_data(struct vm_thread *, struct vm_thread *, int, void *);
 static void update_string_pool_references();
 
-void start_minor_generational_gc() {
+void start_minor_generational_gc(bool start_major) {
     struct generational_gc * gc = current_vm.gc;
     struct stack_list terminated_threads;
     init_stack_list(&terminated_threads);
@@ -65,14 +65,14 @@ void start_minor_generational_gc() {
     signal_threads_start_gc_alg_and_await();
 
     //Start major gc and restart minor gc
-    if (!traverse_heap_and_move(&terminated_threads)) {
+    if (!traverse_heap_and_move(&terminated_threads) || start_major) {
         if (gc->previous_major) {
             runtime_panic("Out of memory!");
         }
 
        start_major_generational_gc();
        free_stack_list(&terminated_threads);
-       start_minor_generational_gc();
+       start_minor_generational_gc(false);
        return;
     }
 
@@ -154,7 +154,7 @@ static void for_each_string_pool_entry(
     lox_value_t forwading_ptr = GET_FORWARDING_PTR((&string->object));
     bool belongs_to_young_heap = belongs_to_young_generational_gc(gc, (uintptr_t) string);
     bool belongs_to_heap = belongs_to_heap_generational_gc(gc, (uintptr_t) string);
-    bool has_been_moved = forwading_ptr != 0;
+    bool has_been_moved = !IS_CLEARED_FORWARDING_PTR(&string->object);
 
     if (belongs_to_heap && has_been_moved) {
         *key_reference_holder = (struct string_object *) AS_OBJECT(forwading_ptr);
@@ -280,9 +280,9 @@ static void traverse_value_and_update_references(lox_value_t root_value, lox_val
             lox_value_t current_forwading_ptr = GET_FORWARDING_PTR(current);
             mark_as_updated(current);
 
-            if (current_forwading_ptr != 0) {
+            if (!IS_CLEARED_FORWARDING_PTR(current)) {
                 *current_reference_holder = current_forwading_ptr;
-                SET_FORWARDING_PTR(current, NULL);
+                CLEAR_FORWARDING_PTR(current);
             }
             switch (current->type) {
                 case OBJ_STRUCT_INSTANCE:
@@ -486,7 +486,6 @@ static bool move_object(struct object * object) {
 
     if (moved_successfully) {
         SET_FORWARDING_PTR(object, TO_LOX_VALUE_OBJECT(new_ptr));
-        SET_FORWARDING_PTR(((struct object *) new_ptr), TO_LOX_VALUE_OBJECT(object));
     }
 
     return moved_successfully;

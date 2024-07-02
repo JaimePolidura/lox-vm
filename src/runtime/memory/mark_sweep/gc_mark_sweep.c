@@ -60,7 +60,7 @@ void add_object_to_heap_gc_alg(struct object * object) {
 
     if (gc_thread_info->bytes_allocated >= gc_thread_info->next_gc) {
         size_t before_gc_heap_size = gc_thread_info->bytes_allocated;
-        try_start_gc_alg();
+        try_start_gc_alg(0, NULL);
         size_t after_gc_heap_size = gc_thread_info->bytes_allocated;
 
         gc_thread_info->next_gc = gc_thread_info->bytes_allocated * HEAP_GROW_AFTER_GC_FACTOR;
@@ -70,7 +70,7 @@ void add_object_to_heap_gc_alg(struct object * object) {
     }
 }
 
-struct gc_result try_start_gc_alg() {
+struct gc_result try_start_gc_alg(int n_args, lox_value_t * args) {
     struct mark_sweep_thread_info * gc_thread_info = self_thread->gc_info;
     struct mark_sweep_global_info * gc_global_info = current_vm.gc;
     struct gc_result gc_result;

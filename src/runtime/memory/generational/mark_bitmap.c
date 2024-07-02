@@ -45,8 +45,12 @@ void reset_mark_bitmap(struct mark_bitmap * mark_bitmap) {
     uint64_t * current = (uint64_t *) mark_bitmap->start;
     uint64_t * end = (uint64_t *) mark_bitmap->end;
 
-    while(current < end){
+    while (current < end) {
+        uint64_t value = *current;
+
         *current++ = 0;
+
+        uint64_t value2 = *current;
     }
 }
 
@@ -56,11 +60,11 @@ bool for_each_marked_bitmap(struct mark_bitmap * bitmap, void * extra, mark_bitm
     for (uint64_t * actual_slot = bitmap->start; actual_slot < (uint64_t *) bitmap->end && continue_iterating; actual_slot++) {
         if (actual_slot != NULL && *actual_slot != 0) {
             uint64_t slot_value = *actual_slot;
+            uint64_t slot_address = (uint64_t) ((uint64_t *) bitmap->start_address + (actual_slot - (uint64_t *) bitmap->start));
 
             for (int i = 0; i < sizeof(uint64_t) && continue_iterating; i++) {
-                if ((slot_value >> i & 0x1) != 0) {
-                    uint64_t slot_address_value = (uint64_t) actual_slot;
-                    uint64_t current_address = slot_address_value + i * sizeof(uint64_t);
+                if (((slot_value >> i) & 0x1) != 0) {
+                    uint64_t current_address = slot_address + i;
                     continue_iterating = consumer((void *) current_address, extra);
                 }
             }

@@ -171,8 +171,8 @@ static void traverse_value_and_update_references(lox_value_t * root_value) {
             struct object * current_object = AS_OBJECT(* current_value);
             lox_value_t forwading_ptr = GET_FORWARDING_PTR(current_object);
 
-            if (forwading_ptr != 0) {
-                SET_FORWARDING_PTR(current_object, NULL);
+            if (!IS_CLEARED_FORWARDING_PTR(current_object)) {
+                CLEAR_FORWARDING_PTR(current_object);
                 *current_value = TO_LOX_VALUE_OBJECT((struct object *) forwading_ptr);
             }
 

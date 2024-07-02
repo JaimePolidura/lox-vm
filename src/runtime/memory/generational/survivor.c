@@ -16,10 +16,17 @@ struct survivor * alloc_survivor(struct config config) {
 
 void swap_from_to_survivor_space(struct survivor * survivor, struct config config) {
     struct memory_space * from_memory_space = survivor->from;
+    size_t size_in_bytes = config.generational_gc_config.survivor_size_mb * 1024 * 1024;
+    int n_addresses = (int) round_up_8(size_in_bytes / 8);
+
     survivor->from = survivor->to;
     survivor->to = from_memory_space;
+
     reset_memory_space(survivor->to);
+    //Card tables already cleaned in minor_gc
     init_card_table(&survivor->fromspace_card_table, config, (uint64_t *) survivor->from->start, (uint64_t *) survivor->from->end);
+
+    survivor->fromspace_mark_bitmap.start_address = survivor->from->start;
 }
 
 bool belongs_to_survivor(struct survivor * survivor, uintptr_t ptr) {
