@@ -34,6 +34,9 @@ TEST (simple_vm_test_major_gc) {
     ASSERT_NEXT_VM_LOG(current_vm, "21.000000");
     ASSERT_NEXT_VM_LOG(current_vm, "19.000000");
     ASSERT_NEXT_VM_LOG(current_vm, "11.000000");
+
+    stop_vm();
+    reset_vm();
 }
 #endif
 

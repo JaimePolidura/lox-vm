@@ -277,13 +277,13 @@ static void traverse_value_and_update_references(lox_value_t root_value, lox_val
         bool belongs_to_heap = belongs_to_heap_generational_gc(generational_gc, (uintptr_t) current);
 
         if (belongs_to_heap && !has_been_updated(current)) {
-            lox_value_t current_forwading_ptr = GET_FORWARDING_PTR(current);
             mark_as_updated(current);
 
             if (!IS_CLEARED_FORWARDING_PTR(current)) {
-                *current_reference_holder = current_forwading_ptr;
+                *current_reference_holder = GET_FORWARDING_PTR(current);
                 CLEAR_FORWARDING_PTR(current);
             }
+
             switch (current->type) {
                 case OBJ_STRUCT_INSTANCE:
                     traverse_lox_hashtable(((struct struct_instance_object *) current)->fields, &pending);
@@ -381,8 +381,6 @@ static bool traverse_package_globals_to_move(void * trie_node_ptr, void * extra_
 }
 
 static bool traverse_value_and_move(lox_value_t root_value) {
-    struct struct_instance_object * instance = (struct struct_instance_object *) AS_OBJECT(root_value);
-
     if (!IS_OBJECT(root_value)) {
         return true;
     }
@@ -486,6 +484,7 @@ static bool move_object(struct object * object) {
 
     if (moved_successfully) {
         SET_FORWARDING_PTR(object, TO_LOX_VALUE_OBJECT(new_ptr));
+        CLEAR_FORWARDING_PTR((struct object *) new_ptr);
     }
 
     return moved_successfully;
