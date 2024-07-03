@@ -13,6 +13,8 @@
 #include "runtime/jit/x64/jit_stack.h"
 #include "registers.h"
 
+#include "runtime/memory/gc_algorithm.h"
+
 #include "shared/utils/collections/u8_arraylist.h"
 #include "shared/utils/collections/stack_list.h"
 #include "shared/bytecode/pending_jump_to_resolve.h"

@@ -472,7 +472,7 @@ static void set_struct_field(struct call_frame * call_frame) {
     struct struct_instance_object * instance = (struct struct_instance_object *) AS_OBJECT(pop_stack_vm());
     struct string_object * field_name = (struct string_object *) AS_OBJECT(READ_CONSTANT(call_frame));
 
-    if(!put_if_present_hash_table(&instance->fields, field_name, new_value)) {
+    if (!put_if_present_hash_table(&instance->fields, field_name, new_value)) {
         runtime_panic("Undefined field %s", field_name->chars);
     }
 
