@@ -80,6 +80,7 @@ int main() {
     compiled_packages = NULL;
 
     #ifdef USING_GEN_GC_ALG
+    simple_vm_test_barriers_outer();
     simple_vm_test_major_gc_outer();
     #endif
 

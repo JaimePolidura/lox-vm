@@ -79,8 +79,8 @@ void start_minor_generational_gc(bool start_major) {
     clear_mark_bitmaps_generational_gc(gc);
     update_references();
     clear_card_tables_generational_gc(gc);
-    update_card_tables();
     swap_from_to_survivor_space(gc->survivor, config);
+    update_card_tables();
     clear_mark_bitmaps_generational_gc(gc);
     remove_terminated_threads(&terminated_threads);
     reset_eden_threads_data();
@@ -397,8 +397,6 @@ static bool traverse_object_and_move(struct object * root_object) {
     init_stack_list(&pending);
     push_stack_list(&pending, alloc_object_to_traverse(root_object, NULL));
     bool moved_all_successfuly = true;
-
-    struct struct_instance_object * instnce = (struct struct_instance_object *) root_object;
 
     while (!is_empty_stack_list(&pending)) {
         struct object_to_traverse * to_traverse = pop_stack_list(&pending);

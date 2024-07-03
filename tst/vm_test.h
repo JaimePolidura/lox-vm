@@ -9,6 +9,44 @@ extern struct trie_list * compiled_packages;
 extern const char * compiling_base_dir;
 
 #ifdef USING_GEN_GC_ALG
+TEST (simple_vm_test_barriers) {
+    start_vm();
+
+    interpret_result_t result = interpret_vm(compile_bytecode(
+            "struct Persona{"
+            "   nombre;"
+            "   edad;"
+            "}"
+            ""
+            "var jaime = Persona{\"Jaime\", 21};"
+            "var wily = Persona{\"Wily\", 22};"
+            "forceGC();"
+            "var molon = Persona{\"Molon\", 19};"
+            "forceGC();"
+            "var juanito = Persona{\"Juanito\", 11};"
+            "jaime.nombre = juanito;"
+            "juanito = nil;"
+            "var juanxli = Persona{\"Juanito\", 20};"
+            "forceGC();"
+            ""
+            "print jaime.edad;"
+            "print molon.edad;"
+            "print jaime.nombre.edad;"
+            "print wily.edad;"
+            "print juanxli.edad;",
+            "main", NULL));
+
+    ASSERT_TRUE(result == INTERPRET_OK);
+    ASSERT_NEXT_VM_LOG(current_vm, "21.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "19.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "11.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "22.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "20.000000");
+
+    stop_vm();
+    reset_vm();
+}
+
 TEST (simple_vm_test_major_gc) {
     start_vm();
     
