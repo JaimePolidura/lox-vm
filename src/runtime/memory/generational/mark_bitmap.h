@@ -4,10 +4,10 @@
 #include "shared/utils/utils.h"
 
 struct mark_bitmap {
-    void * start_address;
+    uint8_t * start_address;
 
-    void * start;
-    void * end;
+    uint8_t * start;
+    uint8_t * end;
 };
 
 typedef bool (*mark_bitmap_consumer_t)(void * address, void * extra);

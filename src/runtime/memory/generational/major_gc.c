@@ -203,14 +203,14 @@ static void compact_old() {
     struct generational_gc * gc = current_vm.gc;
     struct old * old = gc->old;
 
-    struct object * free = ((struct object *) old->memory_space.end) - 1;
-    struct object * scan = (struct object *) old->memory_space.start;
+    struct object * free = ((struct object *) old->memory_space.start);
+    struct object * scan = ((struct object *) old->memory_space.end) - 1;
 
     while (free < scan) {
         scan = next_scan(old, scan);
         free = next_free(old, free);
 
-        if (free > scan) {
+        if (free < scan) {
             size_t available_free_size = free_size(old, free);
             size_t to_move_req_size = get_n_bytes_allocated_object((struct object *) scan);
 
@@ -255,6 +255,8 @@ static struct object * next_scan(struct old * old, struct object * prev) {
         current_scan -= 1;
     }
 
+    is_marked_bitmap(old->mark_bitmap, (uintptr_t *) current_scan);
+
     return current_scan;
 }
 
@@ -263,7 +265,7 @@ static struct object * next_free(struct old * old, struct object * prev) {
 
     while (is_marked_bitmap(old->mark_bitmap, (uint64_t *) current_free) &&
            ((uint8_t *) current_free) < old->memory_space.end) {
-        current_free += 1;
+        current_free += get_n_bytes_allocated_object(current_free);
     }
 
     return current_free;

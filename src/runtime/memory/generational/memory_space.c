@@ -45,7 +45,7 @@ uint8_t * copy_data_memory_space(struct memory_space * memory_space, uint8_t * s
         *(dst++) = *(src++);
     }
 
-    memory_space->current = dst + 1;
+    memory_space->current = dst;
 
     return start_moved;
 }

@@ -19,21 +19,24 @@ TEST (simple_vm_test_major_gc) {
             "}"
             ""
             "var jaime = Persona{\"Jaime\", 21};"
+            "var wily = Persona{\"Wily\", 22};"
             "forceGC();"
             "var molon = Persona{\"Molon\", 19};"
             "forceGC();"
             "var juanito = Persona{\"Juanito\", 11};"
-            "forceGC();"
+            "forceGC(true);"
             ""
             "print jaime.edad;"
             "print molon.edad;"
-            "print juanito.edad;",
+            "print juanito.edad;"
+            "print wily.edad;",
             "main", NULL));
 
     ASSERT_TRUE(result == INTERPRET_OK);
     ASSERT_NEXT_VM_LOG(current_vm, "21.000000");
     ASSERT_NEXT_VM_LOG(current_vm, "19.000000");
     ASSERT_NEXT_VM_LOG(current_vm, "11.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "22.000000");
 
     stop_vm();
     reset_vm();
