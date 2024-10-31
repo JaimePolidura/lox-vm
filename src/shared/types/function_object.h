@@ -27,7 +27,7 @@ struct function_object {
     int n_locals;
     struct function_call * function_calls;
 
-    function_state_t state;
+    volatile function_state_t state;
     union {
         //Used when state is FUNC_STATE_NOT_PROFILING
         //This is just a counter of the function calls made to this function & the number of branch instruction taken in this function
@@ -45,7 +45,7 @@ struct function_object {
         //Used when state is FUNC_STATE_JIT_COMPILED
         //This includes the function jit compiled code
         struct {
-            jit_compiled code;
+            volatile jit_compiled code;
         } jit_compiled;
     } state_as;
 

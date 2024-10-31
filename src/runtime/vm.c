@@ -369,7 +369,12 @@ static void call_function(struct function_object * function, int n_args, bool is
 #ifdef NAN_BOXING
     switch (function->state) {
         case FUNC_STATE_NOT_PROFILING:
-            function->state_as.not_profiling.n_calls++;
+            if (atomic_fetch_add(&function->state_as.not_profiling.n_calls, 1) >= MIN_CALLS_TO_PROFILE) {
+                int n_instructions = function->chunk->in_use;
+                init_function_profile_data(&function->state_as.profiling.profile_data, n_instructions);
+                COMPILER_BARRIER();
+                function->state = FUNC_STATE_PROFILING;
+            }
             break;
         case FUNC_STATE_PROFILING:
             if(can_jit_compile_profiler(function)) {
@@ -385,6 +390,7 @@ static void call_function(struct function_object * function, int n_args, bool is
                 }
 
                 function->state_as.jit_compiled.code = to_executable_jit_compiation_result(compation_result);
+                COMPILER_BARRIER();
                 function->state = FUNC_STATE_JIT_COMPILED;
 
                 run_jit_compiled(function);

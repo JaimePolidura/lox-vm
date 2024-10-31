@@ -28,6 +28,7 @@ void profile_instruction_profiler(uint8_t * pc, struct function_object * functio
             break;
         case OP_JUMP:
         case OP_LOOP:
+        case OP_CALL:
             profile_unconditional_branch(function, instruction_index);
             break;
 

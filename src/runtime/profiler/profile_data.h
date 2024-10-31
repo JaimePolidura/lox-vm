@@ -26,5 +26,7 @@ struct instruction_profile_data {
     } as;
 };
 
+void init_function_profile_data(struct function_profile_data *, int n_instructions);
+
 struct instruction_profile_data * alloc_instruction_profile_data();
-void init_alloc_instruction_profile_data(struct instruction_profile_data *);
+void init_instruction_profile_data(struct instruction_profile_data *instruction_profile_data);
