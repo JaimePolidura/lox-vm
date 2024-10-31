@@ -13,7 +13,7 @@ extern bool restore_prev_call_frame();
 void run_jit_compiled_arch(struct function_object * function_object) {
     push_cpu_regs(); //Save caller regs
     load_self_thread_register(); //We save the self_thread address in a register
-    function_object->jit_info.compiled_jit();
+    function_object->state_as.jit_compiled.code();
     pop_cpu_regs(); //Resotre caller regs
 }
 
@@ -29,7 +29,7 @@ static inline void load_self_thread_register() {
 //We need to force the inline, otherwise it would result in a segfault.
 //This happens because in order for the function to return to the caller,
 //it saves the caller adddress in the stack at the beginning of the functino call,
-//As we are pushing data in the stack, it would read the wrong address
+//As we are pushing profile_data in the stack, it would read the wrong address
 static inline __attribute__((always_inline)) void push_cpu_regs() {
     __asm__(
             "pushq %%rax\n\t"

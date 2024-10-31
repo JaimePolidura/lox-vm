@@ -363,16 +363,37 @@ static void call_function(struct function_object * function, int n_args, bool is
     setup_call_frame_function(self_thread, function);
 
 #ifdef NAN_BOXING
-    switch (function->jit_info.state) {
-        case JIT_BYTECODE:
-            if(increase_call_count_function(&function->jit_info) && try_jit_compile(function)) {
+    switch (function->state) {
+        case FUNC_STATE_NOT_PROFILING:
+            function->state_as.not_profiling.n_calls++;
+            break;
+        case FUNC_STATE_PROFILING:
+            if(can_jit_compile_profiler(function)) {
+                struct jit_compilation_result compation_result = try_jit_compile(function);
+                //Another thread was trying to compile the function
+                if(compation_result.failed_beacause_of_concurrent_compilation) {
+                    return;
+                }
+                //The function code cannot get compiled
+                if(!compation_result.success) {
+                    function->state = FUNC_STATE_JIT_UNCOMPILABLE;
+                    return;
+                }
+
+                function->state_as.jit_compiled.code = to_executable_jit_compiation_result(compation_result);
+                function->state = FUNC_STATE_JIT_COMPILED;
+
                 run_jit_compiled(function);
             }
             break;
-        case JIT_COMPILED:
-            run_jit_compiled(function);
-        default:
+        case FUNC_STATE_JIT_COMPILING:
             break;
+        case FUNC_STATE_JIT_COMPILED:
+            run_jit_compiled(function);
+            break;
+        case FUNC_STATE_JIT_UNCOMPILABLE:
+            break;
+
     }
 #endif
 }

@@ -89,6 +89,8 @@ static void add_function_call(struct bytecode_compiler *, struct function_call *
 static void set_compiling_function_name(struct bytecode_compiler *, char *);
 static void inline_expression(struct bytecode_compiler *, bool can_assign);
 
+typedef void(* parse_fn_t)(struct bytecode_compiler *, bool);
+
 //Lowest to highest
 typedef enum {
     PREC_NONE,
@@ -103,8 +105,6 @@ typedef enum {
     PREC_CALL,        // . ()
     PREC_PRIMARY
 } precedence_t;
-
-typedef void(* parse_fn_t)(struct bytecode_compiler *, bool);
 
 struct parse_rule {
     parse_fn_t prefix;
@@ -922,7 +922,7 @@ static void parse_precedence(struct bytecode_compiler * compiler, precedence_t p
     bool canAssign = precedence <= PREC_ASSIGNMENT;
     parse_prefix_fn(compiler, canAssign);
 
-    while(precedence <= get_rule(compiler->parser->current.type)->precedence) {
+    while(precedence <= get_rule(compiler->parser->current.type)->precedence) { //PREC_ASSIGNMENT <= PREC_COMPARISON
         advance(compiler);
         parse_fn_t parse_suffix_fn = get_rule(compiler->parser->previous.type)->suffix;
         parse_suffix_fn(compiler, canAssign);

@@ -939,8 +939,8 @@ static void check_pending_jumps_to_patch(struct jit_compiler * jit_compiler, int
     }
 }
 
-//As the vm stack might have some data, we need to update vm esp, so that if any thread is garbage collecting,
-//it can read the most up-to-date stack without discarding data
+//As the vm stack might have some profile_data, we need to update vm esp, so that if any thread is garbage collecting,
+//it can read the most up-to-date stack without discarding profile_data
 //This is only used here since the safepoint calls are done in places where the stack is emtpy
 //Note that the stack only contains values when an expression is being executed.
 static uint16_t call_safepoint(struct jit_compiler * jit_compiler) {

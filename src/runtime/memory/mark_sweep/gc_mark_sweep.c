@@ -223,7 +223,7 @@ static void mark_globals() {
 }
 
 static bool for_each_package_callback(void * trie_node_ptr, void * extra_ignored) {
-    struct package * package = (struct package *) ((struct trie_node *) trie_node_ptr)->data;
+    struct package * package = (struct package *) ((struct trie_node *) trie_node_ptr)->profile_data;
 
     for(int i = 0; i < package->global_variables.capacity && package->state != PENDING_COMPILATION; i++) {
         struct hash_table_entry * entry = &package->global_variables.entries[i];

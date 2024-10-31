@@ -14,7 +14,7 @@ typedef enum {
     GC_IN_PROGRESS, //Performing GC
 } gc_mark_sweep_state_t;
 
-//Global structure to hold data about gc
+//Global structure to hold profile_data about gc
 struct mark_sweep_global_info {
     volatile gc_mark_sweep_state_t state;
 

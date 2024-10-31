@@ -10,7 +10,7 @@ An implementation of lox bytecode interpreter described in "Crafting Interpreter
 - <b>Arrays</b>
 
 ## Features from "Crafting Interpreters" not implemented
-- <b>OOP</b> Inheritnace, classess with properties and methods are not implemented. Instead, they are replaced with C like structs, which only contains plain data.
+- <b>OOP</b> Inheritnace, classess with properties and methods are not implemented. Instead, they are replaced with C like structs, which only contains plain profile_data.
 - <b>Closures</b>
 
 ## Examples

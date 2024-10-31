@@ -2,6 +2,7 @@
 
 #include "runtime/native_functions/native_function_definer.h"
 #include "runtime/memory/gc_algorithm.h"
+#include "runtime/profiler/profiler.h"
 #include "runtime/threads/vm_thread.h"
 #include "runtime/memory/gc_result.h"
 #include "runtime/jit/jit_compiler.h"

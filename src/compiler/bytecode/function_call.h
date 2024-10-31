@@ -3,7 +3,7 @@
 #include "shared/package.h"
 #include "shared/types/function_scope.h"
 
-//When we compile a function and that functions calls another function, we store that data.
+//When we compile a function and that functions calls another function, we store that profile_data.
 //We store if the call is inlined, the other function name and package and the bytecode index of that call
 struct function_call {
     char * function_name;

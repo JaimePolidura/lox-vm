@@ -15,30 +15,16 @@ static void print_jit_result(struct jit_compilation_result result) {
     puts("\n");
 }
 
-bool try_jit_compile(struct function_object * function) {
-#ifdef NAN_BOXING
-    jit_state_t expected_state = JIT_BYTECODE;
-    if(!atomic_compare_exchange_strong(&function->jit_info.state, &expected_state, JIT_COMPILING)){
-        return false;
+struct jit_compilation_result try_jit_compile(struct function_object * function) {
+    function_state_t expected_state = FUNC_STATE_PROFILING;
+    if(!atomic_compare_exchange_strong(&function->state, &expected_state, FUNC_STATE_JIT_COMPILING)){
+        return (struct jit_compilation_result) {
+            .success = false,
+            .failed_beacause_of_concurrent_compilation = true,
+        };
     }
 
-    struct jit_compilation_result result = jit_compile_arch(function);
-
-    if (result.success) {
-        function->jit_info.compiled_jit = to_executable(result);
-        COMPILER_BARRIER(); //TODO Use memory barriers
-        function->jit_info.state = JIT_COMPILED;
-        return true;
-    } else {
-        function->jit_info.state = JIT_INCOPILABLE;
-        return false;
-    }
-
-    return true;
-
-#else
-    return false;
-#endif
+    return jit_compile_arch(function);
 }
 
 void run_jit_compiled(struct function_object * function) {

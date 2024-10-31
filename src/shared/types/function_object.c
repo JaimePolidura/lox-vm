@@ -12,7 +12,7 @@ struct function_object * alloc_function() {
 
     init_object(&function_object->object, OBJ_FUNCTION);
 
-    init_jit_info(&function_object->jit_info);
+    function_object->state_as.not_profiling.n_calls = 0;
 
     return function_object;
 }
