@@ -69,3 +69,7 @@ int round_up_8(int number) {
 int align(int not_aligned, int value_to_align) {
     return ((not_aligned + value_to_align - 1) / value_to_align) * value_to_align;
 }
+
+bool has_decimals(double double_value) {
+    return double_value != floor(double_value);
+}

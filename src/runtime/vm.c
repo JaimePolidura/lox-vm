@@ -114,6 +114,10 @@ static interpret_result_t run() {
     thread_on_safe_point();
 
     for(;;) {
+        if(current_frame->function->state == FUNC_STATE_NOT_PROFILING) {
+            profile_instruction_profiler(current_frame->pc, current_frame->function);
+        }
+
         switch (READ_BYTECODE(current_frame)) {
             case OP_RETURN: return_function(current_frame); current_frame = get_current_frame(); break;
             case OP_CONSTANT: push_stack_vm(READ_CONSTANT(current_frame)); break;

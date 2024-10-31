@@ -1,7 +1,15 @@
 #pragma once
 
-struct function_profile_data {
+#include "shared.h"
 
+struct function_profile_data {
+    struct instruction_profile_data * data_by_instruction_index;
+};
+
+struct binary_node_profile_data {
+    int i64;
+    int f64;
+    int string;
 };
 
 struct instruction_profile_data {
@@ -12,13 +20,11 @@ struct instruction_profile_data {
         } branch;
 
         struct {
-            int left_i64;
-            int left_f64;
-            int left_string;
-
-            int right_i64;
-            int right_f64;
-            int right_string;
+            struct binary_node_profile_data left;
+            struct binary_node_profile_data right;
         } binary_op; //Arithmetic & comparation
     } as;
 };
+
+struct instruction_profile_data * alloc_instruction_profile_data();
+void init_alloc_instruction_profile_data(struct instruction_profile_data *);

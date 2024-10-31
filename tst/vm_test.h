@@ -8,12 +8,6 @@ extern struct vm current_vm;
 extern struct trie_list * compiled_packages;
 extern const char * compiling_base_dir;
 
-TEST(mierdon){
-    start_vm();
-
-    compile_bytecode("1 + 3 * 4;", "main", NULL);
-}
-
 #ifdef USING_GEN_GC_ALG
 TEST (simple_vm_test_barriers) {
     start_vm();
