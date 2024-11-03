@@ -14,6 +14,7 @@ struct bytecode_list * create_instruction_bytecode_list(bytecode_t bytecode) {
 
 struct bytecode_list * alloc_bytecode_list() {
     struct bytecode_list * bytecode_list = malloc(sizeof(struct bytecode_list));
+    bytecode_list->original_chunk_index = 0;
     bytecode_list->to_chunk_index = 0;
     bytecode_list->bytecode = 0;
     bytecode_list->next = NULL;
@@ -177,8 +178,9 @@ struct bytecode_list * create_bytecode_list(struct chunk * chunk) {
     while(has_next_chunk_iterator(&chunk_iterator)) {
         bytecode_t current_instruction = next_instruction_chunk_iterator(&chunk_iterator);
         int current_instruction_index = current_instruction_index_chunk_iterator(&chunk_iterator);
-
+        
         struct bytecode_list * current_node = alloc_bytecode_list();
+        current_node->original_chunk_index = current_instruction_index;
         current_node->bytecode = current_instruction;
         current_node->prev = last_allocated;
 

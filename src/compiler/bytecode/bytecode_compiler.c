@@ -28,7 +28,7 @@ static void declaration(struct bytecode_compiler * compiler);
 static void statement(struct bytecode_compiler * compiler);
 static void print_statement(struct bytecode_compiler * compiler);
 static void expression_statement(struct bytecode_compiler * compiler);
-static void var_declaration(struct bytecode_compiler * compiler, bool is_public);
+static void var_declaration(struct bytecode_compiler * compiler, bool is_public, bool is_const);
 static uint8_t add_string_constant(struct bytecode_compiler * compiler, struct token string_token);
 static void define_global_variable(struct bytecode_compiler * compiler, uint8_t global_constant_offset);
 static void variable(struct bytecode_compiler * compiler, bool can_assign);
@@ -61,7 +61,7 @@ static void function_call(struct bytecode_compiler * compiler, bool can_assign);
 static int function_call_number_arguments(struct bytecode_compiler * compiler);
 static void return_statement(struct bytecode_compiler * compiler);
 static void emit_empty_return(struct bytecode_compiler * compiler);
-static void struct_declaration(struct bytecode_compiler * compiler, bool is_public);
+static void struct_declaration(struct bytecode_compiler * compiler, bool is_public, bool is_const);
 static int struct_fields(struct bytecode_compiler * compiler, struct token * fields);
 static void struct_initialization(struct bytecode_compiler * compiler, struct package * external_package);
 static int struct_initialization_fields(struct bytecode_compiler * compiler);
@@ -88,6 +88,7 @@ static void add_current_function_call(struct bytecode_compiler * bytecode_compil
 static void add_function_call(struct bytecode_compiler *, struct function_call *);
 static void set_compiling_function_name(struct bytecode_compiler *, char *);
 static void inline_expression(struct bytecode_compiler *, bool can_assign);
+static bool is_const_variable(struct bytecode_compiler *, struct token name, struct package * external_package);
 
 typedef void(* parse_fn_t)(struct bytecode_compiler *, bool);
 
@@ -231,11 +232,12 @@ static void dot(struct bytecode_compiler * compiler, bool can_assign) {
 
 static void declaration(struct bytecode_compiler * compiler) {
     bool is_public = match(compiler, TOKEN_PUB);
+    bool is_const = match(compiler, TOKEN_CONST);
 
     if(match(compiler, TOKEN_VAR)) {
-        var_declaration(compiler, is_public);
+        var_declaration(compiler, is_public, is_const);
     } else if(match(compiler, TOKEN_STRUCT)) {
-        struct_declaration(compiler, is_public);
+        struct_declaration(compiler, is_public, is_const);
     } else if(match(compiler, TOKEN_PARALLEL)) {
         parallel_declaration(compiler);
     } else if(match(compiler, TOKEN_INLINE)){
@@ -274,7 +276,7 @@ static void parallel_declaration(struct bytecode_compiler * compiler) {
     compiler->compiling_parallel_call = false;
 }
 
-static void struct_declaration(struct bytecode_compiler * compiler, bool is_public) {
+static void struct_declaration(struct bytecode_compiler * compiler, bool is_public, bool is_const) {
     consume(compiler, TOKEN_IDENTIFIER, "Expect struct name");
 
     struct token struct_name = compiler->parser->previous;
@@ -309,7 +311,7 @@ static void struct_declaration(struct bytecode_compiler * compiler, bool is_publ
         emit_constant(compiler, TO_LOX_VALUE_OBJECT(struct_definition));
         define_global_variable(compiler, variable_identifier_constant);
 
-        add_exported_symbol(compiler, to_exported_symbol(variable_identifier_constant, EXPORTED_STRUCT), struct_name);
+        add_exported_symbol(compiler, alloc_exported_symbol(variable_identifier_constant, is_const, EXPORTED_STRUCT), struct_name);
     }
 }
 
@@ -338,7 +340,7 @@ static void emtpy_array_initialization(struct bytecode_compiler * compiler) {
     emit_bytecode(compiler, 1); //Emtpy intialization
 }
 
-static void var_declaration(struct bytecode_compiler * compiler, bool is_public) {
+static void var_declaration(struct bytecode_compiler * compiler, bool is_public, bool is_const) {
     consume(compiler, TOKEN_IDENTIFIER, "Expected variable name.");
     struct token variable_name = compiler->parser->previous;
     bool is_array_empty_initialization = false;
@@ -352,6 +354,9 @@ static void var_declaration(struct bytecode_compiler * compiler, bool is_public)
 
     if(is_public && is_local_variable){
         report_error(compiler, compiler->parser->previous, "Cannot declare local variables as public");
+    }
+    if(is_const && is_local_variable){
+        report_error(compiler, compiler->parser->previous, "Cannot declare local variables as const");
     }
 
     int variable_identifier = is_local_variable ?
@@ -369,7 +374,7 @@ static void var_declaration(struct bytecode_compiler * compiler, bool is_public)
     }
 
     if(is_public) {
-        add_exported_symbol(compiler, to_exported_symbol(variable_identifier, EXPORTED_VAR), variable_name);
+        add_exported_symbol(compiler, alloc_exported_symbol(variable_identifier, is_const, EXPORTED_VAR), variable_name);
     }
 
     consume(compiler, TOKEN_SEMICOLON, "Expected ';' after variable declaration.");
@@ -395,7 +400,7 @@ static void function_declaration(struct bytecode_compiler *compiler, bool is_pub
     define_global_variable(compiler, function_name_constant_offset);
 
     if(is_public){
-        add_exported_symbol(compiler, to_exported_symbol(function_name_constant_offset, EXPORTED_FUNCTION), function_name);
+        add_exported_symbol(compiler, alloc_exported_symbol(function_name_constant_offset, false, EXPORTED_FUNCTION), function_name);
     }
 }
 
@@ -644,7 +649,7 @@ static void for_loop_initializer(struct bytecode_compiler * compiler) {
     if(match(compiler, TOKEN_SEMICOLON)){
         //No initializer
     } else if(match(compiler, TOKEN_VAR)){
-        var_declaration(compiler, false);
+        var_declaration(compiler, false, false);
     } else {
         expression_statement(compiler);
     }
@@ -798,15 +803,17 @@ static int struct_initialization_fields(struct bytecode_compiler * compiler) {
     return n_fields;
 }
 
-static void named_variable(struct bytecode_compiler * compiler,
+static void named_variable(
+        struct bytecode_compiler * compiler,
         struct token variable_name,
         struct token array_index,
         bool can_assign,
-        struct package * external_package) {
-
+        struct package * external_package
+) {
     int variable_identifier = resolve_local_variable(compiler, &variable_name);
 
     bool is_from_external_package = external_package != NULL;
+    bool is_const = is_const_variable(compiler, variable_name, external_package);
     bool is_local = variable_identifier != -1;
     bool is_global = !is_local;
     bool is_set_op = can_assign && match(compiler, TOKEN_EQUAL);
@@ -820,6 +827,10 @@ static void named_variable(struct bytecode_compiler * compiler,
     if (is_global && !is_from_external_package) {
         variable_identifier = add_string_constant(compiler, variable_name);
     }
+    if (is_set_op && is_const) {
+        report_error(compiler, variable_name, "Cannot set a value to a declared const variable");
+    }
+
     if (is_global && is_from_external_package) {
         struct exported_symbol * exported_symbol = get_exported_symbol(compiler, external_package, variable_name);
         exported_symbol_type_t expected_exported_type = compiler->parser->current.type == TOKEN_OPEN_PAREN ?
@@ -978,6 +989,15 @@ static void number(struct bytecode_compiler * compiler, bool can_assign) {
     }
 }
 
+static bool is_const_variable(struct bytecode_compiler * compiler, struct token name, struct package * external_package) {
+    if (external_package != NULL) { //External package global variable
+        struct exported_symbol * external_variable = get_exported_symbol(compiler, external_package, name);
+        return external_variable->is_const;
+    } else { //Local package global variable
+        return contains_trie(&compiler->const_global_variables, name.start, name.length);
+    }
+}
+
 static void emit_package_constant(struct bytecode_compiler * compiler, lox_value_t value) {
     //TODO Perform content overflow check
     int constant_offset = add_constant_to_chunk(current_chunk(compiler), value);
@@ -1042,6 +1062,7 @@ static struct bytecode_compiler * alloc_compiler(scope_type_t scope, char * pack
     compiler->parser = malloc(sizeof(struct parser));
     compiler->parser->has_error = false;
     compiler->is_standalone_mode = is_standalone_mode;
+    init_trie_list(&compiler->const_global_variables);
 
     return compiler;
 }
@@ -1097,6 +1118,7 @@ static struct package * add_package_to_compiled_packages(char * package_import_n
 static void init_compiler(struct bytecode_compiler * compiler, scope_type_t scope_type, struct bytecode_compiler * parent_compiler) {
     compiler->current_function = alloc_function();
     init_trie_list(&compiler->function_call_list);
+    init_trie_list(&compiler->const_global_variables);
 
     if(scope_type == SCOPE_FUNCTION) {
         compiler->package = parent_compiler->package;
@@ -1158,6 +1180,7 @@ static void free_compiler(struct bytecode_compiler * compiler) {
     free(compiler->scanner);
     for_each_node(&compiler->function_call_list, NULL, free_trie_node_key_string);
     free_trie_list(&compiler->function_call_list);
+    free_trie_list(&compiler->const_global_variables);
     free(compiler);
 }
 

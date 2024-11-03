@@ -24,6 +24,7 @@ typedef enum {
     //My own tokens
     TOKEN_STRUCT,
     TOKEN_COLON,
+    TOKEN_CONST,
     TOKEN_PUB,
     TOKEN_USE,
     TOKEN_PARALLEL,

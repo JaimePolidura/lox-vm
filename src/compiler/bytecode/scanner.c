@@ -112,6 +112,7 @@ static tokenType_t identifier_type(struct scanner * scanner) {
     switch (scanner->start[0]) {
         case 'a': return check_keyword(scanner, 1, 2, "nd", TOKEN_AND);
         case 'e': return check_keyword(scanner, 1, 3, "lse", TOKEN_ELSE);
+        case 'c': return check_keyword(scanner, 1, 4, "onst", TOKEN_CONST);
         case 'i': {
             if(scanner->current - scanner->start > 1) {
                 switch (scanner->start[1]) {

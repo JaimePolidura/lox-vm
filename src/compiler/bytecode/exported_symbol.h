@@ -14,7 +14,8 @@ typedef enum {
 //This is used to check if a package can access other package's symbols
 struct exported_symbol {
     exported_symbol_type_t type;
-    int constant_identifier;
+    int constant_identifier; //Chunk constant identifier
+    bool is_const; //The value cannot get modified, used for structs and vars.
 };
 
-struct exported_symbol * to_exported_symbol(int identifier, exported_symbol_type_t type);
+struct exported_symbol * alloc_exported_symbol(int identifier, bool is_const, exported_symbol_type_t type);

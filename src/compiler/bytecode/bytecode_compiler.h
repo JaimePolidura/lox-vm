@@ -34,6 +34,7 @@ struct local {
     int depth;
 };
 
+//There will be one instance of struct bytecode_compiler per package being compiled
 struct bytecode_compiler {
     struct package * package;
     struct function_object * current_function;
@@ -84,6 +85,9 @@ struct bytecode_compiler {
     struct lox_hash_table defined_functions;
 
     uint32_t next_package_id;
+
+    //Trie list of const global variables declared in a package file
+    struct trie_list const_global_variables;
 };
 
 //compile_bytecode() takes the source code and returns the compiled bytecode.
