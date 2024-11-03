@@ -38,7 +38,7 @@ void profile_instruction_profiler(uint8_t * pc, struct function_object * functio
 }
 
 bool can_jit_compile_profiler(struct function_object * function) {
-    return true;
+    return function->state_as.not_profiling.n_calls >= MIN_CALLS_TO_JIT_COMPILE;
 }
 
 static void profile_binary_op(struct function_object * function, int instruction_index) {

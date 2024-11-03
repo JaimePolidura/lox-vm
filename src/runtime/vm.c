@@ -35,7 +35,7 @@ static void set_global(struct call_frame * current_frame);
 static void set_local(struct call_frame * current_frame);
 static void get_local(struct call_frame * current_frame);
 static void jump_if_false(struct call_frame * current_frame);
-static void jump(struct call_frame * current_frame);
+static void jump(struct call_frame * call_frame);
 static void loop(struct call_frame * current_frame);
 static void call_vm(struct call_frame * current_frame);
 static void return_function(struct call_frame * function_to_return_frame);
@@ -69,6 +69,8 @@ static void set_array_element(struct call_frame * call_frame);
 static void fast_16_const(struct call_frame * call_frame);
 static void enter_monitor_vm_explicit(struct call_frame * call_frame);
 static void exit_monitor_vm_explicit(struct call_frame * call_frame);
+static void jit_compile(struct function_object *);
+static inline void increase_n_function_calls(struct function_object *function);
 
 #define READ_BYTECODE(frame) (*frame->pc++)
 #define READ_U16(frame) \
@@ -114,7 +116,7 @@ static interpret_result_t run() {
     thread_on_safe_point();
 
     for(;;) {
-        if(current_frame->function->state == FUNC_STATE_NOT_PROFILING) {
+        if(current_frame->function->state == FUNC_STATE_PROFILING) {
             profile_instruction_profiler(current_frame->pc, current_frame->function);
         }
 
@@ -369,43 +371,40 @@ static void call_function(struct function_object * function, int n_args, bool is
 #ifdef NAN_BOXING
     switch (function->state) {
         case FUNC_STATE_NOT_PROFILING:
-            if (atomic_fetch_add(&function->state_as.not_profiling.n_calls, 1) >= MIN_CALLS_TO_PROFILE) {
-                int n_instructions = function->chunk->in_use;
-                init_function_profile_data(&function->state_as.profiling.profile_data, n_instructions);
-                COMPILER_BARRIER();
-                function->state = FUNC_STATE_PROFILING;
-            }
+            increase_n_function_calls(function);
             break;
         case FUNC_STATE_PROFILING:
             if(can_jit_compile_profiler(function)) {
-                struct jit_compilation_result compation_result = try_jit_compile(function);
-                //Another thread was trying to compile the function
-                if(compation_result.failed_beacause_of_concurrent_compilation) {
-                    return;
-                }
-                //The function code cannot get compiled
-                if(!compation_result.success) {
-                    function->state = FUNC_STATE_JIT_UNCOMPILABLE;
-                    return;
-                }
-
-                function->state_as.jit_compiled.code = to_executable_jit_compiation_result(compation_result);
-                COMPILER_BARRIER();
-                function->state = FUNC_STATE_JIT_COMPILED;
-
-                run_jit_compiled(function);
+                jit_compile(function);
             }
             break;
         case FUNC_STATE_JIT_COMPILING:
+        case FUNC_STATE_JIT_UNCOMPILABLE:
             break;
         case FUNC_STATE_JIT_COMPILED:
             run_jit_compiled(function);
             break;
-        case FUNC_STATE_JIT_UNCOMPILABLE:
-            break;
-
     }
 #endif
+}
+
+static void jit_compile(struct function_object * function) {
+    struct jit_compilation_result compation_result = try_jit_compile(function);
+    //Another thread was trying to compile the function
+    if(compation_result.failed_beacause_of_concurrent_compilation) {
+        return;
+    }
+    //The function code cannot get compiled
+    if(!compation_result.success) {
+        function->state = FUNC_STATE_JIT_UNCOMPILABLE;
+        return;
+    }
+
+    function->state_as.jit_compiled.code = to_executable_jit_compiation_result(compation_result);
+    COMPILER_BARRIER();
+    function->state = FUNC_STATE_JIT_COMPILED;
+
+    run_jit_compiled(function);
 }
 
 static void print() {
@@ -512,11 +511,19 @@ static void set_struct_field(struct call_frame * call_frame) {
     }
 }
 
-static void jump(struct call_frame * current_frame) {
-    current_frame->pc += READ_U16(current_frame);
+static void jump(struct call_frame * call_frame) {
+    if (call_frame->function->state == FUNC_STATE_NOT_PROFILING) {
+        increase_n_function_calls(call_frame->function);
+    }
+
+    call_frame->pc += READ_U16(call_frame);
 }
 
 static void jump_if_false(struct call_frame * call_frame) {
+    if (call_frame->function->state == FUNC_STATE_NOT_PROFILING) {
+        increase_n_function_calls(call_frame->function);
+    }
+
     if(!cast_to_boolean(peek(0))) {
         int total_opcodes_to_jump_if_false = READ_U16(call_frame);
         call_frame->pc += total_opcodes_to_jump_if_false;
@@ -530,6 +537,10 @@ static void jump_if_false(struct call_frame * call_frame) {
 //OP_LOOP doest call safepoint because OP_JUMP_IF_FALSE already calls it
 //OP_LOOP and OP_JUMP_IF_FALSE are used always together in loops
 static void loop(struct call_frame * call_frame) {
+    if (call_frame->function->state == FUNC_STATE_NOT_PROFILING) {
+        increase_n_function_calls(call_frame->function);
+    }
+
     uint16_t val = READ_U16(call_frame);
     call_frame->pc -= val;
 }
@@ -780,4 +791,21 @@ void on_gc_finished_vm(struct gc_result result) {
 #ifdef VM_TEST
     current_vm.last_gc_result = result;
 #endif
+}
+
+static inline void increase_n_function_calls(struct function_object * function) {
+    //By doing "n_calls < MIN_CALLS_TO_PROFILE" and "add n calls == min calls" we will avoid the race condition when
+    //a thread increments the function calls & other thread initializes the function profile data (since these datastructures
+    //are placed in a union, it will corrupt the profile data)
+    //By doing "==" comparation, only one thread will observe the function calls tao be the same as MIN_CALLS_TO_PROFILE
+    //In this way only one function profile data will get allocated
+    if (atomic_load(&function->state_as.not_profiling.n_calls) < MIN_CALLS_TO_PROFILE &&
+        atomic_fetch_add(&function->state_as.not_profiling.n_calls, 1) == MIN_CALLS_TO_PROFILE) {
+
+        int n_instructions = function->chunk->in_use;
+        init_function_profile_data(&function->state_as.profiling.profile_data, n_instructions);
+        COMPILER_BARRIER();
+        function->state = FUNC_STATE_PROFILING;
+        atomic_thread_fence(memory_order_seq_cst);
+    }
 }
