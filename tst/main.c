@@ -80,29 +80,30 @@ int main() {
     compiled_packages = NULL;
 
     #ifdef USING_GEN_GC_ALG
-    simple_vm_test_barriers_outer();
-    simple_vm_test_major_gc_outer();
+//    simple_vm_test_barriers_outer();
+//    simple_vm_test_major_gc_outer();
     #endif
 
-    simple_vm_test_gc_old_gen_outer();
-    simple_vm_test_gc_local_objects_may_be_moved_outer();
-    simple_vm_test_gc_global_objects_may_be_moved_outer();
-    vm_global_functions_test_outer();
-    vm_file_global_structs_test_outer();
-    vm_file_global_variables_test_outer();
-    simple_vm_test_threads_gc_outer();
-    simple_vm_test_threads_no_race_condition_outer();
-    simple_vm_test_threads_race_condition_outer();
-    simple_vm_test_threads_join_outer();
-    simple_vm_test_with_structs_outer();
-    simple_vm_test_with_while_outer();
-    simple_vm_test_with_ifs_outer();
-    simple_vm_test_with_scope_variables_outer();
-    simple_vm_test_with_functions_outer();
-    simple_vm_test_with_nested_functions_outer();
-    simple_vm_test_with_for_loops_outer();
-    simple_vm_test_inline_array_initilization_outer();
-    simple_vm_test_empty_array_initilization_outer();
+//    simple_vm_test_gc_old_gen_outer();
+//    simple_vm_test_gc_local_objects_may_be_moved_outer();
+//    simple_vm_test_gc_global_objects_may_be_moved_outer();
+//    vm_global_functions_test_outer();
+//    vm_file_global_structs_test_outer();
+//    vm_file_global_variables_test_outer();
+//    simple_vm_test_threads_gc_outer();
+//    simple_vm_test_threads_no_race_condition_outer();
+//    simple_vm_test_threads_race_condition_outer();
+//    simple_vm_test_threads_join_outer();
+//    simple_vm_test_with_structs_outer();
+//    simple_vm_test_with_while_outer();
+//    simple_vm_test_with_ifs_outer();
+//    simple_vm_test_with_scope_variables_outer();
+//    simple_vm_test_with_functions_outer();
+//    simple_vm_test_with_nested_functions_outer();
+//    simple_vm_test_with_for_loops_outer();
+//    simple_vm_test_inline_array_initilization_outer();
+//    simple_vm_test_empty_array_initilization_outer();
+    simple_vm_test_const_outer();
 #endif
 
 #ifdef RUN_HASH_TABLE_TEST

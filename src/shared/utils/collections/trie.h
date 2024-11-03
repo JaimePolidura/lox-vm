@@ -7,6 +7,8 @@
 
 #define TO_TRIE_INDEX_KEY(key) (TO_UPPER_CASE(key) - 65)
 
+#define NON_TRIE_VALUE ((void *) 0xFFFFFFFFFFFFFFFF)
+
 typedef bool (*consumer_t)(void *, void *);
 
 // All keys are set to lowercase. The keys also include _

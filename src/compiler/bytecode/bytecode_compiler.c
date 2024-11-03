@@ -358,6 +358,9 @@ static void var_declaration(struct bytecode_compiler * compiler, bool is_public,
     if(is_const && is_local_variable){
         report_error(compiler, compiler->parser->previous, "Cannot declare local variables as const");
     }
+    if(is_const && !is_local_variable) {
+        put_trie(&compiler->const_global_variables, variable_name.start, variable_name.length, NON_TRIE_VALUE);
+    }
 
     int variable_identifier = is_local_variable ?
         add_local_variable(compiler, variable_name) :
@@ -729,7 +732,7 @@ static void variable(struct bytecode_compiler * compiler, bool can_assign) {
         int function_name_length = variable_name.length;
         char * function_name = copy_string(variable_name.start, function_name_length);
         compiler->current_function_call_name = function_name;
-        put_trie(&compiler->function_call_list, function_name, function_name_length, NULL);
+        put_trie(&compiler->function_call_list, function_name, function_name_length, NON_TRIE_VALUE);
     }
 }
 

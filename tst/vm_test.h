@@ -481,6 +481,22 @@ TEST(simple_vm_test_with_functions) {
     reset_vm();
 }
 
+TEST(simple_vm_test_const){
+    struct compilation_result compilation_result = compile_standalone(
+            "const var a = 10;"
+            "pub const var b = 10;"
+            "print a + b;"
+    );
+    start_vm();
+    interpret_result_t vm_result = interpret_vm(compilation_result);
+
+    ASSERT_TRUE(vm_result == EXIT_SUCCESS);
+    ASSERT_NEXT_VM_LOG(current_vm, "20.000000");
+
+    stop_vm();
+    reset_vm();
+}
+
 TEST(simple_vm_test_with_scope_variables) {
     struct compilation_result compilation_result = compile_standalone(
             "var edad = 10;\n"
