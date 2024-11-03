@@ -87,6 +87,7 @@ struct bytecode_compiler {
     uint32_t next_package_id;
 
     //Trie list of const global variables declared in a package file
+    //This will be preserved after compilation, it will be stored in package.h
     struct trie_list const_global_variables;
 };
 

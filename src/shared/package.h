@@ -47,6 +47,9 @@ struct package {
     //Modified and used at compile time & maybe used in runtime
     struct lox_hash_table defined_functions;
 
+    //Includes the name of const global variables defined in the package
+    struct trie_list const_variables;
+
     uint32_t package_id;
 };
 

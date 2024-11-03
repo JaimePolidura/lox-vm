@@ -156,7 +156,8 @@ struct parse_rule rules[] = {
         [TOKEN_WHILE] = {NULL, NULL, PREC_NONE},
         [TOKEN_ERROR] = {NULL, NULL, PREC_NONE},
         [TOKEN_CLOSE_SQUARE] = {NULL, NULL, PREC_NONE},
-        [TOKEN_EOF] = {NULL, NULL, PREC_NONE},};
+        [TOKEN_EOF] = {NULL, NULL, PREC_NONE},
+};
 
 struct compilation_result compile_bytecode(char * source_code, char * compiling_package_name, char * base_dir) {
     if(compiled_packages == NULL){
@@ -170,6 +171,7 @@ struct compilation_result compile_bytecode(char * source_code, char * compiling_
 
     compiler->package->main_function = end_compiler(compiler);
     compiler->package->defined_functions = compiler->defined_functions;
+    compiler->package->const_variables = compiler->const_global_variables;
 
     struct compilation_result compilation_result = {
             .compiled_package = compiler->package,
@@ -359,7 +361,8 @@ static void var_declaration(struct bytecode_compiler * compiler, bool is_public,
         report_error(compiler, compiler->parser->previous, "Cannot declare local variables as const");
     }
     if(is_const && !is_local_variable) {
-        put_trie(&compiler->const_global_variables, variable_name.start, variable_name.length, NON_TRIE_VALUE);
+        char * copy_variable_name = copy_string(variable_name.start, variable_name.length);
+        put_trie(&compiler->const_global_variables, copy_variable_name, variable_name.length, NON_TRIE_VALUE);
     }
 
     int variable_identifier = is_local_variable ?
@@ -1183,7 +1186,6 @@ static void free_compiler(struct bytecode_compiler * compiler) {
     free(compiler->scanner);
     for_each_node(&compiler->function_call_list, NULL, free_trie_node_key_string);
     free_trie_list(&compiler->function_call_list);
-    free_trie_list(&compiler->const_global_variables);
     free(compiler);
 }
 
