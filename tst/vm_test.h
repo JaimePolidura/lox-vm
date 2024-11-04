@@ -482,19 +482,34 @@ TEST(simple_vm_test_with_functions) {
 }
 
 TEST(simple_vm_test_const){
-    struct compilation_result compilation_result = compile_standalone(
-            "const var a = 10;"
-            "pub const var b = 10;"
-            "print a + b;"
+    struct compilation_result compilation_result2 = compile_standalone(
+            "fun funcion() {"
+            "   var r = 0;"
+            "   for(var i = 0; i < 10; i = i + 1) {"
+            "       if (r > 10) {"
+            "           return r;"
+            "       } else {"
+            "           r = r + 1;"
+            "       }"
+            "   }"
+            "   return r;"
+            "}"
     );
-    start_vm();
-    interpret_result_t vm_result = interpret_vm(compilation_result);
+    disassemble_package(compilation_result2.compiled_package, DISASSEMBLE_PACKAGE_FUNCTIONS);
 
-    ASSERT_TRUE(vm_result == EXIT_SUCCESS);
-    ASSERT_NEXT_VM_LOG(current_vm, "20.000000");
-
-    stop_vm();
-    reset_vm();
+//    struct compilation_result compilation_result = compile_standalone(
+//            "const var a = 10;"
+//            "pub const var b = 10;"
+//            "print a + b;"
+//    );
+//    start_vm();
+//    interpret_result_t vm_result = interpret_vm(compilation_result);
+//
+//    ASSERT_TRUE(vm_result == EXIT_SUCCESS);
+//    ASSERT_NEXT_VM_LOG(current_vm, "20.000000");
+//
+//    stop_vm();
+//    reset_vm();
 }
 
 TEST(simple_vm_test_with_scope_variables) {

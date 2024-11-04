@@ -29,7 +29,6 @@ typedef enum {
     OP_JUMP,                     // Index: 23
     OP_LOOP,                     // Index: 24
     OP_CALL,                     // Index: 25
-
     OP_INITIALIZE_STRUCT,        // Index: 26
     OP_GET_STRUCT_FIELD,         // Index: 27
     OP_SET_STRUCT_FIELD,         // Index: 28 WB
@@ -49,6 +48,11 @@ typedef enum {
     OP_ENTER_MONITOR_EXPLICIT,   // Index: 41
     OP_EXIT_MONITOR_EXPLICIT,    // Index: 42
 } bytecode_t;
+
+typedef enum {
+    OP_TYPE_ARITHMETIC, //OP_ADD, OP_SUB, OP_MUL, OP_DIV
+    OP_TYPE_BRANCH, //OP_SUB
+} bytecode_type_t;
 
 #define OP_CONSTANT_LENGTH 2
 #define OP_NIL_LENGTH 1
@@ -100,6 +104,7 @@ typedef enum {
 bool is_fwd_jump_bytecode_instruction(bytecode_t instruction);
 bool is_bwd_jump_bytecode_instruction(bytecode_t instruction);
 bool is_jump_bytecode_instruction(bytecode_t instruction);
+bool is_constant_bytecode_instruction(bytecode_t instruction);
 
 int get_n_push_bytecode_instruction(bytecode_t instruction);
 int get_n_pop_bytecode_instruction(bytecode_t instruction);
