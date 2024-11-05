@@ -30,7 +30,7 @@ struct function_object {
     volatile function_state_t state;
     union {
         //Used when state is FUNC_STATE_NOT_PROFILING
-        //This is just a counter of the function calls made to this function & the number of branch instruction taken in this function
+        //This is just a counter of the function calls made to this function & the number of to instruction taken in this function
         //This is speciallly useful in loops
         struct {
             int n_calls;

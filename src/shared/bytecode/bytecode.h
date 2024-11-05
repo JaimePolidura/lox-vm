@@ -49,11 +49,6 @@ typedef enum {
     OP_EXIT_MONITOR_EXPLICIT,    // Index: 42
 } bytecode_t;
 
-typedef enum {
-    OP_TYPE_ARITHMETIC, //OP_ADD, OP_SUB, OP_MUL, OP_DIV
-    OP_TYPE_BRANCH, //OP_SUB
-} bytecode_type_t;
-
 #define OP_CONSTANT_LENGTH 2
 #define OP_NIL_LENGTH 1
 #define OP_TRUE_LENGTH 1
