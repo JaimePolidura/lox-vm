@@ -1,6 +1,7 @@
 //Control flow nodes used in SSA IR
 
 #include "ssa_data.h"
+#include "runtime/threads/monitor.h"
 
 typedef enum {
     SSA_CONTROL_NODE_TYPE_RETURN,
@@ -12,22 +13,66 @@ struct ssa_control {
 };
 
 struct ssa_control_print {
+    struct ssa_control control;
+
     struct ssa_data * data;
 };
 
 struct ssa_control_return {
+    struct ssa_control control;
+
     struct ssa_data * data;
 };
 
-OP_JUMP_IF_FALSE,            // Index: 22
-OP_JUMP,                     // Index: 23
-OP_LOOP,                     // Index: 24
-OP_CALL,                     // Index: 25
-OP_SET_STRUCT_FIELD,         // Index: 28 WB
-OP_ENTER_PACKAGE,            // Index: 29
-OP_EXIT_PACKAGE,             // Index: 30
-OP_ENTER_MONITOR,            // Index: 31
-OP_EXIT_MONITOR,             // Index: 32
-OP_SET_ARRAY_ELEMENT,        // Index: 35 WB
-OP_ENTER_MONITOR_EXPLICIT,   // Index: 41
-OP_EXIT_MONITOR_EXPLICIT,    // Index: 42
+struct ssa_control_enter_monitor {
+    struct ssa_control control;
+
+    struct monitor * monitor;
+};
+
+struct ssa_control_exit_monitor {
+    struct ssa_control control;
+
+    struct monitor * monitor;
+};
+
+struct ssa_control_set_struct_field {
+    struct ssa_control control;
+
+    struct string_object * field_name;
+    struct ssa_data * new_value;
+    struct ssa_data * instance;
+};
+
+struct ssa_control_set_array_element {
+    struct ssa_control control;
+
+    uint16_t index;
+    struct ssa_data * array;
+    struct ssa_data * new_element;
+};
+
+//OP_LOOP
+struct ssa_control_loop_jump {
+    struct ssa_control control;
+
+    struct ssa_control * to;
+};
+
+struct ssa_control_function_call {
+    struct ssa_control control;
+
+    int n_arguments;
+    bool is_parallel;
+    struct object * function_obj;
+};
+
+//OP_JUMP_IF_FALSE //OP_JUMP
+struct ssa_control_condition {
+    struct ssa_control control;
+
+    struct ssa_data * condition;
+    struct ssa_control * true_branch;
+    //If the "if" statement does not contain any else statement, this will be NULL
+    struct ssa_control * false_branch;
+};

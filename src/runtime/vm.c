@@ -795,10 +795,10 @@ void on_gc_finished_vm(struct gc_result result) {
 
 static inline void increase_n_function_calls(struct function_object * function) {
     //By doing "n_calls < MIN_CALLS_TO_PROFILE" and "add n calls == min calls" we will avoid the race condition when
-    //a thread increments the function calls & other thread initializes the function profile data (since these datastructures
-    //are placed in a union, it will corrupt the profile data)
+    //a thread increments the function calls & other thread initializes the function profile unary_value (since these datastructures
+    //are placed in a union, it will corrupt the profile unary_value)
     //By doing "==" comparation, only one thread will observe the function calls tao be the same as MIN_CALLS_TO_PROFILE
-    //In this way only one function profile data will get allocated
+    //In this way only one function profile unary_value will get allocated
     if (atomic_load(&function->state_as.not_profiling.n_calls) < MIN_CALLS_TO_PROFILE &&
         atomic_fetch_add(&function->state_as.not_profiling.n_calls, 1) == MIN_CALLS_TO_PROFILE) {
 
