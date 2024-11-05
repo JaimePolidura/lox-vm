@@ -23,11 +23,11 @@ static int imm_negate_operation(struct jit_compiler * jit_compiler, struct opera
     return -op.as.immediate;
 }
 
-//True value:  0x7ffc000000000003
-//False value: 0x7ffc000000000002
+//True value_node:  0x7ffc000000000003
+//False value_node: 0x7ffc000000000002
 //value1 = value0 + ((TRUE - value0) + (FALSE - value0))
 //value1 = - value0 + TRUE + FALSE
-//value1 = (TRUE - value) + FALSE
+//value1 = (TRUE - value_node) + FALSE
 static int reg_not_operation(struct jit_compiler * jit_compiler, struct operand op) {
     register_t lox_boolean_value_reg = push_register_allocator(&jit_compiler->register_allocator);
     register_t value_to_negate = op.as.reg;

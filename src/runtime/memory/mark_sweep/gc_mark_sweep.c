@@ -16,10 +16,10 @@ static void notify_start_gc_signal_acked();
 static void await_until_gc_finished();
 
 static void mark_root_dependences(struct mark_sweep_global_info * gc_mark_sweep);
-static void add_value_gc_info(struct object * value);
+static void add_value_gc_info(struct object * value_node);
 static void mark_globals();
 static void mark_stack(struct stack_list * terminated_threads);
-static void mark_value(lox_value_t * value);
+static void mark_value(lox_value_t * value_node);
 static void mark_object(struct object * object);
 static void mark_lox_arraylist(struct lox_arraylist * array);
 static void mark_hash_table(struct lox_hash_table * table);
@@ -141,7 +141,7 @@ void check_gc_on_safe_point_alg() {
         case GC_NONE: return;
         case GC_WAITING: {
             //There is a race condition if a thread terminates and the gc starts.
-            //The gc started thread might have read a stale value of the number_current_threads, and if other thread
+            //The gc started thread might have read a stale value_node of the number_current_threads, and if other thread
             //has termianted, the gc thread will block forever
             //To solve this we want to wake up the gc thread to revaluate its waiting condition.
             //This will work because, calling this method, number_current_threads has been decreased (see runtime code)
@@ -201,8 +201,8 @@ static bool mark_thread_stack(struct vm_thread * parent, struct vm_thread * chil
         struct stack_list * terminated_threads = terminated_threads_ptr;
         push_stack_list(terminated_threads, child);
     } else {
-        for(lox_value_t * value = child->stack; value < child->esp; value++) {
-            mark_value(value);
+        for(lox_value_t * value_node = child->stack; value_node < child->esp; value_node++) {
+            mark_value(value_node);
         }
     }
 
@@ -228,7 +228,7 @@ static bool for_each_package_callback(void * trie_node_ptr, void * extra_ignored
     for(int i = 0; i < package->global_variables.capacity && package->state != PENDING_COMPILATION; i++) {
         struct hash_table_entry * entry = &package->global_variables.entries[i];
         if(entry != NULL && entry->key != NULL){
-            mark_value(&entry->value);
+            mark_value(&entry->value_node);
             mark_object(&entry->key->object);
         }
     }
@@ -241,7 +241,7 @@ static void mark_root_dependences(struct mark_sweep_global_info * gc_mark_sweep)
         switch (object->type) {
             case OBJ_STRUCT_INSTANCE: {
                 struct struct_instance_object * struct_object = (struct struct_instance_object *) object;
-                mark_hash_table(&struct_object->fields);
+                mark_hash_table(&struct_object->fields_nodes);
                 mark_object(&struct_object->object);
                 break;
             }
@@ -308,11 +308,11 @@ static bool sweep_heap_thread(struct vm_thread * parent_ignore, struct vm_thread
 static void mark_hash_table_entry(
         struct string_object * key,
         struct string_object ** key_reference_holder,
-        lox_value_t value,
+        lox_value_t value_node,
         lox_value_t * value_reference_holder,
         void * extra_ignored)
 {
-    mark_value(&value);
+    mark_value(&value_node);
 }
 
 static void mark_hash_table(struct lox_hash_table * table) {
@@ -325,9 +325,9 @@ static void mark_lox_arraylist(struct lox_arraylist * array) {
     }
 }
 
-static void mark_value(lox_value_t * value) {
-    if(IS_OBJECT((*value))){
-        mark_object(AS_OBJECT(*value));
+static void mark_value(lox_value_t * value_node) {
+    if(IS_OBJECT((*value_node))){
+        mark_object(AS_OBJECT(*value_node));
     }
 }
 
@@ -338,7 +338,7 @@ static void mark_object(struct object * object) {
     }
 }
 
-static void add_value_gc_info(struct object * value) {
+static void add_value_gc_info(struct object * value_node) {
     struct mark_sweep_global_info * gc_mark_sweep = current_vm.gc;
 
     if (gc_mark_sweep->gray_capacity < gc_mark_sweep->gray_count + 1) {
@@ -346,7 +346,7 @@ static void add_value_gc_info(struct object * value) {
         gc_mark_sweep->gray_stack = realloc(gc_mark_sweep->gray_stack, sizeof(struct object*) * gc_mark_sweep->gray_capacity);
     }
 
-    gc_mark_sweep->gray_stack[gc_mark_sweep->gray_count++] = value;
+    gc_mark_sweep->gray_stack[gc_mark_sweep->gray_count++] = value_node;
 }
 
 static void await_all_threads_signal_start_gc() {
@@ -395,10 +395,10 @@ static void finish_gc() {
 }
 
 struct struct_instance_object * alloc_struct_instance_gc_alg(struct struct_definition_object * definition) {
-    struct struct_instance_object * instance = malloc(sizeof(struct struct_instance_object));
-    init_struct_instance_object(instance, definition);
-    add_object_to_heap_gc_alg(&instance->object);
-    return instance;
+    struct struct_instance_object * instance_node = malloc(sizeof(struct struct_instance_object));
+    init_struct_instance_object(instance_node, definition);
+    add_object_to_heap_gc_alg(&instance_node->object);
+    return instance_node;
 }
 
 struct string_object * alloc_string_gc_alg(char * chars, int length) {

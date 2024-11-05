@@ -5,7 +5,7 @@
 //jit_mode_t is stored in jit_compiler.h This is only used at jit compilation time
 typedef enum {
     //Set when vm_thread is runnig jit compiled code
-    //vm_thread esp holds the value before the jit compiled function was run. It is not updated anymore.
+    //vm_thread esp holds the value_node before the jit compiled function was run. It is not updated anymore.
     //Stack values inside the jit compiled function are stored in registers.
     //RCX points to vm_thread esp
     //RCD points to callframe slots

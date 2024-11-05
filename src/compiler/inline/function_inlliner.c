@@ -326,7 +326,7 @@ static void rename_return_statements(struct bytecode_list * to_inline, struct fu
             struct bytecode_list * next_to_current = current_instruction->next;
 
             if (next_to_current->bytecode == OP_EOF) {
-                //The callee will always place the return value in the stack
+                //The callee will always place the return value_node in the stack
                 //The caller will always pop it from the stack or OP_POP instruction will be used
                 //So we can discard return statements
                 unlink_instruction_bytecode_list(current_instruction);

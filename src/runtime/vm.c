@@ -296,7 +296,7 @@ static void set_global(struct call_frame * current_frame) {
 
     //Assigment is an expression
     if(!put_if_present_hash_table(&self_thread->current_package->global_variables, variable_name, peek(0))) {
-        runtime_panic("Cannot assign value to undeclared variable %s", variable_name->chars);
+        runtime_panic("Cannot assign value_node to undeclared variable %s", variable_name->chars);
     }
 }
 
@@ -413,7 +413,7 @@ static void print() {
 #ifdef VM_TEST
     current_vm.log[current_vm.log_entries_in_use++] = to_string(value);
 #else
-    print_lox_value(value);
+    print_lox_value(value_node);
 #endif
 }
 
@@ -795,10 +795,10 @@ void on_gc_finished_vm(struct gc_result result) {
 
 static inline void increase_n_function_calls(struct function_object * function) {
     //By doing "n_calls < MIN_CALLS_TO_PROFILE" and "add n calls == min calls" we will avoid the race condition when
-    //a thread increments the function calls & other thread initializes the function profile unary_value (since these datastructures
-    //are placed in a union, it will corrupt the profile unary_value)
+    //a thread increments the function calls & other thread initializes the function profile unary_value_node (since these datastructures
+    //are placed in a union, it will corrupt the profile unary_value_node)
     //By doing "==" comparation, only one thread will observe the function calls tao be the same as MIN_CALLS_TO_PROFILE
-    //In this way only one function profile unary_value will get allocated
+    //In this way only one function profile unary_value_node will get allocated
     if (atomic_load(&function->state_as.not_profiling.n_calls) < MIN_CALLS_TO_PROFILE &&
         atomic_fetch_add(&function->state_as.not_profiling.n_calls, 1) == MIN_CALLS_TO_PROFILE) {
 

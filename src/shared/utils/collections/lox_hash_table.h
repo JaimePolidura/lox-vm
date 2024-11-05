@@ -28,7 +28,7 @@ struct lox_hash_table {
 
 void for_each_value_hash_table(struct lox_hash_table * table, void * extra, lox_hashtable_consumer_t consumer);
 
-//Get the value of the associated key in the value parameter. Returns false if the element is not found
+//Get the value_node of the associated key in the value_node parameter. Returns false if the element is not found
 bool get_hash_table(struct lox_hash_table * table, struct string_object * key, lox_value_t * value);
 
 //Removes element from the table. Return true if the element was removed
@@ -49,7 +49,7 @@ bool put_hash_table(struct lox_hash_table * table, struct string_object * key, l
 //Returns true if key is present in the map
 bool contains_hash_table(struct lox_hash_table * table, struct string_object * key);
 
-//Returns the key value by its hash
+//Returns the key value_node by its hash
 struct string_object * get_key_by_hash(struct lox_hash_table * table, uint32_t keyHash);
 
 void init_hash_table(struct lox_hash_table * table);

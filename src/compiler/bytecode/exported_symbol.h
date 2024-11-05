@@ -15,7 +15,7 @@ typedef enum {
 struct exported_symbol {
     exported_symbol_type_t type;
     int constant_identifier; //Chunk constant identifier
-    bool is_const; //The value cannot get modified, used for structs and vars.
+    bool is_const; //The value_node cannot get modified, used for structs and vars.
 };
 
 struct exported_symbol * alloc_exported_symbol(int identifier, bool is_const, exported_symbol_type_t type);

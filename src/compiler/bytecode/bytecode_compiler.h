@@ -34,7 +34,7 @@ struct local {
     int depth;
 };
 
-//There will be one instance of struct bytecode_compiler per package being compiled
+//There will be one instance_node of struct bytecode_compiler per package being compiled
 struct bytecode_compiler {
     struct package * package;
     struct function_object * current_function;

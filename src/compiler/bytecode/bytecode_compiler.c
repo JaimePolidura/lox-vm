@@ -834,7 +834,7 @@ static void named_variable(
         variable_identifier = add_string_constant(compiler, variable_name);
     }
     if (is_set_op && is_const) {
-        report_error(compiler, variable_name, "Cannot set a value to a declared const variable");
+        report_error(compiler, variable_name, "Cannot set a value_node to a declared const variable");
     }
 
     if (is_global && is_from_external_package) {

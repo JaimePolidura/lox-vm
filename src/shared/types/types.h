@@ -68,24 +68,24 @@ typedef struct {
   } as;
 } lox_value_t;
 
-#define AS_NUMBER(value) ((value).as.immediate)
-#define TO_LOX_VALUE_NUMBER(value) ((lox_value_t){VAL_NUMBER, {.immediate = value}})
-#define IS_NUMBER(value) ((value).type == VAL_NUMBER)
+#define AS_NUMBER(value_node) ((value_node).as.immediate)
+#define TO_LOX_VALUE_NUMBER(value_node) ((lox_value_t){VAL_NUMBER, {.immediate = value_node}})
+#define IS_NUMBER(value_node) ((value_node).type == VAL_NUMBER)
 
-#define IS_NIL(value) ((value).type == VAL_NIL)
+#define IS_NIL(value_node) ((value_node).type == VAL_NIL)
 #define NIL_VALUE() ((lox_value_t){VAL_NIL})
 
-#define FALSE_VALUE(value) ((lox_value_t){VAL_BOOL, {.boolean = false}})
-#define TRUE_VALUE(value) ((lox_value_t){VAL_BOOL, {.boolean = true}})
-#define AS_BOOL(value) ((value).as.boolean)
-#define IS_BOOL(value) ((value).type == VAL_BOOL)
-#define TO_LOX_VALUE_BOOL(value) ((lox_value_t){VAL_BOOL, {.boolean = value}})
+#define FALSE_VALUE(value_node) ((lox_value_t){VAL_BOOL, {.boolean = false}})
+#define TRUE_VALUE(value_node) ((lox_value_t){VAL_BOOL, {.boolean = true}})
+#define AS_BOOL(value_node) ((value_node).as.boolean)
+#define IS_BOOL(value_node) ((value_node).type == VAL_BOOL)
+#define TO_LOX_VALUE_BOOL(value_node) ((lox_value_t){VAL_BOOL, {.boolean = value_node}})
 
-#define TO_LOX_VALUE_OBJECT(value) ((lox_value_t){VAL_OBJ, {.object = (struct object*) value}})
-#define AS_OBJECT(value) ((value).as.object)
-#define IS_OBJECT(value) (value.type == VAL_OBJ)
+#define TO_LOX_VALUE_OBJECT(value_node) ((lox_value_t){VAL_OBJ, {.object = (struct object*) value_node}})
+#define AS_OBJECT(value_node) ((value_node).as.object)
+#define IS_OBJECT(value_node) (value_node.type == VAL_OBJ)
 
-#define AS_FUNCTION(value) (struct function_object *) (value.as.object)
+#define AS_FUNCTION(value_node) (struct function_object *) (value_node.as.object)
 
 #endif
 
@@ -98,6 +98,8 @@ bool cast_to_boolean(lox_value_t value);
 struct object * allocate_object(size_t size, object_type_t type);
 
 char * to_string(lox_value_t value);
+
+lox_value_type get_lox_type(lox_value_t lox_value);
 
 #define OBJECT_TYPE(value) (AS_OBJECT(value)->type)
 #define ALLOCATE_OBJ(type, object_type) (type *) allocate_object(sizeof(type), object_type)

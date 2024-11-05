@@ -75,7 +75,7 @@ static int reconstruct_vm_gc_stack(struct jit_compiler * jit_compiler) {
                  IMMEDIATE_TO_OPERAND(sizeof(lox_value_t)));
     }
 
-    //Update updated esp vm value
+    //Update updated esp vm value_node
     emit_mov(&jit_compiler->native_compiled_code,
              DISPLACEMENT_TO_OPERAND(SELF_THREAD_ADDR_REG, offsetof(struct vm_thread, esp)),
              REGISTER_TO_OPERAND(vm_esp_addr_reg));

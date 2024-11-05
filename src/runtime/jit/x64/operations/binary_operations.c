@@ -176,8 +176,8 @@ static void cast_to_lox_boolean(struct jit_compiler * jit_compiler, register_t r
     //If true register_casted_value will hold 1, if false it will hold 0
     emit_al_movzx(&jit_compiler->native_compiled_code, REGISTER_TO_OPERAND(register_casted_value));
 
-    //If true, register_casted_value will hold 1, if you add 2, you will get the value of TAG_TRUE defined in types.h
-    //If false, register_casted_value will hold 0, if you add 2, you will get the value of TAG_FALSE defined in types.h
+    //If true, register_casted_value will hold 1, if you add 2, you will get the value_node of TAG_TRUE defined in types.h
+    //If false, register_casted_value will hold 0, if you add 2, you will get the value_node of TAG_FALSE defined in types.h
     emit_add(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(register_casted_value),
              IMMEDIATE_TO_OPERAND(2));

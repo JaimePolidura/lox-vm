@@ -197,7 +197,7 @@ static void call_jit(struct jit_compiler * jit_compiler) {
             IMMEDIATE_TO_OPERAND(n_args),
             IMMEDIATE_TO_OPERAND(is_parallel));
 
-    //call() modifies vm_thread->esp to point the correct value
+    //call() modifies vm_thread->esp to point the correct value_node
     emit_mov(&jit_compiler->native_compiled_code,
              LOX_ESP_REG_OPERAND,
              DISPLACEMENT_TO_OPERAND(SELF_THREAD_ADDR_REG, offsetof(struct vm_thread, esp)));
@@ -270,7 +270,7 @@ static void return_jit(struct jit_compiler * jit_compiler, bool * finish_compila
     emit_lox_push(jit_compiler, returned_value.operand.as.reg);
     pop_register_allocator(&jit_compiler->register_allocator);
 
-    //We update self_thread with the new esp value
+    //We update self_thread with the new esp value_node
     emit_mov(&jit_compiler->native_compiled_code,
              DISPLACEMENT_TO_OPERAND(SELF_THREAD_ADDR_REG, offsetof(struct vm_thread, esp)),
              LOX_ESP_REG_OPERAND);
@@ -536,13 +536,13 @@ static void get_struct_field(struct jit_compiler * jit_compiler) {
              REGISTER_TO_OPERAND(struct_addr_reg),
              IMMEDIATE_TO_OPERAND(offsetof(struct struct_instance_object, fields)));
 
-    //Load field_value_reg which will hold the struct value
+    //Load field_value_reg which will hold the struct value_node
     register_t field_value_reg = push_register_allocator(&jit_compiler->register_allocator);
     emit_mov(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(field_value_reg),
              LOX_ESP_REG_OPERAND);
 
-    //The value will be allocated rigth after lox rsp. lox rsp always points to the first non-used slot of the stack
+    //The value_node will be allocated rigth after lox rsp. lox rsp always points to the first non-used slot of the stack
     call_external_c_function(
             jit_compiler,
             MODE_JIT,
@@ -573,7 +573,7 @@ static void initialize_struct(struct jit_compiler * jit_compiler) {
     struct struct_definition_object * struct_definition = (struct struct_definition_object *) AS_OBJECT(READ_CONSTANT(jit_compiler));
     int n_fields = struct_definition->n_fields;
 
-    //Alloc struct & load fields into struct_addr_reg
+    //Alloc struct & load fields_nodes into struct_addr_reg
     uint16_t instruction_index = call_external_c_function(
             jit_compiler,
             MODE_JIT,
@@ -591,7 +591,7 @@ static void initialize_struct(struct jit_compiler * jit_compiler) {
              IMMEDIATE_TO_OPERAND(offsetof(struct struct_instance_object, fields))
     );
 
-    //Load struct fields into lox stack
+    //Load struct fields_nodes into lox stack
     for(int i = 0; i < n_fields; i++){
         struct pop_stack_operand_result pop_result = pop_stack_operand_jit_stack_as_register(jit_compiler);
         struct string_object * current_field_name = struct_definition->field_names[n_fields - i -  1];
@@ -688,7 +688,7 @@ static void get_global(struct jit_compiler * jit_compiler) {
             REGISTER_TO_OPERAND(global_value_reg),
             LOX_ESP_REG_OPERAND);
 
-    //The value will be allocated rigth after RSP
+    //The value_node will be allocated rigth after RSP
     call_external_c_function(
             jit_compiler,
             MODE_JIT,
@@ -878,7 +878,7 @@ static void record_compiled_bytecode(struct jit_compiler * jit_compiler, uint16_
 }
 
 //Assembly implementation of AS_OBJECT defined in types.h
-//AS_OBJECT(value) ((struct object *) (uintptr_t)((value) & ~(FLOAT_SIGN_BIT | FLOAT_QNAN)))
+//AS_OBJECT(value_node) ((struct object *) (uintptr_t)((value_node) & ~(FLOAT_SIGN_BIT | FLOAT_QNAN)))
 //Allocates & deallocates new register
 static uint16_t cast_lox_object_to_ptr(struct jit_compiler * jit_compiler, register_t lox_object_ptr) {
     //~(FLOAT_SIGN_BIT | FLOAT_QNAN)
@@ -898,7 +898,7 @@ static uint16_t cast_lox_object_to_ptr(struct jit_compiler * jit_compiler, regis
 }
 
 //Assembly implementation of TO_LOX_VALUE_OBJECT defined in types.h
-//TO_LOX_VALUE_OBJECT(value) (FLOAT_SIGN_BIT | FLOAT_QNAN | (lox_value_t) value)
+//TO_LOX_VALUE_OBJECT(value_node) (FLOAT_SIGN_BIT | FLOAT_QNAN | (lox_value_t) value_node)
 //Allocates & deallocates new register
 static uint16_t cast_ptr_to_lox_object(struct jit_compiler * jit_compiler, register_t lox_object_ptr) {
     //FLOAT_SIGN_BIT | FLOAT_QNAN
@@ -1007,7 +1007,7 @@ static struct pop_stack_operand_result pop_stack_operand_jit_stack_as_register(s
     struct pop_stack_operand_result item_from_stack = pop_stack_operand_jit_stack(jit_compiler);
 
     if(item_from_stack.operand.type == IMMEDIATE_OPERAND){
-        //Is immediate value
+        //Is immediate value_node
         register_t item_reg = push_register_allocator(&jit_compiler->register_allocator);
 
         uint16_t instruction_index = emit_mov(&jit_compiler->native_compiled_code,

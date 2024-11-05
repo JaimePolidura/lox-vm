@@ -20,10 +20,10 @@ struct array_object * alloc_array_gc_alg(int n_elements);
 //If there is a gc on going, the thread will get blocked.
 void check_gc_on_safe_point_alg();
 
-//Init all struct fields for the gc algorithm. Only called once at boot time
-void * alloc_gc_thread_info_alg(); //The returned value is stored in vm_thread as a thread local value
-void * alloc_gc_object_info_alg(); //The returned value is stored in each struct object gc_info
-void * alloc_gc_vm_info_alg(); //The returned value is stored in vm.h as a global value
+//Init all struct fields_nodes for the gc algorithm. Only called once at boot time
+void * alloc_gc_thread_info_alg(); //The returned value_node is stored in vm_thread as a thread local value_node
+void * alloc_gc_object_info_alg(); //The returned value_node is stored in each struct object gc_info
+void * alloc_gc_vm_info_alg(); //The returned value_node is stored in vm.h as a global value_node
 
 //Starts a gc
 //May fail if there is a garbage colection going on or other thread concurretly tries to start a gc

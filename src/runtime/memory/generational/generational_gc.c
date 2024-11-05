@@ -32,7 +32,7 @@ void check_gc_on_safe_point_alg() {
         case GC_NONE: return;
         case GC_WAITING: {
             //There is a race condition if a thread terminates and the gc starts.
-            //The gc started thread might have read a stale value of the number_current_threads, and if other thread
+            //The gc started thread might have read a stale value_node of the number_current_threads, and if other thread
             //has termianted, the gc thread will block forever
             //To solve this we want to wake up the gc thread to revaluate its waiting condition.
             //This will work because, calling this method, number_current_threads has been decreased (see runtime code)

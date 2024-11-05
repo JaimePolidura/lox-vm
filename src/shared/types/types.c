@@ -7,7 +7,7 @@ bool cast_to_boolean(lox_value_t value) {
 #ifdef NAN_BOXING
     return AS_BOOL(value);
 #else
-    return value.as.immediate != 0;
+    return value_node.as.immediate != 0;
 #endif
 }
 
@@ -23,7 +23,7 @@ struct object * allocate_object(size_t size, object_type_t type) {
     return object;
 }
 
-//This current_function should be only used for testing since it may leak memory when value is a immediate
+//This current_function should be only used for testing since it may leak memory when value_node is a immediate
 char * to_string(lox_value_t value) {
 #ifdef NAN_BOXING
     if(IS_NIL(value)) {
@@ -44,20 +44,34 @@ char * to_string(lox_value_t value) {
         return string_as_double;
     }
 #else
-    switch (value.type) {
+    switch (value_node.type) {
         case VAL_NIL: return "nil"; break;
         case VAL_NUMBER: {
             char * string_as_double = malloc(sizeof(char) * 20);
-            sprintf(string_as_double, "%f", value.as.immediate);
+            sprintf(string_as_double, "%f", value_node.as.immediate);
             return string_as_double;
         }
-        case VAL_BOOL: return value.as.boolean ? "true" : "false"; break;
+        case VAL_BOOL: return value_node.as.boolean ? "true" : "false"; break;
         case VAL_OBJ:
-            switch (value.as.object->type) {
-                case OBJ_STRING: return AS_STRING_CHARS_OBJECT(value);
+            switch (value_node.as.object->type) {
+                case OBJ_STRING: return AS_STRING_CHARS_OBJECT(value_node);
             }
     };
 #endif
     perror("Cannot parse to string");
     exit(-1);
+}
+
+lox_value_type get_lox_type(lox_value_t lox_value) {
+    if(IS_BOOL(lox_value)){
+        return VAL_BOOL;
+    } else if(IS_NIL(lox_value)){
+        return VAL_NIL;
+    } else if(IS_NUMBER(lox_value)){
+        return VAL_NUMBER;
+    } else if(IS_OBJECT(lox_value)) {
+        return VAL_OBJ;
+    } else {
+        return VAL_NIL;
+    }
 }
