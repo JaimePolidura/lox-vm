@@ -20,14 +20,21 @@ typedef enum {
 
 struct ssa_control_node {
     ssa_control_node_type type;
+
+    union {
+        struct ssa_control_node * next;
+        struct {
+            struct ssa_control_node * true_branch;
+            //If the "if" statement does not contain any else statement, this will be NULL
+            struct ssa_control_node * false_branch;
+        } branch;
+    } next;
 };
 
 void * allocate_ssa_block_node(ssa_control_node_type type, size_t size_bytes);
 
 struct ssa_control_start_node {
     ssa_control_node_type type;
-
-    struct ssa_control_node * next;
 };
 
 struct ssa_control_print_node {
@@ -90,7 +97,4 @@ struct ssa_control_conditional_jump_node {
     struct ssa_control_node control;
 
     struct ssa_data_node * condition;
-    struct ssa_control_node * true_branch;
-    //If the "if" statement does not contain any else statement, this will be NULL
-    struct ssa_control_node * false_branch;
 };

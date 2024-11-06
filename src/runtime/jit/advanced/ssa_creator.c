@@ -25,12 +25,10 @@ void create_ssa(
     push_stack_list(&package_stack, package);
 
     struct ssa_control_start_node * start = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_TYPE_START, struct ssa_control_start_node);
+    struct ssa_control_node * last_control_node = (struct ssa_control_node *) start;
 
     for (struct bytecode_list * current = function_bytecode; function_bytecode != NULL; function_bytecode = function_bytecode->next) {
         switch (current->bytecode) {
-            case OP_RETURN: break;
-            case OP_PRINT: break;
-            case OP_GET_GLOBAL: break;
             case OP_SET_GLOBAL: break;
             case OP_GET_LOCAL: break;
             case OP_JUMP_IF_FALSE: break;
@@ -38,26 +36,135 @@ void create_ssa(
             case OP_SET_LOCAL: break;
             case OP_LOOP: break;
             case OP_CALL: break;
-            case OP_INITIALIZE_STRUCT: break;
-            case OP_GET_STRUCT_FIELD: break;
             case OP_SET_STRUCT_FIELD: break;
-            case OP_ENTER_MONITOR: break;
-            case OP_ENTER_MONITOR_EXPLICIT: break;
-            case OP_EXIT_MONITOR_EXPLICIT: break;
-            case OP_EXIT_MONITOR: break;
-            case OP_INITIALIZE_ARRAY: break;
-            case OP_GET_ARRAY_ELEMENT: break;
             case OP_SET_ARRAY_ELEMENT: break;
 
+            case OP_EXIT_MONITOR_EXPLICIT: {
+                struct monitor * monitor = (struct monitor *) current->as.u64;
+                struct ssa_control_exit_monitor_node * exit_monitor_node = ALLOC_SSA_CONTROL_NODE(
+                        SSA_CONTROL_NODE_TYPE_EXIT_MONITOR, struct ssa_control_exit_monitor_node
+                );
+                exit_monitor_node->monitor = monitor;
+                last_control_node->next.next = &exit_monitor_node->control;
+                last_control_node = &exit_monitor_node->control;
+                break;
+            }
+            case OP_EXIT_MONITOR: {
+                monitor_number_t monitor_number = current->as.u8;
+                struct monitor * monitor = &function->monitors[monitor_number];
+                struct ssa_control_exit_monitor_node * exit_monitor_node = ALLOC_SSA_CONTROL_NODE(
+                        SSA_CONTROL_NODE_TYPE_EXIT_MONITOR, struct ssa_control_exit_monitor_node
+                );
+                exit_monitor_node->monitor = monitor;
+                exit_monitor_node->monitor = monitor;
+                last_control_node->next.next = &exit_monitor_node->control;
+                last_control_node = &exit_monitor_node->control;
+                break;
+            }
+            case OP_ENTER_MONITOR_EXPLICIT: {
+                struct monitor * monitor = (struct monitor *) current->as.u64;
+                struct ssa_control_enter_monitor_node * enter_monitor_node = ALLOC_SSA_CONTROL_NODE(
+                        SSA_CONTROL_NODE_TYPE_ENTER_MONITOR, struct ssa_control_enter_monitor_node
+                );
+                enter_monitor_node->monitor = monitor;
+                last_control_node->next.next = &enter_monitor_node->control;
+                last_control_node = &enter_monitor_node->control;
+                break;
+            }
+            case OP_ENTER_MONITOR: {
+                monitor_number_t monitor_number = current->as.u8;
+                struct monitor * monitor = &function->monitors[monitor_number];
+                struct ssa_control_enter_monitor_node * enter_monitor_node = ALLOC_SSA_CONTROL_NODE(
+                        SSA_CONTROL_NODE_TYPE_ENTER_MONITOR, struct ssa_control_enter_monitor_node
+                );
+                enter_monitor_node->monitor = monitor;
+                last_control_node->next.next = &enter_monitor_node->control;
+                last_control_node = &enter_monitor_node->control;
+                break;
+            }
+            case OP_RETURN: {
+                struct ssa_control_return_node * return_node = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_TYPE_RETURN, struct ssa_control_return_node);
+                return_node->data = pop_stack_list(&data_nodes_stack);
+                last_control_node->next.next = &return_node->control;
+                last_control_node = &return_node->control;
+                break;
+            }
+            case OP_PRINT: {
+                struct ssa_control_print_node * print_node = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_TYPE_PRINT, struct ssa_control_print_node);
+                print_node->control.next.next = &print_node->control;
+                print_node->data = pop_stack_list(&data_nodes_stack);
+                last_control_node = &print_node->control;
+                break;
+            };
+
+            //Expressions, data nodes
+            case OP_GET_GLOBAL: {
+                struct ssa_data_get_global_node * get_global_node = ALLOC_SSA_DATA_NODE(
+                        SSA_DATA_NODE_TYPE_GET_GLOBAL, struct ssa_data_get_global_node
+                );
+                get_global_node->package = peek_stack_list(&package_stack);
+                get_global_node->name = AS_STRING_OBJECT(READ_CONSTANT(function, current));
+                push_stack_list(&data_nodes_stack, get_global_node);
+                break;
+            }
+            case OP_INITIALIZE_ARRAY: {
+                struct ssa_data_initialize_array_node * initialize_array_node = ALLOC_SSA_DATA_NODE(
+                        SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY, struct ssa_data_initialize_array_node
+                );
+                bool empty_initialization = current->as.initialize_array.is_emtpy_initializaion;
+                uint16_t n_elements = current->as.initialize_array.n_elements;
+
+                initialize_array_node->empty_initialization = empty_initialization;
+                initialize_array_node->n_elements = n_elements;
+                if(!empty_initialization){
+                    initialize_array_node->elememnts_node = malloc(sizeof(struct ssa_data_node *) * n_elements);
+                }
+                for(int i = n_elements - 1; i >= 0 && !empty_initialization; i--){
+                    initialize_array_node->elememnts_node[i] = pop_stack_list(&data_nodes_stack);
+                }
+                push_stack_list(&data_nodes_stack, initialize_array_node);
+                break;
+            }
+
+            case OP_INITIALIZE_STRUCT: {
+                struct ssa_data_initialize_struct_node * initialize_struct_node = ALLOC_SSA_DATA_NODE(
+                        SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT, struct ssa_data_initialize_struct_node
+                );
+                struct struct_definition_object * definition = (struct struct_definition_object *) AS_OBJECT(READ_CONSTANT(function, current));
+                initialize_struct_node->fields_nodes = malloc(sizeof(struct struct_definition_object *) * definition->n_fields);
+                initialize_struct_node->definition = definition;
+                for (int i = definition->n_fields - 1; i >= 0; i--) {
+                    initialize_struct_node->fields_nodes[i] = pop_stack_list(&data_nodes_stack);
+                }
+                push_stack_list(&data_nodes_stack, initialize_struct_node);
+                break;
+            };
+            case OP_GET_STRUCT_FIELD: {
+                struct ssa_data_get_struct_field_node * get_struct_field_node = ALLOC_SSA_DATA_NODE(
+                        SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD, struct ssa_data_get_struct_field_node
+                );
+                get_struct_field_node->instance_node = pop_stack_list(&data_nodes_stack);
+                get_struct_field_node->field_name = AS_STRING_OBJECT(READ_CONSTANT(function, current));
+                push_stack_list(&data_nodes_stack, get_struct_field_node);
+                break;
+            }
+            case OP_GET_ARRAY_ELEMENT: {
+                struct ssa_data_get_array_element_node * get_array_element_node = ALLOC_SSA_DATA_NODE(
+                        SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT, struct ssa_data_get_array_element_node
+                );
+                get_array_element_node->instance = pop_stack_list(&data_nodes_stack);
+                get_array_element_node->index = current->as.u16;
+                push_stack_list(&data_nodes_stack, get_array_element_node);
+                break;
+            }
             case OP_NEGATE:
             case OP_NOT: {
-                struct ssa_data_unary_node * unary_node = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYP<E_UNARY, struct ssa_data_unary_node);
+                struct ssa_data_unary_node * unary_node = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_UNARY, struct ssa_data_unary_node);
                 unary_node->unary_operation_type = current->bytecode == OP_NEGATE ? UNARY_OPERATION_TYPE_NEGATION : UNARY_OPERATION_TYPE_NOT;
                 unary_node->unary_value_node = pop_stack_list(&data_nodes_stack);
                 push_stack_list(&data_nodes_stack, unary_node);
                 break;
             }
-
             case OP_GREATER:
             case OP_LESS:
             case OP_EQUAL: {
@@ -72,7 +179,6 @@ void create_ssa(
                 push_stack_list(&data_nodes_stack, compartion_node);
                 break;
             };
-
             case OP_ADD:
             case OP_SUB:
             case OP_MUL:
@@ -88,7 +194,6 @@ void create_ssa(
                 push_stack_list(&data_nodes_stack, arithmetic_node);
                 break;
             }
-
             case OP_CONSTANT: {
                 push_stack_list(&data_nodes_stack, create_constant_node(READ_CONSTANT(function, current)));
                 break;
