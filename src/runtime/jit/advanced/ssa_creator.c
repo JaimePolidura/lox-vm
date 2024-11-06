@@ -29,15 +29,49 @@ void create_ssa(
 
     for (struct bytecode_list * current = function_bytecode; function_bytecode != NULL; function_bytecode = function_bytecode->next) {
         switch (current->bytecode) {
-            case OP_SET_GLOBAL: break;
-            case OP_GET_LOCAL: break;
             case OP_JUMP_IF_FALSE: break;
             case OP_JUMP: break;
             case OP_SET_LOCAL: break;
             case OP_LOOP: break;
-            case OP_CALL: break;
-            case OP_SET_STRUCT_FIELD: break;
-            case OP_SET_ARRAY_ELEMENT: break;
+
+            case OP_GET_LOCAL: {
+                break;
+            };
+
+            case OP_SET_ARRAY_ELEMENT: {
+                struct ssa_control_set_array_element_node * set_arrary_elemetn_node = ALLOC_SSA_CONTROL_NODE(
+                        SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT, struct ssa_control_set_array_element_node
+                );
+                set_arrary_elemetn_node->index = current->as.u16;
+                set_arrary_elemetn_node->array = pop_stack_list(&data_nodes_stack);
+                set_arrary_elemetn_node->new_element = pop_stack_list(&data_nodes_stack);
+                last_control_node->next.next = &set_arrary_elemetn_node->control;
+                last_control_node = &set_arrary_elemetn_node->control;
+                break;
+            }
+            case OP_SET_STRUCT_FIELD: {
+                struct ssa_control_set_struct_field_node * set_struct_field = ALLOC_SSA_CONTROL_NODE(
+                    SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD, struct ssa_control_set_struct_field_node
+                );
+                set_struct_field->field_name = AS_STRING_OBJECT(READ_CONSTANT(function, current));
+                set_struct_field->field_value = pop_stack_list(&data_nodes_stack);
+                set_struct_field->instance = pop_stack_list(&data_nodes_stack);
+                last_control_node->next.next = &set_struct_field->control;
+                last_control_node = &set_struct_field->control;
+                break;
+            }
+            case OP_SET_GLOBAL: {
+                struct ssa_control_set_global_node * set_global_node = ALLOC_SSA_CONTROL_NODE(
+                        SSA_CONTORL_NODE_TYPE_SET_GLOBAL, struct ssa_control_set_global_node
+                );
+
+                set_global_node->name = AS_STRING_OBJECT(READ_CONSTANT(function, current));
+                set_global_node->value_node = pop_stack_list(&data_nodes_stack);
+                set_global_node->package = pop_stack_list(&package_stack);
+                last_control_node->next.next = &set_global_node->control;
+                last_control_node = &set_global_node->control;
+                break;
+            }
 
             case OP_EXIT_MONITOR_EXPLICIT: {
                 struct monitor * monitor = (struct monitor *) current->as.u64;
@@ -98,6 +132,26 @@ void create_ssa(
             };
 
             //Expressions, data nodes
+            case OP_CALL: {
+                struct ssa_control_function_call_node * call_node = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_CALL, struct ssa_control_function_call_node);
+                bool is_paralell = current->as.pair.u8_2;
+                uint8_t n_args = current->as.pair.u8_1;
+                struct ssa_data_node * function_to_call = peek_n_stack_list(&data_nodes_stack, n_args);
+
+                call_node->function = function_to_call;
+                call_node->is_parallel = is_paralell;
+                call_node->n_arguments = n_args;
+                call_node->arguments = malloc(sizeof(struct ssa_data_node *) * n_args);
+                for(int i = n_args; i > 0; i--){
+                    call_node->arguments[i - 1] = pop_stack_list(&data_nodes_stack);
+                }
+                //Remove function object in the stack
+                pop_stack_list(&data_nodes_stack);
+
+                push_stack_list(&data_nodes_stack, call_node);
+
+                break;
+            }
             case OP_GET_GLOBAL: {
                 struct ssa_data_get_global_node * get_global_node = ALLOC_SSA_DATA_NODE(
                         SSA_DATA_NODE_TYPE_GET_GLOBAL, struct ssa_data_get_global_node

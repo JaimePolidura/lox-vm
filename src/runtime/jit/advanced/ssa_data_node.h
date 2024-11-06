@@ -7,10 +7,10 @@
 //Data flow nodes used in SSA IR
 
 typedef enum {
+    SSA_DATA_NODE_TYPE_CALL,
     SSA_DATA_NODE_TYPE_GET_LOCAL,
     SSA_DATA_NODE_TYPE_SET_LOCAL,
     SSA_DATA_NODE_TYPE_GET_GLOBAL,
-    SSA_DATA_NODE_TYPE_SET_GLOBAL,
     SSA_DATA_NODE_TYPE_COMPARATION,
     SSA_DATA_NODE_TYPE_ARITHMETIC,
     SSA_DATA_NODE_TYPE_CONSTANT,
@@ -58,21 +58,22 @@ struct ssa_data_get_local_instruction_node {
     int * phi_numbers;
 };
 
+//OP_CALL
+struct ssa_control_function_call_node {
+    struct ssa_data_node data;
+
+    struct ssa_data_node * function;
+    int n_arguments;
+    bool is_parallel;
+    struct ssa_data_node ** arguments;
+};
+
 //OP_GET_GLOBAL
 struct ssa_data_get_global_node {
     struct ssa_data_node data;
 
     struct package * package;
     struct string_object * name;
-};
-
-//OP_SET_GLOBAL
-struct ssa_data_set_global_node {
-    struct ssa_data_node data;
-
-    struct package * package;
-    struct string_object * name;
-    struct ssa_data_node * value_node;
 };
 
 //OP_EQUAL, OP_LESS, OP_GREATER

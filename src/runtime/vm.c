@@ -524,7 +524,7 @@ static void jump_if_false(struct call_frame * call_frame) {
         increase_n_function_calls(call_frame->function);
     }
 
-    if(!cast_to_boolean(peek(0))) {
+    if(!cast_to_boolean(pop_stack_vm())) {
         int total_opcodes_to_jump_if_false = READ_U16(call_frame);
         call_frame->pc += total_opcodes_to_jump_if_false;
     } else {

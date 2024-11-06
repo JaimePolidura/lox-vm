@@ -575,7 +575,6 @@ static void patch_jump_here(struct bytecode_compiler * compiler, int jump_op_ind
 static void and(struct bytecode_compiler * compiler, bool can_assign) {
     int end_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
 
-    emit_bytecode(compiler, OP_POP);
     parse_precedence(compiler, PREC_AND);
 
     patch_jump_here(compiler, end_jump);
@@ -586,7 +585,6 @@ static void or(struct bytecode_compiler * compiler, bool can_assign) {
     int then_jump = emit_jump(compiler, OP_JUMP);
 
     patch_jump_here(compiler, else_jump);
-    emit_bytecode(compiler, OP_POP);
 
     parse_precedence(compiler, PREC_OR);
     patch_jump_here(compiler, then_jump);
@@ -614,14 +612,12 @@ static void while_statement(struct bytecode_compiler * compiler) {
     consume(compiler, TOKEN_CLOSE_PAREN, "Expect ')' after while declaration.");
 
     int exit_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
-    emit_bytecode(compiler, OP_POP);
 
     statement(compiler);
 
     emit_loop(compiler, loop_start_index);
 
     patch_jump_here(compiler, exit_jump);
-    emit_bytecode(compiler, OP_POP);
 }
 
 static void for_loop(struct bytecode_compiler * compiler) {
@@ -667,7 +663,6 @@ static int for_loop_condition(struct bytecode_compiler * compiler) {
     consume(compiler, TOKEN_SEMICOLON, "Expect ';' after loop condition");
 
     int offset = emit_jump(compiler, OP_JUMP_IF_FALSE);
-    emit_bytecode(compiler, OP_POP);
 
     return offset;
 }

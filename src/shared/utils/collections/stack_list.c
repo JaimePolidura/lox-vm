@@ -14,6 +14,15 @@ struct stack_list * alloc_stack_list() {
     return stack;
 }
 
+void * peek_n_stack_list(struct stack_list * list, int n) {
+    struct stack_node * current = list->head;
+    for (int i = 0; i < n && current != NULL; i++) {
+        current = current->prev;
+    }
+
+    return current;
+}
+
 void * peek_stack_list(struct stack_list * stack) {
     return stack->head->data;
 }

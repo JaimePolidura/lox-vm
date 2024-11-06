@@ -30,5 +30,6 @@ void push_n_stack_list(struct stack_list *, void * to_push, int n);
 void * pop_stack_list(struct stack_list *);
 void pop_n_stack_list(struct stack_list *, int n);
 void * peek_stack_list(struct stack_list *);
+void * peek_n_stack_list(struct stack_list *, int n);
 bool is_empty_stack_list(struct stack_list *);
 
