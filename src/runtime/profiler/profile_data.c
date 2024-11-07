@@ -2,8 +2,28 @@
 
 static profile_data_type_t get_type_by_type_profile(struct type_profile_data);
 
+profile_data_type_t lox_value_to_profile_type(lox_value_t lox_value) {
+    if(IS_STRING(lox_value)){
+        return PROFILE_DATA_TYPE_STRING;
+    } else if (IS_NUMBER(lox_value)) {
+        double double_value = AS_NUMBER(lox_value);
+        if (has_decimals(double_value)) {
+            return PROFILE_DATA_TYPE_F64;
+        } else {
+            return PROFILE_DATA_TYPE_I64;
+        }
+    } else if (IS_BOOL(lox_value)) {
+        return PROFILE_DATA_TYPE_BOOLEAN;
+    } else if (IS_NIL(lox_value)){
+        return PROFILE_DATA_TYPE_NIL;
+    } else {
+        return PROFILE_DATA_TYPE_OBJECT;
+    }
+}
+
 profile_data_type_t get_type_by_local_function_profile_data(struct function_profile_data * profile_data, int local_number) {
     struct type_profile_data type_profile = profile_data->local_profile_data[local_number];
+    return get_type_by_type_profile(type_profile);
 }
 
 void init_function_profile_data(struct function_profile_data * function_profile_data, int n_instructions, int n_locals) {

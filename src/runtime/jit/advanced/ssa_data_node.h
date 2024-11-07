@@ -27,10 +27,10 @@ struct ssa_data_node {
 #define ALLOC_SSA_DATA_NODE(type, struct_type) (struct_type *) allocate_ssa_data_node(type, sizeof(struct_type))
 
 void * allocate_ssa_data_node(ssa_data_node_type type, size_t struct_size_bytes);
-profile_data_type_t get_produced_type_ssa_data(struct ssa_data_node *);
+profile_data_type_t get_produced_type_ssa_data(struct function_profile_data *, struct ssa_data_node *);
 
 //OP_GET_LOCAL
-struct ssa_data_get_local_instruction_node {
+struct ssa_data_get_local_node {
     struct ssa_data_node data;
 
     int local_number;

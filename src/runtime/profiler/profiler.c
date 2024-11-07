@@ -85,21 +85,25 @@ static void profile_binary_op(struct function_object * function, int instruction
 }
 
 static void profile_type(struct type_profile_data * profile_node_data, lox_value_t lox_value) {
-    if(IS_STRING(lox_value)){
-        atomic_fetch_add(&profile_node_data->string, 1);
-    } else if (IS_NUMBER(lox_value)) {
-        double double_value = AS_NUMBER(lox_value);
-        if (has_decimals(double_value)) {
-            atomic_fetch_add(&profile_node_data->f64, 1);
-        } else {
+    switch (lox_value_to_profile_type(lox_value)) {
+        case PROFILE_DATA_TYPE_I64:
             atomic_fetch_add(&profile_node_data->i64, 1);
-        }
-    } else if (IS_BOOL(lox_value)) {
-        atomic_fetch_add(&profile_node_data->boolean, 1);
-    } else if (IS_NIL(lox_value)){
-        atomic_fetch_add(&profile_node_data->nil, 1);
-    } else {
-        atomic_fetch_add(&profile_node_data->object, 1);
+            break;
+        case PROFILE_DATA_TYPE_F64:
+            atomic_fetch_add(&profile_node_data->f64, 1);
+            break;
+        case PROFILE_DATA_TYPE_STRING:
+            atomic_fetch_add(&profile_node_data->string, 1);
+            break;
+        case PROFILE_DATA_TYPE_BOOLEAN:
+            atomic_fetch_add(&profile_node_data->boolean, 1);
+            break;
+        case PROFILE_DATA_TYPE_NIL:
+            atomic_fetch_add(&profile_node_data->nil, 1);
+            break;
+        case PROFILE_DATA_TYPE_OBJECT:
+            atomic_fetch_add(&profile_node_data->object, 1);
+            break;
     }
 }
 

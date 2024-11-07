@@ -239,7 +239,7 @@ static struct ssa_control_node * create_ssa_ir_without_phis(
 
                 //Expressions, control nodes
             case OP_GET_LOCAL: {
-                struct ssa_data_get_local_instruction_node * get_local_node = ALLOC_SSA_DATA_NODE(
+                struct ssa_data_get_local_node * get_local_node = ALLOC_SSA_DATA_NODE(
                         SSA_DATA_NODE_TYPE_GET_LOCAL, struct ssa_data_get_local_instruction_node
                 );
 

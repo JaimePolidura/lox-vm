@@ -1,6 +1,8 @@
 #pragma once
 
 #include "shared.h"
+#include "shared/types/types.h"
+#include "shared/types/string_object.h"
 
 typedef enum {
     PROFILE_DATA_TYPE_I64,
@@ -48,6 +50,8 @@ struct instruction_profile_data {
 
     } as;
 };
+
+profile_data_type_t lox_value_to_profile_type(lox_value_t value);
 
 profile_data_type_t get_type_by_local_function_profile_data(struct function_profile_data *, int local_number);
 
