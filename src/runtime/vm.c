@@ -166,7 +166,7 @@ static interpret_result_t run() {
             case OP_EOF: return INTERPRET_OK;
             case OP_NO_OP: break;
             default:
-                perror("Unhandled bytecode op\n");
+                perror("Unhandled pending_bytecode op\n");
                 return INTERPRET_RUNTIME_ERROR;
         }
     }

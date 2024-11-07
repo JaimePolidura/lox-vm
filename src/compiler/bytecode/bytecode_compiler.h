@@ -61,14 +61,14 @@ struct bytecode_compiler {
 
     char * current_function_call_name;
 
-    //Indicates if the current function call/variable/struct is from an external package
+    //Indicates if the pending_bytecode function call/variable/struct is from an external package
     bool compiling_extermal_symbol_call;
     struct package * package_of_external_symbol;
 
-    //Indicates if the current function call being compiled is parallel
+    //Indicates if the pending_bytecode function call being compiled is parallel
     bool compiling_parallel_call;
 
-    //Indicates if the current function call being compiled is inlined
+    //Indicates if the pending_bytecode function call being compiled is inlined
     bool compiling_inline_call;
 
     //Keeps information of every function call even if it is repeated.
@@ -91,7 +91,7 @@ struct bytecode_compiler {
     struct trie_list const_global_variables;
 };
 
-//compile_bytecode() takes the source code and returns the compiled bytecode.
+//compile_bytecode() takes the source code and returns the compiled pending_bytecode.
 //It doest do any optimizacions, inlining etc
 //This is called by compiler.h which is the main entrypoint for compilation
 struct compilation_result compile_bytecode(char * source_code, char * compiling_package_name, char * base_dir);

@@ -15,9 +15,11 @@ typedef enum {
     SSA_CONTORL_NODE_TYPE_SET_GLOBAL,
     SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD,
     SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT,
-    SSA_CONTROL_NODE_TYPE_SET_LOOP_JUMP,
+    SSA_CONTROL_NODE_TYPE_LOOP_JUMP,
     SSA_CONTROL_NODE_TYPE_SET_FUNCTION_CALL,
-    SSA_CONTROL_NODE_TYPE_SET_CONDITIONAL_JUMP
+    SSA_CONTROL_NODE_TYPE_SET_CONDITIONAL_JUMP,
+    SSA_CONTROL_NODE_TYPE_SET_UNCONDITIONAL_JUMP
+
 } ssa_control_node_type;
 
 struct ssa_control_node {
@@ -36,6 +38,7 @@ struct ssa_control_node {
 void * allocate_ssa_block_node(ssa_control_node_type type, size_t size_bytes);
 
 struct ssa_control_start_node {
+    struct ssa_control_node control;
     ssa_control_node_type type;
 };
 
@@ -96,13 +99,16 @@ struct ssa_control_set_array_element_node {
 //OP_LOOP
 struct ssa_control_loop_jump_node {
     struct ssa_control_node control;
-
-    struct ssa_control_node * to;
 };
 
-//OP_JUMP_IF_FALSE //OP_JUMP
+//OP_JUMP_IF_FALSE
 struct ssa_control_conditional_jump_node {
     struct ssa_control_node control;
 
     struct ssa_data_node * condition;
+};
+
+//OP_JUMP
+struct ssa_control_unconditional_jump_node {
+    struct ssa_control_node control;
 };

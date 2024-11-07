@@ -31,10 +31,10 @@ struct jit_compiler {
     //Current lox function being compiled
     struct function_object * function_to_compile;
 
-    //Next bytecode instruction to compile
+    //Next pending_bytecode instruction to compile
     uint8_t * pc;
 
-    //Mapping of bytecode index operations to its compiled operations index stored in native_compiled_code
+    //Mapping of pending_bytecode index operations to its compiled operations index stored in native_compiled_code
     //This is used for knowing the relative offset when emitting assembly backward jumps
     //If value_node is -1, the native index will be in the next slot
     uint16_t * compiled_bytecode_to_native_by_index;

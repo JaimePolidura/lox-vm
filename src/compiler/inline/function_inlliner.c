@@ -270,7 +270,7 @@ static void rename_local_variables(struct bytecode_list * to_inline, struct func
     }
 }
 
-//If we had return 1, the compiled bytecode would be "OP_CONST_1 OP_RETURN OP_NIL OP_RETURN" The compiler is inserting
+//If we had return 1, the compiled pending_bytecode would be "OP_CONST_1 OP_RETURN OP_NIL OP_RETURN" The compiler is inserting
 //An empty return so an item will always be placed in the stack if the user didn't put any return.
 //We want to get rid of "OP_NIL OP_RETURN" If previusly we have already returned, so OP_NIL OP_RETURN doesn't get inlined
 static void remove_double_emtpy_return(struct bytecode_list * to_inline) {

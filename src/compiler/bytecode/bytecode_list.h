@@ -7,8 +7,8 @@
 #include "shared/bytecode/bytecode.h"
 #include "shared.h"
 
-//This is a linked list of bytecode instructions stored in a chunk
-//This is used to simplify bytecode transformations
+//This is a linked list of pending_bytecode instructions stored in a chunk
+//This is used to simplify pending_bytecode transformations
 struct bytecode_list {
     bytecode_t bytecode;
     union {
@@ -30,7 +30,7 @@ struct bytecode_list {
     struct bytecode_list * next;
     struct bytecode_list * prev;
 
-    //Orignal bytecode index to chunk
+    //Orignal pending_bytecode index to chunk
     int original_chunk_index;
 
     //Only used when converting struct bytecode_list to struct chunk

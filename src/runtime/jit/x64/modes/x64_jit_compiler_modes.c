@@ -63,7 +63,7 @@ static int reconstruct_vm_gc_stack(struct jit_compiler * jit_compiler) {
         struct jit_stack_item * current_heap_jit_stack_item = next_current_jit_stack_item - 1;
 
         if(current_heap_jit_stack_item->type != REGISTER_JIT_STACK_ITEM) {
-            runtime_panic("Unsupported current stack item type %i while reconstructing vm stack", current_heap_jit_stack_item->type);
+            runtime_panic("Unsupported pending_bytecode stack item type %i while reconstructing vm stack", current_heap_jit_stack_item->type);
         }
 
         emit_mov(&jit_compiler->native_compiled_code,

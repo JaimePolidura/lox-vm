@@ -150,7 +150,7 @@ void disassemble_function(struct function_object * function, long options) {
             case OP_ENTER_MONITOR_EXPLICIT: BINARY_U64_INSTRUCTION("OP_ENTER_MONITOR_EXPLICIT", iterator); break;
             case OP_EXIT_MONITOR_EXPLICIT: BINARY_U64_INSTRUCTION("OP_EXIT_MONITOR_EXPLICIT", iterator); break;
             default:
-                perror("Unhandled bytecode op\n");
+                perror("Unhandled pending_bytecode op\n");
                 exit(-1);
         }
     }

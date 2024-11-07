@@ -28,7 +28,7 @@ extern struct gc_barriers get_barriers_gc_alg();
 
 void switch_native_to_jit_mode(struct jit_compiler *);
 
-//Used by jit_compiler::compiled_bytecode_to_native_by_index Some operations are not compiled to native code, but some jumps bytecode offset
+//Used by jit_compiler::compiled_bytecode_to_native_by_index Some operations are not compiled to native code, but some jumps pending_bytecode offset
 //will be pointing to those operations. If in a slot is -1, the native offset will be in the next slot
 #define NATIVE_INDEX_IN_NEXT_SLOT 0xFFFF
 
@@ -161,7 +161,7 @@ struct jit_compilation_result jit_compile_arch(struct function_object * function
             case OP_EXIT_MONITOR: exit_monitor_jit(&jit_compiler); break;
             case OP_RETURN: return_jit(&jit_compiler, &finish_compilation_flag); break;
             case OP_CALL: call_jit(&jit_compiler); break;
-            default: runtime_panic("Unhandled bytecode to compile %u\n", *(--jit_compiler.pc));
+            default: runtime_panic("Unhandled pending_bytecode to compile %u\n", *(--jit_compiler.pc));
         }
 
         if(finish_compilation_flag){
@@ -644,7 +644,7 @@ static void package_const(struct jit_compiler * jit_compiler) {
 }
 
 static void define_global(struct jit_compiler * jit_compiler) {
-    runtime_panic("Invalid OP_DEFINE_GLOBAL bytecode to jit compile");
+    runtime_panic("Invalid OP_DEFINE_GLOBAL pending_bytecode to jit compile");
 }
 
 static void enter_package(struct jit_compiler * jit_compiler) {
@@ -791,7 +791,7 @@ static void loop(struct jit_compiler * jit_compiler, uint16_t bytecode_backward_
     // +5 because of instruction size
     uint16_t jmp_offset = (current_native_index - native_index_to_jump) + 5;
 
-    //Loop bytecode instruction always jumps backward
+    //Loop pending_bytecode instruction always jumps backward
     uint16_t jump_index = emit_near_jmp(&jit_compiler->native_compiled_code, -((int) jmp_offset));
 
     record_compiled_bytecode(jit_compiler, jump_index, OP_LOOP_LENGTH);

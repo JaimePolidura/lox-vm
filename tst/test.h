@@ -48,7 +48,7 @@
         size_t n_bytecode_expected = sizeof(bytecode_expected); \
         for(int i = 0; i < n_bytecode_expected; i++){ \
             if(actual[i] != bytecode_expected[i]) { \
-                fprintf(stderr, "[%s] Invalid bytecode equals assert immediate %i while comparing bytecode at index %i Expected %i actual %i\n", test_name, n_assertions, i, bytecode_expected[i], actual[i]); \
+                fprintf(stderr, "[%s] Invalid pending_bytecode equals assert immediate %i while comparing pending_bytecode at index %i Expected %i actual %i\n", test_name, n_assertions, i, bytecode_expected[i], actual[i]); \
                 exit(65); \
             } \
         } \
