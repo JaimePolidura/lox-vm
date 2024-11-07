@@ -7,8 +7,9 @@ static void profile_unconditional_branch(struct function_object *, int instructi
 static void profile_conditional_branch(struct function_object *, int instruction_index);
 static void profile_binary_op(struct function_object *, int instruction_index);
 static void profile_type(struct type_profile_data *profile_node_data, lox_value_t lox_value);
-static void profile_set_local(struct function_object *, int instruction_index);
 static void profile_struct_field(struct function_object *, int instruction_index);
+static void profile_set_local_variable(struct function_object * function, uint8_t * pc);
+static void profile_get_local_variable(struct function_object * function, uint8_t * pc);
 
 void profile_instruction_profiler(uint8_t * pc, struct function_object * function) {
     bytecode_t instruction = (bytecode_t) *pc;
@@ -19,8 +20,11 @@ void profile_instruction_profiler(uint8_t * pc, struct function_object * functio
         case OP_SET_STRUCT_FIELD:
             profile_struct_field(function, instruction_index);
             break;
+        case OP_GET_LOCAL:
+            profile_get_local_variable(function, pc);
+            break;
         case OP_SET_LOCAL:
-            profile_set_local(function, instruction_index);
+            profile_set_local_variable(function, pc);
             break;
         case OP_EQUAL:
         case OP_GREATER:
@@ -48,10 +52,20 @@ bool can_jit_compile_profiler(struct function_object * function) {
     return function->state_as.not_profiling.n_calls >= MIN_CALLS_TO_JIT_COMPILE;
 }
 
-static void profile_set_local(struct function_object * function, int instruction_index) {
-    struct instruction_profile_data * profile_data = get_profile_data(function, instruction_index);
-    lox_value_type value = *(self_thread->esp - 1);
-    profile_type(&profile_data->as.set_local_op.data, value);
+static void profile_get_local_variable(struct function_object * function, uint8_t * pc) {
+    uint8_t slot = *(pc + 1);
+    lox_value_t local_variable_value = self_thread->frames[self_thread->frames_in_use - 1].slots[slot];
+    struct function_profile_data * profile_data = &function->state_as.profiling.profile_data;
+    struct type_profile_data * local_variable_profile = &profile_data->local_profile_data[slot];
+    profile_type(local_variable_profile, local_variable_value);
+}
+
+static void profile_set_local_variable(struct function_object * function, uint8_t * pc) {
+    uint8_t slot = *(pc + 1);
+    lox_value_t local_variable_value = *(self_thread->esp - 1);
+    struct function_profile_data * profile_data = &function->state_as.profiling.profile_data;
+    struct type_profile_data * local_variable_profile = &profile_data->local_profile_data[slot];
+    profile_type(local_variable_profile, local_variable_value);
 }
 
 static void profile_struct_field(struct function_object * function, int instruction_index) {
@@ -80,6 +94,12 @@ static void profile_type(struct type_profile_data * profile_node_data, lox_value
         } else {
             atomic_fetch_add(&profile_node_data->i64, 1);
         }
+    } else if (IS_BOOL(lox_value)) {
+        atomic_fetch_add(&profile_node_data->boolean, 1);
+    } else if (IS_NIL(lox_value)){
+        atomic_fetch_add(&profile_node_data->nil, 1);
+    } else {
+        atomic_fetch_add(&profile_node_data->object, 1);
     }
 }
 

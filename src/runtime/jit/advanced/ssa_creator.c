@@ -1,13 +1,4 @@
-#include "runtime/jit/jit_compilation_result.h"
-#include "runtime/jit/advanced/ssa_control_node.h"
-
-#include "compiler/bytecode/bytecode_list.h"
-
-#include "shared/utils/collections/u64_hash_table.h"
-#include "shared/utils/collections/stack_list.h"
-#include "shared/types/function_object.h"
-#include "shared/types/package_object.h"
-#include "shared/package.h"
+#include "ssa_creator.h"
 
 #define READ_CONSTANT(function, bytecode) (function->chunk->constants.values[bytecode->as.u8])
 
@@ -27,13 +18,27 @@ static struct ssa_data_constant_node * create_constant_node(lox_value_t constant
 static void push_pending_evaluate(struct stack_list *, pending_evaluation_type_t, struct bytecode_list *, struct ssa_control_node *);
 static void attatch_ssa_node_to_parent(pending_evaluation_type_t type, struct ssa_control_node * parent, struct ssa_control_node * child);
 
-void create_ssa(
+static struct ssa_control_node * create_ssa_ir_without_phis(
+        struct package * package,
+        struct function_object * function,
+        struct bytecode_list * start_function_bytecode
+);
+
+struct ssa_control_node * create_ssa_ir(
         struct package * package,
         struct function_object * function,
         struct bytecode_list * start_function_bytecode
 ) {
-    struct stack_list pending_evaluation;
+    struct ssa_control_node * ssa = create_ssa_ir_without_phis(package, function, start_function_bytecode);
+}
+
+static struct ssa_control_node * create_ssa_ir_without_phis(
+        struct package * package,
+        struct function_object * function,
+        struct bytecode_list * start_function_bytecode
+) {
     struct u64_hash_table control_ssa_nodes_by_bytecode;
+    struct stack_list pending_evaluation;
     struct stack_list data_nodes_stack;
     struct stack_list package_stack;
     init_u64_hash_table(&control_ssa_nodes_by_bytecode);
@@ -44,17 +49,17 @@ void create_ssa(
     push_stack_list(&pending_evaluation, start_function_bytecode);
     push_stack_list(&package_stack, package);
 
-    struct ssa_control_start_node * start = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_TYPE_START, struct ssa_control_start_node);
-    push_pending_evaluate(&pending_evaluation, EVAL_TYPE_SEQUENTIAL, start_function_bytecode, &start->control);
+    struct ssa_control_start_node * start_node = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_TYPE_START, struct ssa_control_start_node);
+    push_pending_evaluate(&pending_evaluation, EVAL_TYPE_SEQUENTIAL, start_function_bytecode, &start_node->control);
 
-    while(!is_empty_stack_list(&pending_evaluation)) {
+    while (!is_empty_stack_list(&pending_evaluation)) {
         struct pending_evaluate * pending_evaluate = pop_stack_list(&pending_evaluation);
         struct bytecode_list * current_bytecode_to_evaluate = pending_evaluate->pending_bytecode;
         struct ssa_control_node * parent_ssa_node = pending_evaluate->parent_ssa_node;
         pending_evaluation_type_t evaluation_type = pending_evaluate->type;
         free(pending_evaluate);
-        
-        if(contains_u64_hash_table(&control_ssa_nodes_by_bytecode, (uint64_t) current_bytecode_to_evaluate)) {
+
+        if (contains_u64_hash_table(&control_ssa_nodes_by_bytecode, (uint64_t) current_bytecode_to_evaluate)) {
             struct ssa_control_node * already_evaluted_node = get_u64_hash_table(&control_ssa_nodes_by_bytecode, (uint64_t) current_bytecode_to_evaluate);
             attatch_ssa_node_to_parent(EVAL_TYPE_SEQUENTIAL, parent_ssa_node, already_evaluted_node);
             continue;
@@ -98,10 +103,18 @@ void create_ssa(
                 put_u64_hash_table(&control_ssa_nodes_by_bytecode, (uint64_t) current_bytecode_to_evaluate, loop_jump_node);
                 break;
             };
+            case OP_SET_LOCAL: {
+                struct ssa_control_set_local_instruction_node * set_local_node = ALLOC_SSA_CONTROL_NODE(
+                        SSA_CONTORL_NODE_TYPE_SET_LOCAL, struct ssa_control_set_local_instruction_node
+                );
+                set_local_node->ssa_data = pop_stack_list(&data_nodes_stack);
+                set_local_node->local_number = current_bytecode_to_evaluate->as.u16;
 
-            case OP_SET_LOCAL: break;
-            case OP_GET_LOCAL: break;
-
+                attatch_ssa_node_to_parent(evaluation_type, parent_ssa_node, &set_local_node->control);
+                push_pending_evaluate(&pending_evaluation, EVAL_TYPE_SEQUENTIAL, current_bytecode_to_evaluate->next, &set_local_node->control);
+                put_u64_hash_table(&control_ssa_nodes_by_bytecode, (uint64_t) current_bytecode_to_evaluate, &set_local_node->control);
+                break;
+            };
             case OP_POP: {
                 //Expression statements
                 struct ssa_data_node * data_node = pop_stack_list(&data_nodes_stack);
@@ -146,7 +159,7 @@ void create_ssa(
 
                 set_global_node->name = AS_STRING_OBJECT(READ_CONSTANT(function, current_bytecode_to_evaluate));
                 set_global_node->value_node = pop_stack_list(&data_nodes_stack);
-                set_global_node->package = pop_stack_list(&package_stack);
+                set_global_node->package = peek_stack_list(&package_stack);
 
                 attatch_ssa_node_to_parent(evaluation_type, parent_ssa_node, &set_global_node->control);
                 push_pending_evaluate(&pending_evaluation, EVAL_TYPE_SEQUENTIAL, current_bytecode_to_evaluate->next, &set_global_node->control);
@@ -224,7 +237,23 @@ void create_ssa(
                 break;
             };
 
-            //Expressions, data nodes
+                //Expressions, control nodes
+            case OP_GET_LOCAL: {
+                struct ssa_data_get_local_instruction_node * get_local_node = ALLOC_SSA_DATA_NODE(
+                        SSA_DATA_NODE_TYPE_GET_LOCAL, struct ssa_data_get_local_instruction_node
+                );
+
+                //Pending initialize
+                int local_number = current_bytecode_to_evaluate->as.u8;
+                get_local_node->local_number = local_number;
+                get_local_node->type = get_type_by_local_function_profile_data(&function->state_as.profiling.profile_data, local_number);
+                get_local_node->n_phi_numbers_elements = 0;
+                get_local_node->phi_numbers = NULL;
+
+                push_stack_list(&data_nodes_stack, get_local_node);
+
+                break;
+            };
             case OP_CALL: {
                 struct ssa_control_function_call_node * call_node = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_CALL, struct ssa_control_function_call_node);
                 bool is_paralell = current_bytecode_to_evaluate->as.pair.u8_2;
@@ -390,6 +419,13 @@ void create_ssa(
                 break;
         }
     }
+
+    free_u64_hash_table(&control_ssa_nodes_by_bytecode);
+    free_stack_list(&pending_evaluation);
+    free_stack_list(&data_nodes_stack);
+    free_stack_list(&package_stack);
+
+    return &start_node->control;
 }
 
 static struct ssa_data_constant_node * create_constant_node(lox_value_t constant_value) {
@@ -398,22 +434,22 @@ static struct ssa_data_constant_node * create_constant_node(lox_value_t constant
     switch (get_lox_type(constant_value)) {
         case VAL_BOOL:
             constant_node->as.boolean = AS_BOOL(constant_value);
-            constant_node->type = SSA_DATA_TYPE_BOOLEAN;
+            constant_node->type = PROFILE_DATA_TYPE_BOOLEAN;
             break;
 
         case VAL_NIL: {
             constant_node->as.nil = NULL;
-            constant_node->type = SSA_DATA_TYPE_NIL;
+            constant_node->type = PROFILE_DATA_TYPE_NIL;
             break;
         }
 
         case VAL_NUMBER: {
             if(has_decimals(AS_NUMBER(constant_value))){
                 constant_node->as.f64 = AS_NUMBER(constant_value);
-                constant_node->type = SSA_DATA_TYPE_F64;
+                constant_node->type = PROFILE_DATA_TYPE_F64;
             } else {
                 constant_node->as.i64 = (int64_t) constant_value;
-                constant_node->type = SSA_DATA_TYPE_I64;
+                constant_node->type = PROFILE_DATA_TYPE_I64;
             }
             break;
         }
@@ -421,10 +457,10 @@ static struct ssa_data_constant_node * create_constant_node(lox_value_t constant
         case VAL_OBJ: {
             if(IS_STRING(constant_value)){
                 constant_node->as.string = AS_STRING_OBJECT(constant_value);
-                constant_node->type = SSA_DATA_TYPE_STRING;
+                constant_node->type = PROFILE_DATA_TYPE_STRING;
             } else {
                 constant_node->as.object = AS_OBJECT(constant_value);
-                constant_node->type = SSA_DATA_TYPE_OBJECT;
+                constant_node->type = PROFILE_DATA_TYPE_OBJECT;
             }
             break;
         }

@@ -803,7 +803,7 @@ static inline void increase_n_function_calls(struct function_object * function) 
         atomic_fetch_add(&function->state_as.not_profiling.n_calls, 1) == MIN_CALLS_TO_PROFILE) {
 
         int n_instructions = function->chunk->in_use;
-        init_function_profile_data(&function->state_as.profiling.profile_data, n_instructions);
+        init_function_profile_data(&function->state_as.profiling.profile_data, n_instructions, function->n_locals);
         COMPILER_BARRIER();
         function->state = FUNC_STATE_PROFILING;
         atomic_thread_fence(memory_order_seq_cst);

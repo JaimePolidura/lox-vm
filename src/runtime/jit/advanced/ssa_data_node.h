@@ -9,7 +9,6 @@
 typedef enum {
     SSA_DATA_NODE_TYPE_CALL,
     SSA_DATA_NODE_TYPE_GET_LOCAL,
-    SSA_DATA_NODE_TYPE_SET_LOCAL,
     SSA_DATA_NODE_TYPE_GET_GLOBAL,
     SSA_DATA_NODE_TYPE_COMPARATION,
     SSA_DATA_NODE_TYPE_ARITHMETIC,
@@ -21,16 +20,6 @@ typedef enum {
     SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY,
 } ssa_data_node_type;
 
-typedef enum {
-    SSA_DATA_TYPE_I64,
-    SSA_DATA_TYPE_F64,
-    SSA_DATA_TYPE_STRING,
-    SSA_DATA_TYPE_BOOLEAN,
-    SSA_DATA_TYPE_NIL,
-    SSA_DATA_TYPE_OBJECT,
-    SSA_DATA_TYPE_ANY
-} ssa_data_type;
-
 struct ssa_data_node {
     ssa_data_node_type type;
 };
@@ -38,22 +27,14 @@ struct ssa_data_node {
 #define ALLOC_SSA_DATA_NODE(type, struct_type) (struct_type *) allocate_ssa_data_node(type, sizeof(struct_type))
 
 void * allocate_ssa_data_node(ssa_data_node_type type, size_t struct_size_bytes);
-ssa_data_type get_produced_type_ssa_data(struct ssa_data_node *);
-
-//OP_SET_LOCAL
-struct ssa_data_set_local_instruction_node {
-    struct ssa_data_node data;
-
-    int local_number;
-    struct ssa_data_node * ssa_data;
-};
+profile_data_type_t get_produced_type_ssa_data(struct ssa_data_node *);
 
 //OP_GET_LOCAL
 struct ssa_data_get_local_instruction_node {
     struct ssa_data_node data;
 
     int local_number;
-    ssa_data_type type;
+    profile_data_type_t type;
     int n_phi_numbers_elements;
     int * phi_numbers;
 };
@@ -81,10 +62,10 @@ struct ssa_data_comparation_node {
     struct ssa_data_node data;
 
     struct ssa_data_node * left;
-    ssa_data_type left_type;
+    profile_data_type_t left_type;
 
     struct ssa_data_node * right;
-    ssa_data_type right_type;
+    profile_data_type_t right_type;
 
     bytecode_t operand;
 };
@@ -94,10 +75,10 @@ struct ssa_data_arithmetic_node {
     struct ssa_data_node data;
 
     struct ssa_data_node * left;
-    ssa_data_type left_type;
+    profile_data_type_t left_type;
 
     struct ssa_data_node * right;
-    ssa_data_type right_type;
+    profile_data_type_t right_type;
 
     bytecode_t operand;
 };
@@ -106,7 +87,7 @@ struct ssa_data_arithmetic_node {
 struct ssa_data_constant_node {
     struct ssa_data_node data;
 
-    ssa_data_type type;
+    profile_data_type_t type;
     union {
         struct string_object * string;
         struct object * object;

@@ -7,7 +7,7 @@ void * allocate_ssa_data_node(ssa_data_node_type type, size_t struct_size_bytes)
     return ssa_control_node;
 }
 
-ssa_data_type get_produced_type_ssa_data(struct ssa_data_node * start_node) {
+profile_data_type_t get_produced_type_ssa_data(struct ssa_data_node * start_node) {
     //TODO
-    return SSA_DATA_TYPE_ANY;
+    return PROFILE_DATA_TYPE_ANY;
 }

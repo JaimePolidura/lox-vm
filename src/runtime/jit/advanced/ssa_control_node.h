@@ -13,13 +13,13 @@ typedef enum {
     SSA_CONTROL_NODE_TYPE_ENTER_MONITOR,
     SSA_CONTROL_NODE_TYPE_EXIT_MONITOR,
     SSA_CONTORL_NODE_TYPE_SET_GLOBAL,
+    SSA_CONTORL_NODE_TYPE_SET_LOCAL,
     SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD,
     SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT,
     SSA_CONTROL_NODE_TYPE_LOOP_JUMP,
     SSA_CONTROL_NODE_TYPE_SET_FUNCTION_CALL,
     SSA_CONTROL_NODE_TYPE_SET_CONDITIONAL_JUMP,
     SSA_CONTROL_NODE_TYPE_SET_UNCONDITIONAL_JUMP
-
 } ssa_control_node_type;
 
 struct ssa_control_node {
@@ -111,4 +111,12 @@ struct ssa_control_conditional_jump_node {
 //OP_JUMP
 struct ssa_control_unconditional_jump_node {
     struct ssa_control_node control;
+};
+
+//OP_SET_LOCAL
+struct ssa_control_set_local_instruction_node {
+    struct ssa_control_node control;
+
+    int local_number;
+    struct ssa_data_node * ssa_data;
 };
