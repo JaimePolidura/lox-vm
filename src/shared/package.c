@@ -20,6 +20,22 @@ void init_package(struct package * package) {
     pthread_mutex_init(&package->state_mutex, NULL);
 }
 
+struct function_object * get_function_package(struct package * package, char * function_name) {
+    struct string_object * function_name_string_object = copy_chars_to_string_object(function_name, strlen(function_name));
+    struct function_object * function = NULL;
+
+    if(contains_hash_table(&package->defined_functions, function_name_string_object)) {
+        lox_value_t value;
+        get_hash_table(&package->defined_functions, function_name_string_object, &value);
+        function = (struct function_object *) AS_OBJECT(value);
+    }
+
+    free(function_name_string_object->chars);
+    free(function_name_string_object);
+
+    return function;
+}
+
 char * read_package_source_code(char * absolute_path) {
     FILE* file = fopen(absolute_path, "r"); // Open file in read mode
     if (file == NULL) {

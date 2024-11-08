@@ -1,7 +1,9 @@
+#include "shared/types/struct_definition_object.h"
+#include "compiler/bytecode/bytecode_list.h"
 #include "shared/bytecode/bytecode.h"
 #include "shared/package.h"
 #include "shared.h"
-#include "shared/types/struct_definition_object.h"
+
 #include "runtime/profiler/profile_data.h"
 
 //Data flow nodes used in SSA IR
@@ -15,19 +17,29 @@ typedef enum {
     SSA_DATA_NODE_TYPE_CONSTANT,
     SSA_DATA_NODE_TYPE_UNARY,
     SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD,
+    SSA_DATA_NODE_TYPE_SET_LOCAL,
     SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT,
     SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT,
     SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY,
 } ssa_data_node_type;
 
 struct ssa_data_node {
+    struct bytecode_list * original_bytecode;
     ssa_data_node_type type;
 };
 
-#define ALLOC_SSA_DATA_NODE(type, struct_type) (struct_type *) allocate_ssa_data_node(type, sizeof(struct_type))
+#define ALLOC_SSA_DATA_NODE(type, struct_type, bytecode) (struct_type *) allocate_ssa_data_node(type, sizeof(struct_type), bytecode)
 
-void * allocate_ssa_data_node(ssa_data_node_type type, size_t struct_size_bytes);
+void * allocate_ssa_data_node(ssa_data_node_type type, size_t struct_size_bytes, struct bytecode_list *);
 profile_data_type_t get_produced_type_ssa_data(struct function_profile_data *, struct ssa_data_node *);
+
+//OP_SET_LOCAL
+struct ssa_data_set_local_node {
+    struct ssa_data_node data;
+
+    int local_number;
+    struct ssa_data_node * new_local_value;
+};
 
 //OP_GET_LOCAL
 struct ssa_data_get_local_node {

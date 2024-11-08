@@ -58,6 +58,8 @@ void free_package(struct package * package);
 struct package * alloc_package();
 void init_package(struct package * package);
 
+struct function_object * get_function_package(struct package *, char * function_name);
+
 //Takes an import path and a length, and returns the package name.
 //
 //Packages names are included in the import path.

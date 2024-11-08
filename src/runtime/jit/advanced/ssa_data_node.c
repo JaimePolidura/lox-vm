@@ -1,8 +1,9 @@
 #include "ssa_data_node.h"
 
-void * allocate_ssa_data_node(ssa_data_node_type type, size_t struct_size_bytes) {
+void * allocate_ssa_data_node(ssa_data_node_type type, size_t struct_size_bytes, struct bytecode_list * bytecode) {
     struct ssa_data_node * ssa_control_node = malloc(struct_size_bytes);
     memset(ssa_control_node, 0, struct_size_bytes);
+    ssa_control_node->original_bytecode = bytecode;
     ssa_control_node->type = type;
     return ssa_control_node;
 }
@@ -12,6 +13,10 @@ profile_data_type_t get_produced_type_ssa_data(
         struct ssa_data_node * start_node
 ) {
     switch (start_node->type) {
+        case SSA_DATA_NODE_TYPE_SET_LOCAL: {
+            struct ssa_data_set_local_node * set_local_node = (struct ssa_data_set_local_node *) start_node;
+            return get_produced_type_ssa_data(function_profile, set_local_node->new_local_value);
+        }
         case SSA_DATA_NODE_TYPE_GET_LOCAL: {
             struct ssa_data_get_local_node * get_local_node = (struct ssa_data_get_local_node *) start_node;
             return get_local_node->type;
@@ -22,7 +27,7 @@ profile_data_type_t get_produced_type_ssa_data(
             struct package * package = get_global->package;
             const struct trie_list * constants_variable_names = &package->const_variables;
 
-            if(contains_trie(constants_variable_names, global_variable_name->chars, global_variable_name->length)) {
+            if (contains_trie(constants_variable_names, global_variable_name->chars, global_variable_name->length)) {
                 lox_value_t global_value;
                 get_hash_table(&package->global_variables, global_variable_name, &global_value);
                 return lox_value_to_profile_type(global_value);
@@ -35,7 +40,7 @@ profile_data_type_t get_produced_type_ssa_data(
             profile_data_type_t right_type = arithmetic_node->right_type;
             profile_data_type_t left_type = arithmetic_node->left_type;
 
-            if(left_type == right_type){
+            if (left_type == right_type) {
                 return left_type;
             } else if ((left_type == PROFILE_DATA_TYPE_I64 && right_type == PROFILE_DATA_TYPE_F64) ||
                        (left_type == PROFILE_DATA_TYPE_F64 && right_type == PROFILE_DATA_TYPE_I64)) {

@@ -8,27 +8,32 @@
 #include "stack_test.h"
 #include "utils_test.h"
 #include "trie_test.h"
+#include "ssa_test.h"
 #include "vm_test.h"
 
 #include "params.h"
 
-#define RUN_U64_HASH_TABLE_TEST
-#define RUN_MARK_BITMAP_TEST
-#define RUN_HASH_TABLE_TEST
-#define RUN_VM_INLINE_TEST
-#define RUN_COMPILER_TEST
-#define RUN_PACKAGE_TEST
-#define RUN_VM_JIT_TEST
-#define RUN_TRIE_TEST
-#define RUN_VM_TEST
-#define RUN_STACK_TEST
-#define RUN_UTILS_TEST
+//#define RUN_U64_HASH_TABLE_TEST
+//#define RUN_MARK_BITMAP_TEST
+//#define RUN_HASH_TABLE_TEST
+//#define RUN_VM_INLINE_TEST
+//#define RUN_COMPILER_TEST
+//#define RUN_PACKAGE_TEST
+//#define RUN_VM_JIT_TEST
+//#define RUN_UTILS_TEST
+//#define RUN_STACK_TEST
+//#define RUN_TRIE_TEST
+#define RUN_SSA_TEST
+//#define RUN_VM_TEST
 
 extern struct trie_list * compiled_packages;
 extern const char * compiling_base_dir;
 
 //Run in debug mode
 int main() {
+#ifdef RUN_SSA_TEST
+    simple_ssa_ir_test_outer();
+#endif
 #ifdef RUN_MARK_BITMAP_TEST
     multiple_mark_bitmap_test_outer();
     mark_bitmap_test_simple_outer();

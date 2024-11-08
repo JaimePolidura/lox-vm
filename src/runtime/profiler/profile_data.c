@@ -72,6 +72,6 @@ static profile_data_type_t get_type_by_type_profile(struct type_profile_data typ
              type_profile.nil == 0 && type_profile.string == 0 && type_profile.i64 > 0) {
         return PROFILE_DATA_TYPE_I64;
     } else {
-        return PROFILE_DATA_TYPE_NIL;
+        return PROFILE_DATA_TYPE_ANY;
     }
 }
