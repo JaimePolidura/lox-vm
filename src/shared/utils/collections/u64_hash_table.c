@@ -1,6 +1,6 @@
 #include "u64_hash_table.h"
 
-static struct u64_hash_table_entry * find_u64_hash_table_entry(struct u64_hash_table *, uint64_t key);
+static struct u64_hash_table_entry * find_u64_hash_table_entry(struct u64_hash_table_entry * entries, int capacity, uint64_t key);
 static void grow_u64_hash_table(struct u64_hash_table *);
 
 void init_u64_hash_table(struct u64_hash_table * u64_hash_table) {
@@ -24,7 +24,7 @@ void * get_u64_hash_table(struct u64_hash_table * hash_hable, uint64_t key) {
         return NULL;
     }
 
-    struct u64_hash_table_entry * result = find_u64_hash_table_entry(hash_hable, key);
+    struct u64_hash_table_entry * result = find_u64_hash_table_entry(hash_hable->entries, hash_hable->capacity, key);
     return result != NULL ? result->value : NULL;
 }
 
@@ -33,7 +33,7 @@ bool put_u64_hash_table(struct u64_hash_table * hash_hable, uint64_t key, void *
         grow_u64_hash_table(hash_hable);
     }
 
-    struct u64_hash_table_entry * entry = find_u64_hash_table_entry(hash_hable, key);
+    struct u64_hash_table_entry * entry = find_u64_hash_table_entry(hash_hable->entries, hash_hable->capacity, key);
     bool key_already_exists = entry->value != NULL;
     entry->key = key;
     entry->value = value;
@@ -49,31 +49,34 @@ bool contains_u64_hash_table(struct u64_hash_table * table, uint64_t key) {
     return get_u64_hash_table(table, key) != NULL;
 }
 
-static struct u64_hash_table_entry * find_u64_hash_table_entry(struct u64_hash_table * u64_hash_table, uint64_t key) {
-    uint64_t index = key & (u64_hash_table->capacity - 1);
-    struct u64_hash_table_entry * current_entry = u64_hash_table->entries + index;
-    struct u64_hash_table_entry * start_entry = current_entry;
+static struct u64_hash_table_entry * find_u64_hash_table_entry(struct u64_hash_table_entry * entries, int capacity, uint64_t key) {
+    uint64_t index = key & (capacity - 1);
+    struct u64_hash_table_entry * current_entry = entries + index;
 
-    while(current_entry != NULL && current_entry->value != NULL && current_entry->key != key){
-        index = (index + 1) & (u64_hash_table->capacity - 1); //Optimized %
-        current_entry = u64_hash_table->entries + index;
+    while (current_entry != NULL && current_entry->value != NULL && current_entry->key != key) {
+        index = (index + 1) & (capacity - 1); //Optimized %
+        current_entry = entries + index;
     }
 
     return current_entry;
 }
 
-static void grow_u64_hash_table(struct u64_hash_table * u64_hash_table) {
-    uint64_t new_capacity = MAX(U64_HASH_TABLE_INITIAL_CAPACITY, u64_hash_table->capacity << 2);
+static void grow_u64_hash_table(struct u64_hash_table * table) {
+    uint64_t new_capacity = MAX(U64_HASH_TABLE_INITIAL_CAPACITY, table->capacity << 1);
     struct u64_hash_table_entry * new_entries = malloc(sizeof(struct u64_hash_table_entry) * new_capacity);
+    struct u64_hash_table_entry * old_entries = table->entries;
     memset(new_entries, 0, new_capacity * sizeof(struct u64_hash_table_entry));
 
-    struct u64_hash_table_entry * old_entries = u64_hash_table->entries;
-    uint64_t old_capacity = u64_hash_table->capacity;
-
-    u64_hash_table->capacity = new_capacity;
-    u64_hash_table->entries = new_entries;
-
-    if (old_entries != NULL) {
-        memcpy(new_entries, old_entries, old_capacity);
+    for (int i = 0; i < table->capacity; i++) {
+        struct u64_hash_table_entry * old_entry = &old_entries[i];
+        if (old_entry->key != 0 && old_entry->value != NULL) {
+            struct u64_hash_table_entry * new_entry = find_u64_hash_table_entry(new_entries, new_capacity, old_entry->key);
+            new_entry->value = old_entry->value;
+            new_entry->key = old_entry->key;
+        }
     }
+
+    table->entries = new_entries;
+    table->capacity = new_capacity;
+    free(old_entries);
 }

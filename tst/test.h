@@ -26,8 +26,8 @@
 #define ASSERT_STRING_EQ(a, b) \
     do { \
         n_assertions++; \
-        if(strcmp(a, b) != 0) { \
-            fprintf(stderr, "[%s] Invalid string equals assert immediate %i while comparing %s and %s\n", test_name, n_assertions, a, b); \
+        if(strcmp((a), (b)) != 0) { \
+            fprintf(stderr, "[%s] Invalid string equals assert immediate %i while comparing %s and %s\n", test_name, n_assertions, (a), (b)); \
             exit(65); \
         } \
     }while(false);
@@ -35,8 +35,8 @@
 #define ASSERT_EQ(a, b) \
     do { \
         n_assertions++; \
-        if(a != b) { \
-            fprintf(stderr, "[%s] Invalid equals assert immediate %i while comparing %d and %d\n", test_name, n_assertions, a, b); \
+        if((a) != (b)) { \
+            fprintf(stderr, "[%s] Invalid equals assert immediate %i while comparing %d and %d\n", test_name, n_assertions, (a), (b)); \
             exit(65); \
         } \
     }while(false); \
