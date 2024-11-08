@@ -375,6 +375,7 @@ static void var_declaration(struct bytecode_compiler * compiler, bool is_public,
 
     if(is_local_variable) { // Local current_scope
         emit_bytecodes(compiler, OP_SET_LOCAL, variable_identifier);
+        emit_bytecode(compiler, OP_POP);
     } else {
         define_global_variable(compiler, variable_identifier);
     }
@@ -1273,7 +1274,6 @@ static void end_scope(struct bytecode_compiler * compiler) {
     compiler->local_depth--;
 
     while(compiler->local_count > 0 && compiler->locals[compiler->local_count - 1].depth > compiler->local_depth) {
-        emit_bytecode(compiler, OP_POP);
         compiler->local_count--;
     }
 }

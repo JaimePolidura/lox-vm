@@ -129,6 +129,5 @@ int main() {
     trie_test_emtpy_trie_contains_outer();
     trie_test_for_each_outer();
 #endif
-
     return 0;
 }

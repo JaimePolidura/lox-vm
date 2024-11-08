@@ -8,6 +8,8 @@ TEST(simple_stack_push_pop_test) {
     push_stack_list(stack, (void *) 0x01);
 
     ASSERT_TRUE(pop_stack_list(stack) == (void *) 0x01);
+    ASSERT_TRUE(is_empty_stack_list(stack));
+
     push_stack_list(stack, (void *) 0x03);
     push_stack_list(stack, (void *) 0x04);
     push_stack_list(stack, (void *) 0x05);

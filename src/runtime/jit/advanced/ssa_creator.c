@@ -54,7 +54,6 @@ static struct ssa_control_node * create_ssa_ir_without_phis(
     init_stack_list(&data_nodes_stack);
     init_stack_list(&package_stack);
 
-    push_stack_list(&pending_evaluation, start_function_bytecode);
     push_stack_list(&package_stack, package);
 
     struct ssa_control_start_node * start_node = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_TYPE_START, struct ssa_control_start_node);
@@ -115,15 +114,17 @@ static struct ssa_control_node * create_ssa_ir_without_phis(
             }
             case OP_POP: {
                 //Expression statements
-                struct ssa_data_node * data_node = pop_stack_list(&data_nodes_stack);
-                struct ssa_control_data_node * control_data_node = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_TYPE_DATA, struct ssa_control_data_node);
+                if(!is_empty_stack_list(&data_nodes_stack)){
+                    struct ssa_data_node * data_node = pop_stack_list(&data_nodes_stack);
+                    struct ssa_control_data_node * control_data_node = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_TYPE_DATA, struct ssa_control_data_node);
 
-                control_data_node->data = data_node;
+                    control_data_node->data = data_node;
 
-                map_data_nodes_bytecodes_to_control(&control_nodes_by_bytecode, data_node, &control_data_node->control);
-                attatch_ssa_node_to_parent(evaluation_type, parent_ssa_control_node, &control_data_node->control);
-                push_pending_evaluate(&pending_evaluation, EVAL_TYPE_SEQUENTIAL_CONTROL, current_bytecode_to_evaluate->next, &control_data_node->control);
-                put_u64_hash_table(&control_nodes_by_bytecode, (uint64_t) current_bytecode_to_evaluate, control_data_node);
+                    map_data_nodes_bytecodes_to_control(&control_nodes_by_bytecode, data_node, &control_data_node->control);
+                    attatch_ssa_node_to_parent(evaluation_type, parent_ssa_control_node, &control_data_node->control);
+                    push_pending_evaluate(&pending_evaluation, EVAL_TYPE_SEQUENTIAL_CONTROL, current_bytecode_to_evaluate->next, &control_data_node->control);
+                    put_u64_hash_table(&control_nodes_by_bytecode, (uint64_t) current_bytecode_to_evaluate, control_data_node);
+                }
                 break;
             }
             case OP_SET_ARRAY_ELEMENT: {
@@ -549,11 +550,13 @@ static void push_pending_evaluate(
         struct bytecode_list * pending_bytecode,
         struct ssa_control_node * parent_ssa_node
 ) {
-    struct pending_evaluate * pending_evalutaion = malloc(sizeof(struct pending_evaluate));
-    pending_evalutaion->pending_bytecode = pending_bytecode;
-    pending_evalutaion->parent_ssa_node = parent_ssa_node;
-    pending_evalutaion->type = type;
-    push_stack_list(pending_evaluation_stack, pending_evalutaion);
+    if (pending_bytecode != NULL) {
+        struct pending_evaluate * pending_evalutaion = malloc(sizeof(struct pending_evaluate));
+        pending_evalutaion->pending_bytecode = pending_bytecode;
+        pending_evalutaion->parent_ssa_node = parent_ssa_node;
+        pending_evalutaion->type = type;
+        push_stack_list(pending_evaluation_stack, pending_evalutaion);
+    }
 }
 
 static void attatch_ssa_node_to_parent(
