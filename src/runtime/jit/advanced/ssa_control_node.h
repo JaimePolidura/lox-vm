@@ -16,7 +16,6 @@ typedef enum {
     SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD,
     SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT,
     SSA_CONTROL_NODE_TYPE_LOOP_JUMP,
-    SSA_CONTROL_NODE_TYPE_FUNCTION_CALL,
     SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP,
 } ssa_control_node_type;
 
@@ -102,6 +101,7 @@ struct ssa_control_loop_jump_node {
 //OP_JUMP_IF_FALSE
 struct ssa_control_conditional_jump_node {
     struct ssa_control_node control;
-
+    //If this is true, it means that another OP_LOOP node will point to this node
+    bool loop_condition;
     struct ssa_data_node * condition;
 };

@@ -1,4 +1,16 @@
-#include "ssa_creator.h"
+#include "runtime/jit/jit_compilation_result.h"
+#include "runtime/jit/advanced/ssa_control_node.h"
+
+#include "compiler/bytecode/bytecode_list.h"
+
+#include "shared/utils/collections/u64_hash_table.h"
+#include "shared/utils/collections/stack_list.h"
+#include "shared/types/function_object.h"
+#include "shared/types/package_object.h"
+#include "shared/package.h"
+
+//This file will expoase the function "create_ssa_ir_no_phis", given a bytecodelist, it will output the ssa graph ir
+//without phis
 
 #define READ_CONSTANT(function, bytecode) (function->chunk->constants.values[bytecode->as.u8])
 
@@ -24,22 +36,7 @@ static void map_data_nodes_bytecodes_to_control(
         struct ssa_control_node * to_map_control
 );
 
-static struct ssa_control_node * create_ssa_ir_without_phis(
-        struct package * package,
-        struct function_object * function,
-        struct bytecode_list * start_function_bytecode
-);
-
-struct ssa_control_node * create_ssa_ir(
-        struct package * package,
-        struct function_object * function,
-        struct bytecode_list * start_function_bytecode
-) {
-    struct ssa_control_node * ssa = create_ssa_ir_without_phis(package, function, start_function_bytecode);
-    return ssa;
-}
-
-static struct ssa_control_node * create_ssa_ir_without_phis(
+struct ssa_control_node * create_ssa_ir_no_phis(
         struct package * package,
         struct function_object * function,
         struct bytecode_list * start_function_bytecode
@@ -100,6 +97,11 @@ static struct ssa_control_node * create_ssa_ir_without_phis(
                 struct ssa_control_loop_jump_node * loop_jump_node = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_TYPE_LOOP_JUMP, struct ssa_control_loop_jump_node);
                 struct bytecode_list * to_jump_bytecode = current_bytecode_to_evaluate->as.jump;
                 struct ssa_control_node * to_jump_ssa_node = get_u64_hash_table(&control_nodes_by_bytecode, (uint64_t) to_jump_bytecode);
+
+                if(to_jump_ssa_node->type == SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP){
+                    struct ssa_control_conditional_jump_node * loop_condition_node = (struct ssa_control_conditional_jump_node *) to_jump_ssa_node;
+                    loop_condition_node->loop_condition = true;
+                }
 
                 attatch_ssa_node_to_parent(evaluation_type, parent_ssa_control_node, &loop_jump_node->control);
                 loop_jump_node->control.next.next = to_jump_ssa_node;
@@ -250,7 +252,7 @@ static struct ssa_control_node * create_ssa_ir_without_phis(
                 break;
             }
 
-            //Expressions, data nodes
+                //Expressions, data nodes
             case OP_SET_LOCAL: {
                 struct ssa_data_set_local_node * set_local_node = ALLOC_SSA_DATA_NODE(
                         SSA_DATA_NODE_TYPE_SET_LOCAL, struct ssa_data_set_local_node, current_bytecode_to_evaluate

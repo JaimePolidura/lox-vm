@@ -1,6 +1,6 @@
 #pragma once
 
-#include "runtime/jit/advanced/ssa_creator.h"
+#include "runtime/jit/advanced/creation/ssa_creator.h"
 #include "compiler/compiler.h"
 #include "test.h"
 
@@ -93,7 +93,7 @@ TEST(simple_ssa_ir_test){
     struct ssa_control_loop_jump_node * loop_node = (struct ssa_control_loop_jump_node *) increment_i->control.next.next;
     ASSERT_EQ(loop_node->control.type, SSA_CONTROL_NODE_TYPE_LOOP_JUMP);
     ASSERT_EQ((uint64_t) loop_node->control.next.next, (uint64_t) a_condition_false_loop_condition);
-    
+
     struct ssa_control_node * a_condition_false_after_loop = FALSE_BRANCH_NODE(struct ssa_control_node, a_condition_false_loop_condition);
     ASSERT_PRINTS_NUMBER(a_condition_false_after_loop, 4);
     //Final print
