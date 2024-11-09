@@ -91,15 +91,9 @@ static struct ssa_control_node * create_ssa_ir_without_phis(
                 break;
             }
             case OP_JUMP: {
-                //TODO Get rid of OP_JUMP control nodes
-                struct ssa_control_unconditional_jump_node * uncond_jump_node = ALLOC_SSA_CONTROL_NODE(
-                        SSA_CONTROL_NODE_TYPE_UNCONDITIONAL_JUMP, struct ssa_control_unconditional_jump_node
-                );
+                //OP_JUMP are translated to edges in the ssa ir graph
                 struct bytecode_list * to_jump_bytecode = simplify_redundant_unconditional_jump_bytecodes(current_bytecode_to_evaluate->as.jump);
-
-                attatch_ssa_node_to_parent(evaluation_type, parent_ssa_control_node, &uncond_jump_node->control);
-                put_u64_hash_table(&control_nodes_by_bytecode, (uint64_t) current_bytecode_to_evaluate, uncond_jump_node);
-                push_pending_evaluate(&pending_evaluation, EVAL_TYPE_SEQUENTIAL_CONTROL, to_jump_bytecode, &uncond_jump_node->control);
+                push_pending_evaluate(&pending_evaluation, EVAL_TYPE_SEQUENTIAL_CONTROL, to_jump_bytecode, parent_ssa_control_node);
                 break;
             }
             case OP_LOOP: {

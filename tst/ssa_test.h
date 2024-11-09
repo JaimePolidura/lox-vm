@@ -5,11 +5,16 @@
 #include "test.h"
 
 #define ASSERT_PRINTS_NUMBER(node, value) { \
-    struct ssa_control_print_node * print_node = (struct ssa_control_print_node *) node; \
+    struct ssa_control_print_node * print_node = (struct ssa_control_print_node *) (node); \
     ASSERT_TRUE(print_node->control.type == SSA_CONTROL_NODE_TYPE_PRINT); \
     ASSERT_TRUE(print_node->data->type == SSA_DATA_NODE_TYPE_CONSTANT); \
     ASSERT_TRUE(((struct ssa_data_constant_node *) print_node->data)->as.i64 == value); \
 }; \
+
+#define NEXT_NODE(type, node) (type *) ((node)->control.next.next)
+#define FALSE_BRANCH_NODE(type, node) (type *) ((node)->control.next.branch.false_branch)
+#define TRUE_BRANCH_NODE(type, node) (type *) ((node)->control.next.branch.true_branch)
+
 
 //Should produce:
 // start -> a > 0 Conditional jump
@@ -52,36 +57,45 @@ TEST(simple_ssa_ir_test){
     ASSERT_TRUE(a_condition->control.type == SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP);
 
     //a > 0 True -> b > 0
-    struct ssa_control_conditional_jump_node * b_condition = (struct ssa_control_conditional_jump_node *) a_condition->control.next.branch.true_branch;
-    ASSERT_TRUE(b_condition->control.type == SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP);
+    struct ssa_control_conditional_jump_node * a_condition_false_b_condition = TRUE_BRANCH_NODE(struct ssa_control_conditional_jump_node, a_condition);
+    ASSERT_TRUE(a_condition_false_b_condition->control.type == SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP);
+
+    struct ssa_control_node * a_condition_false_b_condition_false = FALSE_BRANCH_NODE(struct ssa_control_node, a_condition_false_b_condition);
+    struct ssa_control_node * a_condition_false_b_condition_true = TRUE_BRANCH_NODE(struct ssa_control_node, a_condition_false_b_condition);
 
     //a > 0 True -> b > 0 -> True
-    ASSERT_PRINTS_NUMBER(b_condition->control.next.branch.true_branch, 1);
+    ASSERT_PRINTS_NUMBER(a_condition_false_b_condition_true, 1);
     //a > 0 True -> b > 0 -> False
-    ASSERT_PRINTS_NUMBER(b_condition->control.next.branch.false_branch, 2);
+    ASSERT_PRINTS_NUMBER(a_condition_false_b_condition_false, 2);
+    //Final print
+    ASSERT_PRINTS_NUMBER(a_condition_false_b_condition_false->next.next, 5);
+    ASSERT_PRINTS_NUMBER(a_condition_false_b_condition_true->next.next, 5);
 
     //a > 0 False -> var i = 0
-    struct ssa_control_data_node * a_condition_false = (struct ssa_control_data_node *) a_condition->control.next.branch.false_branch;
-    ASSERT_TRUE(a_condition_false->data->type == SSA_DATA_NODE_TYPE_SET_LOCAL);
-    struct ssa_data_set_local_node * set_i_0 = (struct ssa_data_set_local_node *) a_condition_false->data;
+    struct ssa_control_data_node * a_condition_false_loop_init = FALSE_BRANCH_NODE(struct ssa_control_data_node, a_condition);
+    ASSERT_TRUE(a_condition_false_loop_init->data->type == SSA_DATA_NODE_TYPE_SET_LOCAL);
+    struct ssa_data_set_local_node * set_i_0 = (struct ssa_data_set_local_node *) a_condition_false_loop_init->data;
     ASSERT_TRUE(set_i_0->data.type == SSA_DATA_NODE_TYPE_SET_LOCAL);
     ASSERT_TRUE(((struct ssa_data_constant_node *) set_i_0->new_local_value)->as.i64 == 0);
 
     //a > 0 False -> var i = 0; i < 10
-    struct ssa_control_conditional_jump_node * condition_loop = (struct ssa_control_conditional_jump_node *) a_condition_false->control.next.next;
-    ASSERT_EQ(condition_loop->control.type, SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP);
-    ASSERT_EQ(condition_loop->condition->type, SSA_DATA_NODE_TYPE_COMPARATION);
+    struct ssa_control_conditional_jump_node * a_condition_false_loop_condition = NEXT_NODE(struct ssa_control_conditional_jump_node, a_condition_false_loop_init);
+    ASSERT_EQ(a_condition_false_loop_condition->control.type, SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP);
+    ASSERT_EQ(a_condition_false_loop_condition->condition->type, SSA_DATA_NODE_TYPE_COMPARATION);
 
     //a > 0 False -> var i = 0; i < 10 True
-    struct ssa_control_node * condition_loop_true = condition_loop->control.next.branch.true_branch;
-    ASSERT_PRINTS_NUMBER(condition_loop_true, 3);
+    struct ssa_control_node * a_condition_false_loop_body = TRUE_BRANCH_NODE(struct ssa_control_node, a_condition_false_loop_condition);
+    ASSERT_PRINTS_NUMBER(a_condition_false_loop_body, 3);
     //a > 0 False -> var i = 0; i < 10 True: print 3; i = i + 1
-    struct ssa_control_data_node * increment_i = (struct ssa_control_data_node *) condition_loop_true->next.next;
+    struct ssa_control_data_node * increment_i = (struct ssa_control_data_node *) a_condition_false_loop_body->next.next;
     ASSERT_EQ(increment_i->data->type, SSA_DATA_NODE_TYPE_SET_LOCAL);
     //a > 0 False -> var i = 0; i < 10 True: print 3; i = i + 1; go back to i < 10
     struct ssa_control_loop_jump_node * loop_node = (struct ssa_control_loop_jump_node *) increment_i->control.next.next;
     ASSERT_EQ(loop_node->control.type, SSA_CONTROL_NODE_TYPE_LOOP_JUMP);
-    ASSERT_EQ((uint64_t) loop_node->control.next.next, (uint64_t) condition_loop);
+    ASSERT_EQ((uint64_t) loop_node->control.next.next, (uint64_t) a_condition_false_loop_condition);
     
-    struct ssa_control_node * condition_loop_false = condition_loop->control.next.branch.false_branch;
+    struct ssa_control_node * a_condition_false_after_loop = FALSE_BRANCH_NODE(struct ssa_control_node, a_condition_false_loop_condition);
+    ASSERT_PRINTS_NUMBER(a_condition_false_after_loop, 4);
+    //Final print
+    ASSERT_PRINTS_NUMBER(a_condition_false_after_loop->next.next, 5);
 }

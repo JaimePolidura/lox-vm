@@ -18,7 +18,6 @@ typedef enum {
     SSA_CONTROL_NODE_TYPE_LOOP_JUMP,
     SSA_CONTROL_NODE_TYPE_FUNCTION_CALL,
     SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP,
-    SSA_CONTROL_NODE_TYPE_UNCONDITIONAL_JUMP
 } ssa_control_node_type;
 
 struct ssa_control_node {
@@ -105,9 +104,4 @@ struct ssa_control_conditional_jump_node {
     struct ssa_control_node control;
 
     struct ssa_data_node * condition;
-};
-
-//OP_JUMP
-struct ssa_control_unconditional_jump_node {
-    struct ssa_control_node control;
 };
