@@ -4,6 +4,12 @@
 #include "compiler/compiler.h"
 #include "test.h"
 
+extern struct ssa_control_node * create_ssa_ir_no_phis(
+        struct package * package,
+        struct function_object * function,
+        struct bytecode_list * start_function_bytecode
+);
+
 #define ASSERT_PRINTS_NUMBER(node, value) { \
     struct ssa_control_print_node * print_node = (struct ssa_control_print_node *) (node); \
     ASSERT_TRUE(print_node->control.type == SSA_CONTROL_NODE_TYPE_PRINT); \
@@ -24,7 +30,7 @@
 // -> false branch -> i = 0 -> i < 10 Conditional branch
 //      (true branch) -> print 3 -> i = i + 1 -> loop -> i = 0
 //      (false branch) print 4 -> print 5
-TEST(simple_ssa_ir_test){
+TEST(ssa_ir_no_phis){
     struct compilation_result compilation = compile_standalone(
             "fun function_ssa(a, b, c) {"
             "   if(a > 0) {"
@@ -48,7 +54,7 @@ TEST(simple_ssa_ir_test){
     int n_instructions = function_ssa->chunk->in_use;
     init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
 
-    struct ssa_control_node * start_ssa_ir = create_ssa_ir(
+    struct ssa_control_node * start_ssa_ir = create_ssa_ir_no_phis(
             package, function_ssa, create_bytecode_list(function_ssa->chunk)
     );
 
