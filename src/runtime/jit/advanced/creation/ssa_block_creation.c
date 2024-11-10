@@ -27,6 +27,7 @@ static struct ssa_block * create_parent_block(struct ssa_control_node *);
 static struct ssa_control_node * get_last_node_in_block(struct ssa_control_node *start);
 static void attatch_new_block_to_parent_block(struct ssa_block * parent, struct ssa_block * new_block, parent_next_type_t);
 static void get_input_outputs_from_control_node(struct u8_arraylist * input, struct u8_arraylist * output, struct ssa_control_node *);
+static void map_ssa_nodes_to_ssa_blocks(struct u64_hash_table *, struct ssa_block *, struct ssa_control_node * first, struct ssa_control_node * last);
 
 static void push_pending_evaluate(
         struct stack_list * pending_evaluation_stack,
@@ -91,6 +92,7 @@ struct ssa_block * create_ssa_ir_blocks(
         }
 
         attatch_new_block_to_parent_block(parent_block, block, parent_next_type);
+        map_ssa_nodes_to_ssa_blocks(&block_by_ssa_control_nodes, block, first_node, last_node);
     }
 
     free_u64_hash_table(&block_by_ssa_control_nodes);
@@ -250,5 +252,22 @@ static void get_input_outputs_from_control_node(
         case SSA_CONTROL_NODE_TYPE_ENTER_MONITOR:
         case SSA_CONTROL_NODE_TYPE_EXIT_MONITOR:
             break;
+    }
+}
+
+static void map_ssa_nodes_to_ssa_blocks(
+        struct u64_hash_table * hashtable_mapping,
+        struct ssa_block * block,
+        struct ssa_control_node * first,
+        struct ssa_control_node * last
+) {
+    struct ssa_control_node * current = first;
+    while (current != NULL) {
+        put_u64_hash_table(hashtable_mapping, (uint64_t) first, block);
+        if(current == last) {
+            break;
+        }
+
+        current = current->next.next;
     }
 }

@@ -11,7 +11,6 @@
 
 //This file will expoase the function "create_ssa_ir_no_phis", given a bytecodelist, it will output the ssa graph ir
 //without phis
-
 #define READ_CONSTANT(function, bytecode) (function->chunk->constants.values[bytecode->as.u8])
 
 typedef enum {
@@ -66,9 +65,7 @@ struct ssa_control_node * create_ssa_ir_no_phis(
 
         if (contains_u64_hash_table(&control_nodes_by_bytecode, (uint64_t) current_bytecode_to_evaluate)) {
             struct ssa_control_node * already_evaluted_node = get_u64_hash_table(&control_nodes_by_bytecode, (uint64_t) current_bytecode_to_evaluate);
-            bool is_from_jump = evaluation_type == EVAL_TYPE_JUMP_SEQUENTIAL_CONTROL;
-            pending_evaluation_type_t next_parent_type = is_from_jump ? EVAL_TYPE_JUMP_SEQUENTIAL_CONTROL: EVAL_TYPE_SEQUENTIAL_CONTROL;
-            attatch_ssa_node_to_parent(next_parent_type, parent_ssa_control_node, already_evaluted_node);
+            attatch_ssa_node_to_parent(evaluation_type, parent_ssa_control_node, already_evaluted_node);
             continue;
         }
 
