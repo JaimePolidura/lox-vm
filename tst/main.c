@@ -13,18 +13,18 @@
 
 #include "params.h"
 
-//#define RUN_U64_HASH_TABLE_TEST
-//#define RUN_MARK_BITMAP_TEST
-//#define RUN_HASH_TABLE_TEST
-//#define RUN_VM_INLINE_TEST
-//#define RUN_COMPILER_TEST
-//#define RUN_PACKAGE_TEST
-//#define RUN_VM_JIT_TEST
-//#define RUN_UTILS_TEST
-//#define RUN_STACK_TEST
-//#define RUN_TRIE_TEST
+#define RUN_U64_HASH_TABLE_TEST
+#define RUN_MARK_BITMAP_TEST
+#define RUN_HASH_TABLE_TEST
+#define RUN_VM_INLINE_TEST
+#define RUN_COMPILER_TEST
+#define RUN_PACKAGE_TEST
+#define RUN_VM_JIT_TEST
+#define RUN_UTILS_TEST
+#define RUN_STACK_TEST
+#define RUN_TRIE_TEST
 #define RUN_SSA_TEST
-//#define RUN_VM_TEST
+#define RUN_VM_TEST
 
 extern struct trie_list * compiled_packages;
 extern const char * compiling_base_dir;
@@ -33,7 +33,7 @@ extern const char * compiling_base_dir;
 int main() {
 #ifdef RUN_SSA_TEST
     ssa_ir_block_creation_outer();
-//    ssa_ir_no_phis_outer();
+    ssa_ir_no_phis_outer();
 #endif
 #ifdef RUN_MARK_BITMAP_TEST
     multiple_mark_bitmap_test_outer();

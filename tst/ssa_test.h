@@ -1,6 +1,6 @@
 #pragma once
 
-#include "runtime/jit/advanced/creation/ssa_creator.h"
+#include "runtime/jit/advanced/ssa_block.h"
 #include "compiler/compiler.h"
 #include "test.h"
 
@@ -64,9 +64,76 @@ TEST(ssa_ir_block_creation){
     struct ssa_control_node * start_ssa_ir = create_ssa_ir_no_phis(
             package, function_ssa, create_bytecode_list(function_ssa->chunk)
     );
-    struct ssa_block * start_ssa_block = create_ssa_ir_blocks(start_ssa_ir);
+    struct ssa_block * ssa_block = create_ssa_ir_blocks(start_ssa_ir);
+    ssa_block = ssa_block->next.next;
 
-    puts("a");
+    // [c = 1, ¿a < 0?]
+    ASSERT_EQ(ssa_block->first->type, SSA_CONTROL_NODE_TYPE_DATA); //Asignment
+    ASSERT_EQ(ssa_block->last->type, SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP); //a < 0
+    ASSERT_EQ(ssa_block->outputs.in_use, 1);
+    ASSERT_EQ(ssa_block->inputs.in_use, 1);
+
+    //[c = 1, ¿a < 0?] -(true)-> [¿b > 0?]
+    struct ssa_block * ssa_block_true = ssa_block->next.branch.true_branch;
+    ASSERT_EQ(ssa_block_true->first->type, SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP); //Asignment
+    ASSERT_EQ(ssa_block_true->last->type, SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP); //a < 0
+    ASSERT_EQ(ssa_block_true->last, ssa_block_true->first); //a < 0
+    ASSERT_EQ(ssa_block_true->outputs.in_use, 0);
+    ASSERT_EQ(ssa_block_true->inputs.in_use, 1);
+
+    //[c = 1, ¿a < 0?] -(true)-> [¿b > 0?] -(true)-> [b = 3; a = 2]
+    struct ssa_block * ssa_block_true_true = ssa_block_true->next.branch.true_branch;
+    ASSERT_EQ(ssa_block_true_true->first->type, SSA_CONTROL_NODE_TYPE_DATA); //b = 3
+    ASSERT_EQ(ssa_block_true_true->last->type, SSA_CONTROL_NODE_TYPE_DATA); //a = 2
+    ASSERT_EQ(ssa_block_true_true->outputs.in_use, 2);
+    ASSERT_EQ(ssa_block_true_true->inputs.in_use, 0);
+
+    //[c = 1, ¿a < 0?] -(true)-> [¿b > 0?] -(true)-> [b = 3; a = 2] -> FINAL BLOCK
+    struct ssa_block * final_block = ssa_block_true_true->next.next;
+    ASSERT_EQ(final_block->first->type, SSA_CONTROL_NODE_TYPE_PRINT); //print a;
+    ASSERT_EQ(final_block->last->type, SSA_CONTROL_NODE_TYPE_RETURN); //final return OP_NIL OP_RETURN
+    ASSERT_EQ(final_block->outputs.in_use, 0);
+    ASSERT_EQ(final_block->inputs.in_use, 2);
+
+    //[c = 1, ¿a < 0?] -(true)-> [¿b > 0?] -(false)-> [b = 3]
+    struct ssa_block * ssa_block_true_false = ssa_block_true->next.branch.false_branch;
+    ASSERT_EQ(ssa_block_true_false->first->type, SSA_CONTROL_NODE_TYPE_DATA); //b = 3
+    ASSERT_EQ(ssa_block_true_false->last->type, SSA_CONTROL_NODE_TYPE_DATA); //b = 3
+    ASSERT_EQ(ssa_block_true_false->last, ssa_block_true_false->first); //a < 0
+    ASSERT_EQ(ssa_block_true_false->outputs.in_use, 1);
+    ASSERT_EQ(ssa_block_true_false->inputs.in_use, 0);
+
+    //[c = 1, ¿a < 0?] -(true)-> [¿b > 0?] -(false)-> [b = 3] -> FINAL BLOCK
+    ASSERT_EQ(ssa_block_true_false->next.next, final_block);
+
+    //[c = 1, ¿a < 0?] -(false)-> [c = 1, i = 0]
+    struct ssa_block * ssa_block_false = ssa_block->next.branch.false_branch;
+    ASSERT_EQ(ssa_block_false->first->type, SSA_CONTROL_NODE_TYPE_DATA); //c = 1
+    ASSERT_EQ(ssa_block_false->last->type, SSA_CONTROL_NODE_TYPE_DATA); //i = 0
+    ASSERT_EQ(ssa_block_false->outputs.in_use, 2);
+    ASSERT_EQ(ssa_block_false->inputs.in_use, 0);
+
+    //[c = 1, ¿a < 0?] -(false)-> [c = 1, i = 0] -> [¿i < 10?]
+    struct ssa_block * ssa_block_false_for_condition = ssa_block_false->next.next;
+    ASSERT_EQ(ssa_block_false_for_condition->first->type, SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP); //i < 10
+    ASSERT_EQ(ssa_block_false_for_condition->last->type, SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP);
+    ASSERT_EQ(ssa_block_false_for_condition->last, ssa_block_false_for_condition->first);
+    ASSERT_EQ(ssa_block_false_for_condition->outputs.in_use, 0);
+    ASSERT_EQ(ssa_block_false_for_condition->inputs.in_use, 1);
+
+    //[c = 1, ¿a < 0?] -(false)-> [c = 1, i = 0] -> [¿i < 10?] -(true)-> [print 1, i = i + 1, loop]
+    struct ssa_block * ssa_block_false_for_condition_true = ssa_block_false_for_condition->next.branch.true_branch;
+    ASSERT_EQ(ssa_block_false_for_condition_true->first->type, SSA_CONTROL_NODE_TYPE_PRINT); //print 1
+    ASSERT_EQ(ssa_block_false_for_condition_true->first->next.next->type, SSA_CONTROL_NODE_TYPE_DATA); //i = i + 1
+    ASSERT_EQ(ssa_block_false_for_condition_true->last->type, SSA_CONTROL_NODE_TYPE_LOOP_JUMP);
+    ASSERT_EQ(ssa_block_false_for_condition_true->outputs.in_use, 1);
+    ASSERT_EQ(ssa_block_false_for_condition_true->inputs.in_use, 1);
+    ASSERT_EQ(ssa_block_false_for_condition_true->next.loop, ssa_block_false_for_condition);
+
+
+    //[c = 1, ¿a < 0?] -(false)-> [c = 1, i = 0] -> [¿i < 10?] -(false)-> FINAL BLOCK
+    struct ssa_block * ssa_block_false_for_condition_false = ssa_block_false_for_condition->next.branch.false_branch;
+    ASSERT_EQ(ssa_block_false_for_condition_false, final_block);
 }
 
 //Should produce:
