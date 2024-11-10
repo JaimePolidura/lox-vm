@@ -42,8 +42,9 @@ void remove_duplicates_u8_arraylist(struct u8_arraylist * array) {
         append_u8_arraylist(&new, current);
     }
 
+    free(array->values);
+
     array->values = new.values;
     array->in_use = new.in_use;
     array->capacity = new.capacity;
-    free(array->values);
 }

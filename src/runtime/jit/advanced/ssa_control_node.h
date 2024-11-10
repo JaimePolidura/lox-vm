@@ -22,6 +22,8 @@ typedef enum {
 struct ssa_control_node {
     ssa_control_node_type type;
 
+    bool jumps_to_next_node;
+
     union {
         struct ssa_control_node * next;
         struct {

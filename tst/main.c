@@ -32,7 +32,8 @@ extern const char * compiling_base_dir;
 //Run in debug mode
 int main() {
 #ifdef RUN_SSA_TEST
-    ssa_ir_no_phis_outer();
+    ssa_ir_block_creation_outer();
+//    ssa_ir_no_phis_outer();
 #endif
 #ifdef RUN_MARK_BITMAP_TEST
     multiple_mark_bitmap_test_outer();

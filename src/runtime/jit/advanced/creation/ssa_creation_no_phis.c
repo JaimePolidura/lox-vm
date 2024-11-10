@@ -16,6 +16,7 @@
 
 typedef enum {
     EVAL_TYPE_SEQUENTIAL_CONTROL,
+    EVAL_TYPE_JUMP_SEQUENTIAL_CONTROL,
     EVAL_TYPE_CONDITIONAL_JUMP_TRUE_BRANCH_CONTROL,
     EVAL_TYPE_CONDITIONAL_JUMP_FALSE_BRANCH_CONTROL,
 } pending_evaluation_type_t;
@@ -65,7 +66,9 @@ struct ssa_control_node * create_ssa_ir_no_phis(
 
         if (contains_u64_hash_table(&control_nodes_by_bytecode, (uint64_t) current_bytecode_to_evaluate)) {
             struct ssa_control_node * already_evaluted_node = get_u64_hash_table(&control_nodes_by_bytecode, (uint64_t) current_bytecode_to_evaluate);
-            attatch_ssa_node_to_parent(EVAL_TYPE_SEQUENTIAL_CONTROL, parent_ssa_control_node, already_evaluted_node);
+            bool is_from_jump = evaluation_type == EVAL_TYPE_JUMP_SEQUENTIAL_CONTROL;
+            pending_evaluation_type_t next_parent_type = is_from_jump ? EVAL_TYPE_JUMP_SEQUENTIAL_CONTROL: EVAL_TYPE_SEQUENTIAL_CONTROL;
+            attatch_ssa_node_to_parent(next_parent_type, parent_ssa_control_node, already_evaluted_node);
             continue;
         }
 
@@ -90,7 +93,7 @@ struct ssa_control_node * create_ssa_ir_no_phis(
             case OP_JUMP: {
                 //OP_JUMP are translated to edges in the ssa ir graph
                 struct bytecode_list * to_jump_bytecode = simplify_redundant_unconditional_jump_bytecodes(current_bytecode_to_evaluate->as.jump);
-                push_pending_evaluate(&pending_evaluation, EVAL_TYPE_SEQUENTIAL_CONTROL, to_jump_bytecode, parent_ssa_control_node);
+                push_pending_evaluate(&pending_evaluation, EVAL_TYPE_JUMP_SEQUENTIAL_CONTROL, to_jump_bytecode, parent_ssa_control_node);
                 break;
             }
             case OP_LOOP: {
@@ -235,7 +238,6 @@ struct ssa_control_node * create_ssa_ir_no_phis(
 
                 map_data_nodes_bytecodes_to_control(&control_nodes_by_bytecode, return_value, &return_node->control);
                 attatch_ssa_node_to_parent(evaluation_type, parent_ssa_control_node, &return_node->control);
-                push_pending_evaluate(&pending_evaluation, EVAL_TYPE_SEQUENTIAL_CONTROL, current_bytecode_to_evaluate->next, &return_node->control);
                 put_u64_hash_table(&control_nodes_by_bytecode, (uint64_t) current_bytecode_to_evaluate, return_node);
                 break;
             }
@@ -251,14 +253,13 @@ struct ssa_control_node * create_ssa_ir_no_phis(
                 put_u64_hash_table(&control_nodes_by_bytecode, (uint64_t) current_bytecode_to_evaluate, print_node);
                 break;
             }
-
-                //Expressions, data nodes
+            //Expressions, data nodes
             case OP_SET_LOCAL: {
                 struct ssa_data_set_local_node * set_local_node = ALLOC_SSA_DATA_NODE(
                         SSA_DATA_NODE_TYPE_SET_LOCAL, struct ssa_data_set_local_node, current_bytecode_to_evaluate
                 );
                 set_local_node->new_local_value = pop_stack_list(&data_nodes_stack);
-                set_local_node->local_number = current_bytecode_to_evaluate->as.u16;
+                set_local_node->local_number = current_bytecode_to_evaluate->as.u8;
 
                 push_stack_list(&data_nodes_stack, set_local_node);
                 push_pending_evaluate(&pending_evaluation, evaluation_type, current_bytecode_to_evaluate->next, parent_ssa_control_node);
@@ -561,6 +562,8 @@ static void attatch_ssa_node_to_parent(
         struct ssa_control_node * child
 ) {
     switch (type) {
+        case EVAL_TYPE_JUMP_SEQUENTIAL_CONTROL:
+            parent->jumps_to_next_node = true;
         case EVAL_TYPE_SEQUENTIAL_CONTROL:
             parent->next.next = child;
             break;

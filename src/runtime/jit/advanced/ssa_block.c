@@ -19,16 +19,17 @@ type_next_ssa_block_t get_type_next_ssa_block(struct ssa_control_node * node) {
         case SSA_CONTORL_NODE_TYPE_SET_GLOBAL:
         case SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT:
         case SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD:
-        case SSA_CONTROL_NODE_TYPE_DATA:
+        case SSA_CONTROL_NODE_TYPE_DATA: {
             return TYPE_NEXT_SSA_BLOCK_SEQ;
-
-        case SSA_CONTROL_NODE_TYPE_RETURN:
+        }
+        case SSA_CONTROL_NODE_TYPE_RETURN: {
             return TYPE_NEXT_SSA_BLOCK_NONE;
-
-        case SSA_CONTROL_NODE_TYPE_LOOP_JUMP:
-            return TYPE_NEXT_SSA_BLOCK_BRANCH;
-
-        case SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP:
+        }
+        case SSA_CONTROL_NODE_TYPE_LOOP_JUMP: {
             return TYPE_NEXT_SSA_BLOCK_LOOP;
+        }
+        case SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP: {
+            return TYPE_NEXT_SSA_BLOCK_BRANCH;
+        }
     }
 }
