@@ -15,4 +15,3 @@ void free_u8_arraylist(struct u8_arraylist * array);
 
 //Returns the index where it has been added
 uint16_t append_u8_arraylist(struct u8_arraylist * array, uint8_t value);
-void remove_duplicates_u8_arraylist(struct u8_arraylist *);

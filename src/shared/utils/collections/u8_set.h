@@ -9,6 +9,7 @@ struct u8_set {
 };
 
 void init_u8_set(struct u8_set *);
-void add_u8_set(struct u8_set *, uint8_t value);
-bool contains_u8_set(struct u8_set *, uint8_t value);
+void add_u8_set(struct u8_set *, uint8_t);
+bool contains_u8_set(struct u8_set *, uint8_t);
+void remove_u8_set(struct u8_set *, uint8_t);
 uint8_t size_u8_set(struct u8_set);
