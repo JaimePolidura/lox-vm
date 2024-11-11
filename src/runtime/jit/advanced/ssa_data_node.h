@@ -2,6 +2,7 @@
 
 #include "shared/utils/collections/u8_arraylist.h"
 #include "shared/types/struct_definition_object.h"
+#include "shared/utils/collections/u8_set.h"
 #include "shared/bytecode/bytecode.h"
 #include "shared/package.h"
 #include "shared.h"
@@ -34,8 +35,7 @@ struct ssa_data_node {
 void * allocate_ssa_data_node(ssa_data_node_type type, size_t struct_size_bytes, struct bytecode_list *);
 profile_data_type_t get_produced_type_ssa_data(struct function_profile_data *, struct ssa_data_node *);
 
-void get_used_locals(struct u8_arraylist *, struct ssa_data_node *);
-void get_assgined_locals(struct u8_arraylist *, struct ssa_data_node *);
+void get_used_locals(struct u8_set *, struct ssa_data_node *);
 
 //OP_GET_LOCAL
 struct ssa_data_get_local_node {

@@ -20,10 +20,10 @@ bool contains_u8_set(struct u8_set * set, uint8_t value_to_check) {
     return (slot_bit_map_value & (uint64_t) (0x01ULL << slot_bit_index)) != 0x00;
 }
 
-uint8_t size_u8_set(struct u8_set * set) {
-    uint8_t a = __builtin_popcountll(set->slot_bit_maps[0]);
-    uint8_t b = __builtin_popcountll(set->slot_bit_maps[1]);
-    uint8_t c = __builtin_popcountll(set->slot_bit_maps[2]);
-    uint8_t d = __builtin_popcountll(set->slot_bit_maps[3]);
+uint8_t size_u8_set(struct u8_set set) {
+    uint8_t a = __builtin_popcountll(set.slot_bit_maps[0]);
+    uint8_t b = __builtin_popcountll(set.slot_bit_maps[1]);
+    uint8_t c = __builtin_popcountll(set.slot_bit_maps[2]);
+    uint8_t d = __builtin_popcountll(set.slot_bit_maps[3]);
     return a + b + c + d;
 }

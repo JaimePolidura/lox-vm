@@ -24,5 +24,5 @@ TEST(u8_set_test_add_contains){
     ASSERT_FALSE(contains_u8_set(&set, 128));
     ASSERT_FALSE(contains_u8_set(&set, 12));
 
-    ASSERT_EQ(size_u8_set(&set), 6);
+    ASSERT_EQ(size_u8_set(set), 6);
 }

@@ -1,4 +1,4 @@
-#include "shared/utils/collections/u8_arraylist.h"
+#include "shared/utils/collections/u8_set.h"
 
 #include "ssa_control_node.h"
 
@@ -16,9 +16,9 @@ struct ssa_block {
     struct ssa_control_node * last; //Inclusive
 
     //Local variable numbers that this block will need
-    struct u8_arraylist inputs;
+    struct u8_set inputs;
     //Local variable numbers that this block "outputs" (assigns or defines)
-    struct u8_arraylist outputs;
+    struct u8_set outputs;
 
     type_next_ssa_block_t type_next_ssa_block;
 
