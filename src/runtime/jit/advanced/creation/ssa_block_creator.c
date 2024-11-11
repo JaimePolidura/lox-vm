@@ -26,8 +26,9 @@ static struct block_local_usage get_block_local_variables_usage(struct ssa_contr
 static struct ssa_block * create_parent_block(struct ssa_control_node *);
 static struct ssa_control_node * get_last_node_in_block(struct ssa_control_node *start);
 static void attatch_new_block_to_parent_block(struct ssa_block * parent, struct ssa_block * new_block, parent_next_type_t);
-static void get_input_outputs_from_control_node(struct u8_set * input, struct u8_set * output, struct ssa_control_node *);
+static struct block_local_usage get_input_outputs_from_control_node(struct ssa_control_node *, struct u8_set inputs, struct u8_set outputs);
 static void map_ssa_nodes_to_ssa_blocks(struct u64_hash_table *, struct ssa_block *, struct ssa_control_node * first, struct ssa_control_node * last);
+static struct u8_set calculate_inputs_set(struct ssa_data_node *, struct u8_set prev_outputs, struct u8_set prev_inputs);
 
 static void push_pending_evaluate(
         struct stack_list * pending_evaluation_stack,
@@ -181,8 +182,10 @@ static struct block_local_usage get_block_local_variables_usage(
     init_u8_set(&output);
 
     for (struct ssa_control_node * current = first_node;; current = current->next.next) {
-        get_input_outputs_from_control_node(&input, &output, current);
-
+        struct block_local_usage local_usage = get_input_outputs_from_control_node(current, input, output);
+        union_u8_set(&output, local_usage.outputs);
+        union_u8_set(&input, local_usage.inputs);
+        
         if(current == last_node){
             break;
         }
@@ -194,52 +197,53 @@ static struct block_local_usage get_block_local_variables_usage(
     };
 }
 
-static void get_input_outputs_from_control_node(
-        struct u8_set * input,
-        struct u8_set * output,
-        struct ssa_control_node * node
+static struct block_local_usage get_input_outputs_from_control_node(
+        struct ssa_control_node * node,
+        struct u8_set inputs,
+        struct u8_set outputs
 ) {
     switch (node->type) {
         case SSA_CONTORL_NODE_TYPE_SET_LOCAL: {
             struct ssa_control_set_local_node * set_local_node = (struct ssa_control_set_local_node *) node;
-            add_u8_set(output, set_local_node->local_number);
-            get_used_locals(input, set_local_node->new_local_value);
+            inputs = calculate_inputs_set(set_local_node->new_local_value, outputs, inputs);
+            add_u8_set(&outputs, set_local_node->local_number);
             break;
         }
         case SSA_CONTROL_NODE_TYPE_DATA: {
             struct ssa_control_data_node * data_node = (struct ssa_control_data_node *) node;
-            get_used_locals(input, data_node->data);
+            inputs = calculate_inputs_set(data_node->data, outputs, inputs);
             break;
         }
         case SSA_CONTROL_NODE_TYPE_RETURN: {
             struct ssa_control_return_node * return_node = (struct ssa_control_return_node *) node;
-            get_used_locals(input, return_node->data);
+            inputs = calculate_inputs_set(return_node->data, outputs, inputs);
             break;
         }
         case SSA_CONTROL_NODE_TYPE_PRINT: {
             struct ssa_control_print_node * print_node = (struct ssa_control_print_node *) node;
-            get_used_locals(input, print_node->data);
+            inputs = calculate_inputs_set(print_node->data, outputs, inputs);
             break;
         }
         case SSA_CONTORL_NODE_TYPE_SET_GLOBAL: {
             struct ssa_control_set_global_node * set_global = (struct ssa_control_set_global_node *) node;
-            get_used_locals(input, set_global->value_node);
+            inputs = calculate_inputs_set(set_global->value_node, outputs, inputs);
             break;
         }
         case SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD: {
             struct ssa_control_set_struct_field_node * set_struct = (struct ssa_control_set_struct_field_node *) node;
-            get_used_locals(input, set_struct->field_value);
+            union_u8_set(&inputs, get_used_locals(set_struct->field_value));
+            inputs = calculate_inputs_set(set_struct->instance, outputs, inputs);
             break;
         }
         case SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT: {
             struct ssa_control_set_array_element_node * set_array = (struct ssa_control_set_array_element_node *) node;
-            get_used_locals(input, set_array->array);
-            get_used_locals(input, set_array->new_element);
+            union_u8_set(&inputs, get_used_locals(set_array->new_element));
+            inputs = calculate_inputs_set(set_array->array, outputs, inputs);
             break;
         }
         case SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP: {
             struct ssa_control_conditional_jump_node * conditional_jump = (struct ssa_control_conditional_jump_node *) node;
-            get_used_locals(input, conditional_jump->condition);
+            inputs = calculate_inputs_set(conditional_jump->condition, outputs, inputs);
             break;
         }
         case SSA_CONTROL_NODE_TYPE_START:
@@ -248,6 +252,11 @@ static void get_input_outputs_from_control_node(
         case SSA_CONTROL_NODE_TYPE_EXIT_MONITOR:
             break;
     }
+
+    return (struct block_local_usage) {
+        .outputs = outputs,
+        .inputs = inputs
+    };
 }
 
 static void map_ssa_nodes_to_ssa_blocks(
@@ -265,4 +274,17 @@ static void map_ssa_nodes_to_ssa_blocks(
 
         current = current->next.next;
     }
+}
+
+//See struct ssa_block's inputs field definition in ssa_block.h
+//Inputs = U (i start = 0) (Inputs(i) - Outputs(i - 1))
+static struct u8_set calculate_inputs_set(
+        struct ssa_data_node * data_node,
+        struct u8_set prev_outputs,
+        struct u8_set prev_inputs
+) {
+    struct u8_set current_inputs = get_used_locals(data_node);
+    difference_u8_set(&current_inputs, prev_outputs);
+    union_u8_set(&prev_inputs, current_inputs);
+    return current_inputs;
 }

@@ -68,59 +68,62 @@ profile_data_type_t get_produced_type_ssa_data(
     }
 }
 
-void get_used_locals(struct u8_set * used_locals, struct ssa_data_node * node) {
+struct u8_set get_used_locals(struct ssa_data_node * node) {
+    struct u8_set used_locals_set;
+    init_u8_set(&used_locals_set);
+
     switch (node->type) {
         case SSA_DATA_NODE_TYPE_GET_LOCAL: {
             struct ssa_data_get_local_node * get_local = (struct ssa_data_get_local_node *) node;
-            add_u8_set(used_locals, get_local->local_number);
+            add_u8_set(&used_locals_set, get_local->local_number);
             break;
         }
         case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT: {
             struct ssa_data_initialize_struct_node * init_struct = (struct ssa_data_initialize_struct_node *) node;
             for(int i = 0; i < init_struct->definition->n_fields; i++){
-                get_used_locals(used_locals, init_struct->fields_nodes[i]);
+                union_u8_set(&used_locals_set, get_used_locals(init_struct->fields_nodes[i]));
             }
             break;
         }
         case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD: {
             struct ssa_data_get_struct_field_node * get_struct_field = (struct ssa_data_get_struct_field_node *) node;
-            get_used_locals(used_locals, get_struct_field->instance_node);
+            union_u8_set(&used_locals_set, get_used_locals(get_struct_field->instance_node));
             break;
         }
         case SSA_DATA_NODE_TYPE_COMPARATION: {
             struct ssa_data_comparation_node * comparation = (struct ssa_data_comparation_node *) node;
-            get_used_locals(used_locals, comparation->right);
-            get_used_locals(used_locals, comparation->left);
+            union_u8_set(&used_locals_set, get_used_locals(comparation->right));
+            union_u8_set(&used_locals_set, get_used_locals(comparation->left));
             break;
         }
         case SSA_DATA_NODE_TYPE_ARITHMETIC: {
             struct ssa_data_arithmetic_node * arithmetic = (struct ssa_data_arithmetic_node *) node;
-            get_used_locals(used_locals, arithmetic->right);
-            get_used_locals(used_locals, arithmetic->left);
+            union_u8_set(&used_locals_set, get_used_locals(arithmetic->right));
+            union_u8_set(&used_locals_set, get_used_locals(arithmetic->left));
             break;
         }
         case SSA_DATA_NODE_TYPE_UNARY: {
             struct ssa_data_unary_node * unary = (struct ssa_data_unary_node *) node;
-            get_used_locals(used_locals, unary->unary_value_node);
+            union_u8_set(&used_locals_set, get_used_locals(unary->unary_value_node));
             break;
         }
         case SSA_DATA_NODE_TYPE_CALL: {
             struct ssa_control_function_call_node * call_node = (struct ssa_control_function_call_node *) node;
-            get_used_locals(used_locals, call_node->function);
+            union_u8_set(&used_locals_set, get_used_locals(call_node->function));
             for(int i = 0; i < call_node->n_arguments; i++){
-                get_used_locals(used_locals, call_node->arguments[i]);
+                union_u8_set(&used_locals_set, get_used_locals(call_node->arguments[i]));
             }
             break;
         }
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
             struct ssa_data_get_array_element_node * get_array_element = (struct ssa_data_get_array_element_node *) node;
-            get_used_locals(used_locals, get_array_element->instance);
+            union_u8_set(&used_locals_set, get_used_locals(get_array_element->instance));
             break;
         }
         case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY: {
             struct ssa_data_initialize_array_node * init_array = (struct ssa_data_initialize_array_node *) node;
             for(int i = 0; i < init_array->n_elements && !init_array->empty_initialization; i++){
-                get_used_locals(used_locals, init_array->elememnts_node[i]);
+                union_u8_set(&used_locals_set, get_used_locals(init_array->elememnts_node[i]));
             }
             break;
         }
@@ -128,5 +131,7 @@ void get_used_locals(struct u8_set * used_locals, struct ssa_data_node * node) {
         case SSA_DATA_NODE_TYPE_GET_GLOBAL:
             break;
     }
+
+    return used_locals_set;
 }
 

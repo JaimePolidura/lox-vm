@@ -35,7 +35,7 @@ struct ssa_data_node {
 void * allocate_ssa_data_node(ssa_data_node_type type, size_t struct_size_bytes, struct bytecode_list *);
 profile_data_type_t get_produced_type_ssa_data(struct function_profile_data *, struct ssa_data_node *);
 
-void get_used_locals(struct u8_set *, struct ssa_data_node *);
+struct u8_set get_used_locals(struct ssa_data_node *);
 
 //OP_GET_LOCAL
 struct ssa_data_get_local_node {

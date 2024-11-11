@@ -15,9 +15,16 @@ struct ssa_block {
     struct ssa_control_node * first; //Inclusive
     struct ssa_control_node * last; //Inclusive
 
-    //Local variable numbers that this block will need
+    //Set of local variable numbers that this block will use from outside
+    //Example: print b; i = i + 1; Inputs: {b, i}
+    //Use after assigments won't be included in the inputs set. Exmaple: a = 1; print a; Inputs: {}
+    //It can also be defined as (i nº of instruction in the block):
+    //Inputs = U (i start = 0) (Inputs(i) - Outputs(i - 1))
     struct u8_set inputs;
-    //Local variable numbers that this block "outputs" (assigns or defines)
+    //Set of local variable numbers that this block will define/assign
+    //Example: print b; i = i + 1; Outputs: {i}
+    //It can also be defined as (i nº of instruction in the block):
+    //Outputs = U (i start = 0) Outputs(i)
     struct u8_set outputs;
 
     type_next_ssa_block_t type_next_ssa_block;

@@ -28,6 +28,20 @@ void remove_u8_set(struct u8_set * set, uint8_t value_to_remove) {
     set->slot_bit_maps[slot_index] ^= new_slot_bit_map;
 }
 
+void union_u8_set(struct u8_set * a, struct u8_set b) {
+    a->slot_bit_maps[0] |= b.slot_bit_maps[0];
+    a->slot_bit_maps[1] |= b.slot_bit_maps[1];
+    a->slot_bit_maps[2] |= b.slot_bit_maps[2];
+    a->slot_bit_maps[3] |= b.slot_bit_maps[3];
+}
+
+void difference_u8_set(struct u8_set * a, struct u8_set b) {
+    a->slot_bit_maps[0] &= ~b.slot_bit_maps[0];
+    a->slot_bit_maps[1] &= ~b.slot_bit_maps[1];
+    a->slot_bit_maps[2] &= ~b.slot_bit_maps[2];
+    a->slot_bit_maps[3] &= ~b.slot_bit_maps[3];
+}
+
 uint8_t size_u8_set(struct u8_set set) {
     uint8_t a = __builtin_popcountll(set.slot_bit_maps[0]);
     uint8_t b = __builtin_popcountll(set.slot_bit_maps[1]);
