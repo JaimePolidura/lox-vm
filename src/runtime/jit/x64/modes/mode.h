@@ -8,7 +8,7 @@ typedef enum {
     //vm_thread esp holds the value_node before the jit compiled function was run. It is not updated anymore.
     //Stack values inside the jit compiled function are stored in registers.
     //RCX points to vm_thread esp
-    //RCD points to callframe slots
+    //RCD points to callframe slot_bit_maps
     MODE_JIT,
 
     //Set when vm_thread that is running jit compiled code is going to be expected by a garbage collection.

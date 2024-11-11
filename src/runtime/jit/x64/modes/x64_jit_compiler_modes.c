@@ -11,7 +11,7 @@ struct jit_mode_switch_info setup_vm_to_jit_mode(struct jit_compiler * jit_compi
     //Load vm_thread esp into LOX_ESP_REG
     emit_mov(code, LOX_ESP_REG_OPERAND, DISPLACEMENT_TO_OPERAND(SELF_THREAD_ADDR_REG, offsetof(struct vm_thread, esp)));
 
-    //Load slots/frame pointer to LOX_EBP_REG
+    //Load slot_bit_maps/frame pointer to LOX_EBP_REG
     emit_mov(code, LOX_EBP_REG_OPERAND, DISPLACEMENT_TO_OPERAND(SELF_THREAD_ADDR_REG, offsetof(struct vm_thread, esp)));
 
     //Really similar to setup_call_frame_function in vm.c Setup ebp

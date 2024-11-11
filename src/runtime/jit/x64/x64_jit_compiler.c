@@ -260,7 +260,7 @@ static void return_jit(struct jit_compiler * jit_compiler, bool * finish_compila
             FUNCTION_TO_OPERAND(restore_prev_call_frame),
             0);
 
-    //Same as vm.c self_thread->esp = current_frame->slots
+    //Same as vm.c self_thread->esp = current_frame->slot_bit_maps
     emit_mov(&jit_compiler->native_compiled_code,
              LOX_ESP_REG_OPERAND,
              LOX_EBP_REG_OPERAND);

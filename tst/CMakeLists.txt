@@ -14,6 +14,7 @@ set(SOURCES ${SOURCES}
         u64_hash_table_test.h
         vm_inline_test.h
         mark_bitmap_test.h
+        u8_set_test.h
 )
 
 include_directories(${PROJECT_SOURCE_DIR}/src)
