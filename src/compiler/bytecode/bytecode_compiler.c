@@ -375,7 +375,6 @@ static void var_declaration(struct bytecode_compiler * compiler, bool is_public,
 
     if(is_local_variable) { // Local current_scope
         emit_bytecodes(compiler, OP_SET_LOCAL, variable_identifier);
-        emit_bytecode(compiler, OP_POP);
     } else {
         define_global_variable(compiler, variable_identifier);
     }
@@ -602,7 +601,12 @@ static void block(struct bytecode_compiler * compiler) {
 static void expression_statement(struct bytecode_compiler * compiler) {
     expression(compiler);
     consume(compiler, TOKEN_SEMICOLON, "Expected ';'.");
-    emit_bytecode(compiler, OP_POP);
+
+    if(compiler->compiling_set_operation){
+        compiler->compiling_set_operation = false;
+    } else {
+        emit_bytecode(compiler, OP_POP);
+    }
 }
 
 static void while_statement(struct bytecode_compiler * compiler) {
@@ -670,7 +674,7 @@ static int for_loop_condition(struct bytecode_compiler * compiler) {
 
 static void for_loop_increment(struct bytecode_compiler * compiler) {
     expression(compiler);
-    emit_bytecode(compiler, OP_POP);
+    compiler->compiling_set_operation = false;
 
     consume(compiler, TOKEN_CLOSE_PAREN, "Expect ')' after for loop");
 }
@@ -832,6 +836,12 @@ static void named_variable(
     if (is_set_op && is_const) {
         report_error(compiler, variable_name, "Cannot set a value_node to a declared const variable");
     }
+    if (is_set_op && !is_array && compiler->compiling_set_operation){
+        report_error(compiler, compiler->parser->previous, "Assignments cannot be used as expressions");
+    }
+    if (is_set_op && !is_array && !compiler->compiling_set_operation){
+        compiler->compiling_set_operation = true;
+    }
 
     if (is_global && is_from_external_package) {
         struct exported_symbol * exported_symbol = get_exported_symbol(compiler, external_package, variable_name);
@@ -848,7 +858,7 @@ static void named_variable(
         compiler->compiling_extermal_symbol_call = true;
     }
 
-    if(is_set_op) {
+    if (is_set_op) {
         expression(compiler);
     }
 
@@ -1147,6 +1157,7 @@ static void init_compiler(struct bytecode_compiler * compiler, scope_type_t scop
     compiler->compiling_extermal_symbol_call = false;
     compiler->compiling_parallel_call = false;
     compiler->compiling_inline_call = false;
+    compiler->compiling_set_operation = false;
 
     compiler->function_calls = NULL;
 

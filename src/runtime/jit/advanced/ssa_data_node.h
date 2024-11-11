@@ -19,7 +19,6 @@ typedef enum {
     SSA_DATA_NODE_TYPE_CONSTANT,
     SSA_DATA_NODE_TYPE_UNARY,
     SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD,
-    SSA_DATA_NODE_TYPE_SET_LOCAL,
     SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT,
     SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT,
     SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY,
@@ -37,14 +36,6 @@ profile_data_type_t get_produced_type_ssa_data(struct function_profile_data *, s
 
 void get_used_locals(struct u8_arraylist *, struct ssa_data_node *);
 void get_assgined_locals(struct u8_arraylist *, struct ssa_data_node *);
-
-//OP_SET_LOCAL
-struct ssa_data_set_local_node {
-    struct ssa_data_node data;
-
-    int local_number;
-    struct ssa_data_node * new_local_value;
-};
 
 //OP_GET_LOCAL
 struct ssa_data_get_local_node {

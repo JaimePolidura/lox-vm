@@ -13,6 +13,7 @@ typedef enum {
     SSA_CONTROL_NODE_TYPE_ENTER_MONITOR,
     SSA_CONTROL_NODE_TYPE_EXIT_MONITOR,
     SSA_CONTORL_NODE_TYPE_SET_GLOBAL,
+    SSA_CONTORL_NODE_TYPE_SET_LOCAL,
     SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD,
     SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT,
     SSA_CONTROL_NODE_TYPE_LOOP_JUMP,
@@ -35,6 +36,14 @@ struct ssa_control_node {
 };
 
 void * allocate_ssa_block_node(ssa_control_node_type type, size_t size_bytes);
+
+//OP_SET_LOCAL
+struct ssa_control_set_local_node {
+    struct ssa_control_node control;
+
+    int local_number;
+    struct ssa_data_node * new_local_value;
+};
 
 struct ssa_control_start_node {
     struct ssa_control_node control;

@@ -482,28 +482,6 @@ TEST(simple_vm_test_with_functions) {
 }
 
 TEST(simple_vm_test_const){
-//    struct compilation_result compilation_result = compile_standalone(
-//            "fun funcion() {"
-//            "   var r = 0;"
-//            "   for(var i = 0; i < 10; i = i + 1) {"
-//            "       if (r > 10) {"
-//            "           return r;"
-//            "       } else {"
-//            "           r = r + 1;"
-//            "       }"
-//            "   }"
-//            "   return r;"
-//            "}"
-//            "print funcion();"
-//    );
-//    disassemble_package(compilation_result.compiled_package, DISASSEMBLE_PACKAGE_FUNCTIONS);
-//
-//        start_vm();
-//    interpret_result_t vm_result = interpret_vm(compilation_result);
-//
-//    ASSERT_TRUE(vm_result == EXIT_SUCCESS);
-//    ASSERT_NEXT_VM_LOG(current_vm, "10.000000");
-
     struct compilation_result compilation_result = compile_standalone(
             "const var a = 10;"
             "pub const var b = 10;"

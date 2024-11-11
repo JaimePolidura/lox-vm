@@ -250,18 +250,22 @@ struct ssa_control_node * create_ssa_ir_no_phis(
                 put_u64_hash_table(&control_nodes_by_bytecode, (uint64_t) current_bytecode_to_evaluate, print_node);
                 break;
             }
-            //Expressions, data nodes
             case OP_SET_LOCAL: {
-                struct ssa_data_set_local_node * set_local_node = ALLOC_SSA_DATA_NODE(
-                        SSA_DATA_NODE_TYPE_SET_LOCAL, struct ssa_data_set_local_node, current_bytecode_to_evaluate
+                struct ssa_control_set_local_node * set_local_node = ALLOC_SSA_CONTROL_NODE(
+                        SSA_CONTORL_NODE_TYPE_SET_LOCAL, struct ssa_control_set_local_node
                 );
-                set_local_node->new_local_value = pop_stack_list(&data_nodes_stack);
+                struct ssa_data_node * new_local_value = pop_stack_list(&data_nodes_stack);
                 set_local_node->local_number = current_bytecode_to_evaluate->as.u8;
+                set_local_node->new_local_value = new_local_value;
 
-                push_stack_list(&data_nodes_stack, set_local_node);
-                push_pending_evaluate(&pending_evaluation, evaluation_type, current_bytecode_to_evaluate->next, parent_ssa_control_node);
+                map_data_nodes_bytecodes_to_control(&control_nodes_by_bytecode, new_local_value, &set_local_node->control);
+                attatch_ssa_node_to_parent(evaluation_type, parent_ssa_control_node, &set_local_node->control);
+                push_pending_evaluate(&pending_evaluation, EVAL_TYPE_SEQUENTIAL_CONTROL, current_bytecode_to_evaluate->next, &set_local_node->control);
+                put_u64_hash_table(&control_nodes_by_bytecode, (uint64_t) current_bytecode_to_evaluate, set_local_node);
                 break;
             }
+
+            //Expressions, control nodes
             case OP_GET_LOCAL: {
                 struct ssa_data_get_local_node * get_local_node = ALLOC_SSA_DATA_NODE(
                         SSA_DATA_NODE_TYPE_GET_LOCAL, struct ssa_data_get_local_node, current_bytecode_to_evaluate
@@ -585,7 +589,7 @@ static struct bytecode_list * simplify_redundant_unconditional_jump_bytecodes(st
     return current;
 }
 
-//This function will map the data node bytecode to the to_map_control control node
+//This function will map the control node bytecode to the to_map_control control node
 //Example: Given OP_CONST_1, OP_CONST_2, OP_ADD, OP_PRINT
 //The first 3 bytecodes will point to OP_PRINT
 static void map_data_nodes_bytecodes_to_control(
@@ -629,11 +633,6 @@ static void map_data_nodes_bytecodes_to_control(
         case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD: {
             struct ssa_data_get_struct_field_node * get_struct_field = (struct ssa_data_get_struct_field_node *) data_node;
             map_data_nodes_bytecodes_to_control(control_ssa_nodes_by_bytecode, get_struct_field->instance_node, to_map_control);
-            break;
-        }
-        case SSA_DATA_NODE_TYPE_SET_LOCAL: {
-            struct ssa_data_set_local_node * set_local_node = (struct ssa_data_set_local_node *) data_node;
-            map_data_nodes_bytecodes_to_control(control_ssa_nodes_by_bytecode, set_local_node->new_local_value, to_map_control);
             break;
         }
         case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT: {

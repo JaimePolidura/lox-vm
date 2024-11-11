@@ -71,6 +71,9 @@ struct bytecode_compiler {
     //Indicates if the pending_bytecode function call being compiled is inlined
     bool compiling_inline_call;
 
+    //Indicates if the current expression we are parsing is of type OP_SET_LOCAL or OP_SET_GLOBAL
+    bool compiling_set_operation;
+
     //Keeps information of every function call even if it is repeated.
     struct function_call * function_calls;
 

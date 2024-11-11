@@ -18,6 +18,7 @@ type_next_ssa_block_t get_type_next_ssa_block(struct ssa_control_node * node) {
         case SSA_CONTROL_NODE_TYPE_EXIT_MONITOR:
         case SSA_CONTORL_NODE_TYPE_SET_GLOBAL:
         case SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT:
+        case SSA_CONTORL_NODE_TYPE_SET_LOCAL:
         case SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD:
         case SSA_CONTROL_NODE_TYPE_DATA: {
             return TYPE_NEXT_SSA_BLOCK_SEQ;

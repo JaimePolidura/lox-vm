@@ -295,14 +295,14 @@ static void set_global(struct call_frame * current_frame) {
     struct string_object * variable_name = AS_STRING_OBJECT(READ_CONSTANT(current_frame));
 
     //Assigment is an expression
-    if(!put_if_present_hash_table(&self_thread->current_package->global_variables, variable_name, peek(0))) {
+    if(!put_if_present_hash_table(&self_thread->current_package->global_variables, variable_name, pop_stack_vm())) {
         runtime_panic("Cannot assign value_node to undeclared variable %s", variable_name->chars);
     }
 }
 
 static void set_local(struct call_frame * current_frame) {
     uint8_t slot = READ_BYTECODE(current_frame);
-    lox_value_t value = peek(0);
+    lox_value_t value = pop_stack_vm();
     current_frame->slots[slot] = value; //Assigment is an expression
 }
 

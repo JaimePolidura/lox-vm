@@ -180,7 +180,7 @@ static struct block_local_usage get_block_local_variables_usage(
     init_u8_arraylist(&input);
     init_u8_arraylist(&output);
 
-    for (struct ssa_control_node * current = first_node; current <= last_node; current = current->next.next) {
+    for (struct ssa_control_node * current = first_node;; current = current->next.next) {
         get_input_outputs_from_control_node(&input, &output, current);
 
         if(current == last_node){
@@ -203,6 +203,12 @@ static void get_input_outputs_from_control_node(
         struct ssa_control_node * node
 ) {
     switch (node->type) {
+        case SSA_CONTORL_NODE_TYPE_SET_LOCAL: {
+            struct ssa_control_set_local_node * set_local_node = (struct ssa_control_set_local_node *) node;
+            append_u8_arraylist(output, set_local_node->local_number);
+            get_used_locals(input, set_local_node->new_local_value);
+            break;
+        }
         case SSA_CONTROL_NODE_TYPE_DATA: {
             struct ssa_control_data_node * data_node = (struct ssa_control_data_node *) node;
             get_assgined_locals(output, data_node->data);

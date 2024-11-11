@@ -182,7 +182,6 @@ static void rename_argument_passing(
         set_local->as.u8 = i + target_function->n_locals + 1; //All functions local variables starts with 1
 
         add_instruction_bytecode_list(arg_node, set_local);
-        add_instruction_bytecode_list(set_local, create_instruction_bytecode_list(OP_POP));
     }
 
     //Remove OP_GET_GLOBAL <function name>

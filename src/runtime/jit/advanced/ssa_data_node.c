@@ -16,10 +16,6 @@ profile_data_type_t get_produced_type_ssa_data(
         struct ssa_data_node * start_node
 ) {
     switch (start_node->type) {
-        case SSA_DATA_NODE_TYPE_SET_LOCAL: {
-            struct ssa_data_set_local_node * set_local_node = (struct ssa_data_set_local_node *) start_node;
-            return get_produced_type_ssa_data(function_profile, set_local_node->new_local_value);
-        }
         case SSA_DATA_NODE_TYPE_GET_LOCAL: {
             struct ssa_data_get_local_node * get_local_node = (struct ssa_data_get_local_node *) start_node;
             return get_local_node->type;
@@ -141,11 +137,6 @@ static void get_used_locals_recursive(struct u8_arraylist * used, struct ssa_dat
             }
             break;
         }
-        case SSA_DATA_NODE_TYPE_SET_LOCAL: {
-            struct ssa_data_set_local_node * set_local = (struct ssa_data_set_local_node *) node;
-            get_used_locals_recursive(used, set_local->new_local_value);
-            break;
-        }
         case SSA_DATA_NODE_TYPE_CONSTANT:
         case SSA_DATA_NODE_TYPE_GET_GLOBAL:
             break;
@@ -154,12 +145,6 @@ static void get_used_locals_recursive(struct u8_arraylist * used, struct ssa_dat
 
 static void get_assigned_locals_recursive(struct u8_arraylist * used, struct ssa_data_node * node) {
     switch (node->type) {
-        case SSA_DATA_NODE_TYPE_SET_LOCAL: {
-            struct ssa_data_set_local_node * set_local = (struct ssa_data_set_local_node *) node;
-            append_u8_arraylist(used, set_local->local_number);
-            get_assigned_locals_recursive(used, set_local->new_local_value);
-            break;
-        }
         case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT: {
             struct ssa_data_initialize_struct_node * init_struct = (struct ssa_data_initialize_struct_node *) node;
             for(int i = 0; i < init_struct->definition->n_fields; i++){
