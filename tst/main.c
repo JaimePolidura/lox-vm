@@ -11,12 +11,14 @@
 #include "ssa_test.h"
 #include "vm_test.h"
 #include "u8_set_test.h"
+#include "u8_hash_table.h"
 
 #define RUN_U64_HASH_TABLE_TEST
 #define RUN_MARK_BITMAP_TEST
 #define RUN_HASH_TABLE_TEST
 #define RUN_VM_INLINE_TEST
 #define RUN_COMPILER_TEST
+#define RUN_U8_HASH_TABLE
 #define RUN_PACKAGE_TEST
 #define RUN_VM_JIT_TEST
 #define RUN_U8_SET_TEST
@@ -31,6 +33,9 @@ extern const char * compiling_base_dir;
 
 //Run in debug mode
 int main() {
+#ifdef RUN_U8_HASH_TABLE
+    u8_hash_table_test_add_contains_outer();
+#endif
 #ifdef RUN_U8_SET_TEST
     u8_set_test_difference_outer();
     u8_set_test_union_outer();

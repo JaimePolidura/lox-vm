@@ -185,7 +185,7 @@ static struct block_local_usage get_block_local_variables_usage(
         struct block_local_usage local_usage = get_input_outputs_from_control_node(current, input, output);
         union_u8_set(&output, local_usage.outputs);
         union_u8_set(&input, local_usage.inputs);
-        
+
         if(current == last_node){
             break;
         }
