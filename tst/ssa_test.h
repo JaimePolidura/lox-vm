@@ -15,6 +15,10 @@ extern struct ssa_block * create_ssa_ir_blocks(
         struct ssa_control_node * start
 );
 
+extern void insert_ssa_ir_phis(
+        struct ssa_block * start_block
+);
+
 #define ASSERT_PRINTS_NUMBER(node, value) { \
     struct ssa_control_print_node * print_node = (struct ssa_control_print_node *) (node); \
     ASSERT_TRUE(print_node->control.type == SSA_CONTROL_NODE_TYPE_PRINT); \
@@ -26,13 +30,52 @@ extern struct ssa_block * create_ssa_ir_blocks(
 #define FALSE_BRANCH_NODE(type, node) (type *) ((node)->control.next.branch.false_branch)
 #define TRUE_BRANCH_NODE(type, node) (type *) ((node)->control.next.branch.true_branch)
 
+//Expect
+//First block: [a0 = 1; a0 > 0]
+//  -> True: [¿b0 > 0?]
+//      -> True: [b1 = 3; a1 = 3] -> FINAL BLOCK
+//      -> False: [b2 = 3] -> FINAL BLOCK
+//  -> False: [a2 = 3; i0 = 1] -> [¿phi(i0, i1) < 10?]
+//      -> True: [b3 = 12; i1 = i0 + 1]
+//      -> False: FINAL BLOCK
+//FINAL BLOCK: [print phi(a1); print phi(b0, b1, b2, b3)]
+TEST(ssa_phis_inserter){
+    struct compilation_result compilation = compile_standalone(
+            "fun function_ssa(a, b) {"
+            "   a = 1;"
+            "   if(a > 0) {"
+            "       if(b > 0) {"
+            "           b = 3;"
+            "           a = 2;"
+            "       } else {"
+            "           b = 3;"
+            "       }"
+            "   } else {"
+            "       a = 1;"
+            "       for(var i = 0; i < 10; i = i + 1){"
+            "           b = 12;"
+            "       }"
+            "   }"
+            "   print a;"
+            "   print b;"
+            "}"
+    );
+    struct package * package = compilation.compiled_package;
+    struct function_object * function_ssa = get_function_package(package, "function_ssa");
+    int n_instructions = function_ssa->chunk->in_use;
+    init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
+    struct ssa_control_node * start_ssa_ir = create_ssa_ir_no_phis(package, function_ssa, create_bytecode_list(function_ssa->chunk));
+    struct ssa_block * ssa_block = create_ssa_ir_blocks(start_ssa_ir);
+    insert_ssa_ir_phis(ssa_block);
+}
+
 //Should produce:
-//First block: [c = 1, ¿a > 0?]
+//First block: [c = 1; ¿a > 0?]
 //  -> True: [b > 0]
 //      -> True: [b = 3; a = 2] -> FINAL BLOCK
 //      -> False: [b = 3] -> FINAL BLOCK
 //  -> False: [c = 1, var i = 0] -> [¿i < 10?]
-//      -> True: [print 1, i = i + 1] -> [¿i < 10?]
+//      -> True: [print 1; i = i + 1] -> [¿i < 10?]
 //      -> False: FINAL BLOCK
 //FINAL BLOCK: [print a; print b];
 TEST(ssa_ir_block_creation){

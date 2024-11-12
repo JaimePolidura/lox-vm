@@ -1,5 +1,6 @@
 #include "runtime/jit/advanced/ssa_block.h"
 
+#include "shared/utils/collections/u64_hash_table.h"
 #include "shared/utils/collections/u8_hash_table.h"
 #include "shared/utils/collections/stack_list.h"
 
@@ -15,15 +16,17 @@ static void insert_phis_in_data_node(struct ssa_data_node * node, struct u8_hash
 static int allocate_new_version(struct u8_hash_table * max_version_allocated_per_local, uint8_t local_number);
 static int get_version(struct u8_hash_table * parent_versions, uint8_t local_number);
 
-struct ssa_control_node * create_ssa_ir_no_phis(
+void insert_ssa_ir_phis(
         struct ssa_block * start_block
 ) {
     start_block = start_block->next.next;
 
     struct u8_hash_table max_version_allocated_per_local;
+    struct u64_hash_table loops_evaluted; //Stores ssa_block->next.loop address
     struct stack_list pending_evaluate_stack;
     init_u8_hash_table(&max_version_allocated_per_local);
     init_stack_list(&pending_evaluate_stack);
+    init_u64_hash_table(&loops_evaluted);
 
     push_pending_evaluate(&pending_evaluate_stack, start_block, alloc_u8_hash_table());
 
@@ -32,7 +35,7 @@ struct ssa_control_node * create_ssa_ir_no_phis(
         struct ssa_block * block_to_evaluate = pending_evaluate->pending_block_to_evaluate;
         struct u8_hash_table * parent_versions = pending_evaluate->parent_versions;
         free(pending_evaluate);
-        
+
         insert_phis_in_block(block_to_evaluate, &max_version_allocated_per_local, parent_versions);
 
         switch (block_to_evaluate->type_next_ssa_block) {
@@ -40,18 +43,26 @@ struct ssa_control_node * create_ssa_ir_no_phis(
                 push_pending_evaluate(&pending_evaluate_stack, block_to_evaluate->next.next, parent_versions);
                 break;
             case TYPE_NEXT_SSA_BLOCK_LOOP:
-                push_pending_evaluate(&pending_evaluate_stack, block_to_evaluate->next.loop, parent_versions);
+                struct ssa_control_node * to_jump_loop = block_to_evaluate->next.loop;
+                if(!contains_u64_hash_table(&loops_evaluted, (uint64_t) block_to_evaluate->next.loop)){
+                    push_pending_evaluate(&pending_evaluate_stack, block_to_evaluate->next.loop, parent_versions);
+                    put_u64_hash_table(&loops_evaluted, (uint64_t) block_to_evaluate->next.loop, (void*)0x01);
+                } else {
+
+                }
                 break;
             case TYPE_NEXT_SSA_BLOCK_BRANCH:
                 push_pending_evaluate(&pending_evaluate_stack, block_to_evaluate->next.branch.false_branch, clone_u8_hash_table(parent_versions));
                 push_pending_evaluate(&pending_evaluate_stack, block_to_evaluate->next.branch.true_branch, parent_versions);
                 break;
             case TYPE_NEXT_SSA_BLOCK_NONE:
+                free(parent_versions);
                 break;
         }
     }
 
-    return NULL;
+    free_stack_list(&pending_evaluate_stack);
+    free_u64_hash_table(&loops_evaluted);
 }
 
 static void insert_phis_in_block(

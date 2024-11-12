@@ -43,6 +43,7 @@ int main() {
     u8_set_test_add_contains_outer();
 #endif
 #ifdef RUN_SSA_TEST
+    ssa_phis_inserter_outer();
     ssa_ir_block_creation_outer();
     ssa_ir_no_phis_outer();
 #endif
@@ -70,29 +71,24 @@ int main() {
     vm_jit_if_test_outer();
     vm_jit_simple_function_test_outer();
 #endif
-
 #ifdef RUN_U64_HASH_TABLE_TEST
     u64_hash_table_put_contains_test_outer();
     u64_hash_table_put_get_test_outer();
     u64_hash_table_grow_outer();
 #endif
-
 #ifdef RUN_PACKAGE_TEST
     package_import_name_to_absolute_path_test_outer();
     package_read_package_name_test_outer();
 #endif
-
 #ifdef RUN_UTILS_TEST
     utils_string_equals_ignore_case_test_outer();
     utils_string_contains_test_outer();
     utils_to_upper_case_test_outer();
 #endif
-
 #ifdef RUN_STACK_TEST
     simple_stack_push_pop_test_outer();
     simple_stack_clear_test_outer();
 #endif
-
 #ifdef RUN_VM_TEST
     compiling_base_dir = NULL;
     compiled_packages = NULL;

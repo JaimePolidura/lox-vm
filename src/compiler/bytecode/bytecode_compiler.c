@@ -171,7 +171,7 @@ struct compilation_result compile_bytecode(char * source_code, char * compiling_
 
     compiler->package->main_function = end_compiler(compiler);
     compiler->package->defined_functions = compiler->defined_functions;
-    compiler->package->const_variables = compiler->const_global_variables;
+    compiler->package->const_global_variables_names = compiler->const_global_variables;
 
     struct compilation_result compilation_result = {
             .compiled_package = compiler->package,

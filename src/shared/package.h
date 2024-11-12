@@ -48,7 +48,7 @@ struct package {
     struct lox_hash_table defined_functions;
 
     //Includes the name of const global variables defined in the package
-    struct trie_list const_variables;
+    struct trie_list const_global_variables_names;
 
     uint32_t package_id;
 };

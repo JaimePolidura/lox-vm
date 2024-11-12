@@ -21,7 +21,7 @@ profile_data_type_t get_produced_type_ssa_data(
             struct ssa_data_get_global_node * get_global = (struct ssa_data_get_global_node *) start_node;
             struct string_object * global_variable_name = get_global->name;
             struct package * package = get_global->package;
-            const struct trie_list * constants_variable_names = &package->const_variables;
+            const struct trie_list * constants_variable_names = &package->const_global_variables_names;
 
             if (contains_trie(constants_variable_names, global_variable_name->chars, global_variable_name->length)) {
                 lox_value_t global_value;

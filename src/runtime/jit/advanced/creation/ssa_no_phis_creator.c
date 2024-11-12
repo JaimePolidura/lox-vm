@@ -9,7 +9,7 @@
 #include "shared/types/package_object.h"
 #include "shared/package.h"
 
-//This file will expoase the function "create_ssa_ir_no_phis", given a bytecodelist, it will output the ssa graph ir
+//This file will expoase the function "insert_ssa_ir_phis", given a bytecodelist, it will output the ssa graph ir
 //without phis
 #define READ_CONSTANT(function, bytecode) (function->chunk->constants.values[bytecode->as.u8])
 
@@ -275,8 +275,7 @@ struct ssa_control_node * create_ssa_ir_no_phis(
                 int local_number = current_bytecode_to_evaluate->as.u8;
                 get_local_node->local_number = local_number;
                 get_local_node->type = get_type_by_local_function_profile_data(&function->state_as.profiling.profile_data, local_number);
-                get_local_node->n_phi_numbers_elements = 0;
-                get_local_node->phi_numbers = NULL;
+                init_u8_set(&get_local_node->phi_versions);
 
                 push_stack_list(&data_nodes_stack, get_local_node);
                 push_pending_evaluate(&pending_evaluation, evaluation_type, current_bytecode_to_evaluate->next, parent_ssa_control_node);
@@ -303,17 +302,28 @@ struct ssa_control_node * create_ssa_ir_no_phis(
 
                 push_stack_list(&data_nodes_stack, call_node);
                 push_pending_evaluate(&pending_evaluation, evaluation_type, current_bytecode_to_evaluate->next, parent_ssa_control_node);
-
+                
                 break;
             }
             case OP_GET_GLOBAL: {
-                struct ssa_data_get_global_node * get_global_node = ALLOC_SSA_DATA_NODE(
-                        SSA_DATA_NODE_TYPE_GET_GLOBAL, struct ssa_data_get_global_node, current_bytecode_to_evaluate
-                );
-                get_global_node->package = peek_stack_list(&package_stack);
-                get_global_node->name = AS_STRING_OBJECT(READ_CONSTANT(function, current_bytecode_to_evaluate));
+                struct package * global_variable_package = peek_stack_list(&package_stack);
+                struct string_object * global_variable_name = AS_STRING_OBJECT(READ_CONSTANT(function, current_bytecode_to_evaluate));
+                //If the global variable is constant, we will return a CONST_NODE instead of GET_GLOBAL node
+                if(contains_trie(&global_variable_package->const_global_variables_names, global_variable_name->chars, global_variable_name->length)) {
+                    lox_value_t constant_value;
+                    get_hash_table(&global_variable_package->global_variables, global_variable_name, &constant_value);
+                    struct ssa_data_constant_node * constant_node = create_constant_node(constant_value, current_bytecode_to_evaluate);
+                    push_stack_list(&data_nodes_stack, constant_node);
+                } else { //Non constant global variable
+                    struct ssa_data_get_global_node * get_global_node = ALLOC_SSA_DATA_NODE(
+                            SSA_DATA_NODE_TYPE_GET_GLOBAL, struct ssa_data_get_global_node, current_bytecode_to_evaluate
+                    );
+                    get_global_node->package = global_variable_package;
+                    get_global_node->name = global_variable_name;
 
-                push_stack_list(&data_nodes_stack, get_global_node);
+                    push_stack_list(&data_nodes_stack, get_global_node);
+                }
+
                 push_pending_evaluate(&pending_evaluation, evaluation_type, current_bytecode_to_evaluate->next, parent_ssa_control_node);
 
                 break;
