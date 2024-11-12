@@ -41,10 +41,10 @@ struct u8_set get_used_locals(struct ssa_data_node *);
 struct ssa_data_get_local_node {
     struct ssa_data_node data;
 
-    int local_number;
     profile_data_type_t type;
-    int n_phi_numbers_elements;
-    int * phi_numbers;
+
+    int local_number;
+    struct u8_set phi_versions;
 };
 
 //OP_CALL

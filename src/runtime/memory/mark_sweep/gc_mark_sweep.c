@@ -10,7 +10,7 @@ extern struct vm current_vm;
 
 static struct gc_result start_gc();
 static bool for_each_package_callback(void * trie_node_ptr, void * extra_ignored);
-static bool mark_thread_stack(struct vm_thread * parent, struct vm_thread * child, int index, void * ignore);
+static bool mark_thread_stack(struct vm_thread * pending_block_to_evaluate, struct vm_thread * child, int index, void * ignore);
 static void await_all_threads_signal_start_gc();
 static void notify_start_gc_signal_acked();
 static void await_until_gc_finished();
@@ -196,7 +196,7 @@ static void mark_stack(struct stack_list * terminated_threads) {
                     THREADS_OPT_INCLUSIVE);
 }
 
-static bool mark_thread_stack(struct vm_thread * parent, struct vm_thread * child, int index, void * terminated_threads_ptr) {
+static bool mark_thread_stack(struct vm_thread * pending_block_to_evaluate, struct vm_thread * child, int index, void * terminated_threads_ptr) {
     if(child->state == THREAD_TERMINATED && child->terminated_state == THREAD_TERMINATED_PENDING_GC) {
         struct stack_list * terminated_threads = terminated_threads_ptr;
         push_stack_list(terminated_threads, child);

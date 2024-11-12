@@ -1,5 +1,17 @@
 #include "u8_hash_table.h"
 
+struct u8_hash_table * alloc_u8_hash_table() {
+    struct u8_hash_table * table = malloc(sizeof(struct u8_hash_table));
+    init_u8_hash_table(table);
+    return table;
+}
+
+struct u8_hash_table * clone_u8_hash_table(struct u8_hash_table * to_be_cloned) {
+    struct u8_hash_table * cloned = alloc_u8_hash_table();
+    memcpy(cloned, to_be_cloned, sizeof(sizeof(struct u8_hash_table)));
+    return cloned;
+}
+
 void init_u8_hash_table(struct u8_hash_table * table) {
     memset(table, 0, sizeof(struct u8_hash_table));
 }
