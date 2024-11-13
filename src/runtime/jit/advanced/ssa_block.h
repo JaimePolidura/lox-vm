@@ -26,6 +26,14 @@ struct ssa_block {
     //It can also be defined as (i nº of instruction in the block):
     //Outputs = U (i start = 0) Outputs(i)
     struct u8_set outputs;
+    //Set of local variable numbers that this block will use before assigning
+    //Example: i = i + 1; print a; a = 12; b = 1; print b. use_before_assigment: {i, a}
+    //This facilitates the insertion of phi functions in loop bodies. So before using a variable, we
+    //know what variables to copy
+    struct u8_set use_before_assigment;
+
+    //Indicates if the current block belongs to the body of a loop
+    bool loop_body;
 
     type_next_ssa_block_t type_next_ssa_block;
 

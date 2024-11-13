@@ -157,6 +157,7 @@ TEST(ssa_ir_block_creation){
     ASSERT_EQ(ssa_block->last->type, SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP); //a < 0
     ASSERT_EQ(size_u8_set(ssa_block->outputs), 1);
     ASSERT_EQ(size_u8_set(ssa_block->inputs), 1);
+    ASSERT_EQ(size_u8_set(ssa_block->use_before_assigment), 0);
 
     //[c = 1, ¿a < 0?] -(true)-> [¿b > 0?]
     struct ssa_block * ssa_block_true = ssa_block->next.branch.true_branch;
@@ -165,6 +166,7 @@ TEST(ssa_ir_block_creation){
     ASSERT_EQ(ssa_block_true->last, ssa_block_true->first); //a < 0
     ASSERT_EQ(size_u8_set(ssa_block_true->outputs), 0);
     ASSERT_EQ(size_u8_set(ssa_block_true->inputs), 1);
+    ASSERT_EQ(size_u8_set(ssa_block->use_before_assigment), 0);
 
     //[c = 1, ¿a < 0?] -(true)-> [¿b > 0?] -(true)-> [b = 3; a = 2]
     struct ssa_block * ssa_block_true_true = ssa_block_true->next.branch.true_branch;
@@ -172,6 +174,7 @@ TEST(ssa_ir_block_creation){
     ASSERT_EQ(ssa_block_true_true->last->type, SSA_CONTORL_NODE_TYPE_SET_LOCAL); //a = 2
     ASSERT_EQ(size_u8_set(ssa_block_true_true->outputs), 2);
     ASSERT_EQ(size_u8_set(ssa_block_true_true->inputs), 0);
+    ASSERT_EQ(size_u8_set(ssa_block->use_before_assigment), 0);
 
     //[c = 1, ¿a < 0?] -(true)-> [¿b > 0?] -(true)-> [b = 3; a = 2] -> FINAL BLOCK
     struct ssa_block * final_block = ssa_block_true_true->next.next;
@@ -179,6 +182,7 @@ TEST(ssa_ir_block_creation){
     ASSERT_EQ(final_block->last->type, SSA_CONTROL_NODE_TYPE_RETURN); //final return OP_NIL OP_RETURN
     ASSERT_EQ(size_u8_set(final_block->outputs), 0);
     ASSERT_EQ(size_u8_set(final_block->inputs), 2);
+    ASSERT_EQ(size_u8_set(ssa_block->use_before_assigment), 0);
 
     //[c = 1, ¿a < 0?] -(true)-> [¿b > 0?] -(false)-> [b = 3]
     struct ssa_block * ssa_block_true_false = ssa_block_true->next.branch.false_branch;
@@ -187,6 +191,7 @@ TEST(ssa_ir_block_creation){
     ASSERT_EQ(ssa_block_true_false->last, ssa_block_true_false->first); //a < 0
     ASSERT_EQ(size_u8_set(ssa_block_true_false->outputs), 1);
     ASSERT_EQ(size_u8_set(ssa_block_true_false->inputs), 0);
+    ASSERT_EQ(size_u8_set(ssa_block->use_before_assigment), 0);
 
     //[c = 1, ¿a < 0?] -(true)-> [¿b > 0?] -(false)-> [b = 3] -> FINAL BLOCK
     ASSERT_EQ(ssa_block_true_false->next.next, final_block);
@@ -197,6 +202,7 @@ TEST(ssa_ir_block_creation){
     ASSERT_EQ(ssa_block_false->last->type, SSA_CONTORL_NODE_TYPE_SET_LOCAL); //i = 0
     ASSERT_EQ(size_u8_set(ssa_block_false->outputs), 2);
     ASSERT_EQ(size_u8_set(ssa_block_false->inputs), 0);
+    ASSERT_EQ(size_u8_set(ssa_block->use_before_assigment), 0);
 
     //[c = 1, ¿a < 0?] -(false)-> [c = 1, i = 0] -> [¿i < 10?]
     struct ssa_block * ssa_block_false_for_condition = ssa_block_false->next.next;
@@ -205,6 +211,7 @@ TEST(ssa_ir_block_creation){
     ASSERT_EQ(ssa_block_false_for_condition->last, ssa_block_false_for_condition->first);
     ASSERT_EQ(size_u8_set(ssa_block_false_for_condition->outputs), 0);
     ASSERT_EQ(size_u8_set(ssa_block_false_for_condition->inputs), 1);
+    ASSERT_EQ(size_u8_set(ssa_block->use_before_assigment), 0);
 
     //[c = 1, ¿a < 0?] -(false)-> [c = 1, i = 0] -> [¿i < 10?] -(true)-> [print 1, i = i + 1, loop]
     struct ssa_block * ssa_block_false_for_condition_true = ssa_block_false_for_condition->next.branch.true_branch;
@@ -214,7 +221,8 @@ TEST(ssa_ir_block_creation){
     ASSERT_EQ(size_u8_set(ssa_block_false_for_condition_true->outputs), 1);
     ASSERT_EQ(size_u8_set(ssa_block_false_for_condition_true->inputs), 1);
     ASSERT_EQ(ssa_block_false_for_condition_true->next.loop, ssa_block_false_for_condition);
-
+    ASSERT_EQ(size_u8_set(ssa_block_false_for_condition_true->use_before_assigment), 1);
+    ASSERT_TRUE(contains_u8_set(&ssa_block_false_for_condition_true->use_before_assigment, 4));
 
     //[c = 1, ¿a < 0?] -(false)-> [c = 1, i = 0] -> [¿i < 10?] -(false)-> FINAL BLOCK
     struct ssa_block * ssa_block_false_for_condition_false = ssa_block_false_for_condition->next.branch.false_branch;

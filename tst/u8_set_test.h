@@ -1,7 +1,27 @@
 #include "shared/utils/collections/u8_set.h"
 #include "test.h"
 
-//a - b Expect:
+TEST(u8_set_test_intersection){
+    struct u8_set a;
+    init_u8_set(&a);
+    add_u8_set(&a, 1);
+    add_u8_set(&a, 2);
+    add_u8_set(&a, 3);
+    add_u8_set(&a, 4);
+
+    struct u8_set b;
+    init_u8_set(&b);
+    add_u8_set(&b, 1);
+    add_u8_set(&b, 5);
+    add_u8_set(&b, 7);
+    add_u8_set(&b, 4);
+
+    intersection_u8_set(&a, b);
+    ASSERT_EQ(size_u8_set(a), 2);
+    ASSERT_TRUE(contains_u8_set(&a, 1));
+    ASSERT_TRUE(contains_u8_set(&a, 4));
+}
+
 TEST(u8_set_test_difference){
     struct u8_set a;
     init_u8_set(&a);

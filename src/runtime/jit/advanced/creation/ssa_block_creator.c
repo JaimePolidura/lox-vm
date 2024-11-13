@@ -1,4 +1,3 @@
-#include "runtime/jit/jit_compilation_result.h"
 #include "runtime/jit/advanced/ssa_block.h"
 
 #include "shared/utils/collections/u64_hash_table.h"
@@ -18,6 +17,7 @@ struct pending_evaluate {
 };
 
 struct block_local_usage {
+    struct u8_set use_before_assigment;
     struct u8_set inputs;
     struct u8_set outputs;
 };
@@ -26,9 +26,11 @@ static struct block_local_usage get_block_local_variables_usage(struct ssa_contr
 static struct ssa_block * create_parent_block(struct ssa_control_node *);
 static struct ssa_control_node * get_last_node_in_block(struct ssa_control_node *start);
 static void attatch_new_block_to_parent_block(struct ssa_block * parent, struct ssa_block * new_block, parent_next_type_t);
-static struct block_local_usage get_input_outputs_from_control_node(struct ssa_control_node *, struct u8_set inputs, struct u8_set outputs);
+static struct block_local_usage get_input_outputs_from_control_node(struct ssa_control_node *, struct u8_set use_before_assignment, struct u8_set inputs, struct u8_set outputs);
 static void map_ssa_nodes_to_ssa_blocks(struct u64_hash_table *, struct ssa_block *, struct ssa_control_node * first, struct ssa_control_node * last);
 static struct u8_set calculate_inputs_set(struct ssa_data_node *, struct u8_set prev_outputs, struct u8_set prev_inputs);
+static struct u8_set calculate_use_before_assignment_set(struct ssa_data_node *, struct u8_set prev_outputs);
+static bool is_loop_body(struct ssa_block * parent_block, parent_next_type_t type_parent_next_block);
 
 static void push_pending_evaluate(
         struct stack_list * pending_evaluation_stack,
@@ -65,11 +67,14 @@ struct ssa_block * create_ssa_ir_blocks(
         struct ssa_control_node * first_node = pending_node_to_evalute;
         struct ssa_control_node * last_node = get_last_node_in_block(first_node);
         struct block_local_usage local_variables_usage = get_block_local_variables_usage(first_node, last_node);
-        struct u8_set inputs = local_variables_usage.inputs;
+        struct u8_set use_before_assigment = local_variables_usage.use_before_assigment;
         struct u8_set outputs = local_variables_usage.outputs;
+        struct u8_set inputs = local_variables_usage.inputs;
         type_next_ssa_block_t type_next_ssa_block = get_type_next_ssa_block(last_node);
 
         struct ssa_block * block = alloc_ssa_block();
+        block->loop_body = is_loop_body(parent_block, parent_next_type);
+        block->use_before_assigment = use_before_assigment;
         block->type_next_ssa_block = type_next_ssa_block;
         block->first = first_node;
         block->outputs = outputs;
@@ -176,13 +181,17 @@ static struct block_local_usage get_block_local_variables_usage(
         struct ssa_control_node * first_node,
         struct ssa_control_node * last_node
 ) {
+    struct u8_set use_before_assigment;
     struct u8_set input;
     struct u8_set output;
-    init_u8_set(&input);
+    init_u8_set(&use_before_assigment);
     init_u8_set(&output);
+    init_u8_set(&input);
 
     for (struct ssa_control_node * current = first_node;; current = current->next.next) {
-        struct block_local_usage local_usage = get_input_outputs_from_control_node(current, input, output);
+        struct block_local_usage local_usage = get_input_outputs_from_control_node(current, use_before_assigment, input, output);
+
+        union_u8_set(&use_before_assigment, local_usage.use_before_assigment);
         union_u8_set(&output, local_usage.outputs);
         union_u8_set(&input, local_usage.inputs);
 
@@ -191,7 +200,11 @@ static struct block_local_usage get_block_local_variables_usage(
         }
     }
 
+    //Keep only used variables
+    intersection_u8_set(&use_before_assigment, output);
+
     return (struct block_local_usage) {
+        .use_before_assigment = use_before_assigment,
         .outputs = output,
         .inputs = input,
     };
@@ -199,6 +212,7 @@ static struct block_local_usage get_block_local_variables_usage(
 
 static struct block_local_usage get_input_outputs_from_control_node(
         struct ssa_control_node * node,
+        struct u8_set use_before_assigment,
         struct u8_set inputs,
         struct u8_set outputs
 ) {
@@ -206,44 +220,54 @@ static struct block_local_usage get_input_outputs_from_control_node(
         case SSA_CONTORL_NODE_TYPE_SET_LOCAL: {
             struct ssa_control_set_local_node * set_local_node = (struct ssa_control_set_local_node *) node;
             inputs = calculate_inputs_set(set_local_node->new_local_value, outputs, inputs);
+            use_before_assigment = calculate_use_before_assignment_set(set_local_node->new_local_value, outputs);
             add_u8_set(&outputs, set_local_node->local_number);
             break;
         }
         case SSA_CONTROL_NODE_TYPE_DATA: {
             struct ssa_control_data_node * data_node = (struct ssa_control_data_node *) node;
             inputs = calculate_inputs_set(data_node->data, outputs, inputs);
+            use_before_assigment = calculate_use_before_assignment_set(data_node->data, outputs);
             break;
         }
         case SSA_CONTROL_NODE_TYPE_RETURN: {
             struct ssa_control_return_node * return_node = (struct ssa_control_return_node *) node;
             inputs = calculate_inputs_set(return_node->data, outputs, inputs);
+            use_before_assigment = calculate_use_before_assignment_set(return_node->data, outputs);
             break;
         }
         case SSA_CONTROL_NODE_TYPE_PRINT: {
             struct ssa_control_print_node * print_node = (struct ssa_control_print_node *) node;
             inputs = calculate_inputs_set(print_node->data, outputs, inputs);
+            use_before_assigment = calculate_use_before_assignment_set(print_node->data, outputs);
             break;
         }
         case SSA_CONTORL_NODE_TYPE_SET_GLOBAL: {
             struct ssa_control_set_global_node * set_global = (struct ssa_control_set_global_node *) node;
             inputs = calculate_inputs_set(set_global->value_node, outputs, inputs);
+            use_before_assigment = calculate_use_before_assignment_set(set_global->value_node, outputs);
             break;
         }
         case SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD: {
             struct ssa_control_set_struct_field_node * set_struct = (struct ssa_control_set_struct_field_node *) node;
             union_u8_set(&inputs, get_used_locals(set_struct->field_value));
             inputs = calculate_inputs_set(set_struct->instance, outputs, inputs);
+            union_u8_set(&use_before_assigment, calculate_use_before_assignment_set(set_struct->instance, outputs));
+            use_before_assigment = calculate_use_before_assignment_set(set_struct->field_value, outputs);
             break;
         }
         case SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT: {
             struct ssa_control_set_array_element_node * set_array = (struct ssa_control_set_array_element_node *) node;
             union_u8_set(&inputs, get_used_locals(set_array->new_element));
             inputs = calculate_inputs_set(set_array->array, outputs, inputs);
+            union_u8_set(&use_before_assigment, calculate_use_before_assignment_set(set_array->new_element, outputs));
+            use_before_assigment = calculate_use_before_assignment_set(set_array->array, outputs);
             break;
         }
         case SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP: {
             struct ssa_control_conditional_jump_node * conditional_jump = (struct ssa_control_conditional_jump_node *) node;
             inputs = calculate_inputs_set(conditional_jump->condition, outputs, inputs);
+            use_before_assigment = calculate_use_before_assignment_set(conditional_jump->condition, outputs);
             break;
         }
         case SSA_CONTROL_NODE_TYPE_START:
@@ -254,6 +278,7 @@ static struct block_local_usage get_input_outputs_from_control_node(
     }
 
     return (struct block_local_usage) {
+        .use_before_assigment = use_before_assigment,
         .outputs = outputs,
         .inputs = inputs
     };
@@ -276,8 +301,17 @@ static void map_ssa_nodes_to_ssa_blocks(
     }
 }
 
+//See struct ssa_block's use_before_assignment field definition in ssa_block.h
+static struct u8_set calculate_use_before_assignment_set(
+        struct ssa_data_node * ssa_data_node,
+        struct u8_set prev_outputs
+) {
+    struct u8_set used_variables = get_used_locals(ssa_data_node);
+    difference_u8_set(&used_variables, prev_outputs);
+    return used_variables;
+}
+
 //See struct ssa_block's inputs field definition in ssa_block.h
-//Inputs = U (i start = 0) (Inputs(i) - Outputs(i - 1))
 static struct u8_set calculate_inputs_set(
         struct ssa_data_node * data_node,
         struct u8_set prev_outputs,
@@ -287,4 +321,14 @@ static struct u8_set calculate_inputs_set(
     difference_u8_set(&current_inputs, prev_outputs);
     union_u8_set(&prev_inputs, current_inputs);
     return current_inputs;
+}
+
+static bool is_loop_body(struct ssa_block * parent_block, parent_next_type_t type_parent_next_block) {
+    if(parent_block->first->type == SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP){
+        bool is_parent_loop_condition = ((struct ssa_control_conditional_jump_node *) parent_block->first)->loop_condition;
+        bool is_pending_block_true_branch = type_parent_next_block == PARENT_NEXT_TYPE_TRUE_BRANCH;
+        return is_parent_loop_condition && is_pending_block_true_branch;
+    } else {
+        return false;
+    }
 }

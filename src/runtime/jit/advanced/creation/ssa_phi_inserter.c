@@ -4,58 +4,61 @@
 #include "shared/utils/collections/u8_hash_table.h"
 #include "shared/utils/collections/stack_list.h"
 
+struct ssa_phi_inserter {
+    struct u8_hash_table max_version_allocated_per_local;
+    struct u64_hash_table loops_evaluted; //Stores ssa_block->next.loop address
+    struct stack_list pending_evaluate;
+};
+
 struct pending_evaluate {
     struct ssa_block * pending_block_to_evaluate;
     struct u8_hash_table * parent_versions;
 };
 
-static void push_pending_evaluate(struct stack_list *, struct ssa_block *, struct u8_hash_table * parent_versions);
-static void insert_phis_in_block(struct ssa_block *block, struct u8_hash_table * max_version_allocated_per_local, struct u8_hash_table * parent_versions);
-static void insert_ssa_versions_in_control_node(struct ssa_control_node * node, struct u8_hash_table * max_version_allocated_per_local, struct u8_hash_table * parent_versions);
+static void push_pending_evaluate(struct ssa_phi_inserter *, struct ssa_block *, struct u8_hash_table * parent_versions);
+static void insert_phis_in_block(struct ssa_phi_inserter *, struct ssa_block *block, struct u8_hash_table * parent_versions);
+static void insert_ssa_versions_in_control_node(struct ssa_phi_inserter *, struct ssa_control_node * node, struct u8_hash_table * parent_versions);
 static void insert_phis_in_data_node(struct ssa_data_node * node, struct u8_hash_table * parent_versions);
 static int allocate_new_version(struct u8_hash_table * max_version_allocated_per_local, uint8_t local_number);
 static int get_version(struct u8_hash_table * parent_versions, uint8_t local_number);
+static struct ssa_phi_inserter * alloc_ssa_phi_inserter();
+static void free_ssa_phi_inserter(struct ssa_phi_inserter *);
 
 void insert_ssa_ir_phis(
         struct ssa_block * start_block
 ) {
     start_block = start_block->next.next;
 
-    struct u8_hash_table max_version_allocated_per_local;
-    struct u64_hash_table loops_evaluted; //Stores ssa_block->next.loop address
-    struct stack_list pending_evaluate_stack;
-    init_u8_hash_table(&max_version_allocated_per_local);
-    init_stack_list(&pending_evaluate_stack);
-    init_u64_hash_table(&loops_evaluted);
+    struct ssa_phi_inserter * inserter = alloc_ssa_phi_inserter();
 
-    push_pending_evaluate(&pending_evaluate_stack, start_block, alloc_u8_hash_table());
+    push_pending_evaluate(inserter, start_block, alloc_u8_hash_table());
 
-    while(!is_empty_stack_list(&pending_evaluate_stack)) {
-        struct pending_evaluate * pending_evaluate = pop_stack_list(&pending_evaluate_stack);
+    while(!is_empty_stack_list(&inserter->pending_evaluate)) {
+        struct pending_evaluate * pending_evaluate = pop_stack_list(&inserter->pending_evaluate);
         struct ssa_block * block_to_evaluate = pending_evaluate->pending_block_to_evaluate;
         struct u8_hash_table * parent_versions = pending_evaluate->parent_versions;
         free(pending_evaluate);
 
-        insert_phis_in_block(block_to_evaluate, &max_version_allocated_per_local, parent_versions);
+        insert_phis_in_block(inserter, block_to_evaluate, parent_versions);
 
         switch (block_to_evaluate->type_next_ssa_block) {
             case TYPE_NEXT_SSA_BLOCK_SEQ:
-                push_pending_evaluate(&pending_evaluate_stack, block_to_evaluate->next.next, parent_versions);
+                push_pending_evaluate(inserter, block_to_evaluate->next.next, parent_versions);
                 break;
             case TYPE_NEXT_SSA_BLOCK_LOOP:
                 struct ssa_block * to_jump_loop_block = block_to_evaluate->next.loop;
-                if(!contains_u64_hash_table(&loops_evaluted, (uint64_t) to_jump_loop_block)){
-                    push_pending_evaluate(&pending_evaluate_stack, to_jump_loop_block, parent_versions);
-                    put_u64_hash_table(&loops_evaluted, (uint64_t) to_jump_loop_block, (void*)0x01);
+                if(!contains_u64_hash_table(&inserter->loops_evaluted, (uint64_t) to_jump_loop_block)){
+                    push_pending_evaluate(inserter, to_jump_loop_block, parent_versions);
+                    put_u64_hash_table(&inserter->loops_evaluted, (uint64_t) to_jump_loop_block, (void*)0x01);
                 } else {
                     //OP_LOOP always points to the loop condition
                     //If an assigment have ocurred inside the loop body, we will need to propagate outside the loop
-                    push_pending_evaluate(&pending_evaluate_stack, to_jump_loop_block->next.branch.false_branch, parent_versions);
+                    push_pending_evaluate(inserter, to_jump_loop_block->next.branch.false_branch, parent_versions);
                 }
                 break;
             case TYPE_NEXT_SSA_BLOCK_BRANCH:
-                push_pending_evaluate(&pending_evaluate_stack, block_to_evaluate->next.branch.false_branch, clone_u8_hash_table(parent_versions));
-                push_pending_evaluate(&pending_evaluate_stack, block_to_evaluate->next.branch.true_branch, parent_versions);
+                push_pending_evaluate(inserter, block_to_evaluate->next.branch.false_branch, clone_u8_hash_table(parent_versions));
+                push_pending_evaluate(inserter, block_to_evaluate->next.branch.true_branch, parent_versions);
                 break;
             case TYPE_NEXT_SSA_BLOCK_NONE:
                 free(parent_versions);
@@ -63,25 +66,16 @@ void insert_ssa_ir_phis(
         }
     }
 
-    free_stack_list(&pending_evaluate_stack);
-    free_u64_hash_table(&loops_evaluted);
+    free_ssa_phi_inserter(inserter);
 }
 
 static void insert_phis_in_block(
+        struct ssa_phi_inserter * inserter,
         struct ssa_block * block,
-        struct u8_hash_table * max_version_allocated_per_local,
         struct u8_hash_table * parent_versions
 ) {
-    if(size_u8_set(block->inputs) == 0 && size_u8_set(block->outputs) == 0){
-        return;
-    }
-
     for(struct ssa_control_node * current = block->first;; current = current->next.next){
-        insert_ssa_versions_in_control_node(
-                current,
-                max_version_allocated_per_local,
-                parent_versions
-        );
+        insert_ssa_versions_in_control_node(inserter,current,parent_versions);
 
         if(current == block->last){
             break;
@@ -90,8 +84,8 @@ static void insert_phis_in_block(
 }
 
 static void insert_ssa_versions_in_control_node(
+        struct ssa_phi_inserter * inserter,
         struct ssa_control_node * node,
-        struct u8_hash_table * max_version_allocated_per_local,
         struct u8_hash_table * parent_versions
 ) {
     switch (node->type) {
@@ -101,7 +95,7 @@ static void insert_ssa_versions_in_control_node(
             insert_phis_in_data_node(set_local->new_local_value, parent_versions);
             //Version not assigned
             if(set_local->version == 0){
-                int new_version = allocate_new_version(max_version_allocated_per_local, local_number);
+                int new_version = allocate_new_version(&inserter->max_version_allocated_per_local, local_number);
                 put_u8_hash_table(parent_versions, local_number, (void *) new_version);
                 set_local->version = new_version;
             }
@@ -238,12 +232,26 @@ static int get_version(struct u8_hash_table * parent_versions, uint8_t local_num
 }
 
 static void push_pending_evaluate(
-        struct stack_list * pending_evaluate_stack,
+        struct ssa_phi_inserter * inserter,
         struct ssa_block * parent,
         struct u8_hash_table * parent_versions
 ) {
     struct pending_evaluate * pending_evaluate = malloc(sizeof(struct pending_evaluate));
     pending_evaluate->parent_versions = parent_versions;
     pending_evaluate->pending_block_to_evaluate = parent;
-    push_stack_list(pending_evaluate_stack, pending_evaluate);
+    push_stack_list(&inserter->pending_evaluate, pending_evaluate);
+}
+
+static struct ssa_phi_inserter * alloc_ssa_phi_inserter() {
+    struct ssa_phi_inserter * inserter = malloc(sizeof(struct ssa_phi_inserter));
+    init_u8_hash_table(&inserter->max_version_allocated_per_local);
+    init_u64_hash_table(&inserter->loops_evaluted);
+    init_stack_list(&inserter->pending_evaluate);
+    return inserter;
+}
+
+static void free_ssa_phi_inserter(struct ssa_phi_inserter * inserter) {
+    free_stack_list(&inserter->pending_evaluate);
+    free_u64_hash_table(&inserter->loops_evaluted);
+    free(inserter);
 }

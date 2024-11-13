@@ -37,14 +37,15 @@ int main() {
     u8_hash_table_test_add_contains_outer();
 #endif
 #ifdef RUN_U8_SET_TEST
+    u8_set_test_intersection_outer();
     u8_set_test_difference_outer();
     u8_set_test_union_outer();
     u8_set_test_remove_outer();
     u8_set_test_add_contains_outer();
 #endif
 #ifdef RUN_SSA_TEST
-    ssa_phis_inserter_outer();
-//    ssa_ir_block_creation_outer();
+//    ssa_phis_inserter_outer();
+    ssa_ir_block_creation_outer();
 //    ssa_ir_no_phis_outer();
 #endif
 #ifdef RUN_MARK_BITMAP_TEST
