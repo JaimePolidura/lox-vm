@@ -19,6 +19,8 @@ extern void insert_ssa_ir_phis(
         struct ssa_block * start_block
 );
 
+static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expected_versions, ...);
+
 #define ASSERT_PRINTS_NUMBER(node, value) { \
     struct ssa_control_print_node * print_node = (struct ssa_control_print_node *) (node); \
     ASSERT_TRUE(print_node->control.type == SSA_CONTROL_NODE_TYPE_PRINT); \
@@ -26,19 +28,21 @@ extern void insert_ssa_ir_phis(
     ASSERT_TRUE(((struct ssa_data_constant_node *) print_node->data)->as.i64 == value); \
 }; \
 
+#define ASSERT_ASSIGNS_VERSION(node, expected_version) ASSERT_EQ(((struct ssa_control_set_local_node *) node)->version, expected_version)
+
 #define NEXT_NODE(type, node) (type *) ((node)->control.next.next)
 #define FALSE_BRANCH_NODE(type, node) (type *) ((node)->control.next.branch.false_branch)
 #define TRUE_BRANCH_NODE(type, node) (type *) ((node)->control.next.branch.true_branch)
 
 //Expect
-//First block: [a0 = 1; a0 > 0]
+//First block: [a1 = 1; a1 > 0]
 //  -> True: [¿b0 > 0?]
-//      -> True: [b1 = 3; a1 = 3] -> FINAL BLOCK
+//      -> True: [b1 = 3; a2 = 3] -> FINAL BLOCK
 //      -> False: [b2 = 3] -> FINAL BLOCK
-//  -> False: [a2 = 3; i0 = 1] -> [¿phi(i0, i1) < 10?]
+//  -> False: [a3 = 3; i0 = 1] -> [¿phi(i0, i1) < 10?]
 //      -> True: [b3 = 12; i1 = i0 + 1]
 //      -> False: FINAL BLOCK
-//FINAL BLOCK: [print phi(a1); print phi(b0, b1, b2, b3)]
+//FINAL BLOCK: [print phi(a2, a3); print phi(b1, b2, b3)]
 TEST(ssa_phis_inserter){
     struct compilation_result compilation = compile_standalone(
             "fun function_ssa(a, b) {"
@@ -65,8 +69,45 @@ TEST(ssa_phis_inserter){
     int n_instructions = function_ssa->chunk->in_use;
     init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
     struct ssa_control_node * start_ssa_ir = create_ssa_ir_no_phis(package, function_ssa, create_bytecode_list(function_ssa->chunk));
-    struct ssa_block * ssa_block = create_ssa_ir_blocks(start_ssa_ir);
-    insert_ssa_ir_phis(ssa_block);
+    struct ssa_block * start_ssa_block = create_ssa_ir_blocks(start_ssa_ir);
+    insert_ssa_ir_phis(start_ssa_block);
+    start_ssa_block = start_ssa_block->next.next;
+
+    ASSERT_ASSIGNS_VERSION(start_ssa_block->first, 1); //a1 = 1;
+    //a1 > 0
+    struct ssa_control_conditional_jump_node * a_condition = (struct ssa_control_conditional_jump_node *) start_ssa_block->first->next.next;
+    ASSERT_TRUE(node_uses_phi_versions(a_condition->condition, 1, 1));
+
+    struct ssa_block * a_condition_true = start_ssa_block->next.branch.true_branch;
+    //b0 > 0
+    struct ssa_control_conditional_jump_node * a_condition_true_b_condition = (struct ssa_control_conditional_jump_node *) a_condition_true->first;
+    ASSERT_TRUE(node_uses_phi_versions(a_condition_true_b_condition->condition, 1, 0));
+
+    struct ssa_block * a_condition_true_b_condition_true = a_condition_true->next.branch.true_branch;
+    ASSERT_ASSIGNS_VERSION(a_condition_true_b_condition_true->first, 1); //b1 = 3;
+    ASSERT_ASSIGNS_VERSION(a_condition_true_b_condition_true->first->next.next, 2); //a2 = 2;
+
+    struct ssa_block * a_condition_true_b_condition_false = a_condition_true->next.branch.false_branch;
+    struct ssa_control_set_local_node * set_local = (struct ssa_control_set_local_node *) a_condition_true_b_condition_false->first;
+    ASSERT_ASSIGNS_VERSION(a_condition_true_b_condition_false->first, 2); //b2 = 3;
+
+    struct ssa_block * a_condition_false = start_ssa_block->next.branch.false_branch;
+    ASSERT_ASSIGNS_VERSION(a_condition_false->first, 3); //a3 = 1;
+    ASSERT_ASSIGNS_VERSION(a_condition_false->first->next.next, 1); //i1 = 1;
+
+    struct ssa_block * for_loop_condition_block = a_condition_false->next.next;
+    struct ssa_control_conditional_jump_node * for_loop_condition = (struct ssa_control_conditional_jump_node *) for_loop_condition_block->first;
+    ASSERT_TRUE(node_uses_phi_versions(for_loop_condition->condition, 2, 1, 2));
+
+    struct ssa_block * for_loop_body_block = for_loop_condition_block->next.branch.true_branch;
+    ASSERT_ASSIGNS_VERSION(for_loop_body_block->first, 3); //b3 = 12;
+    ASSERT_ASSIGNS_VERSION(for_loop_body_block->first->next.next, 2); //i2 = i1 + 1;
+
+    struct ssa_block * final_block = a_condition_true_b_condition_true->next.next;
+    struct ssa_control_print_node * final_block_print_a = (struct ssa_control_print_node *) final_block->first;
+    ASSERT_TRUE(node_uses_phi_versions(final_block_print_a->data, 2, 2, 3)); //print phi(a2, a3);
+    struct ssa_control_print_node * final_block_print_b = (struct ssa_control_print_node *) final_block_print_a->control.next.next;
+    ASSERT_TRUE(node_uses_phi_versions(final_block_print_b->data, 3, 1, 2, 3)); //print phi(b1, b2, b3);
 }
 
 //Should produce:
@@ -260,4 +301,54 @@ TEST(ssa_ir_no_phis){
     ASSERT_PRINTS_NUMBER(a_condition_false_after_loop, 4);
     //Final print
     ASSERT_PRINTS_NUMBER(a_condition_false_after_loop->next.next, 5);
+}
+
+
+static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expected_versions, ...) {
+    int expected_versions[n_expected_versions];
+    VARARGS_TO_ARRAY(int, expected_versions, n_expected_versions);
+
+    struct stack_list pending;
+    init_stack_list(&pending);
+    push_stack_list(&pending, start_node);
+
+    while(!is_empty_stack_list(&pending)){
+        struct ssa_data_node * current = pop_stack_list(&pending);
+        switch(current->type){
+            case SSA_DATA_NODE_TYPE_GET_LOCAL: {
+                struct ssa_data_get_local_node * get_local = (struct ssa_data_get_local_node *) current;
+                for(int i = 0; i < n_expected_versions; i++){
+                    int expected_version = expected_versions[i];
+                    if(!contains_u8_set(&get_local->phi_versions, expected_version)) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            case SSA_DATA_NODE_TYPE_COMPARATION:
+                struct ssa_data_comparation_node * comparation = (struct ssa_data_comparation_node *) current;
+                push_stack_list(&pending, comparation->right);
+                push_stack_list(&pending, comparation->left);
+                break;
+            case SSA_DATA_NODE_TYPE_ARITHMETIC:
+                struct ssa_data_arithmetic_node * arithmetic = (struct ssa_data_arithmetic_node *) current;
+                push_stack_list(&pending, arithmetic->right);
+                push_stack_list(&pending, arithmetic->left);
+                break;
+
+            case SSA_DATA_NODE_TYPE_CONSTANT:
+            case SSA_DATA_NODE_TYPE_CALL:
+            case SSA_DATA_NODE_TYPE_GET_GLOBAL:
+            case SSA_DATA_NODE_TYPE_UNARY:
+            case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD:
+            case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT:
+            case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT:
+            case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY:
+                break;
+        }
+    }
+
+    free_stack_list(&pending);
+
+    return false;
 }

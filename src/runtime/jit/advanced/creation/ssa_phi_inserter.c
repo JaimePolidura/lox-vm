@@ -43,12 +43,14 @@ void insert_ssa_ir_phis(
                 push_pending_evaluate(&pending_evaluate_stack, block_to_evaluate->next.next, parent_versions);
                 break;
             case TYPE_NEXT_SSA_BLOCK_LOOP:
-                struct ssa_control_node * to_jump_loop = block_to_evaluate->next.loop;
-                if(!contains_u64_hash_table(&loops_evaluted, (uint64_t) block_to_evaluate->next.loop)){
-                    push_pending_evaluate(&pending_evaluate_stack, block_to_evaluate->next.loop, parent_versions);
-                    put_u64_hash_table(&loops_evaluted, (uint64_t) block_to_evaluate->next.loop, (void*)0x01);
+                struct ssa_block * to_jump_loop_block = block_to_evaluate->next.loop;
+                if(!contains_u64_hash_table(&loops_evaluted, (uint64_t) to_jump_loop_block)){
+                    push_pending_evaluate(&pending_evaluate_stack, to_jump_loop_block, parent_versions);
+                    put_u64_hash_table(&loops_evaluted, (uint64_t) to_jump_loop_block, (void*)0x01);
                 } else {
-
+                    //OP_LOOP always points to the loop condition
+                    //If an assigment have ocurred inside the loop body, we will need to propagate outside the loop
+                    push_pending_evaluate(&pending_evaluate_stack, to_jump_loop_block->next.branch.false_branch, parent_versions);
                 }
                 break;
             case TYPE_NEXT_SSA_BLOCK_BRANCH:
@@ -80,6 +82,10 @@ static void insert_phis_in_block(
                 max_version_allocated_per_local,
                 parent_versions
         );
+
+        if(current == block->last){
+            break;
+        }
     }
 }
 
@@ -93,9 +99,13 @@ static void insert_ssa_versions_in_control_node(
             struct ssa_control_set_local_node * set_local = (struct ssa_control_set_local_node *) node;
             uint8_t local_number = (uint8_t) set_local->local_number;
             insert_phis_in_data_node(set_local->new_local_value, parent_versions);
-            int new_version = allocate_new_version(max_version_allocated_per_local, local_number);
-            put_u8_hash_table(parent_versions, local_number, (void *) new_version);
-            set_local->version = new_version;
+            //Version not assigned
+            if(set_local->version == 0){
+                int new_version = allocate_new_version(max_version_allocated_per_local, local_number);
+                put_u8_hash_table(parent_versions, local_number, (void *) new_version);
+                set_local->version = new_version;
+            }
+
             break;
         }
         case SSA_CONTROL_NODE_TYPE_DATA: {
@@ -131,6 +141,9 @@ static void insert_ssa_versions_in_control_node(
             break;
         }
         case SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP:
+            struct ssa_control_conditional_jump_node * conditional_jump = (struct ssa_control_conditional_jump_node *) node;
+            insert_phis_in_data_node(conditional_jump->condition, parent_versions);
+            break;
         case SSA_CONTROL_NODE_TYPE_ENTER_MONITOR:
         case SSA_CONTROL_NODE_TYPE_EXIT_MONITOR:
         case SSA_CONTROL_NODE_TYPE_LOOP_JUMP:
@@ -203,7 +216,7 @@ static void insert_phis_in_data_node(struct ssa_data_node * node, struct u8_hash
 }
 
 static int allocate_new_version(struct u8_hash_table * max_version_allocated_per_local, uint8_t local_number) {
-    int new_version = 0;
+    int new_version = 1;
 
     if(contains_u8_hash_table(max_version_allocated_per_local, local_number)){
         int old_version = (int) get_u8_hash_table(max_version_allocated_per_local, local_number);
@@ -217,7 +230,7 @@ static int allocate_new_version(struct u8_hash_table * max_version_allocated_per
 
 static int get_version(struct u8_hash_table * parent_versions, uint8_t local_number) {
     if(contains_u8_hash_table(parent_versions, local_number)){
-        return get_version(parent_versions, local_number);
+        return (int) get_u8_hash_table(parent_versions, local_number);
     } else {
         put_u8_hash_table(parent_versions, local_number, (void *) 0);
         return 0;

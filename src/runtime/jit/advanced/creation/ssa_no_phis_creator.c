@@ -257,7 +257,6 @@ struct ssa_control_node * create_ssa_ir_no_phis(
                 struct ssa_data_node * new_local_value = pop_stack_list(&data_nodes_stack);
                 set_local_node->local_number = current_bytecode_to_evaluate->as.u8;
                 set_local_node->new_local_value = new_local_value;
-
                 map_data_nodes_bytecodes_to_control(&control_nodes_by_bytecode, new_local_value, &set_local_node->control);
                 attatch_ssa_node_to_parent(evaluation_type, parent_ssa_control_node, &set_local_node->control);
                 push_pending_evaluate(&pending_evaluation, EVAL_TYPE_SEQUENTIAL_CONTROL, current_bytecode_to_evaluate->next, &set_local_node->control);
@@ -302,7 +301,7 @@ struct ssa_control_node * create_ssa_ir_no_phis(
 
                 push_stack_list(&data_nodes_stack, call_node);
                 push_pending_evaluate(&pending_evaluation, evaluation_type, current_bytecode_to_evaluate->next, parent_ssa_control_node);
-                
+
                 break;
             }
             case OP_GET_GLOBAL: {

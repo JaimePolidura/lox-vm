@@ -42,6 +42,7 @@ struct ssa_control_set_local_node {
     struct ssa_control_node control;
 
     int local_number;
+    //If 0 it means that the version hasn't been assigned
     int version;
     struct ssa_data_node * new_local_value;
 };
