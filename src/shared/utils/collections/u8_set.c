@@ -3,6 +3,18 @@
 #define VALUE_TO_SLOT_INDEX(value) ((value) & 0x03)
 #define VALUE_TO_SLOT_BIT_INDEX(value) ((value) >> 2)
 
+struct u8_set create_u8_set(int n_elements, ...) {
+    struct u8_set to_return;
+    init_u8_set(&to_return);
+    int elements[n_elements];
+    VARARGS_TO_ARRAY(int, elements, n_elements);
+    for(int i = 0; i < n_elements; i++){
+        add_u8_set(&to_return, elements[i]);
+    }
+
+    return to_return;
+}
+
 void init_u8_set(struct u8_set * set) {
     memset(set, 0, sizeof(struct u8_set));
 }

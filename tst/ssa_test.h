@@ -39,8 +39,8 @@ static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expe
 //  -> True: [¿b0 > 0?]
 //      -> True: [b1 = 3; a2 = 3] -> FINAL BLOCK
 //      -> False: [b2 = 3] -> FINAL BLOCK
-//  -> False: [a3 = 3; i0 = 1] -> [¿phi(i0, i1) < 10?]
-//      -> True: [b3 = 12; i1 = i0 + 1]
+//  -> False: [a3 = 3; i0 = 1] -> [¿phi(i0, i2) < 10?]
+//      -> True: [b3 = 12; i1 = phi(i0, i2); i2 = i1 + 1;]
 //      -> False: FINAL BLOCK
 //FINAL BLOCK: [print phi(a2, a3); print phi(b1, b2, b3)]
 TEST(ssa_phis_inserter){
@@ -97,11 +97,16 @@ TEST(ssa_phis_inserter){
 
     struct ssa_block * for_loop_condition_block = a_condition_false->next.next;
     struct ssa_control_conditional_jump_node * for_loop_condition = (struct ssa_control_conditional_jump_node *) for_loop_condition_block->first;
-    ASSERT_TRUE(node_uses_phi_versions(for_loop_condition->condition, 2, 1, 2));
+    ASSERT_TRUE(node_uses_phi_versions(for_loop_condition->condition, 2, 1, 3)); //phi(i1, i3) < 10
 
     struct ssa_block * for_loop_body_block = for_loop_condition_block->next.branch.true_branch;
     ASSERT_ASSIGNS_VERSION(for_loop_body_block->first, 3); //b3 = 12;
-    ASSERT_ASSIGNS_VERSION(for_loop_body_block->first->next.next, 2); //i2 = i1 + 1;
+    struct ssa_control_set_local_node * extract_i_loop = (struct ssa_control_set_local_node *) for_loop_body_block->first->next.next;
+    ASSERT_ASSIGNS_VERSION(for_loop_body_block->first->next.next, 2); //i2 = phi(i1, i3) + 1;
+    ASSERT_TRUE(node_uses_phi_versions(extract_i_loop->new_local_value, 2, 1, 3)); //i2 = phi(i1, i3) + 1
+    struct ssa_control_set_local_node * increment_i_loop = (struct ssa_control_set_local_node *) extract_i_loop->control.next.next;
+    ASSERT_ASSIGNS_VERSION(increment_i_loop, 3); //i3 = i2 + 1;
+    ASSERT_TRUE(node_uses_phi_versions(increment_i_loop->new_local_value, 1, 2)); //i3 = i2 + 1;
 
     struct ssa_block * final_block = a_condition_true_b_condition_true->next.next;
     struct ssa_control_print_node * final_block_print_a = (struct ssa_control_print_node *) final_block->first;

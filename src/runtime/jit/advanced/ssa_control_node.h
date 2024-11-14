@@ -25,6 +25,8 @@ struct ssa_control_node {
 
     bool jumps_to_next_node;
 
+    struct ssa_control_node * prev;
+
     union {
         struct ssa_control_node * next;
         struct {

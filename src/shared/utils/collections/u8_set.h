@@ -1,5 +1,6 @@
 #pragma once
 
+#include "shared/utils/utils.h"
 #include "shared.h"
 
 struct u8_set {
@@ -8,6 +9,7 @@ struct u8_set {
     uint64_t slot_bit_maps[4];
 };
 
+struct u8_set create_u8_set(int n_elements, ...);
 void init_u8_set(struct u8_set *);
 void add_u8_set(struct u8_set *, uint8_t);
 bool contains_u8_set(struct u8_set *, uint8_t);

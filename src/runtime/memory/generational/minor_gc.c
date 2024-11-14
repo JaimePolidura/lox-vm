@@ -161,7 +161,7 @@ static void for_each_string_pool_entry(
         *value_reference_holder = forwading_ptr;
     } else if (belongs_to_young_heap && !has_been_moved) {
         //Objects in young heap are always moved in every gc. If they haven't been moved, the string is unreachable,
-        //so we need to reclaim its hash_table entry
+        //so we need to reclaim its inner_hash_table entry
         remove_hash_table(&global_string_pool.strings, string);
     }
 }

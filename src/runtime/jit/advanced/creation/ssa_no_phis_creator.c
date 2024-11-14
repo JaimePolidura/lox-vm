@@ -571,6 +571,8 @@ static void attatch_ssa_node_to_parent(
         struct ssa_control_node * parent,
         struct ssa_control_node * child
 ) {
+    child->prev = parent;
+
     switch (type) {
         case EVAL_TYPE_JUMP_SEQUENTIAL_CONTROL:
             parent->jumps_to_next_node = true;
