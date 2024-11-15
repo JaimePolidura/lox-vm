@@ -118,7 +118,7 @@ static struct gc_result start_gc() {
 void signal_threads_start_gc_alg_and_await() {
     struct mark_sweep_global_info * gc_mark_sweep = current_vm.gc;
 
-    //Threads who are waiting, are included as already ack the start gc signal
+    //Threads who are waiting, are included value_as already ack the start gc signal
     // + 1 to count self thread44
     atomic_fetch_add(&gc_mark_sweep->number_threads_ack_start_gc_signal, current_vm.number_waiting_threads + 1);
 

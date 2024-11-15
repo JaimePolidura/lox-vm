@@ -7,7 +7,7 @@ bool cast_to_boolean(lox_value_t value) {
 #ifdef NAN_BOXING
     return AS_BOOL(value);
 #else
-    return value_node.as.immediate != 0;
+    return value_node.value_as.immediate != 0;
 #endif
 }
 
@@ -48,12 +48,12 @@ char * to_string(lox_value_t value) {
         case VAL_NIL: return "nil"; break;
         case VAL_NUMBER: {
             char * string_as_double = malloc(sizeof(char) * 20);
-            sprintf(string_as_double, "%f", value_node.as.immediate);
+            sprintf(string_as_double, "%f", value_node.value_as.immediate);
             return string_as_double;
         }
-        case VAL_BOOL: return value_node.as.boolean ? "true" : "false"; break;
+        case VAL_BOOL: return value_node.value_as.boolean ? "true" : "false"; break;
         case VAL_OBJ:
-            switch (value_node.as.object->type) {
+            switch (value_node.value_as.object->type) {
                 case OBJ_STRING: return AS_STRING_CHARS_OBJECT(value_node);
             }
     };

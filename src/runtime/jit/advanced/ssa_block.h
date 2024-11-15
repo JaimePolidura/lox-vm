@@ -1,5 +1,6 @@
-#include "shared/utils/collections/u8_set.h"
+#pragma once
 
+#include "shared/utils/collections/u8_set.h"
 #include "ssa_control_node.h"
 
 typedef enum {
@@ -15,17 +16,6 @@ struct ssa_block {
     struct ssa_control_node * first; //Inclusive
     struct ssa_control_node * last; //Inclusive
 
-    //Set of local variable numbers that this block will use from outside
-    //Example: print b; i = i + 1; Inputs: {b, i}
-    //Use after assigments won't be included in the inputs set. Exmaple: a = 1; print a; Inputs: {}
-    //It can also be defined as (i nº of instruction in the block):
-    //Inputs = U (i start = 0) (Inputs(i) - Outputs(i - 1))
-    struct u8_set inputs;
-    //Set of local variable numbers that this block will define/assign
-    //Example: print b; i = i + 1; Outputs: {i}
-    //It can also be defined as (i nº of instruction in the block):
-    //Outputs = U (i start = 0) Outputs(i)
-    struct u8_set outputs;
     //Set of local variable numbers that this block will use before assigning
     //Example: i = i + 1; print a; a = 12; b = 1; print b. use_before_assigment: {i, a}
     //This facilitates the insertion of phi functions in loop bodies. So before using a variable, we

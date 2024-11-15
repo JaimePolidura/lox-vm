@@ -260,7 +260,7 @@ static void return_jit(struct jit_compiler * jit_compiler, bool * finish_compila
             FUNCTION_TO_OPERAND(restore_prev_call_frame),
             0);
 
-    //Same as vm.c self_thread->esp = current_frame->slot_bit_maps
+    //Same value_as vm.c self_thread->esp = current_frame->slot_bit_maps
     emit_mov(&jit_compiler->native_compiled_code,
              LOX_ESP_REG_OPERAND,
              LOX_EBP_REG_OPERAND);
@@ -772,14 +772,14 @@ static void jump_if_false(struct jit_compiler * jit_compiler, uint16_t jump_offs
     pop_register_allocator(&jit_compiler->register_allocator);
     push_register_jit_stack(&jit_compiler->jit_stack, boolean_value.operand.as.reg);
 
-    record_pending_jump_to_patch(jit_compiler, jmp_index, jump_offset, 2); //JNE takes two bytes as opcode
+    record_pending_jump_to_patch(jit_compiler, jmp_index, jump_offset, 2); //JNE takes two bytes value_as opcode
     record_compiled_bytecode(jit_compiler, instruction_index, OP_JUMP_IF_FALSE_LENGTH);
 }
 
 static void jump(struct jit_compiler * jit_compiler, uint16_t offset) {
     uint16_t jmp_index = emit_near_jmp(&jit_compiler->native_compiled_code, 0); //We don't know the offset of where to jump
 
-    record_pending_jump_to_patch(jit_compiler, jmp_index, offset, 1); //jmp takes only 1 byte as opcode
+    record_pending_jump_to_patch(jit_compiler, jmp_index, offset, 1); //jmp takes only 1 byte value_as opcode
     record_compiled_bytecode(jit_compiler, jmp_index, OP_JUMP_LENGTH);
 }
 
@@ -953,7 +953,7 @@ static uint16_t call_safepoint(struct jit_compiler * jit_compiler) {
 }
 
 //Se x64_stack.h
-//Same as vm.c push_stack_vm
+//Same value_as vm.c push_stack_vm
 static uint16_t emit_lox_push(struct jit_compiler * jit_compiler, register_t reg) {
     uint16_t instruction_index = emit_mov(&jit_compiler->native_compiled_code,
              DISPLACEMENT_TO_OPERAND(LOX_ESP_REG, 0),
@@ -964,7 +964,7 @@ static uint16_t emit_lox_push(struct jit_compiler * jit_compiler, register_t reg
     return instruction_index;
 }
 
-//Same as vm.c pop_stack_vm
+//Same value_as vm.c pop_stack_vm
 static uint16_t emit_lox_pop(struct jit_compiler * jit_compiler, register_t reg) {
     uint16_t instruction_index = emit_decrease_lox_stack(jit_compiler, 1);
 

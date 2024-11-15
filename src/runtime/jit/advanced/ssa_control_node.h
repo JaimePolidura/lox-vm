@@ -3,8 +3,6 @@
 
 //Control flow nodes used in SSA IR
 
-#define ALLOC_SSA_CONTROL_NODE(type, struct_type) (struct_type *) allocate_ssa_block_node(type, sizeof(struct_type))
-
 typedef enum {
     SSA_CONTROL_NODE_TYPE_DATA,
     SSA_CONTROL_NODE_TYPE_START,
@@ -19,6 +17,9 @@ typedef enum {
     SSA_CONTROL_NODE_TYPE_LOOP_JUMP,
     SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP,
 } ssa_control_node_type;
+
+#define ALLOC_SSA_CONTROL_NODE(type, struct_type) (struct_type *) allocate_ssa_block_node(type, sizeof(struct_type))
+void * allocate_ssa_block_node(ssa_control_node_type type, size_t size_bytes);
 
 struct ssa_control_node {
     ssa_control_node_type type;
@@ -37,7 +38,8 @@ struct ssa_control_node {
     } next;
 };
 
-void * allocate_ssa_block_node(ssa_control_node_type type, size_t size_bytes);
+typedef void (*ssa_data_node_in_control_consumer_t)(struct ssa_control_node *, struct ssa_data_node *, void *);
+void for_each_data_node_in_control_node(struct ssa_control_node *, void *, ssa_data_node_in_control_consumer_t);
 
 //OP_SET_LOCAL
 struct ssa_control_set_local_node {
@@ -96,7 +98,7 @@ struct ssa_control_set_struct_field_node {
     struct ssa_control_node control;
 
     struct string_object * field_name;
-    struct ssa_data_node * field_value;
+    struct ssa_data_node * new_field_value;
     struct ssa_data_node * instance;
 };
 
@@ -105,7 +107,7 @@ struct ssa_control_set_array_element_node {
 
     uint16_t index;
     struct ssa_data_node * array;
-    struct ssa_data_node * new_element;
+    struct ssa_data_node * new_element_value;
 };
 
 //OP_LOOP

@@ -141,7 +141,7 @@ bool remove_hash_table(struct lox_hash_table * table, struct string_object * key
 
 void remove_entry_hash_table(struct hash_table_entry * entry) {
     entry->key = NULL;
-    entry->value = TO_LOX_VALUE_BOOL(true); //Tombstone, marked as deleted
+    entry->value = TO_LOX_VALUE_BOOL(true); //Tombstone, marked value_as deleted
 }
 
 bool put_hash_table(struct lox_hash_table * table, struct string_object * key, lox_value_t value) {

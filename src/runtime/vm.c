@@ -580,8 +580,8 @@ static lox_value_t values_equal(lox_value_t a, lox_value_t b) {
 
     switch (a.type) {
         case VAL_NIL: return TO_LOX_VALUE_BOOL(true);
-        case VAL_NUMBER: return TO_LOX_VALUE_BOOL(a.as.immediate == b.as.immediate);
-        case VAL_BOOL: return TO_LOX_VALUE_BOOL(a.as.boolean == b.as.boolean);
+        case VAL_NUMBER: return TO_LOX_VALUE_BOOL(a.value_as.immediate == b.value_as.immediate);
+        case VAL_BOOL: return TO_LOX_VALUE_BOOL(a.value_as.boolean == b.value_as.boolean);
         case VAL_OBJ: return TO_LOX_VALUE_BOOL(AS_STRING_OBJECT(a)->chars == AS_STRING_OBJECT(b)->chars);
         default:
             runtime_error("Operator '==' not supported for that type");
@@ -797,7 +797,7 @@ static inline void increase_n_function_calls(struct function_object * function) 
     //By doing "n_calls < MIN_CALLS_TO_PROFILE" and "add n calls == min calls" we will avoid the race condition when
     //a thread increments the function calls & other thread initializes the function profile unary_value_node (since these datastructures
     //are placed in a union, it will corrupt the profile unary_value_node)
-    //By doing "==" comparation, only one thread will observe the function calls tao be the same as MIN_CALLS_TO_PROFILE
+    //By doing "==" comparation, only one thread will observe the function calls tao be the same value_as MIN_CALLS_TO_PROFILE
     //In this way only one function profile unary_value_node will get allocated
     if (atomic_load(&function->state_as.not_profiling.n_calls) < MIN_CALLS_TO_PROFILE &&
         atomic_fetch_add(&function->state_as.not_profiling.n_calls, 1) == MIN_CALLS_TO_PROFILE) {

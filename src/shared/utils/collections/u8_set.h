@@ -5,7 +5,7 @@
 
 struct u8_set {
     //In uin64 we can represent 64 elements: 64 * 4 = 256
-    //In u8_set we can represent as much as 255 elements
+    //In u8_set we can represent value_as much value_as 255 elements
     uint64_t slot_bit_maps[4];
 };
 

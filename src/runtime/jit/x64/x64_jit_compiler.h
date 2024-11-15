@@ -51,7 +51,7 @@ struct jit_compiler {
     struct u8_arraylist native_compiled_code;
 
     //Keep tracks of which package we are compiling. This is used for being able to get the correct global variables
-    //It works the same way as vm.h
+    //It works the same way value_as vm.h
     struct stack_list package_stack;
 
     //As our vm is a stack base, when we jit compile the code we need some way to know where the stack values

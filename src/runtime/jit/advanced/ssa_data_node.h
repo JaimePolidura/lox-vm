@@ -1,3 +1,5 @@
+#pragma once
+
 #include "compiler/bytecode/bytecode_list.h"
 
 #include "shared/utils/collections/u8_arraylist.h"
@@ -10,13 +12,11 @@
 #include "runtime/profiler/profile_data.h"
 
 //Data flow nodes used in SSA IR
-
 typedef enum {
     SSA_DATA_NODE_TYPE_CALL,
     SSA_DATA_NODE_TYPE_GET_LOCAL,
     SSA_DATA_NODE_TYPE_GET_GLOBAL,
-    SSA_DATA_NODE_TYPE_COMPARATION,
-    SSA_DATA_NODE_TYPE_ARITHMETIC,
+    SSA_DATA_NODE_TYPE_BINARY,
     SSA_DATA_NODE_TYPE_CONSTANT,
     SSA_DATA_NODE_TYPE_UNARY,
     SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD,
@@ -25,23 +25,24 @@ typedef enum {
     SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY,
 } ssa_data_node_type;
 
+#define ALLOC_SSA_DATA_NODE(type, struct_type, bytecode) (struct_type *) allocate_ssa_data_node(type, sizeof(struct_type), bytecode)
+void * allocate_ssa_data_node(ssa_data_node_type type, size_t struct_size_bytes, struct bytecode_list *);
+
 struct ssa_data_node {
     struct bytecode_list * original_bytecode;
+    profile_data_type_t produced_type;
     ssa_data_node_type type;
 };
 
-#define ALLOC_SSA_DATA_NODE(type, struct_type, bytecode) (struct_type *) allocate_ssa_data_node(type, sizeof(struct_type), bytecode)
-
-void * allocate_ssa_data_node(ssa_data_node_type type, size_t struct_size_bytes, struct bytecode_list *);
-profile_data_type_t get_produced_type_ssa_data(struct function_profile_data *, struct ssa_data_node *);
+typedef void (*ssa_data_node_consumer_t)(struct ssa_data_node * parent, struct ssa_data_node * child, void * extra);
+//Start node is inclusive
+void for_each_ssa_data_node(struct ssa_data_node *, void *, ssa_data_node_consumer_t);
 
 struct u8_set get_used_locals(struct ssa_data_node *);
 
 //OP_GET_LOCAL
 struct ssa_data_get_local_node {
     struct ssa_data_node data;
-
-    profile_data_type_t type;
 
     int local_number;
     struct u8_set phi_versions;
@@ -65,37 +66,19 @@ struct ssa_data_get_global_node {
     struct string_object * name;
 };
 
-//OP_EQUAL, OP_LESS, OP_GREATER
-struct ssa_data_comparation_node {
+//OP_ADD, OP_SUB, OP_MUL, OP_DIV, OP_EQUAL, OP_LESS, OP_GREATER
+struct ssa_data_binary_node {
     struct ssa_data_node data;
 
-    struct ssa_data_node * left;
-    profile_data_type_t left_type;
-
-    struct ssa_data_node * right;
-    profile_data_type_t right_type;
-
     bytecode_t operand;
-};
-
-//OP_ADD, OP_SUB, OP_MUL, OP_DIV
-struct ssa_data_arithmetic_node {
-    struct ssa_data_node data;
-
     struct ssa_data_node * left;
-    profile_data_type_t left_type;
-
     struct ssa_data_node * right;
-    profile_data_type_t right_type;
-
-    bytecode_t operand;
 };
 
 //OP_CONST, OP_FAST_CONST_8, OP_FAST_CONST_16, OP_CONST_1, OP_CONST_2
 struct ssa_data_constant_node {
     struct ssa_data_node data;
 
-    profile_data_type_t type;
     union {
         struct string_object * string;
         struct object * object;
@@ -103,7 +86,7 @@ struct ssa_data_constant_node {
         double f64;
         bool boolean;
         void * nil;
-    } as;
+    } value_as;
 };
 
 //OP_NEGATE, OP_NOT

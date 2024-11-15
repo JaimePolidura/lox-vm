@@ -5,7 +5,7 @@
 
 #define U64_HASH_TABLE_INITIAL_CAPACITY 8
 
-//Regular hash table which uses the uint64 as an index
+//Regular hash table which uses the uint64 value_as an index
 struct u64_hash_table_entry {
     uint64_t key;
     void * value;

@@ -27,12 +27,12 @@ void print_lox_value(lox_value_t value) {
     #else
         switch (value_node.type) {
             case VAL_NIL: printf("nil"); break;
-            case VAL_NUMBER: printf("%g", value_node.as.immediate); break;
-            case VAL_BOOL: printf(value_node.as.boolean ? "true" : "false"); break;
+            case VAL_NUMBER: printf("%g", value_node.value_as.immediate); break;
+            case VAL_BOOL: printf(value_node.value_as.boolean ? "true" : "false"); break;
             case VAL_OBJ:
-                switch (value_node.as.object->type) {
+                switch (value_node.value_as.object->type) {
                     case OBJ_STRING: printf("%s", AS_STRING_CHARS_OBJECT(value_node));
-                    case OBJ_FUNCTION: printf("fun %s", ((struct function_object *) value_node.as.object)->name->chars);
+                    case OBJ_FUNCTION: printf("fun %s", ((struct function_object *) value_node.value_as.object)->name->chars);
                 }
         }
     #endif

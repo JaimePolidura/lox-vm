@@ -1,5 +1,6 @@
 #include "runtime/jit/jit_compilation_result.h"
 #include "runtime/jit/advanced/ssa_control_node.h"
+#include "runtime/jit/advanced/utils/types.h"
 
 #include "compiler/bytecode/bytecode_list.h"
 
@@ -131,7 +132,7 @@ struct ssa_control_node * create_ssa_ir_no_phis(
                 struct ssa_data_node * new_element = pop_stack_list(&data_nodes_stack);
 
                 set_arrary_element_node->index = current_bytecode_to_evaluate->as.u16;
-                set_arrary_element_node->new_element = new_element;
+                set_arrary_element_node->new_element_value = new_element;
                 set_arrary_element_node->array = instance;
 
                 map_data_nodes_bytecodes_to_control(&control_nodes_by_bytecode, instance, &set_arrary_element_node->control);
@@ -149,7 +150,7 @@ struct ssa_control_node * create_ssa_ir_no_phis(
                 struct ssa_data_node * instance = pop_stack_list(&data_nodes_stack);
 
                 set_struct_field->field_name = AS_STRING_OBJECT(READ_CONSTANT(function, current_bytecode_to_evaluate));
-                set_struct_field->field_value = field_value;
+                set_struct_field->new_field_value = field_value;
                 set_struct_field->instance = instance;
 
                 map_data_nodes_bytecodes_to_control(&control_nodes_by_bytecode, field_value, &set_struct_field->control);
@@ -273,7 +274,7 @@ struct ssa_control_node * create_ssa_ir_no_phis(
                 //Pending initialize
                 int local_number = current_bytecode_to_evaluate->as.u8;
                 get_local_node->local_number = local_number;
-                get_local_node->type = get_type_by_local_function_profile_data(&function->state_as.profiling.profile_data, local_number);
+                get_local_node->data.produced_type = get_type_by_local_function_profile_data(&function->state_as.profiling.profile_data, local_number);
                 init_u8_set(&get_local_node->phi_versions);
 
                 push_stack_list(&data_nodes_stack, get_local_node);
@@ -289,6 +290,7 @@ struct ssa_control_node * create_ssa_ir_no_phis(
                 uint8_t n_args = current_bytecode_to_evaluate->as.pair.u8_1;
                 struct ssa_data_node * function_to_call = peek_n_stack_list(&data_nodes_stack, n_args);
 
+                call_node->data.produced_type = PROFILE_DATA_TYPE_ANY;
                 call_node->function = function_to_call;
                 call_node->is_parallel = is_paralell;
                 call_node->n_arguments = n_args;
@@ -317,6 +319,7 @@ struct ssa_control_node * create_ssa_ir_no_phis(
                     struct ssa_data_get_global_node * get_global_node = ALLOC_SSA_DATA_NODE(
                             SSA_DATA_NODE_TYPE_GET_GLOBAL, struct ssa_data_get_global_node, current_bytecode_to_evaluate
                     );
+                    get_global_node->data.produced_type = PROFILE_DATA_TYPE_ANY;
                     get_global_node->package = global_variable_package;
                     get_global_node->name = global_variable_name;
 
@@ -334,6 +337,7 @@ struct ssa_control_node * create_ssa_ir_no_phis(
                 bool empty_initialization = current_bytecode_to_evaluate->as.initialize_array.is_emtpy_initializaion;
                 uint16_t n_elements = current_bytecode_to_evaluate->as.initialize_array.n_elements;
 
+                initialize_array_node->data.produced_type = PROFILE_DATA_TYPE_OBJECT;
                 initialize_array_node->empty_initialization = empty_initialization;
                 initialize_array_node->n_elements = n_elements;
                 if(!empty_initialization){
@@ -353,6 +357,7 @@ struct ssa_control_node * create_ssa_ir_no_phis(
                         SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT, struct ssa_data_initialize_struct_node, current_bytecode_to_evaluate
                 );
                 struct struct_definition_object * definition = (struct struct_definition_object *) AS_OBJECT(READ_CONSTANT(function, current_bytecode_to_evaluate));
+                initialize_struct_node->data.produced_type = PROFILE_DATA_TYPE_OBJECT;
                 initialize_struct_node->fields_nodes = malloc(sizeof(struct struct_definition_object *) * definition->n_fields);
                 initialize_struct_node->definition = definition;
                 for (int i = definition->n_fields - 1; i >= 0; i--) {
@@ -368,6 +373,7 @@ struct ssa_control_node * create_ssa_ir_no_phis(
                 struct ssa_data_get_struct_field_node * get_struct_field_node = ALLOC_SSA_DATA_NODE(
                         SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD, struct ssa_data_get_struct_field_node, current_bytecode_to_evaluate
                 );
+                get_struct_field_node->data.produced_type = PROFILE_DATA_TYPE_ANY;
                 get_struct_field_node->instance_node = pop_stack_list(&data_nodes_stack);
                 get_struct_field_node->field_name = AS_STRING_OBJECT(READ_CONSTANT(function, current_bytecode_to_evaluate));
 
@@ -380,6 +386,7 @@ struct ssa_control_node * create_ssa_ir_no_phis(
                 struct ssa_data_get_array_element_node * get_array_element_node = ALLOC_SSA_DATA_NODE(
                         SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT, struct ssa_data_get_array_element_node, current_bytecode_to_evaluate
                 );
+                get_array_element_node->data.produced_type = PROFILE_DATA_TYPE_ANY;
                 get_array_element_node->instance = pop_stack_list(&data_nodes_stack);
                 get_array_element_node->index = current_bytecode_to_evaluate->as.u16;
 
@@ -395,27 +402,9 @@ struct ssa_control_node * create_ssa_ir_no_phis(
                 );
                 unary_node->unary_operation_type = current_bytecode_to_evaluate->bytecode == OP_NEGATE ? UNARY_OPERATION_TYPE_NEGATION : UNARY_OPERATION_TYPE_NOT;
                 unary_node->unary_value_node = pop_stack_list(&data_nodes_stack);
+                unary_node->data.produced_type = unary_node->unary_value_node->produced_type;
 
                 push_stack_list(&data_nodes_stack, unary_node);
-                push_pending_evaluate(&pending_evaluation, evaluation_type, current_bytecode_to_evaluate->next, parent_ssa_control_node);
-
-                break;
-            }
-            case OP_GREATER:
-            case OP_LESS:
-            case OP_EQUAL: {
-                struct ssa_data_comparation_node * compartion_node = ALLOC_SSA_DATA_NODE(
-                        SSA_DATA_NODE_TYPE_COMPARATION, struct ssa_data_comparation_node, current_bytecode_to_evaluate
-                );
-                struct ssa_data_node * right = pop_stack_list(&data_nodes_stack);
-                struct ssa_data_node * left = pop_stack_list(&data_nodes_stack);
-                compartion_node->operand = start_function_bytecode->bytecode;
-                compartion_node->right_type = get_produced_type_ssa_data(function_profile, right);
-                compartion_node->left_type = get_produced_type_ssa_data(function_profile, left);
-                compartion_node->right = right;
-                compartion_node->left = left;
-
-                push_stack_list(&data_nodes_stack, compartion_node);
                 push_pending_evaluate(&pending_evaluation, evaluation_type, current_bytecode_to_evaluate->next, parent_ssa_control_node);
 
                 break;
@@ -423,19 +412,21 @@ struct ssa_control_node * create_ssa_ir_no_phis(
             case OP_ADD:
             case OP_SUB:
             case OP_MUL:
-            case OP_DIV: {
-                struct ssa_data_arithmetic_node * arithmetic_node = ALLOC_SSA_DATA_NODE(
-                        SSA_DATA_NODE_TYPE_ARITHMETIC, struct ssa_data_arithmetic_node, current_bytecode_to_evaluate
+            case OP_DIV:
+            case OP_GREATER:
+            case OP_LESS:
+            case OP_EQUAL: {
+                struct ssa_data_binary_node * binaryt_node = ALLOC_SSA_DATA_NODE(
+                        SSA_DATA_NODE_TYPE_BINARY, struct ssa_data_binary_node, current_bytecode_to_evaluate
                 );
                 struct ssa_data_node * right = pop_stack_list(&data_nodes_stack);
                 struct ssa_data_node * left = pop_stack_list(&data_nodes_stack);
-                arithmetic_node->operand = start_function_bytecode->bytecode;
-                arithmetic_node->right_type = get_produced_type_ssa_data(function_profile, right);
-                arithmetic_node->left_type = get_produced_type_ssa_data(function_profile, left);
-                arithmetic_node->left = left;
-                arithmetic_node->right = right;
+                binaryt_node->data.produced_type = PROFILE_DATA_TYPE_BOOLEAN;
+                binaryt_node->operand = start_function_bytecode->bytecode;
+                binaryt_node->right = right;
+                binaryt_node->left = left;
 
-                push_stack_list(&data_nodes_stack, arithmetic_node);
+                push_stack_list(&data_nodes_stack, binaryt_node);
                 push_pending_evaluate(&pending_evaluation, evaluation_type, current_bytecode_to_evaluate->next, parent_ssa_control_node);
 
                 break;
@@ -515,34 +506,34 @@ static struct ssa_data_constant_node * create_constant_node(lox_value_t constant
 
     switch (get_lox_type(constant_value)) {
         case VAL_BOOL:
-            constant_node->as.boolean = AS_BOOL(constant_value);
-            constant_node->type = PROFILE_DATA_TYPE_BOOLEAN;
+            constant_node->value_as.boolean = AS_BOOL(constant_value);
+            constant_node->data.produced_type = PROFILE_DATA_TYPE_BOOLEAN;
             break;
 
         case VAL_NIL: {
-            constant_node->as.nil = NULL;
-            constant_node->type = PROFILE_DATA_TYPE_NIL;
+            constant_node->value_as.nil = NULL;
+            constant_node->data.produced_type = PROFILE_DATA_TYPE_NIL;
             break;
         }
 
         case VAL_NUMBER: {
             if(has_decimals(AS_NUMBER(constant_value))){
-                constant_node->as.f64 = AS_NUMBER(constant_value);
-                constant_node->type = PROFILE_DATA_TYPE_F64;
+                constant_node->value_as.f64 = AS_NUMBER(constant_value);
+                constant_node->data.produced_type = PROFILE_DATA_TYPE_F64;
             } else {
-                constant_node->as.i64 = (int64_t) constant_value;
-                constant_node->type = PROFILE_DATA_TYPE_I64;
+                constant_node->value_as.i64 = (int64_t) constant_value;
+                constant_node->data.produced_type = PROFILE_DATA_TYPE_I64;
             }
             break;
         }
 
         case VAL_OBJ: {
             if(IS_STRING(constant_value)){
-                constant_node->as.string = AS_STRING_OBJECT(constant_value);
-                constant_node->type = PROFILE_DATA_TYPE_STRING;
+                constant_node->value_as.string = AS_STRING_OBJECT(constant_value);
+                constant_node->data.produced_type = PROFILE_DATA_TYPE_STRING;
             } else {
-                constant_node->as.object = AS_OBJECT(constant_value);
-                constant_node->type = PROFILE_DATA_TYPE_OBJECT;
+                constant_node->value_as.object = AS_OBJECT(constant_value);
+                constant_node->data.produced_type = PROFILE_DATA_TYPE_OBJECT;
             }
             break;
         }
@@ -600,6 +591,23 @@ static struct bytecode_list * simplify_redundant_unconditional_jump_bytecodes(st
     return current;
 }
 
+struct map_data_nodes_bytecodes_to_control_struct {
+    struct u64_hash_table * control_ssa_nodes_by_bytecode;
+    struct ssa_control_node * to_map_control;
+};
+
+static void map_data_nodes_bytecodes_to_control_consumer(
+        struct ssa_data_node * _,
+        struct ssa_data_node * current_node,
+        void * extra
+) {
+    struct map_data_nodes_bytecodes_to_control_struct * consumer_struct = extra;
+
+    //Add data_node
+    put_u64_hash_table(consumer_struct->control_ssa_nodes_by_bytecode, (uint64_t) current_node->original_bytecode,
+                       consumer_struct->to_map_control);
+}
+
 //This function will map the control node bytecode to the to_map_control control node
 //Example: Given OP_CONST_1, OP_CONST_2, OP_ADD, OP_PRINT
 //The first 3 bytecodes will point to OP_PRINT
@@ -608,76 +616,10 @@ static void map_data_nodes_bytecodes_to_control(
         struct ssa_data_node * data_node,
         struct ssa_control_node * to_map_control
 ) {
-    //Add data_node
-    put_u64_hash_table(control_ssa_nodes_by_bytecode, (uint64_t) data_node->original_bytecode, to_map_control);
+    struct map_data_nodes_bytecodes_to_control_struct consumer_struct = (struct map_data_nodes_bytecodes_to_control_struct) {
+            .control_ssa_nodes_by_bytecode = control_ssa_nodes_by_bytecode,
+            .to_map_control = to_map_control,
+    };
 
-    switch(data_node->type) {
-        case SSA_DATA_NODE_TYPE_CALL: {
-            struct ssa_control_function_call_node * call_node = (struct ssa_control_function_call_node *) data_node;
-
-            for(int i = 0; i < call_node->n_arguments; i++) {
-                map_data_nodes_bytecodes_to_control(
-                        control_ssa_nodes_by_bytecode,
-                        call_node->arguments[i],
-                        to_map_control
-                );
-            }
-            break;
-        }
-        case SSA_DATA_NODE_TYPE_COMPARATION: {
-            struct ssa_data_comparation_node * comparation_node = (struct ssa_data_comparation_node *) data_node;
-            map_data_nodes_bytecodes_to_control(control_ssa_nodes_by_bytecode, comparation_node->right, to_map_control);
-            map_data_nodes_bytecodes_to_control(control_ssa_nodes_by_bytecode, comparation_node->left, to_map_control);
-            break;
-        }
-        case SSA_DATA_NODE_TYPE_ARITHMETIC: {
-            struct ssa_data_arithmetic_node * arithmetic_node = (struct ssa_data_arithmetic_node *) data_node;
-            map_data_nodes_bytecodes_to_control(control_ssa_nodes_by_bytecode, arithmetic_node->right, to_map_control);
-            map_data_nodes_bytecodes_to_control(control_ssa_nodes_by_bytecode, arithmetic_node->left, to_map_control);
-            break;
-        }
-        case SSA_DATA_NODE_TYPE_UNARY: {
-            struct ssa_data_unary_node * unary_node = (struct ssa_data_unary_node *) data_node;
-            map_data_nodes_bytecodes_to_control(control_ssa_nodes_by_bytecode, unary_node->unary_value_node, to_map_control);
-            break;
-        }
-        case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD: {
-            struct ssa_data_get_struct_field_node * get_struct_field = (struct ssa_data_get_struct_field_node *) data_node;
-            map_data_nodes_bytecodes_to_control(control_ssa_nodes_by_bytecode, get_struct_field->instance_node, to_map_control);
-            break;
-        }
-        case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT: {
-            struct ssa_data_initialize_struct_node * initilize_struct_node = (struct ssa_data_initialize_struct_node *) data_node;
-            for(int i = 0; i < initilize_struct_node->definition->n_fields; i++){
-                map_data_nodes_bytecodes_to_control(
-                        control_ssa_nodes_by_bytecode,
-                        initilize_struct_node->fields_nodes[i],
-                        to_map_control
-                );
-            }
-
-            break;
-        }
-        case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
-            struct ssa_data_get_array_element_node * get_array_element = (struct ssa_data_get_array_element_node *) data_node;
-            map_data_nodes_bytecodes_to_control(control_ssa_nodes_by_bytecode, get_array_element->instance, to_map_control);
-            break;
-        }
-        case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY: {
-            struct ssa_data_initialize_array_node * initialize_array_node = (struct ssa_data_initialize_array_node *) data_node;
-            for(int i = 0; i < initialize_array_node->n_elements && !initialize_array_node->empty_initialization; i++){
-                map_data_nodes_bytecodes_to_control(
-                        control_ssa_nodes_by_bytecode,
-                        initialize_array_node->elememnts_node[i],
-                        to_map_control
-                );
-            }
-            break;
-        }
-        case SSA_DATA_NODE_TYPE_CONSTANT:
-        case SSA_DATA_NODE_TYPE_GET_LOCAL:
-        case SSA_DATA_NODE_TYPE_GET_GLOBAL: {
-            break;
-        }
-    }
+    for_each_ssa_data_node(data_node, &consumer_struct, map_data_nodes_bytecodes_to_control_consumer);
 }

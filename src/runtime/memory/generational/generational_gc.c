@@ -23,7 +23,7 @@ struct gc_barriers get_barriers_gc_alg() {
     };
 }
 
-//TODO Same code as gc_mark_sweep
+//TODO Same code value_as gc_mark_sweep
 void check_gc_on_safe_point_alg() {
     struct generational_gc * gc = current_vm.gc;
     gc_gen_state_t current_gc_state = atomic_load(&gc->state);

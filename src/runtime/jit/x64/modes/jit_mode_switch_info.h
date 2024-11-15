@@ -7,7 +7,7 @@ struct jit_mode_switch_info {
     union {
         struct {
             //Stores the number of items that was pushed to the vm_thread stack when it was reconstructed
-            //Used as a little optimization when deconstructing vm stack to avoid an extra instruction
+            //Used value_as a little optimization when deconstructing vm stack to avoid an extra instruction
             int stack_grow;
         } jit_to_vm_gc;
     } as;

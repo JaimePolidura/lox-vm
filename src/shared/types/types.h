@@ -65,10 +65,10 @@ typedef struct {
     bool boolean;
     double immediate;
     struct object * object;
-  } as;
+  } value_as;
 } lox_value_t;
 
-#define AS_NUMBER(value_node) ((value_node).as.immediate)
+#define AS_NUMBER(value_node) ((value_node).value_as.immediate)
 #define TO_LOX_VALUE_NUMBER(value_node) ((lox_value_t){VAL_NUMBER, {.immediate = value_node}})
 #define IS_NUMBER(value_node) ((value_node).type == VAL_NUMBER)
 
@@ -77,15 +77,15 @@ typedef struct {
 
 #define FALSE_VALUE(value_node) ((lox_value_t){VAL_BOOL, {.boolean = false}})
 #define TRUE_VALUE(value_node) ((lox_value_t){VAL_BOOL, {.boolean = true}})
-#define AS_BOOL(value_node) ((value_node).as.boolean)
+#define AS_BOOL(value_node) ((value_node).value_as.boolean)
 #define IS_BOOL(value_node) ((value_node).type == VAL_BOOL)
 #define TO_LOX_VALUE_BOOL(value_node) ((lox_value_t){VAL_BOOL, {.boolean = value_node}})
 
 #define TO_LOX_VALUE_OBJECT(value_node) ((lox_value_t){VAL_OBJ, {.object = (struct object*) value_node}})
-#define AS_OBJECT(value_node) ((value_node).as.object)
+#define AS_OBJECT(value_node) ((value_node).value_as.object)
 #define IS_OBJECT(value_node) (value_node.type == VAL_OBJ)
 
-#define AS_FUNCTION(value_node) (struct function_object *) (value_node.as.object)
+#define AS_FUNCTION(value_node) (struct function_object *) (value_node.value_as.object)
 
 #endif
 

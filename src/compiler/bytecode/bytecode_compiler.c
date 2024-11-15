@@ -355,10 +355,10 @@ static void var_declaration(struct bytecode_compiler * compiler, bool is_public,
     bool is_local_variable = compiler->local_depth > 0;
 
     if(is_public && is_local_variable){
-        report_error(compiler, compiler->parser->previous, "Cannot declare local variables as public");
+        report_error(compiler, compiler->parser->previous, "Cannot declare local variables value_as public");
     }
     if(is_const && is_local_variable){
-        report_error(compiler, compiler->parser->previous, "Cannot declare local variables as const");
+        report_error(compiler, compiler->parser->previous, "Cannot declare local variables value_as const");
     }
     if(is_const && !is_local_variable) {
         char * copy_variable_name = copy_string(variable_name.start, variable_name.length);
@@ -837,7 +837,7 @@ static void named_variable(
         report_error(compiler, variable_name, "Cannot set a value_node to a declared const variable");
     }
     if (is_set_op && !is_array && compiler->compiling_set_operation){
-        report_error(compiler, compiler->parser->previous, "Assignments cannot be used as expressions");
+        report_error(compiler, compiler->parser->previous, "Assignments cannot be used value_as expressions");
     }
     if (is_set_op && !is_array && !compiler->compiling_set_operation){
         compiler->compiling_set_operation = true;
@@ -1109,7 +1109,7 @@ static struct package * add_package_to_compiled_packages(char * package_import_n
     struct substring package_substring = read_package_name(package_import_name, package_import_name_length);
     struct package * package_in_compiled_packages = find_trie(compiled_packages, start_substring(package_substring), length_substring(package_substring));
 
-    //If it is not found, it means it is a local package -> a path is used as an import name
+    //If it is not found, it means it is a local package -> a path is used value_as an import name
     if(package_in_compiled_packages == NULL) {
         struct package * new_package = alloc_package();
         char * package_string = add_substring_to_global_string_pool(package_substring, false).string_object->chars;

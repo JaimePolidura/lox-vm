@@ -86,159 +86,72 @@ static void insert_phis_in_block(
     }
 }
 
+struct insert_ssa_versions_in_control_node_consumer_struct {
+    struct ssa_phi_inserter * inserter;
+    struct ssa_block * block;
+    struct u8_hash_table * parent_versions
+};
+
+static void insert_ssa_versions_in_control_node_consumer(struct ssa_control_node * control_node, struct ssa_data_node * child, void * extra) {
+    struct insert_ssa_versions_in_control_node_consumer_struct * data = (struct insert_ssa_versions_in_control_node_consumer_struct *) extra;
+    insert_phis_in_data_node(data->inserter, data->block, control_node, child, data->parent_versions);
+}
+
 static void insert_ssa_versions_in_control_node(
         struct ssa_phi_inserter * inserter,
         struct ssa_block * block,
         struct ssa_control_node * control_node,
         struct u8_hash_table * parent_versions
 ) {
-    switch (control_node->type) {
-        case SSA_CONTORL_NODE_TYPE_SET_LOCAL: {
-            struct ssa_control_set_local_node * set_local = (struct ssa_control_set_local_node *) control_node;
-            uint8_t local_number = (uint8_t) set_local->local_number;
-            insert_phis_in_data_node(inserter, block, control_node, set_local->new_local_value, parent_versions);
-            //Version not assigned
-            if(set_local->version == 0){
-                int new_version = allocate_new_version(&inserter->max_version_allocated_per_local, local_number);
-                put_u8_hash_table(parent_versions, local_number, (void *) new_version);
-                set_local->version = new_version;
-            }
+    struct insert_ssa_versions_in_control_node_consumer_struct consumer_struct = (struct insert_ssa_versions_in_control_node_consumer_struct) {
+        .parent_versions = parent_versions,
+        .inserter = inserter,
+        .block = block,
+    };
 
-            break;
+    for_each_data_node_in_control_node(control_node, &consumer_struct, &insert_ssa_versions_in_control_node_consumer);
+
+    if(control_node->type == SSA_CONTORL_NODE_TYPE_SET_LOCAL){
+        struct ssa_control_set_local_node * set_local = (struct ssa_control_set_local_node *) control_node;
+        uint8_t local_number = (uint8_t) set_local->local_number;
+        if(set_local->version == 0){
+            int new_version = allocate_new_version(&inserter->max_version_allocated_per_local, local_number);
+            put_u8_hash_table(parent_versions, local_number, (void *) new_version);
+            set_local->version = new_version;
         }
-        case SSA_CONTROL_NODE_TYPE_DATA: {
-            struct ssa_control_data_node * data_node = (struct ssa_control_data_node *) control_node;
-            insert_phis_in_data_node(inserter, block, control_node, data_node->data, parent_versions);
-            break;
-        }
-        case SSA_CONTROL_NODE_TYPE_RETURN: {
-            struct ssa_control_return_node * return_node = (struct ssa_control_return_node *) control_node;
-            insert_phis_in_data_node(inserter, block, control_node, return_node->data, parent_versions);
-            break;
-        }
-        case SSA_CONTROL_NODE_TYPE_PRINT: {
-            struct ssa_control_print_node * print_node = (struct ssa_control_print_node *) control_node;
-            insert_phis_in_data_node(inserter, block, control_node, print_node->data, parent_versions);
-            break;
-        }
-        case SSA_CONTORL_NODE_TYPE_SET_GLOBAL: {
-            struct ssa_control_set_global_node * set_global = (struct ssa_control_set_global_node *) control_node;
-            insert_phis_in_data_node(inserter, block, control_node, set_global->value_node, parent_versions);
-            break;
-        }
-        case SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD: {
-            struct ssa_control_set_struct_field_node * set_struct_field = (struct ssa_control_set_struct_field_node *) control_node;
-            insert_phis_in_data_node(inserter, block, control_node, set_struct_field->field_value, parent_versions);
-            insert_phis_in_data_node(inserter, block, control_node, set_struct_field->instance, parent_versions);
-            break;
-        }
-        case SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT: {
-            struct ssa_control_set_array_element_node * set_array_element = (struct ssa_control_set_array_element_node *) control_node;
-            insert_phis_in_data_node(inserter, block, control_node, set_array_element->new_element, parent_versions);
-            insert_phis_in_data_node(inserter, block, control_node, set_array_element->array, parent_versions);
-            break;
-        }
-        case SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP:
-            struct ssa_control_conditional_jump_node * conditional_jump = (struct ssa_control_conditional_jump_node *) control_node;
-            insert_phis_in_data_node(inserter, block, control_node, conditional_jump->condition, parent_versions);
-            break;
-        case SSA_CONTROL_NODE_TYPE_ENTER_MONITOR:
-        case SSA_CONTROL_NODE_TYPE_EXIT_MONITOR:
-        case SSA_CONTROL_NODE_TYPE_LOOP_JUMP:
-        case SSA_CONTROL_NODE_TYPE_START:
-            break;
     }
 }
 
-static void insert_phis_in_data_node_recursive(
-        struct ssa_phi_inserter * inserter,
-        int expression_deep_level,
-        struct ssa_block * block,
-        struct ssa_control_node * control_node,
-        struct ssa_data_node * data_node,
-        struct u8_hash_table * parent_versions
-) {
-    switch (data_node->type) {
-        case SSA_DATA_NODE_TYPE_GET_LOCAL: {
-            struct ssa_data_get_local_node * get_local = (struct ssa_data_get_local_node *) data_node;
-            uint8_t local_number = get_local->local_number;
+struct insert_phis_in_data_node_struct {
+    struct ssa_control_node * control_node;
+    struct u8_hash_table * parent_versions;
+    struct ssa_phi_inserter * inserter;
+    struct ssa_block * block;
+};
 
-            if(block->loop_body &&
-                    expression_deep_level > 0 &&
-                    contains_u8_set(&block->use_before_assigment, local_number) &&
-                    !contains_u64_set(&inserter->extracted_variables_loop_body, (uint64_t) control_node)
-            ){
-                extract_get_local(inserter, parent_versions, control_node, get_local, block, local_number);
-            } else if (!contains_u64_set(&inserter->extracted_variables_loop_body, (uint64_t) control_node)) {
-                uint8_t local_version = get_version(parent_versions, get_local->local_number);
-                add_u8_set(&get_local->phi_versions, local_version);
-            }
+void insert_phis_in_data_node_consumer(struct ssa_data_node * parent, struct ssa_data_node * current_node, void * extra) {
+    if (current_node->type == SSA_DATA_NODE_TYPE_GET_LOCAL) {
+        struct insert_phis_in_data_node_struct * consumer_struct = extra;
+        struct u8_hash_table * parent_versions = consumer_struct->parent_versions;
+        struct ssa_control_node * control_node = consumer_struct->control_node;
+        struct ssa_phi_inserter * inserter = consumer_struct->inserter;
+        struct ssa_block * block = consumer_struct->block;
+        //We don't want to extract a = b; we want to extract only get_locals that are inside an expression
+        bool inside_expression = parent != NULL;
 
-            break;
+        struct ssa_data_get_local_node * get_local = (struct ssa_data_get_local_node *) current_node;
+        uint8_t local_number = get_local->local_number;
+
+        if(block->loop_body &&
+           inside_expression &&
+           contains_u8_set(&block->use_before_assigment, local_number) &&
+           !contains_u64_set(&inserter->extracted_variables_loop_body, (uint64_t) control_node)
+        ){
+            extract_get_local(inserter, parent_versions, control_node, get_local, block, local_number);
+        } else if (!contains_u64_set(&inserter->extracted_variables_loop_body, (uint64_t) control_node)) {
+            uint8_t local_version = get_version(parent_versions, get_local->local_number);
+            add_u8_set(&get_local->phi_versions, local_version);
         }
-        case SSA_DATA_NODE_TYPE_CALL: {
-            struct ssa_control_function_call_node * call_node = (struct ssa_control_function_call_node *) data_node;
-            insert_phis_in_data_node_recursive(inserter, expression_deep_level + 1, block, control_node,
-                                               call_node->function, parent_versions);
-            for(int i = 0; i < call_node->n_arguments; i++){
-                insert_phis_in_data_node_recursive(inserter, expression_deep_level + 1, block, control_node,
-                                                   call_node->arguments[i], parent_versions);
-            }
-            break;
-        }
-        case SSA_DATA_NODE_TYPE_COMPARATION: {
-            struct ssa_data_comparation_node * comparation_node = (struct ssa_data_comparation_node *) data_node;
-            insert_phis_in_data_node_recursive(inserter, expression_deep_level + 1, block, control_node,
-                                               comparation_node->left, parent_versions);
-            insert_phis_in_data_node_recursive(inserter, expression_deep_level + 1, block, control_node,
-                                               comparation_node->right, parent_versions);
-            break;
-        }
-        case SSA_DATA_NODE_TYPE_ARITHMETIC: {
-            struct ssa_data_arithmetic_node * arithmetic_node = (struct ssa_data_arithmetic_node *) data_node;
-            insert_phis_in_data_node_recursive(inserter, expression_deep_level + 1, block, control_node,
-                                               arithmetic_node->left, parent_versions);
-            insert_phis_in_data_node_recursive(inserter, expression_deep_level + 1, block, control_node,
-                                               arithmetic_node->right, parent_versions);
-            break;
-        }
-        case SSA_DATA_NODE_TYPE_UNARY: {
-            struct ssa_data_unary_node * unary_node = (struct ssa_data_unary_node *) data_node;
-            insert_phis_in_data_node_recursive(inserter, expression_deep_level + 1, block, control_node,
-                                               unary_node->unary_value_node, parent_versions);
-            break;
-        }
-        case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD: {
-            struct ssa_data_get_struct_field_node * get_struct_field_node = (struct ssa_data_get_struct_field_node *) data_node;
-            insert_phis_in_data_node_recursive(inserter, expression_deep_level + 1, block, control_node,
-                                               get_struct_field_node->instance_node, parent_versions);
-            break;
-        }
-        case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT: {
-            struct ssa_data_initialize_struct_node * initialize_struct_node = (struct ssa_data_initialize_struct_node *) data_node;
-            for(int i = 0; i < initialize_struct_node->definition->n_fields; i++){
-                insert_phis_in_data_node_recursive(inserter, expression_deep_level + 1, block, control_node,
-                                                   initialize_struct_node->fields_nodes[i], parent_versions);
-            }
-            break;
-        }
-        case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
-            struct ssa_data_get_array_element_node * get_array_element_node = (struct ssa_data_get_array_element_node *) data_node;
-            insert_phis_in_data_node_recursive(inserter, expression_deep_level + 1, block, control_node,
-                                               get_array_element_node->instance, parent_versions);
-            break;
-        }
-        case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY: {
-            struct ssa_data_initialize_array_node * initialize_array_node = (struct ssa_data_initialize_array_node *) data_node;
-            for(int i = 0; i < initialize_array_node->n_elements && !initialize_array_node->empty_initialization; i++){
-                insert_phis_in_data_node_recursive(inserter, expression_deep_level + 1, block, control_node,
-                                                   initialize_array_node->elememnts_node[i], parent_versions);
-            }
-            break;
-        }
-        case SSA_DATA_NODE_TYPE_GET_GLOBAL:
-        case SSA_DATA_NODE_TYPE_CONSTANT:
-            break;
     }
 }
 
@@ -249,15 +162,14 @@ static void insert_phis_in_data_node(
         struct ssa_data_node * data_node,
         struct u8_hash_table * parent_versions
 ) {
-    //Used for correct generation in loop bodies
-    insert_phis_in_data_node_recursive(
-            inserter,
-            0,
-            block,
-            control_node,
-            data_node,
-            parent_versions
-    );
+    struct insert_phis_in_data_node_struct consumer_struct = (struct insert_phis_in_data_node_struct) {
+            .control_node = control_node,
+            .parent_versions = parent_versions,
+            .inserter = inserter,
+            .block = block,
+    };
+
+    for_each_ssa_data_node(data_node, &consumer_struct, insert_phis_in_data_node_consumer);
 }
 
 static int allocate_new_version(struct u8_hash_table * max_version_allocated_per_local, uint8_t local_number) {
@@ -323,8 +235,8 @@ static void extract_get_local(
             SSA_DATA_NODE_TYPE_GET_LOCAL, struct ssa_data_get_local_node, NULL
     );
 
+    extracted_get_local->data.produced_type = get_local_node_to_extract->data.produced_type;
     extracted_get_local->local_number = local_number;
-    extracted_get_local->type = get_local_node_to_extract->type;
     struct u8_set new_get_local_versions;
     init_u8_set(&new_get_local_versions);
     add_u8_set(&new_get_local_versions, get_version(parent_versions, local_number));

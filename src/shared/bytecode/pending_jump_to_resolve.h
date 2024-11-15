@@ -8,7 +8,7 @@
 //This struct allow us to register jumps offsets address pending to resolve per each pending_bytecode instruction
 //This struct is only used when dealing with forward jump instrutions like OP_JUMP or OP_JUMP_IF_FALSE
 
-//Sometimes when we are compiling pending_bytecode to native code or inlining functions, we need to resolve jump offsets, but as we haven't
+//Sometimes when we are compiling pending_bytecode to native code or inlining functions, we need to resolve jump offsets, but value_as we haven't
 //compiled the whole code we don't know where to jump. This happens for example when we are jit compiling OP_JUMP instruction,
 //where we don't know what native offset to jump since we haven't compiled the whole code. The way to solve is that we write the jump
 //instruction with an emtpy offset, then we register the pending_bytecode index instruction to jump in this struct with the emtpy jump offset address

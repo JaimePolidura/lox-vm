@@ -510,7 +510,7 @@ static struct object_to_traverse * alloc_object_to_traverse(struct object * obje
 static void signal_threads_start_gc_alg_and_await() {
     struct generational_gc * gc = current_vm.gc;
 
-    //Threads who are waiting, are included as already ack the start gc signal
+    //Threads who are waiting, are included value_as already ack the start gc signal
     // + 1 to count self thread44
     atomic_fetch_add(&gc->number_threads_ack_start_gc_signal, current_vm.number_waiting_threads + 1);
 

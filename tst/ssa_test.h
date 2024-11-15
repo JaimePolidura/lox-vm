@@ -25,7 +25,7 @@ static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expe
     struct ssa_control_print_node * print_node = (struct ssa_control_print_node *) (node); \
     ASSERT_TRUE(print_node->control.type == SSA_CONTROL_NODE_TYPE_PRINT); \
     ASSERT_TRUE(print_node->data->type == SSA_DATA_NODE_TYPE_CONSTANT); \
-    ASSERT_TRUE(((struct ssa_data_constant_node *) print_node->data)->as.i64 == value); \
+    ASSERT_TRUE(((struct ssa_data_constant_node *) print_node->data)->value_as.i64 == value); \
 }; \
 
 #define ASSERT_ASSIGNS_VERSION(node, expected_version) ASSERT_EQ(((struct ssa_control_set_local_node *) node)->version, expected_version)
@@ -160,8 +160,6 @@ TEST(ssa_ir_block_creation){
     // [c = 1, ¿a < 0?]
     ASSERT_EQ(ssa_block->first->type, SSA_CONTORL_NODE_TYPE_SET_LOCAL); //Asignment
     ASSERT_EQ(ssa_block->last->type, SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP); //a < 0
-    ASSERT_EQ(size_u8_set(ssa_block->outputs), 1);
-    ASSERT_EQ(size_u8_set(ssa_block->inputs), 1);
     ASSERT_EQ(size_u8_set(ssa_block->use_before_assigment), 0);
 
     //[c = 1, ¿a < 0?] -(true)-> [¿b > 0?]
@@ -169,24 +167,18 @@ TEST(ssa_ir_block_creation){
     ASSERT_EQ(ssa_block_true->first->type, SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP); //Asignment
     ASSERT_EQ(ssa_block_true->last->type, SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP); //a < 0
     ASSERT_EQ(ssa_block_true->last, ssa_block_true->first); //a < 0
-    ASSERT_EQ(size_u8_set(ssa_block_true->outputs), 0);
-    ASSERT_EQ(size_u8_set(ssa_block_true->inputs), 1);
     ASSERT_EQ(size_u8_set(ssa_block->use_before_assigment), 0);
 
     //[c = 1, ¿a < 0?] -(true)-> [¿b > 0?] -(true)-> [b = 3; a = 2]
     struct ssa_block * ssa_block_true_true = ssa_block_true->next.branch.true_branch;
     ASSERT_EQ(ssa_block_true_true->first->type, SSA_CONTORL_NODE_TYPE_SET_LOCAL); //b = 3
     ASSERT_EQ(ssa_block_true_true->last->type, SSA_CONTORL_NODE_TYPE_SET_LOCAL); //a = 2
-    ASSERT_EQ(size_u8_set(ssa_block_true_true->outputs), 2);
-    ASSERT_EQ(size_u8_set(ssa_block_true_true->inputs), 0);
     ASSERT_EQ(size_u8_set(ssa_block->use_before_assigment), 0);
 
     //[c = 1, ¿a < 0?] -(true)-> [¿b > 0?] -(true)-> [b = 3; a = 2] -> FINAL BLOCK
     struct ssa_block * final_block = ssa_block_true_true->next.next;
     ASSERT_EQ(final_block->first->type, SSA_CONTROL_NODE_TYPE_PRINT); //print a;
     ASSERT_EQ(final_block->last->type, SSA_CONTROL_NODE_TYPE_RETURN); //final return OP_NIL OP_RETURN
-    ASSERT_EQ(size_u8_set(final_block->outputs), 0);
-    ASSERT_EQ(size_u8_set(final_block->inputs), 2);
     ASSERT_EQ(size_u8_set(ssa_block->use_before_assigment), 0);
 
     //[c = 1, ¿a < 0?] -(true)-> [¿b > 0?] -(false)-> [b = 3]
@@ -194,8 +186,6 @@ TEST(ssa_ir_block_creation){
     ASSERT_EQ(ssa_block_true_false->first->type, SSA_CONTORL_NODE_TYPE_SET_LOCAL); //b = 3
     ASSERT_EQ(ssa_block_true_false->last->type, SSA_CONTORL_NODE_TYPE_SET_LOCAL); //b = 3
     ASSERT_EQ(ssa_block_true_false->last, ssa_block_true_false->first); //a < 0
-    ASSERT_EQ(size_u8_set(ssa_block_true_false->outputs), 1);
-    ASSERT_EQ(size_u8_set(ssa_block_true_false->inputs), 0);
     ASSERT_EQ(size_u8_set(ssa_block->use_before_assigment), 0);
 
     //[c = 1, ¿a < 0?] -(true)-> [¿b > 0?] -(false)-> [b = 3] -> FINAL BLOCK
@@ -205,8 +195,6 @@ TEST(ssa_ir_block_creation){
     struct ssa_block * ssa_block_false = ssa_block->next.branch.false_branch;
     ASSERT_EQ(ssa_block_false->first->type, SSA_CONTORL_NODE_TYPE_SET_LOCAL); //c = 1
     ASSERT_EQ(ssa_block_false->last->type, SSA_CONTORL_NODE_TYPE_SET_LOCAL); //i = 0
-    ASSERT_EQ(size_u8_set(ssa_block_false->outputs), 2);
-    ASSERT_EQ(size_u8_set(ssa_block_false->inputs), 0);
     ASSERT_EQ(size_u8_set(ssa_block->use_before_assigment), 0);
 
     //[c = 1, ¿a < 0?] -(false)-> [c = 1, i = 0] -> [¿i < 10?]
@@ -214,8 +202,6 @@ TEST(ssa_ir_block_creation){
     ASSERT_EQ(ssa_block_false_for_condition->first->type, SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP); //i < 10
     ASSERT_EQ(ssa_block_false_for_condition->last->type, SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP);
     ASSERT_EQ(ssa_block_false_for_condition->last, ssa_block_false_for_condition->first);
-    ASSERT_EQ(size_u8_set(ssa_block_false_for_condition->outputs), 0);
-    ASSERT_EQ(size_u8_set(ssa_block_false_for_condition->inputs), 1);
     ASSERT_EQ(size_u8_set(ssa_block->use_before_assigment), 0);
 
     //[c = 1, ¿a < 0?] -(false)-> [c = 1, i = 0] -> [¿i < 10?] -(true)-> [print 1, i = i + 1, loop]
@@ -223,8 +209,6 @@ TEST(ssa_ir_block_creation){
     ASSERT_EQ(ssa_block_false_for_condition_true->first->type, SSA_CONTROL_NODE_TYPE_PRINT); //print 1
     ASSERT_EQ(ssa_block_false_for_condition_true->first->next.next->type, SSA_CONTORL_NODE_TYPE_SET_LOCAL); //i = i + 1
     ASSERT_EQ(ssa_block_false_for_condition_true->last->type, SSA_CONTROL_NODE_TYPE_LOOP_JUMP);
-    ASSERT_EQ(size_u8_set(ssa_block_false_for_condition_true->outputs), 1);
-    ASSERT_EQ(size_u8_set(ssa_block_false_for_condition_true->inputs), 1);
     ASSERT_EQ(ssa_block_false_for_condition_true->next.loop, ssa_block_false_for_condition);
     ASSERT_EQ(size_u8_set(ssa_block_false_for_condition_true->use_before_assigment), 1);
     ASSERT_TRUE(contains_u8_set(&ssa_block_false_for_condition_true->use_before_assigment, 4));
@@ -292,12 +276,12 @@ TEST(ssa_ir_no_phis){
     //a > 0 False -> var i = 0
     struct ssa_control_set_local_node * a_condition_false_loop_init = FALSE_BRANCH_NODE(struct ssa_control_set_local_node, a_condition);
     ASSERT_TRUE(a_condition_false_loop_init->control.type == SSA_CONTORL_NODE_TYPE_SET_LOCAL);
-    ASSERT_TRUE(((struct ssa_data_constant_node *) a_condition_false_loop_init->new_local_value)->as.i64 == 0);
+    ASSERT_TRUE(((struct ssa_data_constant_node *) a_condition_false_loop_init->new_local_value)->value_as.i64 == 0);
 
     //a > 0 False -> var i = 0; i < 10
     struct ssa_control_conditional_jump_node * a_condition_false_loop_condition = NEXT_NODE(struct ssa_control_conditional_jump_node, a_condition_false_loop_init);
     ASSERT_EQ(a_condition_false_loop_condition->control.type, SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP);
-    ASSERT_EQ(a_condition_false_loop_condition->condition->type, SSA_DATA_NODE_TYPE_COMPARATION);
+    ASSERT_EQ(a_condition_false_loop_condition->condition->type, SSA_DATA_NODE_TYPE_BINARY);
 
     //a > 0 False -> var i = 0; i < 10 True
     struct ssa_control_node * a_condition_false_loop_body = TRUE_BRANCH_NODE(struct ssa_control_node, a_condition_false_loop_condition);
@@ -338,17 +322,12 @@ static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expe
                 }
                 return true;
             }
-            case SSA_DATA_NODE_TYPE_COMPARATION:
-                struct ssa_data_comparation_node * comparation = (struct ssa_data_comparation_node *) current;
-                push_stack_list(&pending, comparation->right);
-                push_stack_list(&pending, comparation->left);
+            case SSA_DATA_NODE_TYPE_BINARY: {
+                struct ssa_data_binary_node * binary_node = (struct ssa_data_comparation_node *) current;
+                push_stack_list(&pending, binary_node->right);
+                push_stack_list(&pending, binary_node->left);
                 break;
-            case SSA_DATA_NODE_TYPE_ARITHMETIC:
-                struct ssa_data_arithmetic_node * arithmetic = (struct ssa_data_arithmetic_node *) current;
-                push_stack_list(&pending, arithmetic->right);
-                push_stack_list(&pending, arithmetic->left);
-                break;
-
+            }
             case SSA_DATA_NODE_TYPE_CONSTANT:
             case SSA_DATA_NODE_TYPE_CALL:
             case SSA_DATA_NODE_TYPE_GET_GLOBAL:
