@@ -16,7 +16,9 @@ typedef enum {
     SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT,
     SSA_CONTROL_NODE_TYPE_LOOP_JUMP,
     SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP,
-    SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME, //Only used when inserting phi functions in the graph ir creation process
+    //Only used when inserting phi functions in the graph ir creation process
+    //It will replace all the nodes with type SSA_CONTORL_NODE_TYPE_SET_LOCAL in the phi insertion proceess
+    SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME,
 } ssa_control_node_type;
 
 #define ALLOC_SSA_CONTROL_NODE(type, struct_type) (struct_type *) allocate_ssa_block_node(type, sizeof(struct_type))

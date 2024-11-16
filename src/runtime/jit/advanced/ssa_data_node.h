@@ -24,8 +24,11 @@ typedef enum {
     SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT,
     SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT,
     SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY,
-    SSA_DATA_NODE_TYPE_PHI, //Only used when inserting phi functions in the graph ir creation process
-    SSA_DATA_NODE_TYPE_GET_SSA_NAME, //Only used when inserting phi functions in the graph ir creation process
+    //Only used when inserting phi functions in the graph ir creation process.
+    //It will replace all the nodes with type SSA_DATA_NODE_TYPE_GET_LOCAL in the phi insertion proceess
+    SSA_DATA_NODE_TYPE_PHI,
+    //TODO Document
+    SSA_DATA_NODE_TYPE_GET_SSA_NAME,
 } ssa_data_node_type;
 
 #define ALLOC_SSA_DATA_NODE(type, struct_type, bytecode) (struct_type *) allocate_ssa_data_node(type, sizeof(struct_type), bytecode)
@@ -47,9 +50,7 @@ struct u8_set get_used_locals(struct ssa_data_node *);
 //OP_GET_LOCAL
 struct ssa_data_get_local_node {
     struct ssa_data_node data;
-
     int local_number;
-    struct u8_set phi_versions;
 };
 
 //OP_CALL
@@ -148,6 +149,7 @@ struct ssa_name {
 
 struct ssa_data_phi_node {
     struct ssa_data_node data;
+    uint8_t local_number;
 
     //Stores pointers to ssa_data_define_ssa_name_node nodes
     struct u64_set ssa_definitions;
@@ -156,7 +158,5 @@ struct ssa_data_phi_node {
 //Will replace OP_GET_LOCAL
 struct ssa_data_get_ssa_name_node {
     struct ssa_data_node data;
-
     struct ssa_name ssa_name;
-    struct ssa_data_node * value;
 };
