@@ -2,6 +2,7 @@
 
 #include "compiler/bytecode/bytecode_list.h"
 
+#include "shared/utils/collections/u64_set.h"
 #include "shared/utils/collections/u8_arraylist.h"
 #include "shared/types/struct_definition_object.h"
 #include "shared/utils/collections/u8_set.h"
@@ -23,6 +24,8 @@ typedef enum {
     SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT,
     SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT,
     SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY,
+    SSA_DATA_NODE_TYPE_PHI, //Only used when inserting phi functions in the graph ir creation process
+    SSA_DATA_NODE_TYPE_GET_SSA_NAME, //Only used when inserting phi functions in the graph ir creation process
 } ssa_data_node_type;
 
 #define ALLOC_SSA_DATA_NODE(type, struct_type, bytecode) (struct_type *) allocate_ssa_data_node(type, sizeof(struct_type), bytecode)
@@ -34,9 +37,10 @@ struct ssa_data_node {
     ssa_data_node_type type;
 };
 
-typedef void (*ssa_data_node_consumer_t)(struct ssa_data_node * parent, struct ssa_data_node * child, void * extra);
+typedef void (*ssa_data_node_consumer_t)(struct ssa_data_node * parent, struct ssa_data_node ** parent_child_ptr, struct ssa_data_node * child, void * extra);
 //Start node is inclusive
 void for_each_ssa_data_node(struct ssa_data_node *, void *, ssa_data_node_consumer_t);
+void replace_child_ssa_data_node(struct ssa_data_node * parent, struct ssa_data_node * old, struct ssa_data_node * new);
 
 struct u8_set get_used_locals(struct ssa_data_node *);
 
@@ -127,4 +131,32 @@ struct ssa_data_initialize_array_node {
     int n_elements;
     bool empty_initialization;
     struct ssa_data_node ** elememnts_node;
+};
+
+//These nodes will be only used when inserting phi functions in the graph ir creation process
+#define CREATE_SSA_NAME(local_number, version) (struct ssa_name) {.value = {local_number, version}}
+
+struct ssa_name {
+    union {
+        struct {
+            uint8_t local_number;
+            uint8_t version;
+        } value;
+        uint16_t u16;
+    };
+};
+
+struct ssa_data_phi_node {
+    struct ssa_data_node data;
+
+    //Stores pointers to ssa_data_define_ssa_name_node nodes
+    struct u64_set ssa_definitions;
+};
+
+//Will replace OP_GET_LOCAL
+struct ssa_data_get_ssa_name_node {
+    struct ssa_data_node data;
+
+    struct ssa_name ssa_name;
+    struct ssa_data_node * value;
 };

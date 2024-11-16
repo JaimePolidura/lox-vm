@@ -16,6 +16,7 @@ typedef enum {
     SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT,
     SSA_CONTROL_NODE_TYPE_LOOP_JUMP,
     SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP,
+    SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME, //Only used when inserting phi functions in the graph ir creation process
 } ssa_control_node_type;
 
 #define ALLOC_SSA_CONTROL_NODE(type, struct_type) (struct_type *) allocate_ssa_block_node(type, sizeof(struct_type))
@@ -44,10 +45,19 @@ void for_each_data_node_in_control_node(struct ssa_control_node *, void *, ssa_d
 //OP_SET_LOCAL
 struct ssa_control_set_local_node {
     struct ssa_control_node control;
+    uint32_t local_number; //Same size as ssa_name
+    struct ssa_data_node * new_local_value;
+};
 
-    int local_number;
-    //If 0 it means that the version hasn't been assigned
-    int version;
+//This node will be only used when inserting phi functions in the graph ir creation process
+//Will replace OP_SET_LOCAL
+//The memory outlay of ssa_control_define_ssa_name_node and ssa_control_set_local_node is the same. We create two
+//different struct definitions to note, the differences between the two process in the ssa ir graph creation.
+//And the same memory outlay so we can replace the node in the graph easily, by just changing the node type
+struct ssa_control_define_ssa_name_node {
+    struct ssa_control_node control;
+
+    struct ssa_name ssa_name;
     struct ssa_data_node * new_local_value;
 };
 
