@@ -41,8 +41,7 @@ struct ssa_control_node {
     } next;
 };
 
-typedef void (*ssa_data_node_in_control_consumer_t)(struct ssa_control_node *, struct ssa_data_node *, void *);
-void for_each_data_node_in_control_node(struct ssa_control_node *, void *, ssa_data_node_in_control_consumer_t);
+void for_each_data_node_in_control_node(struct ssa_control_node *, void *, ssa_data_node_consumer_t);
 
 //OP_SET_LOCAL
 struct ssa_control_set_local_node {

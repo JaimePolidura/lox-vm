@@ -40,9 +40,14 @@ struct ssa_data_node {
     ssa_data_node_type type;
 };
 
-typedef void (*ssa_data_node_consumer_t)(struct ssa_data_node * parent, struct ssa_data_node ** parent_child_ptr, struct ssa_data_node * child, void * extra);
+typedef void (*ssa_data_node_consumer_t)(
+        struct ssa_data_node * parent,
+        void ** parent_child_ptr,
+        struct ssa_data_node * child,
+        void * extra
+);
 //Start node is inclusive
-void for_each_ssa_data_node(struct ssa_data_node *, void *, ssa_data_node_consumer_t);
+void for_each_ssa_data_node(struct ssa_data_node *, void **, void *, ssa_data_node_consumer_t);
 void replace_child_ssa_data_node(struct ssa_data_node * parent, struct ssa_data_node * old, struct ssa_data_node * new);
 
 struct u8_set get_used_locals(struct ssa_data_node *);

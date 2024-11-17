@@ -22,7 +22,6 @@ struct pending_evaluate {
 static void push_pending_evaluate(struct ssa_phi_inserter *, struct ssa_block *, struct u8_hash_table * parent_versions);
 static void insert_phis_in_block(struct ssa_phi_inserter *, struct ssa_block *block, struct u8_hash_table * parent_versions);
 static void insert_ssa_versions_in_control_node(struct ssa_phi_inserter *, struct ssa_block *, struct ssa_control_node * control_node, struct u8_hash_table * parent_versions);
-static void insert_phis_in_data_node(struct ssa_phi_inserter *, struct ssa_block *, struct ssa_control_node *, struct ssa_data_node *, struct u8_hash_table * parent_versions);
 static uint8_t allocate_new_version(struct u8_hash_table * max_version_allocated_per_local, uint8_t local_number);
 static int get_version(struct u8_hash_table * parent_versions, uint8_t local_number);
 static struct ssa_phi_inserter * alloc_ssa_phi_inserter();
@@ -30,6 +29,12 @@ static void free_ssa_phi_inserter(struct ssa_phi_inserter *);
 static void extract_get_local(struct ssa_phi_inserter *inserter, struct u8_hash_table *parent_versions,
                               struct ssa_control_node *control_node_to_extract, struct ssa_block *,
                               uint8_t local_number);
+static void insert_phis_in_data_node_consumer(
+        struct ssa_data_node * parent,
+        void ** parent_current_ptr,
+        struct ssa_data_node * current_node,
+        void * extra
+);
 
 void insert_ssa_ir_phis(
         struct ssa_block * start_block
@@ -90,16 +95,12 @@ static void insert_phis_in_block(
     }
 }
 
-struct insert_ssa_versions_in_control_node_consumer_struct {
+struct insert_phis_in_data_node_struct {
+    struct ssa_control_node * control_node;
+    struct u8_hash_table * parent_versions;
     struct ssa_phi_inserter * inserter;
     struct ssa_block * block;
-    struct u8_hash_table * parent_versions
 };
-
-static void insert_ssa_versions_in_control_node_consumer(struct ssa_control_node * control_node, struct ssa_data_node * child, void * extra) {
-    struct insert_ssa_versions_in_control_node_consumer_struct * data = (struct insert_ssa_versions_in_control_node_consumer_struct *) extra;
-    insert_phis_in_data_node(data->inserter, data->block, control_node, child, data->parent_versions);
-}
 
 static void insert_ssa_versions_in_control_node(
         struct ssa_phi_inserter * inserter,
@@ -107,13 +108,14 @@ static void insert_ssa_versions_in_control_node(
         struct ssa_control_node * control_node,
         struct u8_hash_table * parent_versions
 ) {
-    struct insert_ssa_versions_in_control_node_consumer_struct consumer_struct = (struct insert_ssa_versions_in_control_node_consumer_struct) {
+    struct insert_phis_in_data_node_struct consumer_struct = (struct insert_phis_in_data_node_struct) {
+        .control_node = control_node,
         .parent_versions = parent_versions,
         .inserter = inserter,
         .block = block,
     };
 
-    for_each_data_node_in_control_node(control_node, &consumer_struct, &insert_ssa_versions_in_control_node_consumer);
+    for_each_data_node_in_control_node(control_node, &consumer_struct, &insert_phis_in_data_node_consumer);
 
     if (control_node->type == SSA_CONTORL_NODE_TYPE_SET_LOCAL) {
         //set_local node and define_ssa_name have the same memory outlay, we do this, so we can change the node easily in the graph
@@ -132,26 +134,20 @@ static void insert_ssa_versions_in_control_node(
     }
 }
 
-struct insert_phis_in_data_node_struct {
-    struct ssa_control_node * control_node;
-    struct u8_hash_table * parent_versions;
-    struct ssa_phi_inserter * inserter;
-    struct ssa_block * block;
-};
-
-void insert_phis_in_data_node_consumer(
+static void insert_phis_in_data_node_consumer(
         struct ssa_data_node * parent,
-        struct ssa_data_node ** parent_current_ptr,
+        void ** parent_current_ptr,
         struct ssa_data_node * current_node,
         void * extra
 ) {
+    struct insert_phis_in_data_node_struct * consumer_struct = extra;
+    struct u8_hash_table * parent_versions = consumer_struct->parent_versions;
+    struct ssa_control_node * control_node = consumer_struct->control_node;
+    struct ssa_phi_inserter * inserter = consumer_struct->inserter;
+    struct ssa_block * block = consumer_struct->block;
+
     //We replace nodes with type SSA_DATA_NODE_TYPE_GET_LOCAL to SSA_DATA_NODE_TYPE_PHI
     if (current_node->type == SSA_DATA_NODE_TYPE_GET_LOCAL) {
-        struct insert_phis_in_data_node_struct * consumer_struct = extra;
-        struct u8_hash_table * parent_versions = consumer_struct->parent_versions;
-        struct ssa_control_node * control_node = consumer_struct->control_node;
-        struct ssa_phi_inserter * inserter = consumer_struct->inserter;
-        struct ssa_block * block = consumer_struct->block;
         //We don't want to extract a = b; we want to extract only get_locals that are inside an expression
         bool inside_expression = parent != NULL;
         
@@ -181,25 +177,12 @@ void insert_phis_in_data_node_consumer(
         }
     } else if (current_node->type == SSA_DATA_NODE_TYPE_PHI) {
         struct ssa_data_phi_node * phi_node = (struct ssa_data_phi_node *) current_node;
+        uint8_t last_version = get_version(parent_versions, phi_node->local_number);
+        struct ssa_name new_ssa_name = CREATE_SSA_NAME(phi_node->local_number, last_version);
+        struct ssa_control_node * last_definition = get_u64_hash_table(&inserter->ssa_definitions_by_ssa_name, new_ssa_name.u16);
 
+        add_u64_set(&phi_node->ssa_definitions, (uint64_t) last_definition);
     }
-}
-
-static void insert_phis_in_data_node(
-        struct ssa_phi_inserter * inserter,
-        struct ssa_block * block,
-        struct ssa_control_node * control_node,
-        struct ssa_data_node * data_node,
-        struct u8_hash_table * parent_versions
-) {
-    struct insert_phis_in_data_node_struct consumer_struct = (struct insert_phis_in_data_node_struct) {
-            .control_node = control_node,
-            .parent_versions = parent_versions,
-            .inserter = inserter,
-            .block = block,
-    };
-
-    for_each_ssa_data_node(data_node, &consumer_struct, insert_phis_in_data_node_consumer);
 }
 
 static uint8_t allocate_new_version(struct u8_hash_table * max_version_allocated_per_local, uint8_t local_number) {

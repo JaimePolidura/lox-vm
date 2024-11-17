@@ -351,7 +351,6 @@ static void get_local(
     int local_number = to_evalute->pending_bytecode->as.u8;
     get_local_node->local_number = local_number;
     get_local_node->data.produced_type = get_type_by_local_function_profile_data(&function->state_as.profiling.profile_data, local_number);
-    init_u8_set(&get_local_node->phi_versions);
 
     push_stack_list(&inserter->data_nodes_stack, get_local_node);
     push_pending_evaluate(inserter, to_evalute->type, to_evalute->pending_bytecode->next, to_evalute->parent_ssa_node);
@@ -666,6 +665,7 @@ struct map_data_nodes_bytecodes_to_control_struct {
 
 static void map_data_nodes_bytecodes_to_control_consumer(
         struct ssa_data_node * _,
+        void ** __,
         struct ssa_data_node * current_node,
         void * extra
 ) {
@@ -689,7 +689,7 @@ static void map_data_nodes_bytecodes_to_control(
             .to_map_control = to_map_control,
     };
 
-    for_each_ssa_data_node(data_node, &consumer_struct, map_data_nodes_bytecodes_to_control_consumer);
+    for_each_ssa_data_node(data_node, NULL, &consumer_struct, map_data_nodes_bytecodes_to_control_consumer);
 }
 
 static struct ssa_no_phis_inserter * alloc_ssa_no_phis_inserter() {
