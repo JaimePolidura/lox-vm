@@ -19,3 +19,15 @@ bool contains_u64_set(struct u64_set * set, uint64_t value) {
 uint8_t size_u64_set(struct u64_set set) {
     return set.inner_hash_table.size;
 }
+
+void init_u64_set_iterator(struct u64_set_iterator * iterator, struct u64_set set) {
+    init_u64_hash_table_iterator(&iterator->inner_hashtable_iterator, set.inner_hash_table);
+}
+
+bool has_next_u64_set_iterator(struct u64_set_iterator iterator) {
+    return has_next_u64_hash_table_iterator(iterator.inner_hashtable_iterator);
+}
+
+uint64_t next_u64_set_iterator(struct u64_set_iterator * iterator) {
+    return next_u64_hash_table_iterator(&iterator->inner_hashtable_iterator).key;
+}

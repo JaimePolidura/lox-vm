@@ -38,3 +38,33 @@ TEST(u64_hash_table_put_contains_test) {
     ASSERT_TRUE(contains_u64_hash_table(&table, 1));
     ASSERT_FALSE(contains_u64_hash_table(&table, 2));
 }
+
+TEST(u64_hash_table_emtpy_iterator){
+    struct u64_hash_table table;
+    init_u64_hash_table(&table);
+    struct u64_hash_table_iterator iterator;
+    init_u64_hash_table_iterator(&iterator, table);
+
+    ASSERT_FALSE(has_next_u64_hash_table_iterator(iterator));
+}
+
+TEST(u64_hash_table_iterator){
+    struct u64_hash_table table;
+    init_u64_hash_table(&table);
+    put_u64_hash_table(&table, 1, (void *) 1);
+    put_u64_hash_table(&table, 2, (void *) 2);
+    put_u64_hash_table(&table, 3, (void *) 3);
+    struct u64_hash_table_iterator iterator;
+    init_u64_hash_table_iterator(&iterator, table);
+
+    ASSERT_TRUE(has_next_u64_hash_table_iterator(iterator));
+    ASSERT_EQ(next_u64_hash_table_iterator(&iterator).key, 1);
+
+    ASSERT_TRUE(has_next_u64_hash_table_iterator(iterator));
+    ASSERT_EQ(next_u64_hash_table_iterator(&iterator).key, 2);
+
+    ASSERT_TRUE(has_next_u64_hash_table_iterator(iterator));
+    ASSERT_EQ(next_u64_hash_table_iterator(&iterator).key, 3);
+
+    ASSERT_FALSE(has_next_u64_hash_table_iterator(iterator));
+}

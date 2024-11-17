@@ -20,6 +20,7 @@ extern void insert_ssa_ir_phis(
 );
 
 static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expected_versions, ...);
+static bool node_defines_ssa_name(struct ssa_control_node *, int version);
 
 #define ASSERT_PRINTS_NUMBER(node, value) { \
     struct ssa_control_print_node * print_node = (struct ssa_control_print_node *) (node); \
@@ -71,7 +72,7 @@ TEST(ssa_phis_inserter){
     insert_ssa_ir_phis(start_ssa_block);
     start_ssa_block = start_ssa_block->next.next;
 
-//    ASSERT_ASSIGNS_VERSION(start_ssa_block->first, 1); //a1 = 1;
+    ASSERT_TRUE(node_defines_ssa_name(start_ssa_block->first, 1)); //a1 = 1;
     //a1 > 0
     struct ssa_control_conditional_jump_node * a_condition = (struct ssa_control_conditional_jump_node *) start_ssa_block->first->next.next;
     ASSERT_TRUE(node_uses_phi_versions(a_condition->condition, 1, 1));
@@ -82,28 +83,31 @@ TEST(ssa_phis_inserter){
     ASSERT_TRUE(node_uses_phi_versions(a_condition_true_b_condition->condition, 1, 0));
 
     struct ssa_block * a_condition_true_b_condition_true = a_condition_true->next.branch.true_branch;
-//    ASSERT_ASSIGNS_VERSION(a_condition_true_b_condition_true->first, 1); //b1 = 3;
-//    ASSERT_ASSIGNS_VERSION(a_condition_true_b_condition_true->first->next.next, 2); //a2 = 2;
+    ASSERT_TRUE(node_defines_ssa_name(a_condition_true_b_condition_true->first, 1)); //b1 = 3;
+    ASSERT_TRUE(node_defines_ssa_name(a_condition_true_b_condition_true->first->next.next, 2)); //a2 = 2;
 
     struct ssa_block * a_condition_true_b_condition_false = a_condition_true->next.branch.false_branch;
     struct ssa_control_set_local_node * set_local = (struct ssa_control_set_local_node *) a_condition_true_b_condition_false->first;
-//    ASSERT_ASSIGNS_VERSION(a_condition_true_b_condition_false->first, 2); //b2 = 3;
+    ASSERT_TRUE(node_defines_ssa_name(a_condition_true_b_condition_false->first, 2));  //b2 = 3;
 
     struct ssa_block * a_condition_false = start_ssa_block->next.branch.false_branch;
-//    ASSERT_ASSIGNS_VERSION(a_condition_false->first, 3); //a3 = 1;
-//    ASSERT_ASSIGNS_VERSION(a_condition_false->first->next.next, 1); //i1 = 1;
+    ASSERT_TRUE(node_defines_ssa_name(a_condition_false->first, 3)); //a3 = 1;
+    ASSERT_TRUE(node_defines_ssa_name(a_condition_false->first->next.next, 1)); //i1 = 1;
 
     struct ssa_block * for_loop_condition_block = a_condition_false->next.next;
     struct ssa_control_conditional_jump_node * for_loop_condition = (struct ssa_control_conditional_jump_node *) for_loop_condition_block->first;
     ASSERT_TRUE(node_uses_phi_versions(for_loop_condition->condition, 2, 1, 3)); //phi(i1, i3) < 10
 
     struct ssa_block * for_loop_body_block = for_loop_condition_block->next.branch.true_branch;
-//    ASSERT_ASSIGNS_VERSION(for_loop_body_block->first, 3); //b3 = 12;
+    ASSERT_TRUE(node_defines_ssa_name(for_loop_body_block->first, 3)); //b3 = 12;
+
     struct ssa_control_set_local_node * extract_i_loop = (struct ssa_control_set_local_node *) for_loop_body_block->first->next.next;
-//    ASSERT_ASSIGNS_VERSION(for_loop_body_block->first->next.next, 2); //i2 = phi(i1, i3) + 1;
+    ASSERT_TRUE(node_defines_ssa_name(for_loop_body_block->first->next.next, 2)); //i2 = phi(i1, i3) + 1;
+
     ASSERT_TRUE(node_uses_phi_versions(extract_i_loop->new_local_value, 2, 1, 3)); //i2 = phi(i1, i3) + 1
     struct ssa_control_set_local_node * increment_i_loop = (struct ssa_control_set_local_node *) extract_i_loop->control.next.next;
-//    ASSERT_ASSIGNS_VERSION(increment_i_loop, 3); //i3 = i2 + 1;
+    ASSERT_TRUE(node_defines_ssa_name(&increment_i_loop->control, 3)); //i3 = i2 + 1;
+
     ASSERT_TRUE(node_uses_phi_versions(increment_i_loop->new_local_value, 1, 2)); //i3 = i2 + 1;
 
     struct ssa_block * final_block = a_condition_true_b_condition_true->next.next;
@@ -298,6 +302,10 @@ TEST(ssa_ir_no_phis){
     ASSERT_PRINTS_NUMBER(a_condition_false_after_loop->next.next, 5);
 }
 
+static bool node_defines_ssa_name(struct ssa_control_node * node, int version) {
+    struct ssa_control_define_ssa_name_node * define_ssa_name = (struct ssa_control_define_ssa_name_node *) node;
+    return define_ssa_name->ssa_name.value.version == version;
+}
 
 static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expected_versions, ...) {
     int expected_versions[n_expected_versions];
@@ -309,7 +317,11 @@ static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expe
 
     while(!is_empty_stack_list(&pending)){
         struct ssa_data_node * current = pop_stack_list(&pending);
-        switch(current->type){
+        switch(current->type) {
+            case SSA_DATA_NODE_TYPE_PHI: {
+                struct ssa_data_phi_node * phi_node = (struct ssa_data_phi_node *) current;
+            }
+
             case SSA_DATA_NODE_TYPE_GET_LOCAL: {
                 struct ssa_data_get_local_node * get_local = (struct ssa_data_get_local_node *) current;
                 for(int i = 0; i < n_expected_versions; i++){
@@ -318,7 +330,7 @@ static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expe
 //                        return false;
 //                    }
                 }
-                return true;
+                return false;
             }
             case SSA_DATA_NODE_TYPE_BINARY: {
                 struct ssa_data_binary_node * binary_node = (struct ssa_data_comparation_node *) current;

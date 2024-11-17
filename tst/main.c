@@ -73,6 +73,8 @@ int main() {
     vm_jit_simple_function_test_outer();
 #endif
 #ifdef RUN_U64_HASH_TABLE_TEST
+    u64_hash_table_iterator_outer();
+    u64_hash_table_emtpy_iterator_outer();
     u64_hash_table_put_contains_test_outer();
     u64_hash_table_put_get_test_outer();
     u64_hash_table_grow_outer();

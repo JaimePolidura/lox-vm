@@ -80,3 +80,26 @@ static void grow_u64_hash_table(struct u64_hash_table * table) {
     table->capacity = new_capacity;
     free(old_entries);
 }
+
+void init_u64_hash_table_iterator(struct u64_hash_table_iterator * iterator, struct u64_hash_table hash_table) {
+    iterator->hash_table = hash_table;
+    iterator->current_index = 0;
+    iterator->n_entries_returned = 0;
+}
+
+bool has_next_u64_hash_table_iterator(struct u64_hash_table_iterator iterator) {
+    return iterator.n_entries_returned < iterator.hash_table.size;
+}
+
+struct u64_hash_table_entry next_u64_hash_table_iterator(struct u64_hash_table_iterator * iterator) {
+    while(has_next_u64_hash_table_iterator(*iterator)){
+        struct u64_hash_table_entry entry = iterator->hash_table.entries[iterator->current_index++];
+        if(entry.key != 0 && entry.value != NULL){
+            iterator->n_entries_returned++;
+            return entry;
+        }
+    }
+
+    //Unreachable code
+    exit(-1);
+}
