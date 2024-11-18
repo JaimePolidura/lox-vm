@@ -70,7 +70,7 @@ static void remove_inncesary_phi_functions_consumer(
 
 static void remove_inncesary_phi_function(
         struct ssa_data_phi_node * phi_node,
-        void ** parent_child_ptr,
+        void ** parent_child_ptr
 ) {
     struct u64_set_iterator ssa_definition_iterator;
     init_u64_set_iterator(&ssa_definition_iterator, phi_node->ssa_definitions);

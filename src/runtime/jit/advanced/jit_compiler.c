@@ -12,6 +12,4 @@ struct jit_compilation_result __attribute__((weak)) try_jit_compile(struct funct
     struct function_profile_data profile = function->state_as.profiling.profile_data;
     struct bytecode_list * bytecodes = create_bytecode_list(function->chunk);
     struct ssa_block * ssa_start_block = create_ssa_ir(self_thread->current_package, function, bytecodes);
-
-    perform_const_folding_optimization(ssa_start_block);
 }

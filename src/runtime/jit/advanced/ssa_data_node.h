@@ -45,11 +45,11 @@ typedef void (*ssa_data_node_consumer_t)(
         struct ssa_data_node * child,
         void * extra
 );
-//Start node is inclusive
+//Start node is inclusive. The iteration order will be post order
 void for_each_ssa_data_node(struct ssa_data_node *, void **, void *, ssa_data_node_consumer_t);
-void replace_child_ssa_data_node(struct ssa_data_node * parent, struct ssa_data_node * old, struct ssa_data_node * new);
-
+struct ssa_data_constant_node * create_ssa_const_node(lox_value_t, struct bytecode_list *);
 struct u8_set get_used_locals(struct ssa_data_node *);
+void free_ssa_data_node(struct ssa_data_node *);
 
 //OP_GET_LOCAL
 struct ssa_data_get_local_node {
@@ -90,6 +90,7 @@ struct ssa_data_constant_node {
 
     lox_value_t constant_lox_value;
 
+    //These fields won't be heap allocated when creating a ssa_data_constant_node
     union {
         struct string_object * string;
         struct object * object;
@@ -99,8 +100,6 @@ struct ssa_data_constant_node {
         void * nil;
     } value_as;
 };
-
-struct ssa_data_constant_node * create_ssa_const_node(lox_value_t, struct bytecode_list *);
 
 //TODO Replace it with bytecode_t in struct ssa_data_unary_node
 typedef enum {

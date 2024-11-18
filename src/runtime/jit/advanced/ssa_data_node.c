@@ -46,8 +46,6 @@ static void for_each_ssa_data_node_recursive(
         void * extra,
         ssa_data_node_consumer_t consumer
 ) {
-    consumer(parent_current, parent_current_ptr, current_node, extra);
-
     switch(current_node->type){
         case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT: {
             struct ssa_data_initialize_struct_node * init_struct = (struct ssa_data_initialize_struct_node *) current_node;
@@ -95,6 +93,8 @@ static void for_each_ssa_data_node_recursive(
         default:
             break;
     }
+
+    consumer(parent_current, parent_current_ptr, current_node, extra);
 }
 
 struct ssa_data_constant_node * create_ssa_const_node(lox_value_t constant_value, struct bytecode_list * bytecode) {
@@ -140,4 +140,17 @@ struct ssa_data_constant_node * create_ssa_const_node(lox_value_t constant_value
     }
 
     return constant_node;
+}
+
+static void free_ssa_data_node_consumer(
+        struct ssa_data_node * _,
+        void ** __,
+        struct ssa_data_node * current_node,
+        void * ___
+) {
+    free(current_node);
+}
+
+void free_ssa_data_node(struct ssa_data_node * node_to_free) {
+    for_each_ssa_data_node(node_to_free, NULL, NULL, free_ssa_data_node_consumer);
 }
