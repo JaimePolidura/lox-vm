@@ -50,18 +50,6 @@ struct ssa_control_set_local_node {
     struct ssa_data_node * new_local_value;
 };
 
-//This node will be only used when inserting phi functions in the graph ir creation process
-//Will replace OP_SET_LOCAL
-//The memory outlay of ssa_control_define_ssa_name_node and ssa_control_set_local_node is the same. We create two
-//different struct definitions to note, the differences between the two process in the ssa ir graph creation.
-//And the same memory outlay so we can replace the node in the graph easily, by just changing the node type
-struct ssa_control_define_ssa_name_node {
-    struct ssa_control_node control;
-
-    struct ssa_name ssa_name;
-    struct ssa_data_node * new_local_value;
-};
-
 struct ssa_control_start_node {
     struct ssa_control_node control;
     ssa_control_node_type type;
@@ -132,4 +120,16 @@ struct ssa_control_conditional_jump_node {
     //If this is true, it means that another OP_LOOP node will point to this node
     bool loop_condition;
     struct ssa_data_node * condition;
+};
+
+//This node will be only used when inserting phi functions in the graph ir creation process
+//Will replace OP_SET_LOCAL
+//The memory outlay of ssa_control_define_ssa_name_node and ssa_control_set_local_node is the same. We create two
+//different struct definitions to note, the differences between the two process in the ssa ir graph creation.
+//And the same memory outlay so we can replace the node in the graph easily, by just changing the node type
+struct ssa_control_define_ssa_name_node {
+    struct ssa_control_node control;
+
+    struct ssa_name ssa_name;
+    struct ssa_data_node * new_local_value;
 };

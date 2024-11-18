@@ -41,7 +41,7 @@ static bool node_defines_ssa_name(struct ssa_control_node *, int version);
 //  -> False: [a3 = 3; i0 = 1] -> [¿phi(i0, i2) < 10?]
 //      -> True: [b3 = 12; i1 = phi(i0, i2); i2 = i1 + 1;]
 //      -> False: FINAL BLOCK
-//FINAL BLOCK: [print phi(a2, a3); print phi(b1, b2, b3)]
+//FINAL BLOCK: [print phi(a1, a2, a3); print phi(b0, b1, b2, b3)]
 TEST(ssa_phis_inserter){
     struct compilation_result compilation = compile_standalone(
             "fun function_ssa(a, b) {"
@@ -112,9 +112,9 @@ TEST(ssa_phis_inserter){
 
     struct ssa_block * final_block = a_condition_true_b_condition_true->next.next;
     struct ssa_control_print_node * final_block_print_a = (struct ssa_control_print_node *) final_block->first;
-    ASSERT_TRUE(node_uses_phi_versions(final_block_print_a->data, 2, 2, 3)); //print phi(a2, a3);
+    ASSERT_TRUE(node_uses_phi_versions(final_block_print_a->data, 3, 1, 2, 3)); //print phi(a0, a2, a3);
     struct ssa_control_print_node * final_block_print_b = (struct ssa_control_print_node *) final_block_print_a->control.next.next;
-    ASSERT_TRUE(node_uses_phi_versions(final_block_print_b->data, 3, 1, 2, 3)); //print phi(b1, b2, b3);
+    ASSERT_TRUE(node_uses_phi_versions(final_block_print_b->data, 4, 0, 1, 2, 3)); //print phi(b0, b1, b2, b3);
 }
 
 //Should produce:
@@ -307,9 +307,14 @@ static bool node_defines_ssa_name(struct ssa_control_node * node, int version) {
     return define_ssa_name->ssa_name.value.version == version;
 }
 
+static void int_array_to_set(struct u64_set *, int n_array_elements, int array[n_array_elements]);
+
 static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expected_versions, ...) {
     int expected_versions[n_expected_versions];
     VARARGS_TO_ARRAY(int, expected_versions, n_expected_versions);
+    struct u64_set expected_versions_set;
+    init_u64_set(&expected_versions_set);
+    int_array_to_set(&expected_versions_set, n_expected_versions, expected_versions);
 
     struct stack_list pending;
     init_stack_list(&pending);
@@ -320,20 +325,22 @@ static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expe
         switch(current->type) {
             case SSA_DATA_NODE_TYPE_PHI: {
                 struct ssa_data_phi_node * phi_node = (struct ssa_data_phi_node *) current;
-            }
+                struct u64_set_iterator definitions_iterator;
+                init_u64_set_iterator(&definitions_iterator, phi_node->ssa_definitions);
 
-            case SSA_DATA_NODE_TYPE_GET_LOCAL: {
-                struct ssa_data_get_local_node * get_local = (struct ssa_data_get_local_node *) current;
-                for(int i = 0; i < n_expected_versions; i++){
-                    int expected_version = expected_versions[i];
-//                    if(!contains_u8_set(&get_local->phi_versions, expected_version)) {
-//                        return false;
-//                    }
+                while(has_next_u64_set_iterator(definitions_iterator)) {
+                    struct ssa_control_define_ssa_name_node * define_ssa_node = (void *) next_u64_set_iterator(&definitions_iterator);
+                    uint64_t actual_version = define_ssa_node->ssa_name.value.version;
+
+                    if(!contains_u64_set(&expected_versions_set, actual_version)){
+                        return false;
+                    }
                 }
-                return false;
+
+                return true;
             }
             case SSA_DATA_NODE_TYPE_BINARY: {
-                struct ssa_data_binary_node * binary_node = (struct ssa_data_comparation_node *) current;
+                struct ssa_data_binary_node * binary_node = (struct ssa_data_binary_node *) current;
                 push_stack_list(&pending, binary_node->right);
                 push_stack_list(&pending, binary_node->left);
                 break;
@@ -353,4 +360,10 @@ static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expe
     free_stack_list(&pending);
 
     return false;
+}
+
+static void int_array_to_set(struct u64_set * set, int n_array_elements, int array[n_array_elements]) {
+    for (int i = 0; i < n_array_elements; ++i) {
+        add_u64_set(set, (uint64_t) array[i]);
+    }
 }

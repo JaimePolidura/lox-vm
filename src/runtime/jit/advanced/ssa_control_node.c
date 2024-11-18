@@ -46,10 +46,17 @@ void for_each_data_node_in_control_node(struct ssa_control_node * control_node, 
             for_each_ssa_data_node(set_array_element->array, (void**) &set_array_element->array, extra, consumer);
             break;
         }
-        case SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP:
+        case SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP: {
             struct ssa_control_conditional_jump_node * conditional_jump = (struct ssa_control_conditional_jump_node *) control_node;
             for_each_ssa_data_node(conditional_jump->condition, (void**) &conditional_jump->condition, extra, consumer);
             break;
+        }
+        case SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME: {
+            struct ssa_control_define_ssa_name_node * define_ssa_name = (struct ssa_control_define_ssa_name_node *) control_node;
+            for_each_ssa_data_node(define_ssa_name->new_local_value, (void**) &define_ssa_name->new_local_value, extra, consumer);
+            break;
+        }
+
         case SSA_CONTROL_NODE_TYPE_ENTER_MONITOR:
         case SSA_CONTROL_NODE_TYPE_EXIT_MONITOR:
         case SSA_CONTROL_NODE_TYPE_LOOP_JUMP:

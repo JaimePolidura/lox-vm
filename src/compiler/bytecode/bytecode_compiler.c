@@ -1153,11 +1153,11 @@ static void init_compiler(struct bytecode_compiler * compiler, scope_type_t scop
     local->name.start = "";
     local->depth = 0;
 
-    compiler->package_of_external_symbol = NULL;
     compiler->compiling_extermal_symbol_call = false;
+    compiler->package_of_external_symbol = NULL;
     compiler->compiling_parallel_call = false;
-    compiler->compiling_inline_call = false;
     compiler->compiling_set_operation = false;
+    compiler->compiling_inline_call = false;
 
     compiler->function_calls = NULL;
 

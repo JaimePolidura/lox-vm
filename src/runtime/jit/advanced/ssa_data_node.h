@@ -160,7 +160,7 @@ struct ssa_data_phi_node {
     struct u64_set ssa_definitions;
 };
 
-//Will replace OP_GET_LOCAL
+//Will replace OP_GET_LOCAL, when a variable
 struct ssa_data_get_ssa_name_node {
     struct ssa_data_node data;
     struct ssa_name ssa_name;
