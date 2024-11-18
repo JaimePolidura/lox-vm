@@ -53,7 +53,7 @@ void for_each_data_node_in_control_node(struct ssa_control_node * control_node, 
         }
         case SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME: {
             struct ssa_control_define_ssa_name_node * define_ssa_name = (struct ssa_control_define_ssa_name_node *) control_node;
-            for_each_ssa_data_node(define_ssa_name->new_local_value, (void**) &define_ssa_name->new_local_value, extra, consumer);
+            for_each_ssa_data_node(define_ssa_name->value, (void**) &define_ssa_name->value, extra, consumer);
             break;
         }
 

@@ -69,7 +69,7 @@ static void for_each_ssa_data_node_recursive(
         }
         case SSA_DATA_NODE_TYPE_UNARY: {
             struct ssa_data_unary_node * unary = (struct ssa_data_unary_node *) current_node;
-            for_each_ssa_data_node_recursive(current_node, (void **) &unary->unary_value_node, unary->unary_value_node, extra, consumer);
+            for_each_ssa_data_node_recursive(current_node, (void **) &unary->operand, unary->operand, extra, consumer);
             break;
         }
         case SSA_DATA_NODE_TYPE_CALL: {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "runtime/jit/advanced/creation/ssa_phi_inserter.h"
 #include "shared/utils/collections/u8_set.h"
 #include "runtime/jit/advanced/ssa_block.h"
 #include "compiler/compiler.h"
@@ -13,10 +14,6 @@ extern struct ssa_control_node * create_ssa_ir_no_phis(
 
 extern struct ssa_block * create_ssa_ir_blocks(
         struct ssa_control_node * start
-);
-
-extern void insert_ssa_ir_phis(
-        struct ssa_block * start_block
 );
 
 extern void optimize_ssa_ir_phis(

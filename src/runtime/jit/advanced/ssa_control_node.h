@@ -131,5 +131,5 @@ struct ssa_control_define_ssa_name_node {
     struct ssa_control_node control;
 
     struct ssa_name ssa_name;
-    struct ssa_data_node * new_local_value;
+    struct ssa_data_node * value;
 };

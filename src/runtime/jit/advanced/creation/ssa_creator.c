@@ -6,7 +6,6 @@ extern struct ssa_control_node * create_ssa_ir_no_phis(
         struct bytecode_list * start_function_bytecode
 );
 extern struct ssa_block * create_ssa_ir_blocks(struct ssa_control_node * start);
-extern void insert_ssa_ir_phis(struct ssa_block * start_block);
 extern void optimize_ssa_ir_phis(struct ssa_block * start_block);
 
 //Given a byetcode_list this function will create the ssa graph ir. The graph IR consists of:

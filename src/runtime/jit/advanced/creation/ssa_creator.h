@@ -1,5 +1,6 @@
 #pragma once
 
+#include "runtime/jit/advanced/creation/ssa_phi_inserter.h"
 #include "runtime/jit/jit_compilation_result.h"
 #include "runtime/jit/advanced/ssa_block.h"
 

@@ -211,9 +211,9 @@ static void unary(struct ssa_no_phis_inserter * inserter, struct pending_evaluat
     struct ssa_data_unary_node * unary_node = ALLOC_SSA_DATA_NODE(
             SSA_DATA_NODE_TYPE_UNARY, struct ssa_data_unary_node, to_evaluate->pending_bytecode
     );
-    unary_node->unary_operation_type = to_evaluate->pending_bytecode->bytecode == OP_NEGATE ? UNARY_OPERATION_TYPE_NEGATION : UNARY_OPERATION_TYPE_NOT;
-    unary_node->unary_value_node = pop_stack_list(&inserter->data_nodes_stack);
-    unary_node->data.produced_type = unary_node->unary_value_node->produced_type;
+    unary_node->operator_type = to_evaluate->pending_bytecode->bytecode == OP_NEGATE ? UNARY_OPERATION_TYPE_NEGATION : UNARY_OPERATION_TYPE_NOT;
+    unary_node->operand = pop_stack_list(&inserter->data_nodes_stack);
+    unary_node->data.produced_type = unary_node->operand->produced_type;
 
     push_stack_list(&inserter->data_nodes_stack, unary_node);
     push_pending_evaluate(inserter, to_evaluate->type, to_evaluate->pending_bytecode->next, to_evaluate->parent_ssa_node);
@@ -570,6 +570,8 @@ static struct ssa_data_constant_node * create_constant_node(lox_value_t constant
     struct ssa_data_constant_node * constant_node = ALLOC_SSA_DATA_NODE(
             SSA_DATA_NODE_TYPE_CONSTANT, struct ssa_data_constant_node, bytecode
     );
+
+    constant_node->constant_lox_value = constant_value;
 
     switch (get_lox_type(constant_value)) {
         case VAL_BOOL:

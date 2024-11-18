@@ -88,6 +88,8 @@ struct ssa_data_binary_node {
 struct ssa_data_constant_node {
     struct ssa_data_node data;
 
+    lox_value_t constant_lox_value;
+
     union {
         struct string_object * string;
         struct object * object;
@@ -98,15 +100,18 @@ struct ssa_data_constant_node {
     } value_as;
 };
 
+//TODO Replace it with bytecode_t in struct ssa_data_unary_node
+typedef enum {
+    UNARY_OPERATION_TYPE_NOT,
+    UNARY_OPERATION_TYPE_NEGATION,
+} ssa_unary_operator_type_t;
+
 //OP_NEGATE, OP_NOT
 struct ssa_data_unary_node {
     struct ssa_data_node data;
 
-    struct ssa_data_node * unary_value_node;
-    enum {
-        UNARY_OPERATION_TYPE_NOT,
-        UNARY_OPERATION_TYPE_NEGATION,
-    } unary_operation_type;
+    struct ssa_data_node * operand;
+    ssa_unary_operator_type_t operator_type;
 };
 
 struct ssa_data_get_struct_field_node {
@@ -140,6 +145,7 @@ struct ssa_data_initialize_array_node {
 
 //These nodes will be only used when inserting phi functions in the graph ir creation process
 #define CREATE_SSA_NAME(local_number, version) (struct ssa_name) {.value = {local_number, version}}
+#define CREATE_SSA_NAME_FROM_U64(u64_value) (struct ssa_name) {.u16 = (uint16_t) u64_value}
 
 struct ssa_name {
     union {

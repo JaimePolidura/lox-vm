@@ -1,9 +1,4 @@
-#include "runtime/jit/advanced/ssa_block.h"
-
-#include "shared/utils/collections/u64_hash_table.h"
-#include "shared/utils/collections/u8_hash_table.h"
-#include "shared/utils/collections/stack_list.h"
-#include "shared/utils/collections/u64_set.h"
+#include "ssa_phi_inserter.h"
 
 struct ssa_phi_inserter {
     struct u8_hash_table max_version_allocated_per_local;
@@ -38,11 +33,10 @@ static void insert_phis_in_data_node_consumer(
         void * extra
 );
 
-void insert_ssa_ir_phis(
+struct phi_insertion_result insert_ssa_ir_phis(
         struct ssa_block * start_block
 ) {
     start_block = start_block->next.next;
-
     struct ssa_phi_inserter * inserter = alloc_ssa_phi_inserter();
 
     push_pending_evaluate(inserter, start_block, alloc_u8_hash_table());
@@ -81,6 +75,10 @@ void insert_ssa_ir_phis(
     }
 
     free_ssa_phi_inserter(inserter);
+
+    return (struct phi_insertion_result) {
+        .ssa_definitions_by_ssa_name = inserter->ssa_definitions_by_ssa_name,
+    };
 }
 
 static struct ssa_control_node * get_ssa_definition_node(struct ssa_phi_inserter * inserter, struct ssa_name ssa_name) {
@@ -96,7 +94,7 @@ static struct ssa_control_node * get_ssa_definition_node(struct ssa_phi_inserter
                 SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME, struct ssa_control_define_ssa_name_node
         );
         define_function_parameter->ssa_name = ssa_name;
-        define_function_parameter->new_local_value = &get_function_parameter->data;
+        define_function_parameter->value = &get_function_parameter->data;
 
         put_u64_hash_table(&inserter->ssa_definitions_by_ssa_name, ssa_name.u16, define_function_parameter);
 
@@ -294,7 +292,7 @@ static void extract_get_local(
     int new_version_extracted = allocate_new_version(&inserter->max_version_allocated_per_local, local_number);
     struct ssa_name set_ssa_name = CREATE_SSA_NAME(local_number, new_version_extracted);
     extracted_set_local->ssa_name = CREATE_SSA_NAME(local_number, new_version_extracted);
-    extracted_set_local->new_local_value = &extracted_phi_node->data;
+    extracted_set_local->value = &extracted_phi_node->data;
     put_u64_hash_table(&inserter->ssa_definitions_by_ssa_name, set_ssa_name.u16, extracted_set_local);
 
     //phi(a1) in the example, will be a define_ssa_node. Replace get_local node with phi node
