@@ -100,6 +100,8 @@ struct ssa_data_constant_node {
     } value_as;
 };
 
+struct ssa_data_constant_node * create_ssa_const_node(lox_value_t, struct bytecode_list *);
+
 //TODO Replace it with bytecode_t in struct ssa_data_unary_node
 typedef enum {
     UNARY_OPERATION_TYPE_NOT,
@@ -169,4 +171,5 @@ struct ssa_data_phi_node {
 struct ssa_data_get_ssa_name_node {
     struct ssa_data_node data;
     struct ssa_name ssa_name;
+    void * definition_node;
 };

@@ -26,21 +26,31 @@ struct const_folding_optimizer {
     struct u64_hash_table semilattice_values_by_ssa_name;
 };
 
-static struct semilattice_value * create_semilattice_from_data(struct ssa_data_node *);
-struct const_folding_optimizer * alloc_struct_const_folding_optimizer(struct phi_insertion_result);
 static void initialization(struct const_folding_optimizer * optimizer);
+static void propagation(struct const_folding_optimizer * optimizer);
+
+static struct semilattice_value * create_semilattice_from_data(struct ssa_data_node *, struct ssa_data_node **);
+struct const_folding_optimizer * alloc_struct_const_folding_optimizer(struct phi_insertion_result);
 static struct semilattice_value * calculate_unary(struct semilattice_value *, ssa_unary_operator_type_t operator);
 static struct semilattice_value * calculate_binary(struct semilattice_value *, struct semilattice_value *, bytecode_t operator);
 extern lox_value_t addition_lox(lox_value_t a, lox_value_t b);
 static lox_value_type calculate_binary_lox(lox_value_t, lox_value_t, bytecode_t operator);
+static void rewrite_graph_as_constant(struct ssa_data_node * old_node, struct ssa_data_node ** parent_ptr, lox_value_t constant);
 
 void perform_const_folding_optimization(struct ssa_block * start_block, struct phi_insertion_result phi_insertion_result) {
     struct const_folding_optimizer * optimizer = alloc_struct_const_folding_optimizer(phi_insertion_result);
     start_block = start_block->next.next;
 
     initialization(optimizer);
+    propagation(optimizer);
 }
 
+static void propagation(struct const_folding_optimizer * optimizer) {
+
+}
+
+//Initializes list of ssa names to work with
+//Also rewrites some operations like: 1 + 1 -> 2
 static void initialization(struct const_folding_optimizer * optimizer) {
     struct u64_hash_table_iterator ssa_names_iterator;
     init_u64_hash_table_iterator(&ssa_names_iterator, optimizer->ssa_definitions_by_ssa_name);
@@ -48,9 +58,9 @@ static void initialization(struct const_folding_optimizer * optimizer) {
     while(has_next_u64_hash_table_iterator(ssa_names_iterator)){
         struct u64_hash_table_entry entry = next_u64_hash_table_iterator(&ssa_names_iterator);
         struct ssa_name current_ssa_name = CREATE_SSA_NAME_FROM_U64(entry.key);
-        struct ssa_control_define_ssa_name_node * current_ssa_definition = entry.value;
+        struct ssa_control_define_ssa_name_node * current_definition = entry.value;
 
-        struct semilattice_value * semilattice_value = create_semilattice_from_data(current_ssa_definition->value);
+        struct semilattice_value * semilattice_value = create_semilattice_from_data(current_definition->value, &current_definition->value);
 
         put_u64_hash_table(&optimizer->semilattice_values_by_ssa_name, current_ssa_name.u16, semilattice_value);
 
@@ -62,21 +72,38 @@ static void initialization(struct const_folding_optimizer * optimizer) {
     }
 }
 
-static struct semilattice_value * create_semilattice_from_data(struct ssa_data_node * current_data_node) {
+static struct semilattice_value * create_semilattice_from_data(
+        struct ssa_data_node * current_data_node,
+        struct ssa_data_node ** parent_ptr
+) {
     switch (current_data_node->type) {
         case SSA_DATA_NODE_TYPE_BINARY: {
             struct ssa_data_binary_node * binary_node = (struct ssa_data_binary_node *) current_data_node;
-            struct semilattice_value * right_semilattice = create_semilattice_from_data(binary_node->right);
-            struct semilattice_value * left_semilattice = create_semilattice_from_data(binary_node->left);
-            return calculate_binary(left_semilattice, right_semilattice, binary_node->operand);
+            struct semilattice_value * right_semilattice = create_semilattice_from_data(binary_node->right, &binary_node->right);
+            struct semilattice_value * left_semilattice = create_semilattice_from_data(binary_node->left, &binary_node->left);
+            struct semilattice_value * result_semilattice = calculate_binary(left_semilattice, right_semilattice, binary_node->operand);
+
+            if (result_semilattice->type == SEMILATTICE_CONSTANT) {
+                rewrite_graph_as_constant(&binary_node->data, parent_ptr, result_semilattice->const_value);
+            }
+
+            return result_semilattice;
         }
         case SSA_DATA_NODE_TYPE_UNARY: {
             struct ssa_data_unary_node * unary_node = (struct ssa_data_unary_node *) current_data_node;
-            struct semilattice_value * operand_semilattice = create_semilattice_from_data(unary_node->operand);
-            return calculate_unary(operand_semilattice, unary_node->operator_type);
+            struct semilattice_value * operand_semilattice = create_semilattice_from_data(unary_node->operand, &unary_node->operand);
+            struct semilattice_value * result_semilattice = calculate_unary(operand_semilattice, unary_node->operator_type);
+
+            if (result_semilattice->type == SEMILATTICE_CONSTANT) {
+                rewrite_graph_as_constant(&unary_node->data, parent_ptr, result_semilattice->const_value);
+            }
+
+            return result_semilattice;
         }
         case SSA_DATA_NODE_TYPE_GET_SSA_NAME: {
-            return create_semilattice_from_data(current_data_node);
+            struct ssa_data_get_ssa_name_node * get_ssa_name = (struct ssa_data_get_ssa_name_node *) current_data_node;
+            struct ssa_control_define_ssa_name_node * definition_node = get_ssa_name->definition_node;
+            return create_semilattice_from_data(definition_node->value, &definition_node->value);
         }
         //Constant value:
         case SSA_DATA_NODE_TYPE_CONSTANT: {
@@ -180,5 +207,11 @@ static struct semilattice_value * alloc_semilattice_value(semilattice_type_t typ
 }
 
 static void free_semilattice_value(struct semilattice_value * semilattice_value) {
-    //TODO
+    free(semilattice_value);
+}
+
+static void rewrite_graph_as_constant(struct ssa_data_node * old_node, struct ssa_data_node ** parent_ptr, lox_value_t constant) {
+    struct ssa_data_constant_node * constant_node = create_ssa_const_node(constant, NULL);
+    *parent_ptr = &constant_node->data;
+    //TODO Free old_node, create functino in ssa_data to free a node
 }

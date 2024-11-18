@@ -1,3 +1,4 @@
+#include "runtime/jit/advanced/creation/ssa_phi_inserter.h"
 #include "runtime/jit/advanced/ssa_block.h"
 
 #include "shared/utils/collections/u64_hash_table.h"
@@ -9,7 +10,7 @@ static void remove_inncesary_phi_functions_consumer (
         struct ssa_data_node * __,
         void ** parent_child_ptr,
         struct ssa_data_node * current_node,
-        void * _
+        void * extra
 );
 static void remove_inncesary_phi_function(struct ssa_data_phi_node * phi_node, void ** parent_child_ptr);
 
@@ -67,7 +68,10 @@ static void remove_inncesary_phi_functions_consumer(
     }
 }
 
-static void remove_inncesary_phi_function(struct ssa_data_phi_node * phi_node, void ** parent_child_ptr) {
+static void remove_inncesary_phi_function(
+        struct ssa_data_phi_node * phi_node,
+        void ** parent_child_ptr,
+) {
     struct u64_set_iterator ssa_definition_iterator;
     init_u64_set_iterator(&ssa_definition_iterator, phi_node->ssa_definitions);
     void * ssa_definition_ptr = (void *) next_u64_set_iterator(&ssa_definition_iterator);
@@ -77,6 +81,7 @@ static void remove_inncesary_phi_function(struct ssa_data_phi_node * phi_node, v
             SSA_DATA_NODE_TYPE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL
     );
     new_get_ssa_name->ssa_name = ssa_definition_node->ssa_name;
+    new_get_ssa_name->definition_node = ssa_definition_node;
 
     //Replace node
     *parent_child_ptr = (struct ssa_data_node *) new_get_ssa_name;

@@ -35,7 +35,6 @@ struct ssa_no_phis_inserter {
     struct stack_list package_stack;
 };
 
-static struct ssa_data_constant_node * create_constant_node(lox_value_t constant_value, struct bytecode_list *);
 static void push_pending_evaluate(struct ssa_no_phis_inserter *, pending_evaluation_type_t, struct bytecode_list *, struct ssa_control_node *);
 static void attatch_ssa_node_to_parent(pending_evaluation_type_t type, struct ssa_control_node * parent, struct ssa_control_node * child);
 static struct bytecode_list * simplify_redundant_unconditional_jump_bytecodes(struct bytecode_list *bytecode_list);
@@ -126,42 +125,42 @@ struct ssa_control_node * create_ssa_ir_no_phis(
             case OP_LESS:
             case OP_EQUAL: binary(inserter, to_evaluate); break;
             case OP_CONSTANT: {
-                push_stack_list(&inserter->data_nodes_stack, create_constant_node(READ_CONSTANT(function, to_evaluate->pending_bytecode), to_evaluate->pending_bytecode));
+                push_stack_list(&inserter->data_nodes_stack, create_ssa_const_node(READ_CONSTANT(function, to_evaluate->pending_bytecode), to_evaluate->pending_bytecode));
                 push_pending_evaluate(inserter, to_evaluate->type, to_evaluate->pending_bytecode->next, to_evaluate->parent_ssa_node);
                 break;
             }
             case OP_FALSE: {
-                push_stack_list(&inserter->data_nodes_stack, create_constant_node(TAG_FALSE, to_evaluate->pending_bytecode));
+                push_stack_list(&inserter->data_nodes_stack, create_ssa_const_node(TAG_FALSE, to_evaluate->pending_bytecode));
                 push_pending_evaluate(inserter, to_evaluate->type, to_evaluate->pending_bytecode->next, to_evaluate->parent_ssa_node);
                 break;
             }
             case OP_TRUE: {
-                push_stack_list(&inserter->data_nodes_stack, create_constant_node(TAG_TRUE, to_evaluate->pending_bytecode));
+                push_stack_list(&inserter->data_nodes_stack, create_ssa_const_node(TAG_TRUE, to_evaluate->pending_bytecode));
                 push_pending_evaluate(inserter, to_evaluate->type, to_evaluate->pending_bytecode->next, to_evaluate->parent_ssa_node);
                 break;
             }
             case OP_NIL: {
-                push_stack_list(&inserter->data_nodes_stack, create_constant_node(TAG_NIL, to_evaluate->pending_bytecode));
+                push_stack_list(&inserter->data_nodes_stack, create_ssa_const_node(TAG_NIL, to_evaluate->pending_bytecode));
                 push_pending_evaluate(inserter, to_evaluate->type, to_evaluate->pending_bytecode->next, to_evaluate->parent_ssa_node);
                 break;
             }
             case OP_FAST_CONST_8: {
-                push_stack_list(&inserter->data_nodes_stack, create_constant_node(AS_NUMBER(to_evaluate->pending_bytecode->as.u8), to_evaluate->pending_bytecode));
+                push_stack_list(&inserter->data_nodes_stack, create_ssa_const_node(AS_NUMBER(to_evaluate->pending_bytecode->as.u8), to_evaluate->pending_bytecode));
                 push_pending_evaluate(inserter, to_evaluate->type, to_evaluate->pending_bytecode->next, to_evaluate->parent_ssa_node);
                 break;
             }
             case OP_FAST_CONST_16: {
-                push_stack_list(&inserter->data_nodes_stack, create_constant_node(AS_NUMBER(to_evaluate->pending_bytecode->as.u16), to_evaluate->pending_bytecode));
+                push_stack_list(&inserter->data_nodes_stack, create_ssa_const_node(AS_NUMBER(to_evaluate->pending_bytecode->as.u16), to_evaluate->pending_bytecode));
                 push_pending_evaluate(inserter, to_evaluate->type, to_evaluate->pending_bytecode->next, to_evaluate->parent_ssa_node);
                 break;
             }
             case OP_CONST_1: {
-                push_stack_list(&inserter->data_nodes_stack, create_constant_node(AS_NUMBER(1), to_evaluate->pending_bytecode));
+                push_stack_list(&inserter->data_nodes_stack, create_ssa_const_node(AS_NUMBER(1), to_evaluate->pending_bytecode));
                 push_pending_evaluate(inserter, to_evaluate->type, to_evaluate->pending_bytecode->next, to_evaluate->parent_ssa_node);
                 break;
             }
             case OP_CONST_2: {
-                push_stack_list(&inserter->data_nodes_stack, create_constant_node(AS_NUMBER(2), to_evaluate->pending_bytecode));
+                push_stack_list(&inserter->data_nodes_stack, create_ssa_const_node(AS_NUMBER(2), to_evaluate->pending_bytecode));
                 push_pending_evaluate(inserter, to_evaluate->type, to_evaluate->pending_bytecode->next, to_evaluate->parent_ssa_node);
                 break;
             }
@@ -299,7 +298,7 @@ static void get_global(
     if(contains_trie(&global_variable_package->const_global_variables_names, global_variable_name->chars, global_variable_name->length)) {
         lox_value_t constant_value;
         get_hash_table(&global_variable_package->global_variables, global_variable_name, &constant_value);
-        struct ssa_data_constant_node * constant_node = create_constant_node(constant_value, to_evalute->pending_bytecode);
+        struct ssa_data_constant_node * constant_node = create_ssa_const_node(constant_value, to_evalute->pending_bytecode);
         push_stack_list(&inserter->data_nodes_stack, constant_node);
     } else { //Non constant global variable
         struct ssa_data_get_global_node * get_global_node = ALLOC_SSA_DATA_NODE(
@@ -564,51 +563,6 @@ static void jump_if_false(struct ssa_no_phis_inserter * inserter, struct pending
     push_pending_evaluate(inserter, EVAL_TYPE_CONDITIONAL_JUMP_FALSE_BRANCH_CONTROL, false_branch_bytecode, &cond_jump_node->control);
     push_pending_evaluate(inserter, EVAL_TYPE_CONDITIONAL_JUMP_TRUE_BRANCH_CONTROL, true_branch_bytecode, &cond_jump_node->control);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, cond_jump_node);
-}
-
-static struct ssa_data_constant_node * create_constant_node(lox_value_t constant_value, struct bytecode_list * bytecode) {
-    struct ssa_data_constant_node * constant_node = ALLOC_SSA_DATA_NODE(
-            SSA_DATA_NODE_TYPE_CONSTANT, struct ssa_data_constant_node, bytecode
-    );
-
-    constant_node->constant_lox_value = constant_value;
-
-    switch (get_lox_type(constant_value)) {
-        case VAL_BOOL:
-            constant_node->value_as.boolean = AS_BOOL(constant_value);
-            constant_node->data.produced_type = PROFILE_DATA_TYPE_BOOLEAN;
-            break;
-
-        case VAL_NIL: {
-            constant_node->value_as.nil = NULL;
-            constant_node->data.produced_type = PROFILE_DATA_TYPE_NIL;
-            break;
-        }
-
-        case VAL_NUMBER: {
-            if(has_decimals(AS_NUMBER(constant_value))){
-                constant_node->value_as.f64 = AS_NUMBER(constant_value);
-                constant_node->data.produced_type = PROFILE_DATA_TYPE_F64;
-            } else {
-                constant_node->value_as.i64 = (int64_t) constant_value;
-                constant_node->data.produced_type = PROFILE_DATA_TYPE_I64;
-            }
-            break;
-        }
-
-        case VAL_OBJ: {
-            if(IS_STRING(constant_value)){
-                constant_node->value_as.string = AS_STRING_OBJECT(constant_value);
-                constant_node->data.produced_type = PROFILE_DATA_TYPE_STRING;
-            } else {
-                constant_node->value_as.object = AS_OBJECT(constant_value);
-                constant_node->data.produced_type = PROFILE_DATA_TYPE_OBJECT;
-            }
-            break;
-        }
-    }
-
-    return constant_node;
 }
 
 static void push_pending_evaluate(
