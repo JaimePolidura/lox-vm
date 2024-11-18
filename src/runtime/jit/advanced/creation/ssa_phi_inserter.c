@@ -27,8 +27,7 @@ static struct ssa_phi_inserter * alloc_ssa_phi_inserter();
 static void free_ssa_phi_inserter(struct ssa_phi_inserter *);
 static void extract_get_local(struct ssa_phi_inserter *inserter, struct u8_hash_table *parent_versions,
                               struct ssa_control_node *control_node_to_extract, struct ssa_block *,
-                              uint8_t local_number, struct ssa_data_node * get_local_to_extract,
-                              void ** parent_to_extract_get_local_ptr);
+                              uint8_t local_number, void ** parent_to_extract_get_local_ptr);
 static struct ssa_control_node * get_ssa_definition_node(struct ssa_phi_inserter *, struct ssa_name);
 static void put_version(struct u8_hash_table *, uint8_t local_number, uint8_t version);
 
@@ -184,7 +183,7 @@ static void insert_phis_in_data_node_consumer(
            inside_expression &&
            contains_u8_set(&block->use_before_assigment, local_number)
         ){
-            extract_get_local(inserter, parent_versions, control_node, block, local_number, current_node, parent_current_ptr);
+            extract_get_local(inserter, parent_versions, control_node, block, local_number, parent_current_ptr);
         } else {
             //We are going to replace the OP_GET_LOCAL node with a phi node
             struct ssa_name ssa_name = CREATE_SSA_NAME(get_local->local_number, get_version(parent_versions, get_local->local_number));
@@ -205,6 +204,7 @@ static void insert_phis_in_data_node_consumer(
         struct ssa_data_phi_node * phi_node = (struct ssa_data_phi_node *) current_node;
         uint8_t last_version = get_version(parent_versions, phi_node->local_number);
 
+        //Prevents this issue: i2 = phi(i0, i2) + 1 when inserting phi function in loop bodies
         if(control_node->type == SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME &&
             ((struct ssa_control_define_ssa_name_node *) control_node)->ssa_name.value.version == last_version){
             return;
@@ -278,7 +278,6 @@ static void extract_get_local(
         struct ssa_control_node * control_node_to_extract,
         struct ssa_block * to_extract_block,
         uint8_t local_number,
-        struct ssa_data_node * get_local_to_extract,
         void ** parent_to_extract_get_local_ptr
 ) {
     //a0 in the example, will be a phi node

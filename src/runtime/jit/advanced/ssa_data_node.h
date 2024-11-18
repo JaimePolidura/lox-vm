@@ -27,7 +27,6 @@ typedef enum {
     //Only used when inserting phi functions in the graph ir creation process.
     //It will replace all the nodes with type SSA_DATA_NODE_TYPE_GET_LOCAL in the phi insertion proceess
     SSA_DATA_NODE_TYPE_PHI,
-    //TODO Document
     SSA_DATA_NODE_TYPE_GET_SSA_NAME,
 } ssa_data_node_type;
 

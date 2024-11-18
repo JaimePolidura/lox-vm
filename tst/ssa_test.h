@@ -19,6 +19,10 @@ extern void insert_ssa_ir_phis(
         struct ssa_block * start_block
 );
 
+extern void optimize_ssa_ir_phis(
+        struct ssa_block * start_block
+);
+
 static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expected_versions, ...);
 static bool node_defines_ssa_name(struct ssa_control_node *, int version);
 
@@ -70,6 +74,7 @@ TEST(ssa_phis_inserter){
     struct ssa_control_node * start_ssa_ir = create_ssa_ir_no_phis(package, function_ssa, create_bytecode_list(function_ssa->chunk));
     struct ssa_block * start_ssa_block = create_ssa_ir_blocks(start_ssa_ir);
     insert_ssa_ir_phis(start_ssa_block);
+    optimize_ssa_ir_phis(start_ssa_block);
     start_ssa_block = start_ssa_block->next.next;
 
     ASSERT_TRUE(node_defines_ssa_name(start_ssa_block->first, 1)); //a1 = 1;
@@ -309,6 +314,7 @@ static bool node_defines_ssa_name(struct ssa_control_node * node, int version) {
 
 static void int_array_to_set(struct u64_set *, int n_array_elements, int array[n_array_elements]);
 
+//Expect simple expressions, that will contain as much as 1 variable reference
 static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expected_versions, ...) {
     int expected_versions[n_expected_versions];
     VARARGS_TO_ARRAY(int, expected_versions, n_expected_versions);
@@ -338,6 +344,10 @@ static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expe
                 }
 
                 return true;
+            }
+            case SSA_DATA_NODE_TYPE_GET_SSA_NAME: {
+                struct ssa_data_get_ssa_name_node * get_ssa_name = (struct ssa_data_get_ssa_name_node *) current;
+                return contains_u64_set(&expected_versions_set, get_ssa_name->ssa_name.value.version);
             }
             case SSA_DATA_NODE_TYPE_BINARY: {
                 struct ssa_data_binary_node * binary_node = (struct ssa_data_binary_node *) current;
