@@ -18,7 +18,7 @@ static void insert_phis_in_block(struct ssa_phi_inserter *, struct ssa_block *bl
 static void insert_ssa_versions_in_control_node(struct ssa_phi_inserter *, struct ssa_block *, struct ssa_control_node * control_node, struct u8_hash_table * parent_versions);
 static uint8_t allocate_new_version(struct u8_hash_table * max_version_allocated_per_local, uint8_t local_number);
 static int get_version(struct u8_hash_table * parent_versions, uint8_t local_number);
-static struct ssa_phi_inserter * alloc_ssa_phi_inserter();
+static void init_ssa_phi_inserter(struct ssa_phi_inserter *);
 static void free_ssa_phi_inserter(struct ssa_phi_inserter *);
 static void extract_get_local(struct ssa_phi_inserter *inserter, struct u8_hash_table *parent_versions,
                               struct ssa_control_node *control_node_to_extract, struct ssa_block *,
@@ -36,36 +36,37 @@ static void insert_phis_in_data_node_consumer(
 struct phi_insertion_result insert_ssa_ir_phis(
         struct ssa_block * start_block
 ) {
-    struct ssa_phi_inserter * inserter = alloc_ssa_phi_inserter();
+    struct ssa_phi_inserter inserter;
+    init_ssa_phi_inserter(&inserter);
 
-    push_pending_evaluate(inserter, start_block, alloc_u8_hash_table());
+    push_pending_evaluate(&inserter, start_block, alloc_u8_hash_table());
 
-    while(!is_empty_stack_list(&inserter->pending_evaluate)) {
-        struct pending_evaluate * pending_evaluate = pop_stack_list(&inserter->pending_evaluate);
+    while(!is_empty_stack_list(&inserter.pending_evaluate)) {
+        struct pending_evaluate * pending_evaluate = pop_stack_list(&inserter.pending_evaluate);
         struct ssa_block * block_to_evaluate = pending_evaluate->pending_block_to_evaluate;
         struct u8_hash_table * parent_versions = pending_evaluate->parent_versions;
         free(pending_evaluate);
 
-        insert_phis_in_block(inserter, block_to_evaluate, parent_versions);
+        insert_phis_in_block(&inserter, block_to_evaluate, parent_versions);
 
         switch (block_to_evaluate->type_next_ssa_block) {
             case TYPE_NEXT_SSA_BLOCK_SEQ:
-                push_pending_evaluate(inserter, block_to_evaluate->next_as.next, parent_versions);
+                push_pending_evaluate(&inserter, block_to_evaluate->next_as.next, parent_versions);
                 break;
             case TYPE_NEXT_SSA_BLOCK_LOOP:
                 struct ssa_block * to_jump_loop_block = block_to_evaluate->next_as.loop;
-                if(!contains_u64_set(&inserter->loops_evaluted, (uint64_t) to_jump_loop_block)){
-                    push_pending_evaluate(inserter, to_jump_loop_block, parent_versions);
-                    add_u64_set(&inserter->loops_evaluted, (uint64_t) to_jump_loop_block);
+                if(!contains_u64_set(&inserter.loops_evaluted, (uint64_t) to_jump_loop_block)){
+                    push_pending_evaluate(&inserter, to_jump_loop_block, parent_versions);
+                    add_u64_set(&inserter.loops_evaluted, (uint64_t) to_jump_loop_block);
                 } else {
                     //OP_LOOP always points to the loop condition
                     //If an assigment have ocurred inside the loop body, we will need to propagate outside the loop
-                    push_pending_evaluate(inserter, to_jump_loop_block->next_as.branch.false_branch, parent_versions);
+                    push_pending_evaluate(&inserter, to_jump_loop_block->next_as.branch.false_branch, parent_versions);
                 }
                 break;
             case TYPE_NEXT_SSA_BLOCK_BRANCH:
-                push_pending_evaluate(inserter, block_to_evaluate->next_as.branch.false_branch, clone_u8_hash_table(parent_versions));
-                push_pending_evaluate(inserter, block_to_evaluate->next_as.branch.true_branch, parent_versions);
+                push_pending_evaluate(&inserter, block_to_evaluate->next_as.branch.false_branch, clone_u8_hash_table(parent_versions));
+                push_pending_evaluate(&inserter, block_to_evaluate->next_as.branch.true_branch, parent_versions);
                 break;
             case TYPE_NEXT_SSA_BLOCK_NONE:
                 free(parent_versions);
@@ -73,10 +74,11 @@ struct phi_insertion_result insert_ssa_ir_phis(
         }
     }
 
-    free_ssa_phi_inserter(inserter);
+    free_ssa_phi_inserter(&inserter);
 
     return (struct phi_insertion_result) {
-        .ssa_definitions_by_ssa_name = inserter->ssa_definitions_by_ssa_name,
+        .max_version_allocated_per_local = inserter.max_version_allocated_per_local,
+        .ssa_definitions_by_ssa_name = inserter.ssa_definitions_by_ssa_name,
     };
 }
 
@@ -254,19 +256,16 @@ static void push_pending_evaluate(
     push_stack_list(&inserter->pending_evaluate, pending_evaluate);
 }
 
-static struct ssa_phi_inserter * alloc_ssa_phi_inserter() {
-    struct ssa_phi_inserter * inserter = malloc(sizeof(struct ssa_phi_inserter));
-    init_u8_hash_table(&inserter->max_version_allocated_per_local);
-    init_u64_hash_table(&inserter->ssa_definitions_by_ssa_name);
-    init_stack_list(&inserter->pending_evaluate);
-    init_u64_set(&inserter->loops_evaluted);
-    return inserter;
+static void init_ssa_phi_inserter(struct ssa_phi_inserter * ssa_phi_inserter) {
+    init_u8_hash_table(&ssa_phi_inserter->max_version_allocated_per_local);
+    init_u64_hash_table(&ssa_phi_inserter->ssa_definitions_by_ssa_name);
+    init_stack_list(&ssa_phi_inserter->pending_evaluate);
+    init_u64_set(&ssa_phi_inserter->loops_evaluted);
 }
 
 static void free_ssa_phi_inserter(struct ssa_phi_inserter * inserter) {
     free_stack_list(&inserter->pending_evaluate);
     free_u64_set(&inserter->loops_evaluted);
-    free(inserter);
 }
 
 //a = a + 1; will be replaced: a1 = phi(a0); a2 = phi(a1) + 1;

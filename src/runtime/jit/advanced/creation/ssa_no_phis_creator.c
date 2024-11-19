@@ -379,7 +379,7 @@ static void set_local(struct ssa_no_phis_inserter * inserter, struct pending_eva
 
     calculate_and_put_use_before_assigment(to_evaluate->block, inserter);
     map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, new_local_value, &set_local_node->control);
-    append_control_node_ssa_block(to_evaluate->block, &set_local_node->control);
+    add_last_control_node_ssa_block(to_evaluate->block, &set_local_node->control);
     push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, &set_local_node->control, to_evaluate->block);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evaluate->pending_bytecode, set_local_node);
 }
@@ -390,7 +390,7 @@ static void print(struct ssa_no_phis_inserter * inserter, struct pending_evaluat
     print_node->data = print_value;
 
     map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, print_value, &print_node->control);
-    append_control_node_ssa_block(to_evaluate->block, &print_node->control);
+    add_last_control_node_ssa_block(to_evaluate->block, &print_node->control);
     push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, &print_node->control, to_evaluate->block);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evaluate->pending_bytecode, print_node);
 }
@@ -404,7 +404,7 @@ static void return_opcode(struct ssa_no_phis_inserter * inserter, struct pending
     to_evalute->block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_NONE;
 
     map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, return_value, &return_node->control);
-    append_control_node_ssa_block(to_evalute->block, &return_node->control);
+    add_last_control_node_ssa_block(to_evalute->block, &return_node->control);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, return_node);
 }
 
@@ -421,7 +421,7 @@ static void enter_monitor_opcode(
 
     enter_monitor_node->monitor = monitor;
 
-    append_control_node_ssa_block(to_evaluate->block, &enter_monitor_node->control);
+    add_last_control_node_ssa_block(to_evaluate->block, &enter_monitor_node->control);
     push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, &enter_monitor_node->control, to_evaluate->block);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evaluate->pending_bytecode, enter_monitor_node);
 }
@@ -434,7 +434,7 @@ static void enter_monitor_explicit(struct ssa_no_phis_inserter * inserter, struc
 
     enter_monitor_node->monitor = monitor;
 
-    append_control_node_ssa_block(to_evalute->block, &enter_monitor_node->control);
+    add_last_control_node_ssa_block(to_evalute->block, &enter_monitor_node->control);
     push_pending_evaluate(inserter, to_evalute->pending_bytecode->next, &enter_monitor_node->control, to_evalute->block);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, enter_monitor_node);
 }
@@ -452,7 +452,7 @@ static void exit_monitor_opcode(
 
     exit_monitor_node->monitor = monitor;
 
-    append_control_node_ssa_block(to_evalute->block, &exit_monitor_node->control);
+    add_last_control_node_ssa_block(to_evalute->block, &exit_monitor_node->control);
     push_pending_evaluate(inserter, to_evalute->pending_bytecode->next, &exit_monitor_node->control, to_evalute->block);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, exit_monitor_node);
 }
@@ -465,7 +465,7 @@ static void exit_monitor_explicit(struct ssa_no_phis_inserter * inserter, struct
 
     exit_monitor_node->monitor = monitor;
 
-    append_control_node_ssa_block(to_evalute->block, &exit_monitor_node->control);
+    add_last_control_node_ssa_block(to_evalute->block, &exit_monitor_node->control);
     push_pending_evaluate(inserter, to_evalute->pending_bytecode->next, &exit_monitor_node->control, to_evalute->block);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, exit_monitor_node);
 }
@@ -483,7 +483,7 @@ static void set_global(
     set_global_node->value_node = pop_stack_list(&inserter->data_nodes_stack);
     set_global_node->package = peek_stack_list(&inserter->package_stack);
 
-    append_control_node_ssa_block(to_evaluate->block, &set_global_node->control);
+    add_last_control_node_ssa_block(to_evaluate->block, &set_global_node->control);
     push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, &set_global_node->control, to_evaluate->block);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evaluate->pending_bytecode, set_global_node);
 }
@@ -505,7 +505,7 @@ static void set_struct_field(
 
     map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, field_value, &set_struct_field->control);
     map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, instance, &set_struct_field->control);
-    append_control_node_ssa_block(to_evalute->block, &set_struct_field->control);
+    add_last_control_node_ssa_block(to_evalute->block, &set_struct_field->control);
     push_pending_evaluate(inserter, to_evalute->pending_bytecode->next, &set_struct_field->control, to_evalute->block);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, set_struct_field);
 }
@@ -523,7 +523,7 @@ static void set_array_element(struct ssa_no_phis_inserter * inserter, struct pen
 
     map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, instance, &set_arrary_element_node->control);
     map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, new_element, &set_arrary_element_node->control);
-    append_control_node_ssa_block(to_evalute->block, &set_arrary_element_node->control);
+    add_last_control_node_ssa_block(to_evalute->block, &set_arrary_element_node->control);
     push_pending_evaluate(inserter, to_evalute->pending_bytecode->next, &set_arrary_element_node->control, to_evalute->block);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, set_arrary_element_node);
 }
@@ -537,7 +537,7 @@ static void pop(struct ssa_no_phis_inserter * inserter, struct pending_evaluate 
         control_data_node->data = data_node;
 
         map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, data_node, &control_data_node->control);
-        append_control_node_ssa_block(to_evalute->block, &control_data_node->control);
+        add_last_control_node_ssa_block(to_evalute->block, &control_data_node->control);
         push_pending_evaluate(inserter, to_evalute->pending_bytecode->next, &control_data_node->control, to_evalute->block);
         put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, control_data_node);
     }
@@ -559,7 +559,7 @@ static void loop(struct ssa_no_phis_inserter * inserter, struct pending_evaluate
 
     clear_u8_set(&inserter->current_block_local_usage.assigned);
     clear_u8_set(&inserter->current_block_local_usage.used);
-    append_control_node_ssa_block(to_evalute->block, &loop_jump_node->control);
+    add_last_control_node_ssa_block(to_evalute->block, &loop_jump_node->control);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, loop_jump_node);
 }
 
@@ -601,13 +601,13 @@ static void jump_if_false(struct ssa_no_phis_inserter * inserter, struct pending
         condition_block->next_as.branch.false_branch = false_branch_block;
         true_branch_block->loop_body = true;
 
-        append_control_node_ssa_block(condition_block, &cond_jump_node->control);
+        add_last_control_node_ssa_block(condition_block, &cond_jump_node->control);
     } else {
         parent_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_BRANCH;
         parent_block->next_as.branch.false_branch = false_branch_block;
         parent_block->next_as.branch.true_branch = true_branch_block;
 
-        append_control_node_ssa_block(parent_block, &cond_jump_node->control);
+        add_last_control_node_ssa_block(parent_block, &cond_jump_node->control);
     }
 
     clear_u8_set(&inserter->current_block_local_usage.assigned);

@@ -36,7 +36,7 @@ type_next_ssa_block_t get_type_next_ssa_block(struct ssa_control_node * node) {
     }
 }
 
-void append_control_node_ssa_block(struct ssa_block * block, struct ssa_control_node * node) {
+void add_last_control_node_ssa_block(struct ssa_block * block, struct ssa_control_node * node) {
     if(block->first == NULL){
         block->first = node;
     }
@@ -46,4 +46,23 @@ void append_control_node_ssa_block(struct ssa_block * block, struct ssa_control_
     }
 
     block->last = node;
+}
+
+
+void add_before_control_node_ssa_block(
+        struct ssa_block * block,
+        struct ssa_control_node * before,
+        struct ssa_control_node * new
+) {
+    if(block->first == before){
+        block->first = new;
+    }
+
+    if(before->prev != NULL){
+        new->prev = before->prev;
+        before->prev->next = new;
+    }
+
+    new->next = before;
+    before->prev = new;
 }

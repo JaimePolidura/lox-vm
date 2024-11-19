@@ -10,6 +10,7 @@
 struct phi_insertion_result {
     //Key: struct ssa_name, value: ssa_control_node
     struct u64_hash_table ssa_definitions_by_ssa_name;
+    struct u8_hash_table max_version_allocated_per_local;
 };
 
 //Inserts phi functions. Replaces nodes ssa_control_set_local_node with ssa_control_define_ssa_name_node and

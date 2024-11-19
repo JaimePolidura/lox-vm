@@ -1,6 +1,7 @@
 #pragma once
 
 #include "runtime/jit/advanced/creation/ssa_phi_inserter.h"
+#include "runtime/jit/advanced/creation/ssa_creator.h"
 #include "shared/utils/collections/u8_set.h"
 #include "runtime/jit/advanced/ssa_block.h"
 #include "compiler/compiler.h"
@@ -13,7 +14,8 @@ extern struct ssa_block * create_ssa_ir_no_phis(
 );
 
 extern void optimize_ssa_ir_phis(
-        struct ssa_block * start_block
+        struct ssa_block * start_block,
+        struct phi_insertion_result phi_insertion_result
 );
 
 static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expected_versions, ...);
@@ -53,9 +55,7 @@ TEST(ssa_phis_inserter){
     struct function_object * function_ssa = get_function_package(package, "function_ssa");
     int n_instructions = function_ssa->chunk->in_use;
     init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
-    struct ssa_block * start_ssa_block = create_ssa_ir_no_phis(package, function_ssa, create_bytecode_list(function_ssa->chunk));
-    insert_ssa_ir_phis(start_ssa_block);
-    optimize_ssa_ir_phis(start_ssa_block);
+    struct ssa_block * start_ssa_block = create_ssa_ir(package, function_ssa, create_bytecode_list(function_ssa->chunk));
 
     ASSERT_TRUE(node_defines_ssa_name(start_ssa_block->first, 1)); //a1 = 1;
     //a1 > 0
