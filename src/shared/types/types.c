@@ -2,6 +2,7 @@
 #include "string_object.h"
 
 extern void * alloc_gc_vm_info_alg();
+extern void runtime_panic(char * format, ...);
 
 bool cast_to_boolean(lox_value_t value) {
 #ifdef NAN_BOXING
@@ -58,8 +59,8 @@ char * to_string(lox_value_t value) {
             }
     };
 #endif
-    perror("Cannot parse to string");
-    exit(-1);
+    runtime_panic("Cannot parse to string");
+    return NULL;
 }
 
 lox_value_type get_lox_type(lox_value_t lox_value) {

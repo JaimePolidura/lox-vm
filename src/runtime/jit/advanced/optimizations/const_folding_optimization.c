@@ -23,6 +23,9 @@ struct const_folding_optimizer {
     struct u64_hash_table semilattice_type_by_ssa_name;
 };
 
+extern lox_value_t addition_lox(lox_value_t a, lox_value_t b);
+extern void runtime_panic(char * format, ...);
+
 static void initialization(struct const_folding_optimizer * optimizer);
 static void propagation(struct const_folding_optimizer * optimizer);
 
@@ -30,7 +33,6 @@ static struct semilattice_value get_semilattice_from_data(struct ssa_data_node *
 struct const_folding_optimizer * alloc_struct_const_folding_optimizer(struct phi_insertion_result);
 static struct semilattice_value calculate_unary(struct semilattice_value, ssa_unary_operator_type_t operator);
 static struct semilattice_value calculate_binary(struct semilattice_value, struct semilattice_value, bytecode_t operator);
-extern lox_value_t addition_lox(lox_value_t a, lox_value_t b);
 static lox_value_type calculate_binary_lox(lox_value_t, lox_value_t, bytecode_t operator);
 static void rewrite_graph_as_constant(struct ssa_data_node * old_node, struct ssa_data_node ** parent_ptr, lox_value_t constant);
 
@@ -129,8 +131,7 @@ static struct semilattice_value get_semilattice_from_data(
         }
         case SSA_DATA_NODE_TYPE_GET_LOCAL:
         default:
-            //Not possible
-            exit(-1);
+            runtime_panic("Unhandled ssa data node type %i in get_semilattice_from_data() in const_folding_optimization.c", current_data_node->type);
     }
 }
 
@@ -172,7 +173,7 @@ static struct semilattice_value calculate_unary(struct semilattice_value operand
                     return CREATE_CONSTANT_SEMILATTICE(not_value);
                 }
                 default:
-                    exit(-1);
+                    runtime_panic("Unhandled unary operator type %i in calculate_unary() in const_folding_optimization.c", operand_value.type);
             }
     }
 }
@@ -186,7 +187,7 @@ static lox_value_type calculate_binary_lox(lox_value_t left, lox_value_t right, 
         case OP_GREATER: return TO_LOX_VALUE_BOOL(AS_NUMBER(left) > AS_NUMBER(right));
         case OP_LESS: return TO_LOX_VALUE_BOOL(AS_NUMBER(left) < AS_NUMBER(right));
         case OP_EQUAL: return TO_LOX_VALUE_BOOL(left == right);
-        default: exit(-1);
+        default: runtime_panic("Unhandled binary operator %i in calculate_binary_lox() in const_folding_optimization.c", operator);
     }
 }
 

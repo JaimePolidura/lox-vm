@@ -5,6 +5,7 @@ static void restore_jump_references(struct bytecode_list * referencee, struct by
 static void check_pending_jumps_to_resolve(struct pending_jumps_to_resolve * pending_jumps, int current_bytecode_index,
                                            struct bytecode_list * current_node);
 static void calculate_to_chunk_index(struct bytecode_list * head);
+extern void runtime_panic(char * format, ...);
 
 struct bytecode_list * create_instruction_bytecode_list(bytecode_t bytecode) {
     struct bytecode_list * bytecode_list = alloc_bytecode_list();
@@ -241,7 +242,6 @@ struct bytecode_list * create_bytecode_list(struct chunk * chunk) {
                 break;
             }
             default:
-                exit(-1);
         }
     }
 

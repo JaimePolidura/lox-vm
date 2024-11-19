@@ -26,6 +26,7 @@ static void disassemble_function(struct function_object * function, long options
 static void disassemble_package_functions(struct package * package, long options);
 
 extern struct trie_list * compiled_packages;
+extern void runtime_panic(char * format, ...);
 
 static bool foreach_package_disassemble_package(void * pacakge_ptr, void * extra) {
     struct package * package = ((struct trie_node *) pacakge_ptr)->data;
@@ -82,7 +83,8 @@ void disassemble_function(struct function_object * function, long options) {
     while(has_next_chunk_iterator(&iterator)){
         printf("%4llX:\t", iterator.pc - function->chunk->code);
 
-        switch (next_instruction_chunk_iterator(&iterator)) {
+        bytecode_t current_bytecode = next_instruction_chunk_iterator(&iterator);
+        switch (current_bytecode) {
             case OP_RETURN: SINGLE_INSTRUCTION("OP_RETURN"); break;
             case OP_CONSTANT: BINARY_U8_INSTRUCTION("OP_CONSTANT", iterator); break;
             case OP_NEGATE: SINGLE_INSTRUCTION("OP_NEGATE"); break;
@@ -150,8 +152,7 @@ void disassemble_function(struct function_object * function, long options) {
             case OP_ENTER_MONITOR_EXPLICIT: BINARY_U64_INSTRUCTION("OP_ENTER_MONITOR_EXPLICIT", iterator); break;
             case OP_EXIT_MONITOR_EXPLICIT: BINARY_U64_INSTRUCTION("OP_EXIT_MONITOR_EXPLICIT", iterator); break;
             default:
-                perror("Unhandled pending_bytecode op\n");
-                exit(-1);
+                runtime_panic("Unhandled bytecode %i in disassemble_function() in chunk_disassembler.c", current_bytecode);
         }
     }
 }

@@ -2,6 +2,7 @@
 
 static struct u64_hash_table_entry * find_u64_hash_table_entry(struct u64_hash_table_entry * entries, int capacity, uint64_t key);
 static void grow_u64_hash_table(struct u64_hash_table *);
+extern void runtime_panic(char * format, ...);
 
 void init_u64_hash_table(struct u64_hash_table * u64_hash_table) {
     u64_hash_table->size = 0;
@@ -100,6 +101,6 @@ struct u64_hash_table_entry next_u64_hash_table_iterator(struct u64_hash_table_i
         }
     }
 
-    //Unreachable code
-    exit(-1);
+    runtime_panic("Illegal state of u64_hash_table_iterator. Expect call to has_next() before call to next()");
+    exit(1);
 }
