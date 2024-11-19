@@ -30,6 +30,9 @@ struct bytecode_list {
     struct bytecode_list * next;
     struct bytecode_list * prev;
 
+    //Every OP_LOOP will point to a OP_JUMP_IF_FALSE
+    bool loop_condition;
+
     //Orignal pending_bytecode index to chunk
     int original_chunk_index;
 

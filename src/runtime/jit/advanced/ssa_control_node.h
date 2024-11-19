@@ -30,15 +30,7 @@ struct ssa_control_node {
     bool jumps_to_next_node;
 
     struct ssa_control_node * prev;
-
-    union {
-        struct ssa_control_node * next;
-        struct {
-            struct ssa_control_node * true_branch;
-            //If the "if" statement does not contain any else statement, this will be NULL
-            struct ssa_control_node * false_branch;
-        } branch;
-    } next;
+    struct ssa_control_node * next;
 };
 
 void for_each_data_node_in_control_node(struct ssa_control_node *, void *, ssa_data_node_consumer_t);

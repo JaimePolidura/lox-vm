@@ -170,5 +170,5 @@ struct ssa_data_phi_node {
 struct ssa_data_get_ssa_name_node {
     struct ssa_data_node data;
     struct ssa_name ssa_name;
-    void * definition_node;
+    void * definition_node; //If null, the ssa name is a function parameter
 };

@@ -12,4 +12,6 @@ struct phi_insertion_result {
     struct u64_hash_table ssa_definitions_by_ssa_name;
 };
 
+//Inserts phi functions. Replaces nodes ssa_control_set_local_node with ssa_control_define_ssa_name_node and
+//ssa_data_get_local_node with ssa_data_phi_node. These phase will add innecesary phi functions like: a1 = phi(a0)
 struct phi_insertion_result insert_ssa_ir_phis(struct ssa_block * start_block);

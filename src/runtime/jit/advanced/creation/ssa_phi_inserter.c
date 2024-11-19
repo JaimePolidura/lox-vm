@@ -89,6 +89,7 @@ static struct ssa_control_node * get_ssa_definition_node(struct ssa_phi_inserter
         struct ssa_data_get_ssa_name_node * get_function_parameter = ALLOC_SSA_DATA_NODE(
                 SSA_DATA_NODE_TYPE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL
         );
+        get_function_parameter->definition_node = NULL;
         get_function_parameter->ssa_name = ssa_name;
         struct ssa_control_define_ssa_name_node * define_function_parameter = ALLOC_SSA_CONTROL_NODE(
                 SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME, struct ssa_control_define_ssa_name_node
@@ -109,7 +110,7 @@ static void insert_phis_in_block(
         struct ssa_block * block,
         struct u8_hash_table * parent_versions
 ) {
-    for(struct ssa_control_node * current = block->first;; current = current->next.next){
+    for(struct ssa_control_node * current = block->first;; current = current->next->next){
         insert_ssa_versions_in_control_node(inserter, block, current, parent_versions);
 
         if(current == block->last){
@@ -305,9 +306,9 @@ static void extract_get_local(
     *parent_to_extract_get_local_ptr = &new_get_local->data;
 
     //Insert the new node in the linkedlist of ssa_control_nodes
-    extracted_set_local->control.next.next = control_node_to_extract;
+    extracted_set_local->control.next->next = control_node_to_extract;
     extracted_set_local->control.prev = control_node_to_extract->prev;
-    control_node_to_extract->prev->next.next = &extracted_set_local->control;
+    control_node_to_extract->prev->next->next = &extracted_set_local->control;
     control_node_to_extract->prev = &extracted_set_local->control;
     if(to_extract_block->first == control_node_to_extract){
         to_extract_block->first = &extracted_set_local->control;

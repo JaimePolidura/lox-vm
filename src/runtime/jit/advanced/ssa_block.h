@@ -39,5 +39,6 @@ struct ssa_block {
 
 struct ssa_block * alloc_ssa_block();
 void init_ssa_block(struct ssa_block *);
+void append_control_node_ssa_block(struct ssa_block *, struct ssa_control_node *);
 
 type_next_ssa_block_t get_type_next_ssa_block(struct ssa_control_node *);

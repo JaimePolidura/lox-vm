@@ -1,5 +1,4 @@
-#include "runtime/jit/jit_compilation_result.h"
-#include "runtime/jit/advanced/ssa_control_node.h"
+#include "runtime/jit/advanced/ssa_block.h"
 #include "runtime/jit/advanced/utils/types.h"
 
 #include "compiler/bytecode/bytecode_list.h"
@@ -14,35 +13,31 @@
 //without phis
 #define READ_CONSTANT(function, bytecode) (function->chunk->constants.values[bytecode->as.u8])
 
-typedef enum {
-    EVAL_TYPE_SEQUENTIAL_CONTROL,
-    EVAL_TYPE_JUMP_SEQUENTIAL_CONTROL,
-    EVAL_TYPE_CONDITIONAL_JUMP_TRUE_BRANCH_CONTROL,
-    EVAL_TYPE_CONDITIONAL_JUMP_FALSE_BRANCH_CONTROL,
-} pending_evaluation_type_t;
-
 struct pending_evaluate {
     struct bytecode_list * pending_bytecode;
-    struct ssa_control_node * parent_ssa_node;
-    pending_evaluation_type_t type;
+    struct ssa_control_node * prev_control_node;
+    struct ssa_block * block;
 };
 
 
 struct ssa_no_phis_inserter {
     struct u64_hash_table control_nodes_by_bytecode;
+    struct u64_hash_table blocks_by_first_bytecode;
     struct stack_list pending_evaluation;
     struct stack_list data_nodes_stack;
     struct stack_list package_stack;
 };
 
-static void push_pending_evaluate(struct ssa_no_phis_inserter *, pending_evaluation_type_t, struct bytecode_list *, struct ssa_control_node *);
-static void attatch_ssa_node_to_parent(pending_evaluation_type_t type, struct ssa_control_node * parent, struct ssa_control_node * child);
+static void push_pending_evaluate(
+        struct ssa_no_phis_inserter *, struct bytecode_list *, struct ssa_control_node *, struct ssa_block *
+);
 static struct bytecode_list * simplify_redundant_unconditional_jump_bytecodes(struct bytecode_list *bytecode_list);
 static void map_data_nodes_bytecodes_to_control(
         struct u64_hash_table * control_ssa_nodes_by_bytecode,
         struct ssa_data_node * data_node,
         struct ssa_control_node * to_map_control
 );
+static struct ssa_block * get_block_by_first_bytecode(struct ssa_no_phis_inserter *, struct bytecode_list *);
 static struct ssa_no_phis_inserter * alloc_ssa_no_phis_inserter();
 static void free_ssa_no_phis_inserter(struct ssa_no_phis_inserter *);
 static void jump_if_false(struct ssa_no_phis_inserter *, struct pending_evaluate *);
@@ -69,7 +64,9 @@ static void get_array_element(struct ssa_no_phis_inserter *, struct pending_eval
 static void unary(struct ssa_no_phis_inserter *, struct pending_evaluate *);
 static void binary(struct ssa_no_phis_inserter *, struct pending_evaluate *);
 
-struct ssa_control_node * create_ssa_ir_no_phis(
+//Creates the ssa ir, without phi functions. OP_GET_LOCAL and OP_SET_LOCAL are represented with
+//ssa_control_set_local_node and ssa_data_get_local_node.
+struct ssa_block * create_ssa_ir_no_phis(
         struct package * package,
         struct function_object * function,
         struct bytecode_list * start_function_bytecode
@@ -79,7 +76,8 @@ struct ssa_control_node * create_ssa_ir_no_phis(
     push_stack_list(&inserter->package_stack, package);
 
     struct ssa_control_start_node * start_node = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_TYPE_START, struct ssa_control_start_node);
-    push_pending_evaluate(inserter, EVAL_TYPE_SEQUENTIAL_CONTROL, start_function_bytecode, &start_node->control);
+    struct ssa_block * first_block = get_block_by_first_bytecode(inserter, start_function_bytecode);
+    push_pending_evaluate(inserter, start_function_bytecode, &start_node->control, first_block);
 
     while (!is_empty_stack_list(&inserter->pending_evaluation)) {
         struct pending_evaluate * to_evaluate = pop_stack_list(&inserter->pending_evaluation);
@@ -87,7 +85,7 @@ struct ssa_control_node * create_ssa_ir_no_phis(
         if (contains_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evaluate->pending_bytecode)) {
             struct ssa_control_node * already_evaluted_node = get_u64_hash_table(&inserter->control_nodes_by_bytecode,
                     (uint64_t) to_evaluate->pending_bytecode);
-            attatch_ssa_node_to_parent(to_evaluate->type, to_evaluate->parent_ssa_node, already_evaluted_node);
+            append_control_node_ssa_block(to_evaluate->block, already_evaluted_node);
             continue;
         }
 
@@ -126,42 +124,42 @@ struct ssa_control_node * create_ssa_ir_no_phis(
             case OP_EQUAL: binary(inserter, to_evaluate); break;
             case OP_CONSTANT: {
                 push_stack_list(&inserter->data_nodes_stack, create_ssa_const_node(READ_CONSTANT(function, to_evaluate->pending_bytecode), to_evaluate->pending_bytecode));
-                push_pending_evaluate(inserter, to_evaluate->type, to_evaluate->pending_bytecode->next, to_evaluate->parent_ssa_node);
+                push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
                 break;
             }
             case OP_FALSE: {
                 push_stack_list(&inserter->data_nodes_stack, create_ssa_const_node(TAG_FALSE, to_evaluate->pending_bytecode));
-                push_pending_evaluate(inserter, to_evaluate->type, to_evaluate->pending_bytecode->next, to_evaluate->parent_ssa_node);
+                push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
                 break;
             }
             case OP_TRUE: {
                 push_stack_list(&inserter->data_nodes_stack, create_ssa_const_node(TAG_TRUE, to_evaluate->pending_bytecode));
-                push_pending_evaluate(inserter, to_evaluate->type, to_evaluate->pending_bytecode->next, to_evaluate->parent_ssa_node);
+                push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
                 break;
             }
             case OP_NIL: {
                 push_stack_list(&inserter->data_nodes_stack, create_ssa_const_node(TAG_NIL, to_evaluate->pending_bytecode));
-                push_pending_evaluate(inserter, to_evaluate->type, to_evaluate->pending_bytecode->next, to_evaluate->parent_ssa_node);
+                push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
                 break;
             }
             case OP_FAST_CONST_8: {
                 push_stack_list(&inserter->data_nodes_stack, create_ssa_const_node(AS_NUMBER(to_evaluate->pending_bytecode->as.u8), to_evaluate->pending_bytecode));
-                push_pending_evaluate(inserter, to_evaluate->type, to_evaluate->pending_bytecode->next, to_evaluate->parent_ssa_node);
+                push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
                 break;
             }
             case OP_FAST_CONST_16: {
                 push_stack_list(&inserter->data_nodes_stack, create_ssa_const_node(AS_NUMBER(to_evaluate->pending_bytecode->as.u16), to_evaluate->pending_bytecode));
-                push_pending_evaluate(inserter, to_evaluate->type, to_evaluate->pending_bytecode->next, to_evaluate->parent_ssa_node);
+                push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
                 break;
             }
             case OP_CONST_1: {
                 push_stack_list(&inserter->data_nodes_stack, create_ssa_const_node(AS_NUMBER(1), to_evaluate->pending_bytecode));
-                push_pending_evaluate(inserter, to_evaluate->type, to_evaluate->pending_bytecode->next, to_evaluate->parent_ssa_node);
+                push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
                 break;
             }
             case OP_CONST_2: {
                 push_stack_list(&inserter->data_nodes_stack, create_ssa_const_node(AS_NUMBER(2), to_evaluate->pending_bytecode));
-                push_pending_evaluate(inserter, to_evaluate->type, to_evaluate->pending_bytecode->next, to_evaluate->parent_ssa_node);
+                push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
                 break;
             }
             case OP_PACKAGE_CONST: {
@@ -169,7 +167,7 @@ struct ssa_control_node * create_ssa_ir_no_phis(
                 struct package_object * package_const = (struct package_object *) AS_OBJECT(package_lox_value);
 
                 push_stack_list(&inserter->package_stack, package_const->package);
-                push_pending_evaluate(inserter, to_evaluate->type, to_evaluate->pending_bytecode->next, to_evaluate->parent_ssa_node);
+                push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
                 break;
             }
             case OP_ENTER_PACKAGE: break;
@@ -188,7 +186,7 @@ struct ssa_control_node * create_ssa_ir_no_phis(
 
     free_ssa_no_phis_inserter(inserter);
 
-    return &start_node->control;
+    return first_block;
 }
 
 static void binary(struct ssa_no_phis_inserter * inserter, struct pending_evaluate * to_evaluate) {
@@ -203,7 +201,7 @@ static void binary(struct ssa_no_phis_inserter * inserter, struct pending_evalua
     binaryt_node->left = left;
 
     push_stack_list(&inserter->data_nodes_stack, binaryt_node);
-    push_pending_evaluate(inserter, to_evaluate->type, to_evaluate->pending_bytecode->next, to_evaluate->parent_ssa_node);
+    push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
 }
 
 static void unary(struct ssa_no_phis_inserter * inserter, struct pending_evaluate * to_evaluate) {
@@ -215,35 +213,35 @@ static void unary(struct ssa_no_phis_inserter * inserter, struct pending_evaluat
     unary_node->data.produced_type = unary_node->operand->produced_type;
 
     push_stack_list(&inserter->data_nodes_stack, unary_node);
-    push_pending_evaluate(inserter, to_evaluate->type, to_evaluate->pending_bytecode->next, to_evaluate->parent_ssa_node);
+    push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
 }
 
-static void get_array_element(struct ssa_no_phis_inserter * inserter, struct pending_evaluate * to_evalute) {
+static void get_array_element(struct ssa_no_phis_inserter * inserter, struct pending_evaluate * to_evaluate) {
     struct ssa_data_get_array_element_node * get_array_element_node = ALLOC_SSA_DATA_NODE(
-            SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT, struct ssa_data_get_array_element_node, to_evalute->pending_bytecode
+            SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT, struct ssa_data_get_array_element_node, to_evaluate->pending_bytecode
     );
     get_array_element_node->instance = pop_stack_list(&inserter->data_nodes_stack);
     get_array_element_node->data.produced_type = PROFILE_DATA_TYPE_ANY;
-    get_array_element_node->index = to_evalute->pending_bytecode->as.u16;
+    get_array_element_node->index = to_evaluate->pending_bytecode->as.u16;
 
     push_stack_list(&inserter->data_nodes_stack, get_array_element_node);
-    push_pending_evaluate(inserter, to_evalute->type, to_evalute->pending_bytecode->next, to_evalute->parent_ssa_node);
+    push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
 }
 
 static void get_struct_field(
         struct function_object * function,
         struct ssa_no_phis_inserter * inserter,
-        struct pending_evaluate * to_evalute
+        struct pending_evaluate * to_evaluate
 ) {
     struct ssa_data_get_struct_field_node * get_struct_field_node = ALLOC_SSA_DATA_NODE(
-            SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD, struct ssa_data_get_struct_field_node, to_evalute->pending_bytecode
+            SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD, struct ssa_data_get_struct_field_node, to_evaluate->pending_bytecode
     );
     get_struct_field_node->data.produced_type = PROFILE_DATA_TYPE_ANY;
     get_struct_field_node->instance_node = pop_stack_list(&inserter->data_nodes_stack);
-    get_struct_field_node->field_name = AS_STRING_OBJECT(READ_CONSTANT(function, to_evalute->pending_bytecode));
+    get_struct_field_node->field_name = AS_STRING_OBJECT(READ_CONSTANT(function, to_evaluate->pending_bytecode));
 
     push_stack_list(&inserter->data_nodes_stack, get_struct_field_node);
-    push_pending_evaluate(inserter, to_evalute->type, to_evalute->pending_bytecode->next, to_evalute->parent_ssa_node);
+    push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
 }
 
 static void initialize_array(struct ssa_no_phis_inserter * inserter, struct pending_evaluate * to_evaluate) {
@@ -264,18 +262,18 @@ static void initialize_array(struct ssa_no_phis_inserter * inserter, struct pend
     }
 
     push_stack_list(&inserter->data_nodes_stack, initialize_array_node);
-    push_pending_evaluate(inserter, to_evaluate->type, to_evaluate->pending_bytecode->next, to_evaluate->parent_ssa_node);
+    push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
 }
 
 static void initialize_struct(
         struct function_object * function,
         struct ssa_no_phis_inserter * inserter,
-        struct pending_evaluate * to_evalute
+        struct pending_evaluate * to_evaluate
 ) {
     struct ssa_data_initialize_struct_node * initialize_struct_node = ALLOC_SSA_DATA_NODE(
-            SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT, struct ssa_data_initialize_struct_node, to_evalute->pending_bytecode
+            SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT, struct ssa_data_initialize_struct_node, to_evaluate->pending_bytecode
     );
-    struct struct_definition_object * definition = (struct struct_definition_object *) AS_OBJECT(READ_CONSTANT(function, to_evalute->pending_bytecode));
+    struct struct_definition_object * definition = (struct struct_definition_object *) AS_OBJECT(READ_CONSTANT(function, to_evaluate->pending_bytecode));
     initialize_struct_node->data.produced_type = PROFILE_DATA_TYPE_OBJECT;
     initialize_struct_node->fields_nodes = malloc(sizeof(struct struct_definition_object *) * definition->n_fields);
     initialize_struct_node->definition = definition;
@@ -284,25 +282,25 @@ static void initialize_struct(
     }
 
     push_stack_list(&inserter->data_nodes_stack, initialize_struct_node);
-    push_pending_evaluate(inserter, to_evalute->type, to_evalute->pending_bytecode->next, to_evalute->parent_ssa_node);
+    push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
 }
 
 static void get_global(
         struct function_object * function,
         struct ssa_no_phis_inserter * inserter,
-        struct pending_evaluate * to_evalute
+        struct pending_evaluate * to_evaluate
 ) {
     struct package * global_variable_package = peek_stack_list(&inserter->data_nodes_stack);
-    struct string_object * global_variable_name = AS_STRING_OBJECT(READ_CONSTANT(function, to_evalute->pending_bytecode));
+    struct string_object * global_variable_name = AS_STRING_OBJECT(READ_CONSTANT(function, to_evaluate->pending_bytecode));
     //If the global variable is constant, we will return a CONST_NODE instead of GET_GLOBAL node
     if(contains_trie(&global_variable_package->const_global_variables_names, global_variable_name->chars, global_variable_name->length)) {
         lox_value_t constant_value;
         get_hash_table(&global_variable_package->global_variables, global_variable_name, &constant_value);
-        struct ssa_data_constant_node * constant_node = create_ssa_const_node(constant_value, to_evalute->pending_bytecode);
+        struct ssa_data_constant_node * constant_node = create_ssa_const_node(constant_value, to_evaluate->pending_bytecode);
         push_stack_list(&inserter->data_nodes_stack, constant_node);
     } else { //Non constant global variable
         struct ssa_data_get_global_node * get_global_node = ALLOC_SSA_DATA_NODE(
-                SSA_DATA_NODE_TYPE_GET_GLOBAL, struct ssa_data_get_global_node, to_evalute->pending_bytecode
+                SSA_DATA_NODE_TYPE_GET_GLOBAL, struct ssa_data_get_global_node, to_evaluate->pending_bytecode
         );
         get_global_node->data.produced_type = PROFILE_DATA_TYPE_ANY;
         get_global_node->package = global_variable_package;
@@ -311,7 +309,7 @@ static void get_global(
         push_stack_list(&inserter->data_nodes_stack, get_global_node);
     }
 
-    push_pending_evaluate(inserter, to_evalute->type, to_evalute->pending_bytecode->next, to_evalute->parent_ssa_node);
+    push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
 
 }
 
@@ -334,25 +332,25 @@ static void call(struct ssa_no_phis_inserter * inserter, struct pending_evaluate
     //Remove function object in the stack
     pop_stack_list(&inserter->data_nodes_stack);
     push_stack_list(&inserter->data_nodes_stack, call_node);
-    push_pending_evaluate(inserter, to_evaluate->type, to_evaluate->pending_bytecode->next, to_evaluate->parent_ssa_node);
+    push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
 }
 
 static void get_local(
         struct function_object * function,
         struct ssa_no_phis_inserter * inserter,
-        struct pending_evaluate * to_evalute
+        struct pending_evaluate * to_evaluate
 ) {
     struct ssa_data_get_local_node * get_local_node = ALLOC_SSA_DATA_NODE(
-            SSA_DATA_NODE_TYPE_GET_LOCAL, struct ssa_data_get_local_node, to_evalute->pending_bytecode
+            SSA_DATA_NODE_TYPE_GET_LOCAL, struct ssa_data_get_local_node, to_evaluate->pending_bytecode
     );
 
     //Pending initialize
-    int local_number = to_evalute->pending_bytecode->as.u8;
+    int local_number = to_evaluate->pending_bytecode->as.u8;
     get_local_node->local_number = local_number;
     get_local_node->data.produced_type = get_type_by_local_function_profile_data(&function->state_as.profiling.profile_data, local_number);
 
     push_stack_list(&inserter->data_nodes_stack, get_local_node);
-    push_pending_evaluate(inserter, to_evalute->type, to_evalute->pending_bytecode->next, to_evalute->parent_ssa_node);
+    push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
 }
 
 static void set_local(struct ssa_no_phis_inserter * inserter, struct pending_evaluate * to_evaluate) {
@@ -364,8 +362,8 @@ static void set_local(struct ssa_no_phis_inserter * inserter, struct pending_eva
     set_local_node->new_local_value = new_local_value;
 
     map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, new_local_value, &set_local_node->control);
-    attatch_ssa_node_to_parent(to_evaluate->type, to_evaluate->parent_ssa_node, &set_local_node->control);
-    push_pending_evaluate(inserter, EVAL_TYPE_SEQUENTIAL_CONTROL, to_evaluate->pending_bytecode->next, &set_local_node->control);
+    append_control_node_ssa_block(to_evaluate->block, &set_local_node->control);
+    push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, &set_local_node->control, to_evaluate->block);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evaluate->pending_bytecode, set_local_node);
 }
 
@@ -376,8 +374,8 @@ static void print(struct ssa_no_phis_inserter * inserter, struct pending_evaluat
     print_node->data = print_value;
 
     map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, print_value, &print_node->control);
-    attatch_ssa_node_to_parent(to_evaluate->type, to_evaluate->parent_ssa_node, &print_node->control);
-    push_pending_evaluate(inserter, EVAL_TYPE_SEQUENTIAL_CONTROL, to_evaluate->pending_bytecode->next, &print_node->control);
+    append_control_node_ssa_block(to_evaluate->block, &print_node->control);
+    push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, &print_node->control, to_evaluate->block);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evaluate->pending_bytecode, print_node);
 }
 
@@ -388,7 +386,7 @@ static void return_opcode(struct ssa_no_phis_inserter * inserter, struct pending
     return_node->data = return_value;
 
     map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, return_value, &return_node->control);
-    attatch_ssa_node_to_parent(to_evalute->type, to_evalute->parent_ssa_node, &return_node->control);
+    append_control_node_ssa_block(to_evalute->block, &return_node->control);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, return_node);
 }
 
@@ -405,8 +403,8 @@ static void enter_monitor_opcode(
 
     enter_monitor_node->monitor = monitor;
 
-    attatch_ssa_node_to_parent(to_evaluate->type, to_evaluate->parent_ssa_node, &enter_monitor_node->control);
-    push_pending_evaluate(inserter, EVAL_TYPE_SEQUENTIAL_CONTROL, to_evaluate->pending_bytecode->next, &enter_monitor_node->control);
+    append_control_node_ssa_block(to_evaluate->block, &enter_monitor_node->control);
+    push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, &enter_monitor_node->control, to_evaluate->block);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evaluate->pending_bytecode, enter_monitor_node);
 }
 
@@ -418,8 +416,8 @@ static void enter_monitor_explicit(struct ssa_no_phis_inserter * inserter, struc
 
     enter_monitor_node->monitor = monitor;
 
-    attatch_ssa_node_to_parent(to_evalute->type, to_evalute->parent_ssa_node, &enter_monitor_node->control);
-    push_pending_evaluate(inserter, EVAL_TYPE_SEQUENTIAL_CONTROL, to_evalute->pending_bytecode->next, &enter_monitor_node->control);
+    append_control_node_ssa_block(to_evalute->block, &enter_monitor_node->control);
+    push_pending_evaluate(inserter, to_evalute->pending_bytecode->next, &enter_monitor_node->control, to_evalute->block);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, enter_monitor_node);
 }
 
@@ -436,8 +434,8 @@ static void exit_monitor_opcode(
 
     exit_monitor_node->monitor = monitor;
 
-    attatch_ssa_node_to_parent(to_evalute->type, to_evalute->parent_ssa_node, &exit_monitor_node->control);
-    push_pending_evaluate(inserter, EVAL_TYPE_SEQUENTIAL_CONTROL, to_evalute->pending_bytecode->next, &exit_monitor_node->control);
+    append_control_node_ssa_block(to_evalute->block, &exit_monitor_node->control);
+    push_pending_evaluate(inserter, to_evalute->pending_bytecode->next, &exit_monitor_node->control, to_evalute->block);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, exit_monitor_node);
 }
 
@@ -449,8 +447,8 @@ static void exit_monitor_explicit(struct ssa_no_phis_inserter * inserter, struct
 
     exit_monitor_node->monitor = monitor;
 
-    attatch_ssa_node_to_parent(to_evalute->type, to_evalute->parent_ssa_node, &exit_monitor_node->control);
-    push_pending_evaluate(inserter, EVAL_TYPE_SEQUENTIAL_CONTROL, to_evalute->pending_bytecode->next, &exit_monitor_node->control);
+    append_control_node_ssa_block(to_evalute->block, &exit_monitor_node->control);
+    push_pending_evaluate(inserter, to_evalute->pending_bytecode->next, &exit_monitor_node->control, to_evalute->block);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, exit_monitor_node);
 }
 
@@ -467,8 +465,8 @@ static void set_global(
     set_global_node->value_node = pop_stack_list(&inserter->data_nodes_stack);
     set_global_node->package = peek_stack_list(&inserter->package_stack);
 
-    attatch_ssa_node_to_parent(to_evaluate->type, to_evaluate->parent_ssa_node, &set_global_node->control);
-    push_pending_evaluate(inserter, EVAL_TYPE_SEQUENTIAL_CONTROL, to_evaluate->pending_bytecode->next, &set_global_node->control);
+    append_control_node_ssa_block(to_evaluate->block, &set_global_node->control);
+    push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, &set_global_node->control, to_evaluate->block);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evaluate->pending_bytecode, set_global_node);
 }
 
@@ -489,8 +487,8 @@ static void set_struct_field(
 
     map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, field_value, &set_struct_field->control);
     map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, instance, &set_struct_field->control);
-    attatch_ssa_node_to_parent(to_evalute->type, to_evalute->parent_ssa_node, &set_struct_field->control);
-    push_pending_evaluate(inserter, EVAL_TYPE_SEQUENTIAL_CONTROL, to_evalute->pending_bytecode->next, &set_struct_field->control);
+    append_control_node_ssa_block(to_evalute->block, &set_struct_field->control);
+    push_pending_evaluate(inserter, to_evalute->pending_bytecode->next, &set_struct_field->control, to_evalute->block);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, set_struct_field);
 }
 
@@ -507,8 +505,8 @@ static void set_array_element(struct ssa_no_phis_inserter * inserter, struct pen
 
     map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, instance, &set_arrary_element_node->control);
     map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, new_element, &set_arrary_element_node->control);
-    attatch_ssa_node_to_parent(to_evalute->type, to_evalute->parent_ssa_node, &set_arrary_element_node->control);
-    push_pending_evaluate(inserter, EVAL_TYPE_SEQUENTIAL_CONTROL, to_evalute->pending_bytecode->next, &set_arrary_element_node->control);
+    append_control_node_ssa_block(to_evalute->block, &set_arrary_element_node->control);
+    push_pending_evaluate(inserter, to_evalute->pending_bytecode->next, &set_arrary_element_node->control, to_evalute->block);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, set_arrary_element_node);
 }
 
@@ -521,8 +519,8 @@ static void pop(struct ssa_no_phis_inserter * inserter, struct pending_evaluate 
         control_data_node->data = data_node;
 
         map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, data_node, &control_data_node->control);
-        attatch_ssa_node_to_parent(to_evalute->type, to_evalute->parent_ssa_node, &control_data_node->control);
-        push_pending_evaluate(inserter, EVAL_TYPE_SEQUENTIAL_CONTROL, to_evalute->pending_bytecode->next, &control_data_node->control);
+        append_control_node_ssa_block(to_evalute->block, &control_data_node->control);
+        push_pending_evaluate(inserter, to_evalute->pending_bytecode->next, &control_data_node->control, to_evalute->block);
         put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, control_data_node);
     }
 }
@@ -537,15 +535,23 @@ static void loop(struct ssa_no_phis_inserter * inserter, struct pending_evaluate
         loop_condition_node->loop_condition = true;
     }
 
-    attatch_ssa_node_to_parent(to_evalute->type, to_evalute->parent_ssa_node, &loop_jump_node->control);
-    loop_jump_node->control.next.next = to_jump_ssa_node;
+    to_evalute->block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_LOOP;
+    to_evalute->block->next.loop = get_u64_hash_table(&inserter->blocks_by_first_bytecode, (uint64_t) to_jump_bytecode);
+
+    append_control_node_ssa_block(to_evalute->block, &loop_jump_node->control);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, loop_jump_node);
 }
 
 static void jump(struct ssa_no_phis_inserter * insterter, struct pending_evaluate * to_evalute) {
     //OP_JUMP are translated to edges in the ssa ir graph
     struct bytecode_list * to_jump_bytecode = simplify_redundant_unconditional_jump_bytecodes(to_evalute->pending_bytecode->as.jump);
-    push_pending_evaluate(insterter, EVAL_TYPE_JUMP_SEQUENTIAL_CONTROL, to_jump_bytecode, to_evalute->parent_ssa_node);
+    struct ssa_block * new_block = get_block_by_first_bytecode(insterter, to_jump_bytecode);
+
+    to_evalute->block->last = to_evalute->prev_control_node;
+    to_evalute->block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_SEQ;
+    to_evalute->block->next.next = new_block;
+
+    push_pending_evaluate(insterter, to_jump_bytecode, NULL, new_block);
 }
 
 static void jump_if_false(struct ssa_no_phis_inserter * inserter, struct pending_evaluate * to_evalute) {
@@ -553,52 +559,52 @@ static void jump_if_false(struct ssa_no_phis_inserter * inserter, struct pending
             SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP, struct ssa_control_conditional_jump_node
     );
     struct ssa_data_node * condition = pop_stack_list(&inserter->data_nodes_stack);
-
     cond_jump_node->condition = condition;
+
     struct bytecode_list * false_branch_bytecode = to_evalute->pending_bytecode->as.jump;
     struct bytecode_list * true_branch_bytecode = to_evalute->pending_bytecode->next;
+    struct ssa_block * parent_block = to_evalute->block;
+    struct ssa_block * false_branch_block = get_block_by_first_bytecode(inserter, false_branch_bytecode);
+    struct ssa_block * true_branch_block = get_block_by_first_bytecode(inserter, true_branch_bytecode);
 
-    map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, condition, &cond_jump_node->control);
-    attatch_ssa_node_to_parent(to_evalute->type, to_evalute->parent_ssa_node, &cond_jump_node->control);
-    push_pending_evaluate(inserter, EVAL_TYPE_CONDITIONAL_JUMP_FALSE_BRANCH_CONTROL, false_branch_bytecode, &cond_jump_node->control);
-    push_pending_evaluate(inserter, EVAL_TYPE_CONDITIONAL_JUMP_TRUE_BRANCH_CONTROL, true_branch_bytecode, &cond_jump_node->control);
+    //Loop conditions, are creatd in the graph as a separated block
+    if(to_evalute->pending_bytecode->loop_condition){
+        struct ssa_block * condition_block = get_block_by_first_bytecode(inserter, to_evalute->pending_bytecode);
+        parent_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_SEQ;
+        parent_block->next.next = condition_block;
+
+        condition_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_BRANCH;
+        condition_block->next.branch.true_branch = true_branch_block;
+        condition_block->next.branch.true_branch = false_branch_block;
+        true_branch_block->loop_body = true;
+
+        append_control_node_ssa_block(condition_block, &cond_jump_node->control);
+    } else {
+        parent_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_BRANCH;
+        parent_block->next.branch.false_branch = false_branch_block;
+        parent_block->next.branch.true_branch = true_branch_block;
+
+        append_control_node_ssa_block(parent_block, &cond_jump_node->control);
+    }
+
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, cond_jump_node);
+    map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, condition, &cond_jump_node->control);
+    push_pending_evaluate(inserter, false_branch_bytecode, NULL, false_branch_block);
+    push_pending_evaluate(inserter, true_branch_bytecode, NULL, true_branch_block);
 }
 
 static void push_pending_evaluate(
         struct ssa_no_phis_inserter * inserter,
-        pending_evaluation_type_t type,
         struct bytecode_list * pending_bytecode,
-        struct ssa_control_node * parent_ssa_node
+        struct ssa_control_node * prev_ssa_node,
+        struct ssa_block * block
 ) {
     if (pending_bytecode != NULL) {
         struct pending_evaluate * pending_evalutaion = malloc(sizeof(struct pending_evaluate));
         pending_evalutaion->pending_bytecode = pending_bytecode;
-        pending_evalutaion->parent_ssa_node = parent_ssa_node;
-        pending_evalutaion->type = type;
+        pending_evalutaion->prev_control_node = prev_ssa_node;
+        pending_evalutaion->block = block;
         push_stack_list(&inserter->pending_evaluation, pending_evalutaion);
-    }
-}
-
-static void attatch_ssa_node_to_parent(
-        pending_evaluation_type_t type,
-        struct ssa_control_node * parent,
-        struct ssa_control_node * child
-) {
-    child->prev = parent;
-
-    switch (type) {
-        case EVAL_TYPE_JUMP_SEQUENTIAL_CONTROL:
-            parent->jumps_to_next_node = true;
-        case EVAL_TYPE_SEQUENTIAL_CONTROL:
-            parent->next.next = child;
-            break;
-        case EVAL_TYPE_CONDITIONAL_JUMP_TRUE_BRANCH_CONTROL:
-            parent->next.branch.true_branch = child;
-            break;
-        case EVAL_TYPE_CONDITIONAL_JUMP_FALSE_BRANCH_CONTROL:
-            parent->next.branch.false_branch = child;
-            break;
     }
 }
 
@@ -651,6 +657,7 @@ static void map_data_nodes_bytecodes_to_control(
 static struct ssa_no_phis_inserter * alloc_ssa_no_phis_inserter() {
     struct ssa_no_phis_inserter * ssa_no_phis_inserter = malloc(sizeof(struct ssa_no_phis_inserter));
     init_u64_hash_table(&ssa_no_phis_inserter->control_nodes_by_bytecode);
+    init_u64_hash_table(&ssa_no_phis_inserter->blocks_by_first_bytecode);
     init_stack_list(&ssa_no_phis_inserter->pending_evaluation);
     init_stack_list(&ssa_no_phis_inserter->data_nodes_stack);
     init_stack_list(&ssa_no_phis_inserter->package_stack);
@@ -659,7 +666,21 @@ static struct ssa_no_phis_inserter * alloc_ssa_no_phis_inserter() {
 
 static void free_ssa_no_phis_inserter(struct ssa_no_phis_inserter * inserter) {
     free_u64_hash_table(&inserter->control_nodes_by_bytecode);
+    free_u64_hash_table(&inserter->blocks_by_first_bytecode);
     free_stack_list(&inserter->pending_evaluation);
     free_stack_list(&inserter->data_nodes_stack);
     free_stack_list(&inserter->package_stack);
+}
+
+static struct ssa_block * get_block_by_first_bytecode(
+        struct ssa_no_phis_inserter * inserter,
+        struct bytecode_list * first_bytecode
+) {
+    if(contains_u64_hash_table(&inserter->blocks_by_first_bytecode, (uint64_t) first_bytecode)){
+        return get_u64_hash_table(&inserter->blocks_by_first_bytecode, (uint64_t) first_bytecode);
+    } else {
+        struct ssa_block * new_block = alloc_ssa_block();
+        put_u64_hash_table(&inserter->blocks_by_first_bytecode, (uint64_t) first_bytecode, new_block);
+        return new_block;
+    }
 }

@@ -26,7 +26,7 @@ struct const_folding_optimizer {
 static void initialization(struct const_folding_optimizer * optimizer);
 static void propagation(struct const_folding_optimizer * optimizer);
 
-static struct semilattice_value create_semilattice_from_data(struct ssa_data_node *, struct ssa_data_node **);
+static struct semilattice_value get_semilattice_from_data(struct ssa_data_node *current_data_node, struct ssa_data_node **parent_ptr);
 struct const_folding_optimizer * alloc_struct_const_folding_optimizer(struct phi_insertion_result);
 static struct semilattice_value calculate_unary(struct semilattice_value, ssa_unary_operator_type_t operator);
 static struct semilattice_value calculate_binary(struct semilattice_value, struct semilattice_value, bytecode_t operator);
@@ -45,6 +45,7 @@ void perform_const_folding_optimization(struct ssa_block * start_block, struct p
 static void propagation(struct const_folding_optimizer * optimizer) {
     while(!is_empty_stack_list(&optimizer->pending)) {
         struct ssa_name current_ssa_name = CREATE_SSA_NAME_FROM_U64((uint64_t) pop_stack_list(&optimizer->pending));
+
     }
 }
 
@@ -59,7 +60,7 @@ static void initialization(struct const_folding_optimizer * optimizer) {
         struct ssa_name current_ssa_name = CREATE_SSA_NAME_FROM_U64(entry.key);
         struct ssa_control_define_ssa_name_node * current_definition = entry.value;
 
-        struct semilattice_value semilattice_value = create_semilattice_from_data(current_definition->value, &current_definition->value);
+        struct semilattice_value semilattice_value = get_semilattice_from_data(current_definition->value, &current_definition->value);
 
         put_u64_hash_table(&optimizer->semilattice_type_by_ssa_name, current_ssa_name.u16, (void*) semilattice_value.type);
 
@@ -69,15 +70,16 @@ static void initialization(struct const_folding_optimizer * optimizer) {
     }
 }
 
-static struct semilattice_value create_semilattice_from_data(
+static struct semilattice_value get_semilattice_from_data(
         struct ssa_data_node * current_data_node,
         struct ssa_data_node ** parent_ptr
 ) {
     switch (current_data_node->type) {
         case SSA_DATA_NODE_TYPE_BINARY: {
             struct ssa_data_binary_node * binary_node = (struct ssa_data_binary_node *) current_data_node;
-            struct semilattice_value right_semilattice = create_semilattice_from_data(binary_node->right, &binary_node->right);
-            struct semilattice_value left_semilattice = create_semilattice_from_data(binary_node->left, &binary_node->left);
+            struct semilattice_value right_semilattice = get_semilattice_from_data(binary_node->right,
+                                                                                   &binary_node->right);
+            struct semilattice_value left_semilattice = get_semilattice_from_data(binary_node->left, &binary_node->left);
             struct semilattice_value result_semilattice = calculate_binary(left_semilattice, right_semilattice, binary_node->operand);
 
             if (result_semilattice.type == SEMILATTICE_CONSTANT) {
@@ -88,7 +90,8 @@ static struct semilattice_value create_semilattice_from_data(
         }
         case SSA_DATA_NODE_TYPE_UNARY: {
             struct ssa_data_unary_node * unary_node = (struct ssa_data_unary_node *) current_data_node;
-            struct semilattice_value operand_semilattice = create_semilattice_from_data(unary_node->operand, &unary_node->operand);
+            struct semilattice_value operand_semilattice = get_semilattice_from_data(unary_node->operand,
+                                                                                     &unary_node->operand);
             struct semilattice_value result_semilattice = calculate_unary(operand_semilattice, unary_node->operator_type);
 
             if (result_semilattice.type == SEMILATTICE_CONSTANT) {
@@ -100,7 +103,11 @@ static struct semilattice_value create_semilattice_from_data(
         case SSA_DATA_NODE_TYPE_GET_SSA_NAME: {
             struct ssa_data_get_ssa_name_node * get_ssa_name = (struct ssa_data_get_ssa_name_node *) current_data_node;
             struct ssa_control_define_ssa_name_node * definition_node = get_ssa_name->definition_node;
-            return create_semilattice_from_data(definition_node->value, &definition_node->value);
+            if(definition_node != NULL){
+                return CREATE_TOP_SEMILATTICE();
+            } else {
+                return CREATE_BOTTOM_SEMILATTICE(); //Function parameter, can have multiple values
+            }
         }
         //Constant value:
         case SSA_DATA_NODE_TYPE_CONSTANT: {

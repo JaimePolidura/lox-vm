@@ -20,6 +20,7 @@ type_next_ssa_block_t get_type_next_ssa_block(struct ssa_control_node * node) {
         case SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT:
         case SSA_CONTORL_NODE_TYPE_SET_LOCAL:
         case SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD:
+        case SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME:
         case SSA_CONTROL_NODE_TYPE_DATA: {
             return TYPE_NEXT_SSA_BLOCK_SEQ;
         }
@@ -33,4 +34,16 @@ type_next_ssa_block_t get_type_next_ssa_block(struct ssa_control_node * node) {
             return TYPE_NEXT_SSA_BLOCK_BRANCH;
         }
     }
+}
+
+void append_control_node_ssa_block(struct ssa_block * block, struct ssa_control_node * node) {
+    if(block->first == NULL){
+        block->first = node;
+    }
+    if(block->last != NULL) {
+        block->last->next = node;
+        node->prev = block->last;
+    }
+
+    block->last = node;
 }
