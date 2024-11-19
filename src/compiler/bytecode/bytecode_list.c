@@ -6,6 +6,7 @@ static void check_pending_jumps_to_resolve(struct pending_jumps_to_resolve * pen
                                            struct bytecode_list * current_node);
 static void calculate_to_chunk_index(struct bytecode_list * head);
 extern void runtime_panic(char * format, ...);
+static void mark_as_loop_condition(struct bytecode_list * start);
 
 struct bytecode_list * create_instruction_bytecode_list(bytecode_t bytecode) {
     struct bytecode_list * bytecode_list = alloc_bytecode_list();
@@ -15,6 +16,7 @@ struct bytecode_list * create_instruction_bytecode_list(bytecode_t bytecode) {
 
 struct bytecode_list * alloc_bytecode_list() {
     struct bytecode_list * bytecode_list = malloc(sizeof(struct bytecode_list));
+    memset(bytecode_list, 0, sizeof(struct bytecode_list));
     return bytecode_list;
 }
 
@@ -222,7 +224,7 @@ struct bytecode_list * create_bytecode_list(struct chunk * chunk) {
                 int to_jump_instruction_index = current_instruction_index_chunk_iterator(&chunk_iterator) - read_u16_chunk_iterator(&chunk_iterator) + 3;
                 struct bytecode_list * to_jump_bytecode = get_by_index_bytecode_list(head, to_jump_instruction_index);
                 current_node->as.jump = to_jump_bytecode;
-                to_jump_bytecode->loop_condition = true;
+                mark_as_loop_condition(to_jump_bytecode);
                 break;
             }
             case OP_INITIALIZE_ARRAY: {
@@ -276,4 +278,29 @@ struct bytecode_list * get_first_bytecode_list(struct bytecode_list * head) {
     }
 
     return current;
+}
+
+static void mark_as_loop_condition(struct bytecode_list * start) {
+    struct bytecode_list * current = start;
+    while (current != NULL) {
+        current->loop_condition = true;
+        if (current->bytecode == OP_JUMP_IF_FALSE) {
+            break;
+        } else {
+            current = current->next;
+        }
+    }
+}
+
+struct bytecode_list * get_next_bytecode_list(struct bytecode_list * start, bytecode_t lookup_bytecode) {
+    struct bytecode_list * current = start->next;
+    while (current != NULL) {
+        if (current->bytecode == lookup_bytecode) {
+            return current;
+        } else {
+            current = current->next;
+        }
+    }
+
+    return NULL;
 }

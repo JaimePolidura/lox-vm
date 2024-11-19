@@ -76,17 +76,21 @@ struct ssa_block * create_ssa_ir_no_phis(
 
     push_stack_list(&inserter->package_stack, package);
 
-    struct ssa_control_start_node * start_node = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_TYPE_START, struct ssa_control_start_node);
     struct ssa_block * first_block = get_block_by_first_bytecode(inserter, start_function_bytecode);
-    push_pending_evaluate(inserter, start_function_bytecode, &start_node->control, first_block);
+    push_pending_evaluate(inserter, start_function_bytecode, NULL, first_block);
 
     while (!is_empty_stack_list(&inserter->pending_evaluation)) {
         struct pending_evaluate * to_evaluate = pop_stack_list(&inserter->pending_evaluation);
 
-        if (contains_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evaluate->pending_bytecode)) {
-            struct ssa_control_node * already_evaluted_node = get_u64_hash_table(&inserter->control_nodes_by_bytecode,
-                    (uint64_t) to_evaluate->pending_bytecode);
-            append_control_node_ssa_block(to_evaluate->block, already_evaluted_node);
+        if(contains_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evaluate->pending_bytecode)) {
+            //Link two blocks
+            struct ssa_block * block_evaluated = get_u64_hash_table(&inserter->blocks_by_first_bytecode, (uint64_t) to_evaluate->pending_bytecode);
+            struct ssa_block * current_block = to_evaluate->block;
+            if(block_evaluated != current_block){
+                current_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_SEQ;
+                current_block->next.next = block_evaluated;
+            }
+
             continue;
         }
 
@@ -371,7 +375,6 @@ static void set_local(struct ssa_no_phis_inserter * inserter, struct pending_eva
 static void print(struct ssa_no_phis_inserter * inserter, struct pending_evaluate * to_evaluate) {
     struct ssa_control_print_node * print_node = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_TYPE_PRINT, struct ssa_control_print_node);
     struct ssa_data_node * print_value = pop_stack_list(&inserter->data_nodes_stack);
-
     print_node->data = print_value;
 
     map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, print_value, &print_node->control);
@@ -529,6 +532,7 @@ static void pop(struct ssa_no_phis_inserter * inserter, struct pending_evaluate 
 static void loop(struct ssa_no_phis_inserter * inserter, struct pending_evaluate * to_evalute) {
     struct ssa_control_loop_jump_node * loop_jump_node = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_TYPE_LOOP_JUMP, struct ssa_control_loop_jump_node);
     struct bytecode_list * to_jump_bytecode = to_evalute->pending_bytecode->as.jump;
+    struct bytecode_list * loop_condition_bytecode = get_next_bytecode_list(to_jump_bytecode, OP_JUMP_IF_FALSE);
     struct ssa_control_node * to_jump_ssa_node = get_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_jump_bytecode);
 
     if(to_jump_ssa_node->type == SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP){
@@ -537,7 +541,7 @@ static void loop(struct ssa_no_phis_inserter * inserter, struct pending_evaluate
     }
 
     to_evalute->block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_LOOP;
-    to_evalute->block->next.loop = get_u64_hash_table(&inserter->blocks_by_first_bytecode, (uint64_t) to_jump_bytecode);
+    to_evalute->block->next.loop = get_u64_hash_table(&inserter->blocks_by_first_bytecode, (uint64_t) loop_condition_bytecode);
 
     append_control_node_ssa_block(to_evalute->block, &loop_jump_node->control);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, loop_jump_node);
@@ -576,7 +580,7 @@ static void jump_if_false(struct ssa_no_phis_inserter * inserter, struct pending
 
         condition_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_BRANCH;
         condition_block->next.branch.true_branch = true_branch_block;
-        condition_block->next.branch.true_branch = false_branch_block;
+        condition_block->next.branch.false_branch = false_branch_block;
         true_branch_block->loop_body = true;
 
         append_control_node_ssa_block(condition_block, &cond_jump_node->control);
