@@ -38,7 +38,7 @@ static void rewrite_graph_as_constant(struct ssa_data_node * old_node, struct ss
 
 void perform_const_folding_optimization(struct ssa_block * start_block, struct phi_insertion_result phi_insertion_result) {
     struct const_folding_optimizer * optimizer = alloc_struct_const_folding_optimizer(phi_insertion_result);
-    start_block = start_block->next.next;
+    start_block = start_block->next_as.next;
 
     initialization(optimizer);
     propagation(optimizer);

@@ -29,7 +29,7 @@ extern struct gc_barriers get_barriers_gc_alg();
 void switch_native_to_jit_mode(struct jit_compiler *);
 
 //Used by jit_compiler::compiled_bytecode_to_native_by_index Some operations are not compiled to native code, but some jumps pending_bytecode offset
-//will be pointing to those operations. If in a slot is -1, the native offset will be in the next slot
+//will be pointing to those operations. If in a slot is -1, the native offset will be in the next_as slot
 #define NATIVE_INDEX_IN_NEXT_SLOT 0xFFFF
 
 //extern __thread struct vm_thread * self_thread;

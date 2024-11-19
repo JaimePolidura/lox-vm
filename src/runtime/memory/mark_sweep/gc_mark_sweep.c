@@ -38,7 +38,7 @@ void signal_threads_gc_finished_alg();
 #define SET_MARKED(object) object->gc_info = (void *) (((uint64_t) object->gc_info) | 0x8000000000000000)
 #define IS_MARKED(object) ((uint64_t) object->gc_info >> 63)
 
-#define SET_NEXT_GC_HEAP(object, next) object->gc_info = (void *) ((uint64_t) next | ((uint64_t) object->gc_info & 0x8000000000000000))
+#define SET_NEXT_GC_HEAP(object, next_as) object->gc_info = (void *) ((uint64_t) next_as | ((uint64_t) object->gc_info & 0x8000000000000000))
 #define GET_NEXT_GC_HEAP(object) (struct object *) ((uint64_t) object->gc_info & 0x7FFFFFFFFFFFFFFF)
 
 struct gc_barriers get_barriers_gc_alg() {
@@ -65,7 +65,7 @@ void add_object_to_heap_gc_alg(struct object * object) {
 
         gc_thread_info->next_gc = gc_thread_info->bytes_allocated * HEAP_GROW_AFTER_GC_FACTOR;
 
-        printf("Collected %zu bytes (from %zu to %zu) next at %zu\n", before_gc_heap_size - after_gc_heap_size,
+        printf("Collected %zu bytes (from %zu to %zu) next_as at %zu\n", before_gc_heap_size - after_gc_heap_size,
                before_gc_heap_size, after_gc_heap_size, gc_thread_info->next_gc);
     }
 }

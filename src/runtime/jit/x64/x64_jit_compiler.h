@@ -36,7 +36,7 @@ struct jit_compiler {
 
     //Mapping of pending_bytecode index operations to its compiled operations index stored in native_compiled_code
     //This is used for knowing the relative offset when emitting assembly backward jumps
-    //If value_node is -1, the native index will be in the next slot
+    //If value_node is -1, the native index will be in the next_as slot
     uint16_t * compiled_bytecode_to_native_by_index;
 
     //This datastructe allow us to resolve forward jump offsets

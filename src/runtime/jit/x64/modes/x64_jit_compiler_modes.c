@@ -57,7 +57,7 @@ static int reconstruct_vm_gc_stack(struct jit_compiler * jit_compiler) {
 
     struct jit_stack_item * next_current_jit_stack_item = &jit_compiler->jit_stack.items[0];
     for(int i = 0; i < n_heap_allocations_in_stack; i++){
-        //Get next heap allocated stack item
+        //Get next_as heap allocated stack item
         while(!(next_current_jit_stack_item++)->is_heap_allocated);
 
         struct jit_stack_item * current_heap_jit_stack_item = next_current_jit_stack_item - 1;

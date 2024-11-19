@@ -18,7 +18,6 @@ static void extract_phi_to_ssa_name(struct ssa_control_node *, struct ssa_data_n
 void optimize_ssa_ir_phis(
         struct ssa_block * start_block
 ) {
-    start_block = start_block->next.next;
     struct stack_list pending;
     init_stack_list(&pending);
     push_stack_list(&pending, start_block);
@@ -26,7 +25,7 @@ void optimize_ssa_ir_phis(
     while(!is_empty_stack_list(&pending)) {
         struct ssa_block * current_block = pop_stack_list(&pending);
 
-        for(struct ssa_control_node * current = current_block->first;; current = current->next->next) {
+        for(struct ssa_control_node * current = current_block->first;; current = current->next) {
             for_each_data_node_in_control_node(current, current, optimize_phi_functions_consumer);
 
             if(current == current_block->last){
@@ -36,12 +35,12 @@ void optimize_ssa_ir_phis(
 
         switch(current_block->type_next_ssa_block) {
             case TYPE_NEXT_SSA_BLOCK_SEQ:
-                push_stack_list(&pending, current_block->next.next);
+                push_stack_list(&pending, current_block->next_as.next);
                 break;
 
             case TYPE_NEXT_SSA_BLOCK_BRANCH:
-                push_stack_list(&pending, current_block->next.branch.false_branch);
-                push_stack_list(&pending, current_block->next.branch.true_branch);
+                push_stack_list(&pending, current_block->next_as.branch.false_branch);
+                push_stack_list(&pending, current_block->next_as.branch.true_branch);
                 break;
 
             case TYPE_NEXT_SSA_BLOCK_LOOP:

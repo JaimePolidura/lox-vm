@@ -11,6 +11,7 @@ struct u8_set {
 
 struct u8_set create_u8_set(int n_elements, ...);
 void init_u8_set(struct u8_set *);
+void clear_u8_set(struct u8_set *);
 void add_u8_set(struct u8_set *, uint8_t);
 bool contains_u8_set(struct u8_set *, uint8_t);
 void remove_u8_set(struct u8_set *, uint8_t);

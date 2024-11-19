@@ -6,7 +6,7 @@
  *      prev
  * head --> other node
  *
- *      next
+ *      next_as
  * head <-- other node
  */
 

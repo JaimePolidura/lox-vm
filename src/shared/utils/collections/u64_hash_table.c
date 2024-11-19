@@ -101,6 +101,6 @@ struct u64_hash_table_entry next_u64_hash_table_iterator(struct u64_hash_table_i
         }
     }
 
-    runtime_panic("Illegal state of u64_hash_table_iterator. Expect call to has_next() before call to next()");
+    runtime_panic("Illegal state of u64_hash_table_iterator. Expect call to has_next() before call to next_as()");
     exit(1);
 }

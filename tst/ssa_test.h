@@ -19,17 +19,6 @@ extern void optimize_ssa_ir_phis(
 static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expected_versions, ...);
 static bool node_defines_ssa_name(struct ssa_control_node *, int version);
 
-#define ASSERT_PRINTS_NUMBER(node, value) { \
-    struct ssa_control_print_node * print_node = (struct ssa_control_print_node *) (node); \
-    ASSERT_TRUE(print_node->control.type == SSA_CONTROL_NODE_TYPE_PRINT); \
-    ASSERT_TRUE(print_node->data->type == SSA_DATA_NODE_TYPE_CONSTANT); \
-    ASSERT_TRUE(((struct ssa_data_constant_node *) print_node->data)->value_as.i64 == value); \
-}; \
-
-#define NEXT_NODE(type, node) (type *) ((node)->control.next.next)
-#define FALSE_BRANCH_NODE(type, node) (type *) ((node)->control.next.branch.false_branch)
-#define TRUE_BRANCH_NODE(type, node) (type *) ((node)->control.next.branch.true_branch)
-
 //Expect
 //First block: [a1 = 1; a1 > 0]
 //  -> True: [¿b0 > 0?]
@@ -70,46 +59,46 @@ TEST(ssa_phis_inserter){
 
     ASSERT_TRUE(node_defines_ssa_name(start_ssa_block->first, 1)); //a1 = 1;
     //a1 > 0
-    struct ssa_control_conditional_jump_node * a_condition = (struct ssa_control_conditional_jump_node *) start_ssa_block->first->next->next;
+    struct ssa_control_conditional_jump_node * a_condition = (struct ssa_control_conditional_jump_node *) start_ssa_block->first->next;
     ASSERT_TRUE(node_uses_phi_versions(a_condition->condition, 1, 1));
 
-    struct ssa_block * a_condition_true = start_ssa_block->next.branch.true_branch;
+    struct ssa_block * a_condition_true = start_ssa_block->next_as.branch.true_branch;
     //b0 > 0
     struct ssa_control_conditional_jump_node * a_condition_true_b_condition = (struct ssa_control_conditional_jump_node *) a_condition_true->first;
     ASSERT_TRUE(node_uses_phi_versions(a_condition_true_b_condition->condition, 1, 0));
 
-    struct ssa_block * a_condition_true_b_condition_true = a_condition_true->next.branch.true_branch;
+    struct ssa_block * a_condition_true_b_condition_true = a_condition_true->next_as.branch.true_branch;
     ASSERT_TRUE(node_defines_ssa_name(a_condition_true_b_condition_true->first, 1)); //b1 = 3;
-    ASSERT_TRUE(node_defines_ssa_name(a_condition_true_b_condition_true->first->next->next, 2)); //a2 = 2;
+    ASSERT_TRUE(node_defines_ssa_name(a_condition_true_b_condition_true->first->next, 2)); //a2 = 2;
 
-    struct ssa_block * a_condition_true_b_condition_false = a_condition_true->next.branch.false_branch;
+    struct ssa_block * a_condition_true_b_condition_false = a_condition_true->next_as.branch.false_branch;
     struct ssa_control_set_local_node * set_local = (struct ssa_control_set_local_node *) a_condition_true_b_condition_false->first;
     ASSERT_TRUE(node_defines_ssa_name(a_condition_true_b_condition_false->first, 2));  //b2 = 3;
 
-    struct ssa_block * a_condition_false = start_ssa_block->next.branch.false_branch;
+    struct ssa_block * a_condition_false = start_ssa_block->next_as.branch.false_branch;
     ASSERT_TRUE(node_defines_ssa_name(a_condition_false->first, 3)); //a3 = 1;
-    ASSERT_TRUE(node_defines_ssa_name(a_condition_false->first->next->next, 1)); //i1 = 1;
+    ASSERT_TRUE(node_defines_ssa_name(a_condition_false->first->next, 1)); //i1 = 1;
 
-    struct ssa_block * for_loop_condition_block = a_condition_false->next.next;
+    struct ssa_block * for_loop_condition_block = a_condition_false->next_as.next;
     struct ssa_control_conditional_jump_node * for_loop_condition = (struct ssa_control_conditional_jump_node *) for_loop_condition_block->first;
     ASSERT_TRUE(node_uses_phi_versions(for_loop_condition->condition, 2, 1, 3)); //phi(i1, i3) < 10
 
-    struct ssa_block * for_loop_body_block = for_loop_condition_block->next.branch.true_branch;
+    struct ssa_block * for_loop_body_block = for_loop_condition_block->next_as.branch.true_branch;
     ASSERT_TRUE(node_defines_ssa_name(for_loop_body_block->first, 3)); //b3 = 12;
 
-    struct ssa_control_set_local_node * extract_i_loop = (struct ssa_control_set_local_node *) for_loop_body_block->first->next->next;
-    ASSERT_TRUE(node_defines_ssa_name(for_loop_body_block->first->next->next, 2)); //i2 = phi(i1, i3) + 1;
+    struct ssa_control_set_local_node * extract_i_loop = (struct ssa_control_set_local_node *) for_loop_body_block->first->next;
+    ASSERT_TRUE(node_defines_ssa_name(for_loop_body_block->first->next, 2)); //i2 = phi(i1, i3) + 1;
 
     ASSERT_TRUE(node_uses_phi_versions(extract_i_loop->new_local_value, 2, 1, 3)); //i2 = phi(i1, i3) + 1
-    struct ssa_control_set_local_node * increment_i_loop = (struct ssa_control_set_local_node *) extract_i_loop->control.next->next;
+    struct ssa_control_set_local_node * increment_i_loop = (struct ssa_control_set_local_node *) extract_i_loop->control.next;
     ASSERT_TRUE(node_defines_ssa_name(&increment_i_loop->control, 3)); //i3 = i2 + 1;
 
     ASSERT_TRUE(node_uses_phi_versions(increment_i_loop->new_local_value, 1, 2)); //i3 = i2 + 1;
 
-    struct ssa_block * final_block = a_condition_true_b_condition_true->next.next;
+    struct ssa_block * final_block = a_condition_true_b_condition_true->next_as.next;
     struct ssa_control_print_node * final_block_print_a = (struct ssa_control_print_node *) final_block->first;
     ASSERT_TRUE(node_uses_phi_versions(final_block_print_a->data, 3, 1, 2, 3)); //print phi(a0, a2, a3);
-    struct ssa_control_print_node * final_block_print_b = (struct ssa_control_print_node *) final_block_print_a->control.next->next;
+    struct ssa_control_print_node * final_block_print_b = (struct ssa_control_print_node *) final_block_print_a->control.next;
     ASSERT_TRUE(node_uses_phi_versions(final_block_print_b->data, 4, 0, 1, 2, 3)); //print phi(b0, b1, b2, b3);
 }
 
@@ -159,59 +148,59 @@ TEST(ssa_ir_no_phis_creation) {
     ASSERT_EQ(size_u8_set(ssa_block->use_before_assigment), 0);
 
     //[c = 1, ¿a < 0?] -(true)-> [¿b > 0?]
-    struct ssa_block * ssa_block_true = ssa_block->next.branch.true_branch;
+    struct ssa_block * ssa_block_true = ssa_block->next_as.branch.true_branch;
     ASSERT_EQ(ssa_block_true->first->type, SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP); //Asignment
     ASSERT_EQ(ssa_block_true->last->type, SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP); //a < 0
     ASSERT_EQ(ssa_block_true->last, ssa_block_true->first); //a < 0
     ASSERT_EQ(size_u8_set(ssa_block->use_before_assigment), 0);
 
     //[c = 1, ¿a < 0?] -(true)-> [¿b > 0?] -(true)-> [b = 3; a = 2]
-    struct ssa_block * ssa_block_true_true = ssa_block_true->next.branch.true_branch;
+    struct ssa_block * ssa_block_true_true = ssa_block_true->next_as.branch.true_branch;
     ASSERT_EQ(ssa_block_true_true->first->type, SSA_CONTORL_NODE_TYPE_SET_LOCAL); //b = 3
     ASSERT_EQ(ssa_block_true_true->last->type, SSA_CONTORL_NODE_TYPE_SET_LOCAL); //a = 2
     ASSERT_EQ(size_u8_set(ssa_block->use_before_assigment), 0);
 
     //[c = 1, ¿a < 0?] -(true)-> [¿b > 0?] -(true)-> [b = 3; a = 2] -> FINAL BLOCK
-    struct ssa_block * final_block = ssa_block_true_true->next.next;
+    struct ssa_block * final_block = ssa_block_true_true->next_as.next;
     ASSERT_EQ(final_block->first->type, SSA_CONTROL_NODE_TYPE_PRINT); //print a;
     ASSERT_EQ(final_block->last->type, SSA_CONTROL_NODE_TYPE_RETURN); //final return OP_NIL OP_RETURN
     ASSERT_EQ(size_u8_set(ssa_block->use_before_assigment), 0);
 
     //[c = 1, ¿a < 0?] -(true)-> [¿b > 0?] -(false)-> [b = 3]
-    struct ssa_block * ssa_block_true_false = ssa_block_true->next.branch.false_branch;
+    struct ssa_block * ssa_block_true_false = ssa_block_true->next_as.branch.false_branch;
     ASSERT_EQ(ssa_block_true_false->first->type, SSA_CONTORL_NODE_TYPE_SET_LOCAL); //b = 3
     ASSERT_EQ(ssa_block_true_false->last->type, SSA_CONTORL_NODE_TYPE_SET_LOCAL); //b = 3
     ASSERT_EQ(ssa_block_true_false->last, ssa_block_true_false->first); //a < 0
     ASSERT_EQ(size_u8_set(ssa_block->use_before_assigment), 0);
 
     //[c = 1, ¿a < 0?] -(true)-> [¿b > 0?] -(false)-> [b = 3] -> FINAL BLOCK
-    ASSERT_EQ(ssa_block_true_false->next.next, final_block);
-    ASSERT_EQ(final_block->next.next, NULL);
+    ASSERT_EQ(ssa_block_true_false->next_as.next, final_block);
+    ASSERT_EQ(final_block->next_as.next, NULL);
 
     //[c = 1, ¿a < 0?] -(false)-> [c = 1, i = 0]
-    struct ssa_block * ssa_block_false = ssa_block->next.branch.false_branch;
+    struct ssa_block * ssa_block_false = ssa_block->next_as.branch.false_branch;
     ASSERT_EQ(ssa_block_false->first->type, SSA_CONTORL_NODE_TYPE_SET_LOCAL); //c = 1
     ASSERT_EQ(ssa_block_false->last->type, SSA_CONTORL_NODE_TYPE_SET_LOCAL); //i = 0
     ASSERT_EQ(size_u8_set(ssa_block->use_before_assigment), 0);
 
     //[c = 1, ¿a < 0?] -(false)-> [c = 1, i = 0] -> [¿i < 10?]
-    struct ssa_block * ssa_block_false_for_condition = ssa_block_false->next.next;
+    struct ssa_block * ssa_block_false_for_condition = ssa_block_false->next_as.next;
     ASSERT_EQ(ssa_block_false_for_condition->first->type, SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP); //i < 10
     ASSERT_EQ(ssa_block_false_for_condition->last->type, SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP);
     ASSERT_EQ(ssa_block_false_for_condition->last, ssa_block_false_for_condition->first);
     ASSERT_EQ(size_u8_set(ssa_block->use_before_assigment), 0);
 
     //[c = 1, ¿a < 0?] -(false)-> [c = 1, i = 0] -> [¿i < 10?] -(true)-> [print 1, i = i + 1, loop]
-    struct ssa_block * ssa_block_false_for_condition_true = ssa_block_false_for_condition->next.branch.true_branch;
+    struct ssa_block * ssa_block_false_for_condition_true = ssa_block_false_for_condition->next_as.branch.true_branch;
     ASSERT_EQ(ssa_block_false_for_condition_true->first->type, SSA_CONTROL_NODE_TYPE_PRINT); //print 1
     ASSERT_EQ(ssa_block_false_for_condition_true->first->next->type, SSA_CONTORL_NODE_TYPE_SET_LOCAL); //i = i + 1
     ASSERT_EQ(ssa_block_false_for_condition_true->last->type, SSA_CONTROL_NODE_TYPE_LOOP_JUMP);
-    ASSERT_EQ(ssa_block_false_for_condition_true->next.loop, ssa_block_false_for_condition);
+    ASSERT_EQ(ssa_block_false_for_condition_true->next_as.loop, ssa_block_false_for_condition);
     ASSERT_EQ(size_u8_set(ssa_block_false_for_condition_true->use_before_assigment), 1);
     ASSERT_TRUE(contains_u8_set(&ssa_block_false_for_condition_true->use_before_assigment, 4));
 
     //[c = 1, ¿a < 0?] -(false)-> [c = 1, i = 0] -> [¿i < 10?] -(false)-> FINAL BLOCK
-    struct ssa_block * ssa_block_false_for_condition_false = ssa_block_false_for_condition->next.branch.false_branch;
+    struct ssa_block * ssa_block_false_for_condition_false = ssa_block_false_for_condition->next_as.branch.false_branch;
     ASSERT_EQ(ssa_block_false_for_condition_false, final_block);
 }
 

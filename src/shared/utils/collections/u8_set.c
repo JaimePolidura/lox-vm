@@ -19,6 +19,13 @@ void init_u8_set(struct u8_set * set) {
     memset(set, 0, sizeof(struct u8_set));
 }
 
+void clear_u8_set(struct u8_set * set) {
+    set->slot_bit_maps[0] = 0;
+    set->slot_bit_maps[1] = 0;
+    set->slot_bit_maps[2] = 0;
+    set->slot_bit_maps[3] = 0;
+}
+
 void add_u8_set(struct u8_set * set, uint8_t value_to_add) {
     uint8_t slot_bit_index = VALUE_TO_SLOT_BIT_INDEX(value_to_add);
     uint8_t slot_index = VALUE_TO_SLOT_INDEX(value_to_add);

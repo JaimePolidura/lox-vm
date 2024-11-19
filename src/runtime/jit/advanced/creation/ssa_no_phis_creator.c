@@ -19,6 +19,10 @@ struct pending_evaluate {
     struct ssa_block * block;
 };
 
+struct block_local_usage {
+    struct u8_set used;
+    struct u8_set assigned;
+};
 
 struct ssa_no_phis_inserter {
     struct u64_hash_table control_nodes_by_bytecode;
@@ -26,6 +30,8 @@ struct ssa_no_phis_inserter {
     struct stack_list pending_evaluation;
     struct stack_list data_nodes_stack;
     struct stack_list package_stack;
+
+    struct block_local_usage current_block_local_usage;
 };
 
 static void push_pending_evaluate(
@@ -37,6 +43,7 @@ static void map_data_nodes_bytecodes_to_control(
         struct ssa_data_node * data_node,
         struct ssa_control_node * to_map_control
 );
+static void calculate_and_put_use_before_assigment(struct ssa_block *, struct ssa_no_phis_inserter *);
 static struct ssa_block * get_block_by_first_bytecode(struct ssa_no_phis_inserter *, struct bytecode_list *);
 static struct ssa_no_phis_inserter * alloc_ssa_no_phis_inserter();
 static void free_ssa_no_phis_inserter(struct ssa_no_phis_inserter *);
@@ -88,7 +95,7 @@ struct ssa_block * create_ssa_ir_no_phis(
             struct ssa_block * current_block = to_evaluate->block;
             if(block_evaluated != current_block){
                 current_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_SEQ;
-                current_block->next.next = block_evaluated;
+                current_block->next_as.next = block_evaluated;
             }
 
             continue;
@@ -354,6 +361,8 @@ static void get_local(
     get_local_node->local_number = local_number;
     get_local_node->data.produced_type = get_type_by_local_function_profile_data(&function->state_as.profiling.profile_data, local_number);
 
+    add_u8_set(&inserter->current_block_local_usage.used, local_number);
+
     push_stack_list(&inserter->data_nodes_stack, get_local_node);
     push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
 }
@@ -363,9 +372,12 @@ static void set_local(struct ssa_no_phis_inserter * inserter, struct pending_eva
             SSA_CONTORL_NODE_TYPE_SET_LOCAL, struct ssa_control_set_local_node
     );
     struct ssa_data_node * new_local_value = pop_stack_list(&inserter->data_nodes_stack);
-    set_local_node->local_number = to_evaluate->pending_bytecode->as.u8;
+    int local_number = to_evaluate->pending_bytecode->as.u8;
     set_local_node->new_local_value = new_local_value;
+    set_local_node->local_number = local_number;
+    add_u8_set(&inserter->current_block_local_usage.assigned, local_number);
 
+    calculate_and_put_use_before_assigment(to_evaluate->block, inserter);
     map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, new_local_value, &set_local_node->control);
     append_control_node_ssa_block(to_evaluate->block, &set_local_node->control);
     push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, &set_local_node->control, to_evaluate->block);
@@ -388,6 +400,8 @@ static void return_opcode(struct ssa_no_phis_inserter * inserter, struct pending
     struct ssa_data_node * return_value = pop_stack_list(&inserter->data_nodes_stack);
 
     return_node->data = return_value;
+
+    to_evalute->block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_NONE;
 
     map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, return_value, &return_node->control);
     append_control_node_ssa_block(to_evalute->block, &return_node->control);
@@ -541,8 +555,10 @@ static void loop(struct ssa_no_phis_inserter * inserter, struct pending_evaluate
     }
 
     to_evalute->block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_LOOP;
-    to_evalute->block->next.loop = get_u64_hash_table(&inserter->blocks_by_first_bytecode, (uint64_t) loop_condition_bytecode);
+    to_evalute->block->next_as.loop = get_u64_hash_table(&inserter->blocks_by_first_bytecode, (uint64_t) loop_condition_bytecode);
 
+    clear_u8_set(&inserter->current_block_local_usage.assigned);
+    clear_u8_set(&inserter->current_block_local_usage.used);
     append_control_node_ssa_block(to_evalute->block, &loop_jump_node->control);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, loop_jump_node);
 }
@@ -554,8 +570,10 @@ static void jump(struct ssa_no_phis_inserter * insterter, struct pending_evaluat
 
     to_evalute->block->last = to_evalute->prev_control_node;
     to_evalute->block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_SEQ;
-    to_evalute->block->next.next = new_block;
+    to_evalute->block->next_as.next = new_block;
 
+    clear_u8_set(&insterter->current_block_local_usage.assigned);
+    clear_u8_set(&insterter->current_block_local_usage.used);
     push_pending_evaluate(insterter, to_jump_bytecode, NULL, new_block);
 }
 
@@ -576,22 +594,24 @@ static void jump_if_false(struct ssa_no_phis_inserter * inserter, struct pending
     if(to_evalute->pending_bytecode->loop_condition){
         struct ssa_block * condition_block = get_block_by_first_bytecode(inserter, to_evalute->pending_bytecode);
         parent_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_SEQ;
-        parent_block->next.next = condition_block;
+        parent_block->next_as.next = condition_block;
 
         condition_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_BRANCH;
-        condition_block->next.branch.true_branch = true_branch_block;
-        condition_block->next.branch.false_branch = false_branch_block;
+        condition_block->next_as.branch.true_branch = true_branch_block;
+        condition_block->next_as.branch.false_branch = false_branch_block;
         true_branch_block->loop_body = true;
 
         append_control_node_ssa_block(condition_block, &cond_jump_node->control);
     } else {
         parent_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_BRANCH;
-        parent_block->next.branch.false_branch = false_branch_block;
-        parent_block->next.branch.true_branch = true_branch_block;
+        parent_block->next_as.branch.false_branch = false_branch_block;
+        parent_block->next_as.branch.true_branch = true_branch_block;
 
         append_control_node_ssa_block(parent_block, &cond_jump_node->control);
     }
 
+    clear_u8_set(&inserter->current_block_local_usage.assigned);
+    clear_u8_set(&inserter->current_block_local_usage.used);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, cond_jump_node);
     map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, condition, &cond_jump_node->control);
     push_pending_evaluate(inserter, false_branch_bytecode, NULL, false_branch_block);
@@ -661,8 +681,10 @@ static void map_data_nodes_bytecodes_to_control(
 
 static struct ssa_no_phis_inserter * alloc_ssa_no_phis_inserter() {
     struct ssa_no_phis_inserter * ssa_no_phis_inserter = malloc(sizeof(struct ssa_no_phis_inserter));
+    init_u8_set(&ssa_no_phis_inserter->current_block_local_usage.assigned);
     init_u64_hash_table(&ssa_no_phis_inserter->control_nodes_by_bytecode);
     init_u64_hash_table(&ssa_no_phis_inserter->blocks_by_first_bytecode);
+    init_u8_set(&ssa_no_phis_inserter->current_block_local_usage.used);
     init_stack_list(&ssa_no_phis_inserter->pending_evaluation);
     init_stack_list(&ssa_no_phis_inserter->data_nodes_stack);
     init_stack_list(&ssa_no_phis_inserter->package_stack);
@@ -688,4 +710,13 @@ static struct ssa_block * get_block_by_first_bytecode(
         put_u64_hash_table(&inserter->blocks_by_first_bytecode, (uint64_t) first_bytecode, new_block);
         return new_block;
     }
+}
+
+static void calculate_and_put_use_before_assigment(struct ssa_block * block, struct ssa_no_phis_inserter * inserter) {
+    struct block_local_usage local_usage = inserter->current_block_local_usage;
+    struct u8_set use_before_assigment = local_usage.assigned;
+
+    intersection_u8_set(&use_before_assigment, local_usage.used);
+    clear_u8_set(&local_usage.assigned);
+    union_u8_set(&block->use_before_assigment, use_before_assigment);
 }

@@ -2,7 +2,7 @@
 
 struct ssa_phi_inserter {
     struct u8_hash_table max_version_allocated_per_local;
-    struct u64_set loops_evaluted; //Stores ssa_block->next.loop address
+    struct u64_set loops_evaluted; //Stores ssa_block->next_as.loop address
     struct stack_list pending_evaluate;
     //Key struct ssa_name, Value: pointer to ssa_control_node
     struct u64_hash_table ssa_definitions_by_ssa_name;
@@ -36,7 +36,6 @@ static void insert_phis_in_data_node_consumer(
 struct phi_insertion_result insert_ssa_ir_phis(
         struct ssa_block * start_block
 ) {
-    start_block = start_block->next.next;
     struct ssa_phi_inserter * inserter = alloc_ssa_phi_inserter();
 
     push_pending_evaluate(inserter, start_block, alloc_u8_hash_table());
@@ -51,22 +50,22 @@ struct phi_insertion_result insert_ssa_ir_phis(
 
         switch (block_to_evaluate->type_next_ssa_block) {
             case TYPE_NEXT_SSA_BLOCK_SEQ:
-                push_pending_evaluate(inserter, block_to_evaluate->next.next, parent_versions);
+                push_pending_evaluate(inserter, block_to_evaluate->next_as.next, parent_versions);
                 break;
             case TYPE_NEXT_SSA_BLOCK_LOOP:
-                struct ssa_block * to_jump_loop_block = block_to_evaluate->next.loop;
+                struct ssa_block * to_jump_loop_block = block_to_evaluate->next_as.loop;
                 if(!contains_u64_set(&inserter->loops_evaluted, (uint64_t) to_jump_loop_block)){
                     push_pending_evaluate(inserter, to_jump_loop_block, parent_versions);
                     add_u64_set(&inserter->loops_evaluted, (uint64_t) to_jump_loop_block);
                 } else {
                     //OP_LOOP always points to the loop condition
                     //If an assigment have ocurred inside the loop body, we will need to propagate outside the loop
-                    push_pending_evaluate(inserter, to_jump_loop_block->next.branch.false_branch, parent_versions);
+                    push_pending_evaluate(inserter, to_jump_loop_block->next_as.branch.false_branch, parent_versions);
                 }
                 break;
             case TYPE_NEXT_SSA_BLOCK_BRANCH:
-                push_pending_evaluate(inserter, block_to_evaluate->next.branch.false_branch, clone_u8_hash_table(parent_versions));
-                push_pending_evaluate(inserter, block_to_evaluate->next.branch.true_branch, parent_versions);
+                push_pending_evaluate(inserter, block_to_evaluate->next_as.branch.false_branch, clone_u8_hash_table(parent_versions));
+                push_pending_evaluate(inserter, block_to_evaluate->next_as.branch.true_branch, parent_versions);
                 break;
             case TYPE_NEXT_SSA_BLOCK_NONE:
                 free(parent_versions);
@@ -110,7 +109,7 @@ static void insert_phis_in_block(
         struct ssa_block * block,
         struct u8_hash_table * parent_versions
 ) {
-    for(struct ssa_control_node * current = block->first;; current = current->next->next){
+    for(struct ssa_control_node * current = block->first;; current = current->next){
         insert_ssa_versions_in_control_node(inserter, block, current, parent_versions);
 
         if(current == block->last){
@@ -306,9 +305,9 @@ static void extract_get_local(
     *parent_to_extract_get_local_ptr = &new_get_local->data;
 
     //Insert the new node in the linkedlist of ssa_control_nodes
-    extracted_set_local->control.next->next = control_node_to_extract;
+    extracted_set_local->control.next = control_node_to_extract;
     extracted_set_local->control.prev = control_node_to_extract->prev;
-    control_node_to_extract->prev->next->next = &extracted_set_local->control;
+    control_node_to_extract->prev->next = &extracted_set_local->control;
     control_node_to_extract->prev = &extracted_set_local->control;
     if(to_extract_block->first == control_node_to_extract){
         to_extract_block->first = &extracted_set_local->control;

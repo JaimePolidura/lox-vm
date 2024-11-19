@@ -34,7 +34,7 @@ struct ssa_block {
             struct ssa_block * true_branch;
             struct ssa_block * false_branch;
         } branch;
-    } next;
+    } next_as;
 };
 
 struct ssa_block * alloc_ssa_block();

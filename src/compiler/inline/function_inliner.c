@@ -135,7 +135,7 @@ static void rename_constants(struct bytecode_list *to_inline, int n_constants_in
 }
 
 static void remove_op_call(struct bytecode_list * head, struct bytecode_list * call_node) {
-    //Maybe some jump instructions point to OP_CALL. As OP_CALL will get removed we want it to point to the next instruction
+    //Maybe some jump instructions point to OP_CALL. As OP_CALL will get removed we want it to point to the next_as instruction
     //which will be the first inlined code
     move_jump_references_to_next_instruction(head, call_node);
 
@@ -330,7 +330,7 @@ static void rename_return_statements(struct bytecode_list * to_inline, struct fu
                 //So we can discard return statements
                 unlink_instruction_bytecode_list(current_instruction);
             } else {
-                //We need to jump to the next of last instrution of to_inline after it has been inlined
+                //We need to jump to the next_as of last instrution of to_inline after it has been inlined
                 //But we don't know yet the offset, so we place 0Xffffffffffffffff to indice that we need to resolve it
                 current_instruction->bytecode = OP_JUMP;
                 current_instruction->as.jump = PENDING_TO_RESOLVE_RETURN;
