@@ -31,7 +31,6 @@ typedef enum {
 } ssa_data_node_type;
 
 #define ALLOC_SSA_DATA_NODE(type, struct_type, bytecode) (struct_type *) allocate_ssa_data_node(type, sizeof(struct_type), bytecode)
-void * allocate_ssa_data_node(ssa_data_node_type type, size_t struct_size_bytes, struct bytecode_list *);
 
 struct ssa_data_node {
     struct bytecode_list * original_bytecode;
@@ -46,10 +45,12 @@ typedef void (*ssa_data_node_consumer_t)(
         void * extra
 );
 //Start node is inclusive. The iteration order will be post order
+void * allocate_ssa_data_node(ssa_data_node_type type, size_t struct_size_bytes, struct bytecode_list *);
+void free_ssa_data_node(struct ssa_data_node *);
+
 void for_each_ssa_data_node(struct ssa_data_node *, void **, void *, ssa_data_node_consumer_t);
 struct ssa_data_constant_node * create_ssa_const_node(lox_value_t, struct bytecode_list *);
-struct u8_set get_used_locals(struct ssa_data_node *);
-void free_ssa_data_node(struct ssa_data_node *);
+struct u8_set get_used_locals_ssa_data_node(struct ssa_data_node *);
 
 //OP_GET_LOCAL
 struct ssa_data_get_local_node {

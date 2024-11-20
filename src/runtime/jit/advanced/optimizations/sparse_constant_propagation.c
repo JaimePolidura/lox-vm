@@ -1,4 +1,4 @@
-#include "const_folding_optimization.h"
+#include "sparse_constant_propagation.h"
 
 //TOP > SEMILATTICE_BOTTOM > CONSTANT
 //Don't change the order, the higher the index, the stronger when calculating binary operations
@@ -17,7 +17,7 @@ struct semilattice_value {
 #define CREATE_CONSTANT_SEMILATTICE(constant) (struct semilattice_value) {.type = SEMILATTICE_CONSTANT, .const_value = constant }
 #define CREATE_BOTTOM_SEMILATTICE() (struct semilattice_value) {.type = SEMILATTICE_BOTTOM, .const_value = NIL_VALUE }
 
-struct const_folding_optimizer {
+struct sparse_constant_propagation {
     struct stack_list pending;
     struct u64_hash_table ssa_definitions_by_ssa_name;
     struct u64_hash_table semilattice_type_by_ssa_name;
@@ -26,25 +26,23 @@ struct const_folding_optimizer {
 extern lox_value_t addition_lox(lox_value_t a, lox_value_t b);
 extern void runtime_panic(char * format, ...);
 
-static void initialization(struct const_folding_optimizer * optimizer);
-static void propagation(struct const_folding_optimizer * optimizer);
+static void initialization(struct sparse_constant_propagation * optimizer);
+static void propagation(struct sparse_constant_propagation * optimizer);
 
 static struct semilattice_value get_semilattice_from_data(struct ssa_data_node *current_data_node, struct ssa_data_node **parent_ptr);
-struct const_folding_optimizer * alloc_struct_const_folding_optimizer(struct phi_insertion_result);
+struct sparse_constant_propagation * alloc_sparse_constant_propagation(struct phi_insertion_result);
 static struct semilattice_value calculate_unary(struct semilattice_value, ssa_unary_operator_type_t operator);
-static struct semilattice_value calculate_binary(struct semilattice_value, struct semilattice_value, bytecode_t operator);
 static lox_value_type calculate_binary_lox(lox_value_t, lox_value_t, bytecode_t operator);
+static lox_value_type calculate_unary_lox(lox_value_t, ssa_unary_operator_type_t operator);
 static void rewrite_graph_as_constant(struct ssa_data_node * old_node, struct ssa_data_node ** parent_ptr, lox_value_t constant);
 
-void perform_const_folding_optimization(struct ssa_block * start_block, struct phi_insertion_result phi_insertion_result) {
-    struct const_folding_optimizer * optimizer = alloc_struct_const_folding_optimizer(phi_insertion_result);
-    start_block = start_block->next_as.next;
-
+void perform_sparse_constant_propagation(struct ssa_block * start_block, struct phi_insertion_result phi_insertion_result) {
+    struct sparse_constant_propagation * optimizer = alloc_sparse_constant_propagation(phi_insertion_result);
     initialization(optimizer);
     propagation(optimizer);
 }
 
-static void propagation(struct const_folding_optimizer * optimizer) {
+static void propagation(struct sparse_constant_propagation * optimizer) {
     while(!is_empty_stack_list(&optimizer->pending)) {
         struct ssa_name current_ssa_name = CREATE_SSA_NAME_FROM_U64((uint64_t) pop_stack_list(&optimizer->pending));
 
@@ -53,7 +51,7 @@ static void propagation(struct const_folding_optimizer * optimizer) {
 
 //Initializes list of ssa names to work with
 //Also rewrites constant expressions like: 1 + 1 -> 2
-static void initialization(struct const_folding_optimizer * optimizer) {
+static void initialization(struct sparse_constant_propagation * optimizer) {
     struct u64_hash_table_iterator ssa_names_iterator;
     init_u64_hash_table_iterator(&ssa_names_iterator, optimizer->ssa_definitions_by_ssa_name);
 
@@ -79,28 +77,29 @@ static struct semilattice_value get_semilattice_from_data(
     switch (current_data_node->type) {
         case SSA_DATA_NODE_TYPE_BINARY: {
             struct ssa_data_binary_node * binary_node = (struct ssa_data_binary_node *) current_data_node;
-            struct semilattice_value right_semilattice = get_semilattice_from_data(binary_node->right,
-                                                                                   &binary_node->right);
+            struct semilattice_value right_semilattice = get_semilattice_from_data(binary_node->right, &binary_node->right);
             struct semilattice_value left_semilattice = get_semilattice_from_data(binary_node->left, &binary_node->left);
-            struct semilattice_value result_semilattice = calculate_binary(left_semilattice, right_semilattice, binary_node->operand);
 
-            if (result_semilattice.type == SEMILATTICE_CONSTANT) {
-                rewrite_graph_as_constant(&binary_node->data, parent_ptr, result_semilattice.const_value);
+            if(left_semilattice.type == SEMILATTICE_CONSTANT && right_semilattice.type == SEMILATTICE_CONSTANT){
+                lox_value_t result = calculate_binary_lox(left_semilattice.const_value, right_semilattice.const_value, binary_node->operand);
+                rewrite_graph_as_constant(&binary_node->data, parent_ptr, result);
+                return CREATE_CONSTANT_SEMILATTICE(result);
+            } else {
+                return CREATE_TOP_SEMILATTICE();
             }
-
-            return result_semilattice;
         }
         case SSA_DATA_NODE_TYPE_UNARY: {
             struct ssa_data_unary_node * unary_node = (struct ssa_data_unary_node *) current_data_node;
-            struct semilattice_value operand_semilattice = get_semilattice_from_data(unary_node->operand,
-                                                                                     &unary_node->operand);
-            struct semilattice_value result_semilattice = calculate_unary(operand_semilattice, unary_node->operator_type);
+            struct semilattice_value operand_semilattice = get_semilattice_from_data(unary_node->operand, &unary_node->operand);
 
-            if (result_semilattice.type == SEMILATTICE_CONSTANT) {
-                rewrite_graph_as_constant(&unary_node->data, parent_ptr, result_semilattice.const_value);
+            if(operand_semilattice.type == SEMILATTICE_CONSTANT){
+                struct semilattice_value result_semilattice = calculate_unary(operand_semilattice, unary_node->operator_type);
+                lox_value_t unary_result = calculate_unary_lox(result_semilattice.const_value, unary_node->operator_type);
+                rewrite_graph_as_constant(&unary_node->data, parent_ptr, unary_result);
+                return CREATE_CONSTANT_SEMILATTICE(unary_result);
+            } else {
+                return CREATE_TOP_SEMILATTICE();
             }
-
-            return result_semilattice;
         }
         case SSA_DATA_NODE_TYPE_GET_SSA_NAME: {
             struct ssa_data_get_ssa_name_node * get_ssa_name = (struct ssa_data_get_ssa_name_node *) current_data_node;
@@ -131,30 +130,21 @@ static struct semilattice_value get_semilattice_from_data(
         }
         case SSA_DATA_NODE_TYPE_GET_LOCAL:
         default:
-            runtime_panic("Unhandled ssa data node type %i in get_semilattice_from_data() in const_folding_optimization.c", current_data_node->type);
+            runtime_panic("Unhandled ssa data node type %i in get_semilattice_from_data() in sparse_constant_propagation.c", current_data_node->type);
     }
 }
 
-static struct semilattice_value calculate_binary(
-        struct semilattice_value left,
-        struct semilattice_value right,
-        bytecode_t operator
-) {
-    if (left.type == right.type) {
-        if(left.type != SEMILATTICE_CONSTANT) {
-            return left;
-        } else {
-            lox_value_t right_value = right.const_value;
-            lox_value_t left_value = left.const_value;
-            lox_value_t result = calculate_binary_lox(left_value, right_value, operator);
-            return CREATE_CONSTANT_SEMILATTICE(result);
+static lox_value_type calculate_unary_lox(lox_value_t operand_value, ssa_unary_operator_type_t operator) {
+    switch (operator) {
+        case UNARY_OPERATION_TYPE_NEGATION: {
+            return TO_LOX_VALUE_NUMBER(-AS_NUMBER(operand_value));
         }
+        case UNARY_OPERATION_TYPE_NOT: {
+            return TO_LOX_VALUE_BOOL(!AS_BOOL(operand_value));
+        }
+        default:
+            runtime_panic("Unhandled unary operator type %i in calculate_unary() in sparse_constant_propagation.c", operator);
     }
-
-    struct semilattice_value stronger = left.type >= right.type ? left : right;
-    struct semilattice_value weaker = left.type >= right.type ? right : left;
-
-    return stronger;
 }
 
 static struct semilattice_value calculate_unary(struct semilattice_value operand_value, ssa_unary_operator_type_t operator) {
@@ -173,7 +163,7 @@ static struct semilattice_value calculate_unary(struct semilattice_value operand
                     return CREATE_CONSTANT_SEMILATTICE(not_value);
                 }
                 default:
-                    runtime_panic("Unhandled unary operator type %i in calculate_unary() in const_folding_optimization.c", operand_value.type);
+                    runtime_panic("Unhandled unary operator type %i in calculate_unary() in sparse_constant_propagation.c", operand_value.type);
             }
     }
 }
@@ -187,12 +177,12 @@ static lox_value_type calculate_binary_lox(lox_value_t left, lox_value_t right, 
         case OP_GREATER: return TO_LOX_VALUE_BOOL(AS_NUMBER(left) > AS_NUMBER(right));
         case OP_LESS: return TO_LOX_VALUE_BOOL(AS_NUMBER(left) < AS_NUMBER(right));
         case OP_EQUAL: return TO_LOX_VALUE_BOOL(left == right);
-        default: runtime_panic("Unhandled binary operator %i in calculate_binary_lox() in const_folding_optimization.c", operator);
+        default: runtime_panic("Unhandled binary operator %i in calculate_binary_lox() in sparse_constant_propagation.c", operator);
     }
 }
 
-struct const_folding_optimizer * alloc_struc_const_folding_optimizer(struct phi_insertion_result phi_insertion_result) {
-    struct const_folding_optimizer * to_return = malloc(sizeof(struct const_folding_optimizer));
+struct sparse_constant_propagation * alloc_sparse_constant_propagation(struct phi_insertion_result phi_insertion_result) {
+    struct sparse_constant_propagation * to_return = malloc(sizeof(struct sparse_constant_propagation));
     to_return->ssa_definitions_by_ssa_name = phi_insertion_result.ssa_definitions_by_ssa_name;
     init_u64_hash_table(&to_return->semilattice_type_by_ssa_name);
     init_stack_list(&to_return->pending);

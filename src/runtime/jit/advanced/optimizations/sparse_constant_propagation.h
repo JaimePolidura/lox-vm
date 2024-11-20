@@ -6,4 +6,4 @@
 #include "shared.h"
 
 //Implementation of "sparse simple constant propagation" algorithm
-void perform_const_folding_optimization(struct ssa_block *, struct phi_insertion_result);
+void perform_sparse_constant_propagation(struct ssa_block *, struct phi_insertion_result);

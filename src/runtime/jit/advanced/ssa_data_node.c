@@ -26,7 +26,7 @@ void get_used_locals_consumer(struct ssa_data_node * _, void ** __, struct ssa_d
     }
 }
 
-struct u8_set get_used_locals(struct ssa_data_node * node) {
+struct u8_set get_used_locals_ssa_data_node(struct ssa_data_node * node) {
     struct u8_set used_locals_set;
     init_u8_set(&used_locals_set);
 
