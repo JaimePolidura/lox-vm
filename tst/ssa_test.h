@@ -18,18 +18,19 @@ extern void optimize_ssa_ir_phis(
         struct phi_insertion_result phi_insertion_result
 );
 
+static bool node_uses_version(struct ssa_data_node * start_node, int n_expected_version);
 static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expected_versions, ...);
 static bool node_defines_ssa_name(struct ssa_control_node *, int version);
 
 //Expect
-//First block: [a1 = 1; a1 > 0]
+//[a1 = 1; ¿a1 > 0?]
 //  -> True: [¿b0 > 0?]
 //      -> True: [b1 = 3; a2 = 3] -> FINAL BLOCK
 //      -> False: [b2 = 3] -> FINAL BLOCK
-//  -> False: [a3 = 3; i0 = 1] -> [¿phi(i0, i2) < 10?]
-//      -> True: [b3 = 12; i1 = phi(i0, i2); i2 = i1 + 1;]
+//  -> False: [a3 = 3; i1 = 1] -> [i4 = phi(i1, 13) ¿i4 < 10?]
+//      -> True: [b3 = 12; i2 = phi(i1, i3); i3 = i2 + 1;]
 //      -> False: FINAL BLOCK
-//FINAL BLOCK: [print phi(a1, a2, a3); print phi(b0, b1, b2, b3)]
+//FINAL BLOCK: [a4 = phi(a1, a2, a3); print a4; b4 = phi(b0, b1, b2, b3); print b4]
 TEST(ssa_phis_inserter){
     struct compilation_result compilation = compile_standalone(
             "fun function_ssa(a, b) {"
@@ -79,27 +80,37 @@ TEST(ssa_phis_inserter){
     ASSERT_TRUE(node_defines_ssa_name(a_condition_false->first, 3)); //a3 = 1;
     ASSERT_TRUE(node_defines_ssa_name(a_condition_false->first->next, 1)); //i1 = 1;
 
+    //Loop condition
     struct ssa_block * for_loop_condition_block = a_condition_false->next_as.next;
-    struct ssa_control_conditional_jump_node * for_loop_condition = (struct ssa_control_conditional_jump_node *) for_loop_condition_block->first;
-    ASSERT_TRUE(node_uses_phi_versions(for_loop_condition->condition, 2, 1, 3)); //phi(i1, i3) < 10
-
+    ASSERT_TRUE(node_defines_ssa_name(for_loop_condition_block->first, 4)); //i4 = phi(i1, i3)
+    struct ssa_control_define_ssa_name_node * define_i = (struct ssa_control_define_ssa_name_node *) for_loop_condition_block->first;
+    ASSERT_TRUE(node_uses_phi_versions(define_i->value, 2, 1, 3)); //i4 = phi(i1, i3)
+    struct ssa_control_conditional_jump_node * for_loop_condition = (struct ssa_control_conditional_jump_node *) for_loop_condition_block->first->next;
+    ASSERT_TRUE(node_uses_version(for_loop_condition->condition, 4)); //i4 < 10
+    //Loop body
     struct ssa_block * for_loop_body_block = for_loop_condition_block->next_as.branch.true_branch;
     ASSERT_TRUE(node_defines_ssa_name(for_loop_body_block->first, 3)); //b3 = 12;
-
+    //Loop increment
     struct ssa_control_set_local_node * extract_i_loop = (struct ssa_control_set_local_node *) for_loop_body_block->first->next;
     ASSERT_TRUE(node_defines_ssa_name(for_loop_body_block->first->next, 2)); //i2 = phi(i1, i3) + 1;
-
     ASSERT_TRUE(node_uses_phi_versions(extract_i_loop->new_local_value, 2, 1, 3)); //i2 = phi(i1, i3) + 1
     struct ssa_control_set_local_node * increment_i_loop = (struct ssa_control_set_local_node *) extract_i_loop->control.next;
     ASSERT_TRUE(node_defines_ssa_name(&increment_i_loop->control, 3)); //i3 = i2 + 1;
-
     ASSERT_TRUE(node_uses_phi_versions(increment_i_loop->new_local_value, 1, 2)); //i3 = i2 + 1;
 
+    //Final block
     struct ssa_block * final_block = a_condition_true_b_condition_true->next_as.next;
-    struct ssa_control_print_node * final_block_print_a = (struct ssa_control_print_node *) final_block->first;
-    ASSERT_TRUE(node_uses_phi_versions(final_block_print_a->data, 3, 1, 2, 3)); //print phi(a0, a2, a3);
-    struct ssa_control_print_node * final_block_print_b = (struct ssa_control_print_node *) final_block_print_a->control.next;
-    ASSERT_TRUE(node_uses_phi_versions(final_block_print_b->data, 4, 0, 1, 2, 3)); //print phi(b0, b1, b2, b3);
+    struct ssa_control_define_ssa_name_node * final_block_print_a = (struct ssa_control_define_ssa_name_node *) final_block->first;
+    ASSERT_TRUE(node_defines_ssa_name(&final_block_print_a->control, 4)); //a4 = phi(a1, a2, a3);
+    ASSERT_TRUE(node_uses_phi_versions(final_block_print_a->value, 3, 1, 2, 3));
+    struct ssa_control_print_node * print_a_node = (struct ssa_control_print_node *) final_block_print_a->control.next;
+    ASSERT_TRUE(node_uses_version(print_a_node->data, 4)); //print a4;
+
+    struct ssa_control_define_ssa_name_node * final_block_print_b = (struct ssa_control_define_ssa_name_node *) final_block->first->next->next;
+    ASSERT_TRUE(node_defines_ssa_name(&final_block_print_b->control, 4)); //b4 = phi(b0, b1, b2, b3);
+    ASSERT_TRUE(node_uses_phi_versions(final_block_print_b->value, 4, 0, 1, 2, 3));
+    struct ssa_control_print_node * print_b_node = (struct ssa_control_print_node *) final_block_print_b->control.next;
+    ASSERT_TRUE(node_uses_version(print_b_node->data, 4)); //print b4;
 }
 
 //Should produce:
@@ -211,6 +222,60 @@ static bool node_defines_ssa_name(struct ssa_control_node * node, int version) {
 
 static void int_array_to_set(struct u64_set *, int n_array_elements, int array[n_array_elements]);
 
+static bool node_uses_version(struct ssa_data_node * start_node, int expected_version) {
+    struct stack_list pending;
+    init_stack_list(&pending);
+    push_stack_list(&pending, start_node);
+
+    while(!is_empty_stack_list(&pending)) {
+        struct ssa_data_node *current = pop_stack_list(&pending);
+        switch (current->type) {
+            case SSA_DATA_NODE_TYPE_PHI: {
+                struct ssa_data_phi_node *phi_node = (struct ssa_data_phi_node *) current;
+                struct u64_set_iterator definitions_iterator;
+                init_u64_set_iterator(&definitions_iterator, phi_node->ssa_definitions);
+
+                while (has_next_u64_set_iterator(definitions_iterator)) {
+                    struct ssa_control_define_ssa_name_node *define_ssa_node = (void *) next_u64_set_iterator(
+                            &definitions_iterator);
+                    uint64_t actual_version = define_ssa_node->ssa_name.value.version;
+
+                    if (actual_version != expected_version) {
+                        free_stack_list(&pending);
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+            case SSA_DATA_NODE_TYPE_GET_SSA_NAME: {
+                struct ssa_data_get_ssa_name_node *get_ssa_name = (struct ssa_data_get_ssa_name_node *) current;
+                free_stack_list(&pending);
+                return get_ssa_name->ssa_name.value.version == expected_version;
+            }
+            case SSA_DATA_NODE_TYPE_BINARY: {
+                struct ssa_data_binary_node *binary_node = (struct ssa_data_binary_node *) current;
+                push_stack_list(&pending, binary_node->right);
+                push_stack_list(&pending, binary_node->left);
+                break;
+            }
+            case SSA_DATA_NODE_TYPE_CONSTANT:
+            case SSA_DATA_NODE_TYPE_CALL:
+            case SSA_DATA_NODE_TYPE_GET_GLOBAL:
+            case SSA_DATA_NODE_TYPE_UNARY:
+            case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD:
+            case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT:
+            case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT:
+            case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY:
+                break;
+        }
+    }
+
+    free_stack_list(&pending);
+
+    return false;
+}
+
 //Expect simple expressions, that will contain as much as 1 variable reference
 static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expected_versions, ...) {
     int expected_versions[n_expected_versions];
@@ -236,6 +301,7 @@ static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expe
                     uint64_t actual_version = define_ssa_node->ssa_name.value.version;
 
                     if(!contains_u64_set(&expected_versions_set, actual_version)){
+                        free_stack_list(&pending);
                         return false;
                     }
                 }
@@ -244,6 +310,7 @@ static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expe
             }
             case SSA_DATA_NODE_TYPE_GET_SSA_NAME: {
                 struct ssa_data_get_ssa_name_node * get_ssa_name = (struct ssa_data_get_ssa_name_node *) current;
+                free_stack_list(&pending);
                 return contains_u64_set(&expected_versions_set, get_ssa_name->ssa_name.value.version);
             }
             case SSA_DATA_NODE_TYPE_BINARY: {
