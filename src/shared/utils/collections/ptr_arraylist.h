@@ -9,6 +9,7 @@ struct ptr_arraylist {
     int in_use;
 };
 
+struct ptr_arraylist * alloc_ptr_arraylist();
 void init_ptr_arraylist(struct ptr_arraylist * array);
 void free_ptr_arraylist(struct ptr_arraylist * array);
 

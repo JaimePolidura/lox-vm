@@ -13,11 +13,6 @@ extern struct ssa_block * create_ssa_ir_no_phis(
         struct bytecode_list * start_function_bytecode
 );
 
-extern void optimize_ssa_ir_phis(
-        struct ssa_block * start_block,
-        struct phi_insertion_result phi_insertion_result
-);
-
 static bool node_uses_version(struct ssa_data_node * start_node, int n_expected_version);
 static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expected_versions, ...);
 static bool node_defines_ssa_name(struct ssa_control_node *, int version);
@@ -56,7 +51,8 @@ TEST(ssa_phis_inserter){
     struct function_object * function_ssa = get_function_package(package, "function_ssa");
     int n_instructions = function_ssa->chunk->in_use;
     init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
-    struct ssa_block * start_ssa_block = create_ssa_ir(package, function_ssa, create_bytecode_list(function_ssa->chunk));
+    struct ssa_creation_result ssa_creation_result = create_ssa_ir(package, function_ssa, create_bytecode_list(function_ssa->chunk));
+    struct ssa_block * start_ssa_block = ssa_creation_result.start_block;
 
     ASSERT_TRUE(node_defines_ssa_name(start_ssa_block->first, 1)); //a1 = 1;
     //a1 > 0

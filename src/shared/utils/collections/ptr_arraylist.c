@@ -1,5 +1,11 @@
 #include "ptr_arraylist.h"
 
+struct ptr_arraylist * alloc_ptr_arraylist() {
+    struct ptr_arraylist * ptr_arraylist = malloc(sizeof(struct ptr_arraylist));
+    init_ptr_arraylist(ptr_arraylist);
+    return ptr_arraylist;
+}
+
 void init_ptr_arraylist(struct ptr_arraylist * array) {
     array->values = NULL;
     array->capacity = 0;

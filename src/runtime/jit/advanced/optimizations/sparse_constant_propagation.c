@@ -30,14 +30,14 @@ static void initialization(struct sparse_constant_propagation * optimizer);
 static void propagation(struct sparse_constant_propagation * optimizer);
 
 static struct semilattice_value get_semilattice_from_data(struct ssa_data_node *current_data_node, struct ssa_data_node **parent_ptr);
-struct sparse_constant_propagation * alloc_sparse_constant_propagation(struct phi_insertion_result);
+struct sparse_constant_propagation * alloc_sparse_constant_propagation(struct ssa_creation_result);
 static struct semilattice_value calculate_unary(struct semilattice_value, ssa_unary_operator_type_t operator);
 static lox_value_type calculate_binary_lox(lox_value_t, lox_value_t, bytecode_t operator);
 static lox_value_type calculate_unary_lox(lox_value_t, ssa_unary_operator_type_t operator);
 static void rewrite_graph_as_constant(struct ssa_data_node * old_node, struct ssa_data_node ** parent_ptr, lox_value_t constant);
 
-void perform_sparse_constant_propagation(struct ssa_block * start_block, struct phi_insertion_result phi_insertion_result) {
-    struct sparse_constant_propagation * optimizer = alloc_sparse_constant_propagation(phi_insertion_result);
+void perform_sparse_constant_propagation(struct ssa_creation_result ssa_creation_result) {
+    struct sparse_constant_propagation * optimizer = alloc_sparse_constant_propagation(ssa_creation_result);
     initialization(optimizer);
     propagation(optimizer);
 }
@@ -181,9 +181,9 @@ static lox_value_type calculate_binary_lox(lox_value_t left, lox_value_t right, 
     }
 }
 
-struct sparse_constant_propagation * alloc_sparse_constant_propagation(struct phi_insertion_result phi_insertion_result) {
+struct sparse_constant_propagation * alloc_sparse_constant_propagation(struct ssa_creation_result ssa_creation_result) {
     struct sparse_constant_propagation * to_return = malloc(sizeof(struct sparse_constant_propagation));
-    to_return->ssa_definitions_by_ssa_name = phi_insertion_result.ssa_definitions_by_ssa_name;
+    to_return->ssa_definitions_by_ssa_name = ssa_creation_result.ssa_definitions_by_ssa_name;
     init_u64_hash_table(&to_return->semilattice_type_by_ssa_name);
     init_stack_list(&to_return->pending);
     return to_return;

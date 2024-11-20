@@ -1,5 +1,11 @@
 #include "u64_set.h"
 
+struct u64_set * alloc_u64_set() {
+    struct u64_set * u64_set = malloc(sizeof(struct u64_set));
+    init_u64_set(u64_set);
+    return u64_set;
+}
+
 void init_u64_set(struct u64_set * set) {
     init_u64_hash_table(&set->inner_hash_table);
 }

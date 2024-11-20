@@ -10,6 +10,7 @@ struct u64_set_iterator {
     struct u64_hash_table_iterator inner_hashtable_iterator;
 };
 
+struct u64_set * alloc_u64_set();
 void init_u64_set(struct u64_set *);
 void free_u64_set(struct u64_set *);
 
