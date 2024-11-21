@@ -9,7 +9,7 @@
 
 struct phi_optimization_result {
     //u64_set of ssa_control_nodes per ssa name
-    struct u64_hash_table uses_by_ssa_node;
+    struct u64_hash_table node_uses_by_ssa_name;
 };
 
 struct phi_optimization_result optimize_ssa_ir_phis(

@@ -19,8 +19,8 @@ struct ssa_creation_result {
     struct u64_hash_table ssa_definitions_by_ssa_name;
     //Max version allocated per local number
     struct u8_hash_table max_version_allocated_per_local;
-    //ptr_arraylist of ssa_control_nodes per ssa name
-    struct u64_hash_table uses_by_ssa_node;
+    //u64_set of ssa_control_nodes per ssa name
+    struct u64_hash_table node_uses_by_ssa_name;
 };
 
 //Given a byetcode_list this function will create the ssa graph ir. The graph IR consists of:

@@ -4,7 +4,7 @@ struct optimize_phi_functions_consumer_struct {
     struct phi_insertion_result * phi_insertion_result;
     struct ssa_control_node * control_node;
     //u64_set of ssa_control_nodes per ssa name
-    struct u64_hash_table * uses_by_ssa_node;
+    struct u64_hash_table * node_uses_by_ssa_name;
     struct ssa_block * block;
 };
 
@@ -37,13 +37,13 @@ struct phi_optimization_result optimize_ssa_ir_phis(
 
         for(struct ssa_control_node * current = current_block->first;; current = current->next) {
             struct optimize_phi_functions_consumer_struct for_each_node_struct = (struct optimize_phi_functions_consumer_struct) {
-                .uses_by_ssa_node = &uses_by_ssa_node,
+                .node_uses_by_ssa_name = &uses_by_ssa_node,
                 .phi_insertion_result = phi_insertion_result,
                 .control_node = current,
                 .block = current_block,
             };
 
-            for_each_data_node_in_control_node(current, &for_each_node_struct, optimize_phi_functions_consumer);
+            for_each_data_node_in_control_node(current, &for_each_node_struct, SSA_CONTROL_NODE_OPT_RECURSIVE, optimize_phi_functions_consumer);
 
             if(current == current_block->last){
                 break;
@@ -69,7 +69,7 @@ struct phi_optimization_result optimize_ssa_ir_phis(
     free_stack_list(&pending);
 
     return (struct phi_optimization_result) {
-        .uses_by_ssa_node = uses_by_ssa_node,
+        .node_uses_by_ssa_name = uses_by_ssa_node,
     };
 }
 
@@ -90,7 +90,7 @@ static void optimize_phi_functions_consumer(
         }
     }
 
-    add_ssa_name_uses_to_map(for_each_node_consumer_struct->uses_by_ssa_node, for_each_node_consumer_struct->control_node);
+    add_ssa_name_uses_to_map(for_each_node_consumer_struct->node_uses_by_ssa_name, for_each_node_consumer_struct->control_node);
 }
 
 static void remove_innecesary_phi_function(
@@ -189,7 +189,7 @@ static void add_ssa_name_uses_to_map(
         .control_node = control_node,
     };
 
-    for_each_data_node_in_control_node(control_node, &consumer_struct, add_ssa_name_uses_to_map_consumer);
+    for_each_data_node_in_control_node(control_node, &consumer_struct, SSA_CONTROL_NODE_OPT_RECURSIVE, add_ssa_name_uses_to_map_consumer);
 }
 
 static void add_ssa_name_use(

@@ -33,18 +33,18 @@ struct ssa_control_node {
     struct ssa_control_node * next;
 };
 
-void for_each_data_node_in_control_node(struct ssa_control_node *, void *, ssa_data_node_consumer_t);
+enum {
+    SSA_CONTROL_NODE_OPT_RECURSIVE = 0,
+    SSA_CONTROL_NODE_OPT_NOT_RECURSIVE = 1,
+};
+
+void for_each_data_node_in_control_node(struct ssa_control_node *, void *, long options, ssa_data_node_consumer_t);
 
 //OP_SET_LOCAL
 struct ssa_control_set_local_node {
     struct ssa_control_node control;
     uint32_t local_number; //Same size as ssa_name
     struct ssa_data_node * new_local_value;
-};
-
-struct ssa_control_start_node {
-    struct ssa_control_node control;
-    ssa_control_node_type type;
 };
 
 struct ssa_control_data_node {

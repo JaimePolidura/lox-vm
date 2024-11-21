@@ -326,7 +326,7 @@ static void get_global(
 }
 
 static void call(struct ssa_no_phis_inserter * inserter, struct pending_evaluate * to_evaluate) {
-    struct ssa_control_function_call_node * call_node = ALLOC_SSA_DATA_NODE(
+    struct ssa_data_function_call_node * call_node = ALLOC_SSA_DATA_NODE(
             SSA_DATA_NODE_TYPE_CALL, struct ssa_control_function_call_node, to_evaluate->pending_bytecode
     );
     bool is_paralell = to_evaluate->pending_bytecode->as.pair.u8_2;

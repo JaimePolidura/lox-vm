@@ -18,7 +18,7 @@ struct ssa_creation_result create_ssa_ir(
     return (struct ssa_creation_result) {
         .max_version_allocated_per_local = phi_insertion_result.max_version_allocated_per_local,
         .ssa_definitions_by_ssa_name = phi_insertion_result.ssa_definitions_by_ssa_name,
-        .uses_by_ssa_node = optimization_result.uses_by_ssa_node,
+        .node_uses_by_ssa_name = optimization_result.node_uses_by_ssa_name,
         .start_block = first_block,
     };
 }

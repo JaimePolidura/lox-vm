@@ -59,7 +59,7 @@ struct ssa_data_get_local_node {
 };
 
 //OP_CALL
-struct ssa_control_function_call_node {
+struct ssa_data_function_call_node {
     struct ssa_data_node data;
 
     struct ssa_data_node * function;

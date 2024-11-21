@@ -71,7 +71,7 @@ static void for_each_ssa_data_node_recursive(
             break;
         }
         case SSA_DATA_NODE_TYPE_CALL: {
-            struct ssa_control_function_call_node * call_node = (struct ssa_control_function_call_node *) current_node;
+            struct ssa_data_function_call_node * call_node = (struct ssa_data_function_call_node *) current_node;
             for_each_ssa_data_node_recursive(current_node, (void **) &call_node->function, call_node->function, extra, consumer);
             for(int i = 0; i < call_node->n_arguments; i++){
                 for_each_ssa_data_node_recursive(current_node, (void **) &call_node->arguments[i], call_node->arguments[i], extra, consumer);
