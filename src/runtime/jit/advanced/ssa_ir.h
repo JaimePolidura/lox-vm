@@ -8,7 +8,7 @@
 #include "compiler/bytecode/bytecode_list.h"
 
 #include "shared/utils/collections/u64_hash_table.h"
-#include "shared/utils/collections/stack_list.h"
+#include "shared/utils/collections/queue_list.h"
 #include "shared/types/function_object.h"
 #include "shared/types/package_object.h"
 #include "shared/package.h"

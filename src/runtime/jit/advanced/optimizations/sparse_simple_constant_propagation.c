@@ -63,8 +63,7 @@ static void propagation(struct sparse_simple_constant_propagation * sscp) {
                         &sscp->propagtion, define_ssa_name.u16);
 
                 if (prev_semilattice->type != SEMILATTICE_BOTTOM) {
-                    struct semilattice_value current_semilattice = get_semilattice_from_data(
-                            define_ssa_name_node->value);
+                    struct semilattice_value current_semilattice = get_semilattice_from_data(define_ssa_name_node->value);
                     put_u64_hash_table(&sscp->propagtion, current_ssa_name.u16, alloc_semilattice(current_semilattice));
 
                     if(current_semilattice.type != prev_semilattice->type){

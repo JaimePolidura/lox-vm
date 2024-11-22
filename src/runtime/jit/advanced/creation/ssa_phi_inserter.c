@@ -155,6 +155,7 @@ static void insert_ssa_versions_in_control_node(
 
         put_u64_hash_table(&inserter->ssa_definitions_by_ssa_name, ssa_name.u16, define_ssa_name);
         put_version(parent_versions, local_number, new_version);
+        add_u64_set(&block->defined_ssa_names, ssa_name.u16);
     }
 }
 
@@ -287,6 +288,7 @@ static void extract_get_local(
     extracted_set_local->ssa_name = CREATE_SSA_NAME(local_number, new_version_extracted);
     extracted_set_local->value = &extracted_phi_node->data;
     put_u64_hash_table(&inserter->ssa_definitions_by_ssa_name, set_ssa_name.u16, extracted_set_local);
+    add_u64_set(&to_extract_block->defined_ssa_names, set_ssa_name.u16);
 
     //phi(a1) in the example, will be a define_ssa_node. Replace get_local node with phi node
     struct ssa_data_phi_node * new_get_local = ALLOC_SSA_DATA_NODE(

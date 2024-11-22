@@ -28,6 +28,9 @@ struct ssa_block {
     //Set of pointers to ssa_block
     struct u64_set predecesors;
 
+    //Set of struct ssa_name, defined in the current block
+    struct u64_set defined_ssa_names;
+
     type_next_ssa_block_t type_next_ssa_block;
 
     union {

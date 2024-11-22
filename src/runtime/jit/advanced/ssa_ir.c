@@ -1,6 +1,6 @@
 #include "ssa_ir.h"
 
-static struct ptr_arraylist get_blocks_to_remove(struct ssa_block *);
+static struct u64_set get_blocks_to_remove(struct ssa_block *);
 static void remove_references(struct ssa_ir *, struct ssa_block *);
 
 void remove_branch_ssa_ir(struct ssa_ir * ssa_ir, struct ssa_block * branch_block, bool true_branch) {
@@ -13,60 +13,75 @@ void remove_branch_ssa_ir(struct ssa_ir * ssa_ir, struct ssa_block * branch_bloc
     branch_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_SEQ;
     branch_block->next_as.next = branch_remains;
 
-    struct ptr_arraylist blocks_to_remove = get_blocks_to_remove(branch_block);
-    for(int i = 0; i < blocks_to_remove.in_use; i++){
-        struct ssa_block * block_to_remove = blocks_to_remove.values[i];
+    struct u64_set blocks_to_remove = get_blocks_to_remove(branch_block);
+    struct u64_set_iterator blocks_to_remove_it;
+    init_u64_set_iterator(&blocks_to_remove_it, blocks_to_remove);
 
+    while(has_next_u64_set_iterator(blocks_to_remove_it)){
+        struct ssa_block * block_to_remove = (struct ssa_block *) next_u64_set_iterator(&blocks_to_remove_it);
         remove_references(ssa_ir, block_to_remove);
         free_ssa_block(block_to_remove);
     }
 
-    free_ptr_arraylist(&blocks_to_remove);
+    free_u64_set(&blocks_to_remove);
 }
 
-static void remove_references(struct ssa_ir * ssa_ir, struct ssa_block * ssa_block) {
+//We get the set of blocks that we can remove, when we want to remove a branch. For example given the graph:
+//Nodes: {A, B, C, D, E} Edges: A -> [B, C], B -> D, D -> E, C -> E
+//If we concluide that we want to remove the branch A -> B. The final graph would be:
+//Nodes: {A, C, E} Edges: A -> C, C -> E
+static struct u64_set get_blocks_to_remove(struct ssa_block * start_block) {
+    struct u64_set blocks_to_be_removed;
+    init_u64_set(&blocks_to_be_removed);
+    add_u64_set(&blocks_to_be_removed, (uint64_t) start_block);
 
-}
+    struct queue_list pending;
+    init_queue_list(&pending);
 
-struct pending_block_to_remove {
-    struct ssa_block * block;
-    int expected_predecessors;
-};
+    enqueue_queue_list(&pending, start_block);
 
-struct pending_block_to_remove * alloc_pending_block_to_remove(struct ssa_block * block, int expected_predecessors) {
-    struct pending_block_to_remove * pending = malloc(sizeof(struct pending_block_to_remove));
-    pending->expected_predecessors = expected_predecessors;
-    pending->block = block;
-    return pending;
-}
+    while(!is_empty_queue_list(&pending)) {
+        struct ssa_block * current_block = dequeue_queue_list(&pending);
+        struct u64_set_iterator current_block_predecesors_it;
+        init_u64_set_iterator(&current_block_predecesors_it, current_block->predecesors);
 
-static struct ptr_arraylist get_blocks_to_remove(struct ssa_block * start_block) {
-    struct ptr_arraylist blocks_to_be_removed;
-    init_ptr_arraylist(&blocks_to_be_removed);
+        //We check that the predecessors of the node that we are scanning, is contained the set of nodes that we want to
+        //remove
+        bool current_block_can_be_removed = true;
+        while(has_next_u64_set_iterator(current_block_predecesors_it)){
+            uint64_t current_block_predecesor_ptr = next_u64_set_iterator(&current_block_predecesors_it);
+            struct ssa_block * current_block_predecesor = (struct ssa_block *) current_block_predecesor_ptr;
 
-    struct stack_list pending;
-    init_stack_list(&pending);
-
-    push_stack_list(&pending, alloc_pending_block_to_remove(start_block, size_u64_set(start_block->predecesors)));
-
-    while(!is_empty_stack_list(&pending)) {
-        struct pending_block_to_remove * pending_to_remove = pop_stack_list(&pending);
-        int n_current_predecessors = size_u64_set(pending_to_remove->block->predecesors);
-        struct ssa_block * current_block = pending_to_remove->block;
-
-        if (n_current_predecessors == pending_to_remove->expected_predecessors){
-            append_ptr_arraylist(&blocks_to_be_removed, pending_to_remove->block);
-
-            if(pending_to_remove->block->type_next_ssa_block == TYPE_NEXT_SSA_BLOCK_SEQ){
-                push_stack_list(&pending, alloc_pending_block_to_remove(current_block->next_as.next, 1));
-            } else if(pending_to_remove->block->type_next_ssa_block == TYPE_NEXT_SSA_BLOCK_BRANCH) {
-                push_stack_list(&pending, alloc_pending_block_to_remove(current_block->next_as.branch.false_branch, 1));
-                push_stack_list(&pending, alloc_pending_block_to_remove(current_block->next_as.branch.true_branch, 1));
+            if(!contains_u64_set(&blocks_to_be_removed, current_block_predecesor_ptr)){
+                current_block_can_be_removed = false;
+                break;
             }
         }
 
-        free(pending_to_remove);
+        if (current_block_can_be_removed) {
+            add_u64_set(&blocks_to_be_removed, (uint64_t) current_block);
+
+            if(current_block->type_next_ssa_block == TYPE_NEXT_SSA_BLOCK_SEQ){
+                enqueue_queue_list(&pending, current_block->next_as.next);
+            } else if(current_block->type_next_ssa_block == TYPE_NEXT_SSA_BLOCK_BRANCH) {
+                enqueue_queue_list(&pending, current_block->next_as.branch.false_branch);
+                enqueue_queue_list(&pending, current_block->next_as.branch.true_branch);
+            }
+        }
     }
 
+    free_queue_list(&pending);
+
     return blocks_to_be_removed;
+}
+
+//We will remove any reference in the ssa_ir to ssa_block
+static void remove_references(struct ssa_ir * ssa_ir, struct ssa_block * ssa_block_to_remove) {
+    struct u64_set_iterator defined_ssa_names_it;
+    init_u64_set_iterator(&defined_ssa_names_it, ssa_block_to_remove->defined_ssa_names);
+
+    while(has_next_u64_set_iterator(defined_ssa_names_it)){
+        struct ssa_name defined_ssa_name_in_block = CREATE_SSA_NAME_FROM_U64(next_u64_set_iterator(&defined_ssa_names_it));
+        //TODO
+    }
 }
