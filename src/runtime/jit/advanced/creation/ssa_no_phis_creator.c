@@ -73,7 +73,7 @@ static void binary(struct ssa_no_phis_inserter *, struct pending_evaluate *);
 
 //Creates the ssa ir, without phi functions. OP_GET_LOCAL and OP_SET_LOCAL are represented with
 //ssa_control_set_local_node and ssa_data_get_local_node.
-//It also create blocks, which is a series of ssa_control_nodes that are executed sequentially without branches
+//It also creates blocks, which is a series of ssa_control_nodes that are executed sequentially without branches
 struct ssa_block * create_ssa_ir_no_phis(
         struct package * package,
         struct function_object * function,
@@ -93,7 +93,8 @@ struct ssa_block * create_ssa_ir_no_phis(
             //Link two blocks
             struct ssa_block * block_evaluated = get_u64_hash_table(&inserter->blocks_by_first_bytecode, (uint64_t) to_evaluate->pending_bytecode);
             struct ssa_block * current_block = to_evaluate->block;
-            if(block_evaluated != current_block){
+            if(block_evaluated != current_block) {
+                add_u64_set(&block_evaluated->predecesors, (uint64_t) current_block);
                 current_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_SEQ;
                 current_block->next_as.next = block_evaluated;
             }
@@ -543,6 +544,7 @@ static void pop(struct ssa_no_phis_inserter * inserter, struct pending_evaluate 
     }
 }
 
+//Loop body is not added to the predecesors set of loop condition
 static void loop(struct ssa_no_phis_inserter * inserter, struct pending_evaluate * to_evalute) {
     struct ssa_control_loop_jump_node * loop_jump_node = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_TYPE_LOOP_JUMP, struct ssa_control_loop_jump_node);
     struct bytecode_list * to_jump_bytecode = to_evalute->pending_bytecode->as.jump;
@@ -571,6 +573,8 @@ static void jump(struct ssa_no_phis_inserter * insterter, struct pending_evaluat
     to_evalute->block->last = to_evalute->prev_control_node;
     to_evalute->block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_SEQ;
     to_evalute->block->next_as.next = new_block;
+
+    add_u64_set(&new_block->predecesors, (uint64_t) to_evalute->block);
 
     clear_u8_set(&insterter->current_block_local_usage.assigned);
     clear_u8_set(&insterter->current_block_local_usage.used);
@@ -601,11 +605,18 @@ static void jump_if_false(struct ssa_no_phis_inserter * inserter, struct pending
         condition_block->next_as.branch.false_branch = false_branch_block;
         true_branch_block->loop_body = true;
 
+        add_u64_set(&condition_block->predecesors, (uint64_t) parent_block);
+        add_u64_set(&false_branch_block->predecesors, (uint64_t) condition_block);
+        add_u64_set(&true_branch_block->predecesors, (uint64_t) condition_block);
+
         add_last_control_node_ssa_block(condition_block, &cond_jump_node->control);
     } else {
         parent_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_BRANCH;
         parent_block->next_as.branch.false_branch = false_branch_block;
         parent_block->next_as.branch.true_branch = true_branch_block;
+
+        add_u64_set(&false_branch_block->predecesors, (uint64_t) parent_block);
+        add_u64_set(&true_branch_block->predecesors, (uint64_t) parent_block);
 
         add_last_control_node_ssa_block(parent_block, &cond_jump_node->control);
     }

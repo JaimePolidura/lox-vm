@@ -22,7 +22,6 @@ struct stack_node {
 
 struct stack_list * alloc_stack_list();
 void init_stack_list(struct stack_list * stack);
-
 void free_stack_list(struct stack_list * stack);
 
 void push_stack_list(struct stack_list *, void * to_push);

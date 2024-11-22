@@ -54,25 +54,30 @@ TEST(ssa_phis_inserter){
     struct ssa_ir ssa_ir = create_ssa_ir(package, function_ssa, create_bytecode_list(function_ssa->chunk));
     struct ssa_block * start_ssa_block = ssa_ir.first_block;
 
+    ASSERT_EQ(size_u64_set(start_ssa_block->predecesors), 0);
     ASSERT_TRUE(node_defines_ssa_name(start_ssa_block->first, 1)); //a1 = 1;
     //a1 > 0
     struct ssa_control_conditional_jump_node * a_condition = (struct ssa_control_conditional_jump_node *) start_ssa_block->first->next;
     ASSERT_TRUE(node_uses_phi_versions(a_condition->condition, 1, 1));
 
     struct ssa_block * a_condition_true = start_ssa_block->next_as.branch.true_branch;
+    ASSERT_EQ(size_u64_set(a_condition_true->predecesors), 1);
     //b0 > 0
     struct ssa_control_conditional_jump_node * a_condition_true_b_condition = (struct ssa_control_conditional_jump_node *) a_condition_true->first;
     ASSERT_TRUE(node_uses_phi_versions(a_condition_true_b_condition->condition, 1, 0));
 
     struct ssa_block * a_condition_true_b_condition_true = a_condition_true->next_as.branch.true_branch;
+    ASSERT_EQ(size_u64_set(a_condition_true_b_condition_true->predecesors), 1);
     ASSERT_TRUE(node_defines_ssa_name(a_condition_true_b_condition_true->first, 1)); //b1 = 3;
     ASSERT_TRUE(node_defines_ssa_name(a_condition_true_b_condition_true->first->next, 2)); //a2 = 2;
 
     struct ssa_block * a_condition_true_b_condition_false = a_condition_true->next_as.branch.false_branch;
     struct ssa_control_set_local_node * set_local = (struct ssa_control_set_local_node *) a_condition_true_b_condition_false->first;
+    ASSERT_EQ(size_u64_set(a_condition_true_b_condition_false->predecesors), 1);
     ASSERT_TRUE(node_defines_ssa_name(a_condition_true_b_condition_false->first, 2));  //b2 = 3;
 
     struct ssa_block * a_condition_false = start_ssa_block->next_as.branch.false_branch;
+    ASSERT_EQ(size_u64_set(a_condition_false->predecesors), 1);
     ASSERT_TRUE(node_defines_ssa_name(a_condition_false->first, 3)); //a3 = 1;
     ASSERT_TRUE(node_defines_ssa_name(a_condition_false->first->next, 1)); //i1 = 1;
 
@@ -97,6 +102,7 @@ TEST(ssa_phis_inserter){
     //Final block
     struct ssa_block * final_block = a_condition_true_b_condition_true->next_as.next;
     struct ssa_control_define_ssa_name_node * final_block_print_a = (struct ssa_control_define_ssa_name_node *) final_block->first;
+    ASSERT_EQ(size_u64_set(final_block->predecesors), 3);
     ASSERT_TRUE(node_defines_ssa_name(&final_block_print_a->control, 4)); //a4 = phi(a1, a2, a3);
     ASSERT_TRUE(node_uses_phi_versions(final_block_print_a->value, 3, 1, 2, 3));
     struct ssa_control_print_node * print_a_node = (struct ssa_control_print_node *) final_block_print_a->control.next;
