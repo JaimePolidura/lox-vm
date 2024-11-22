@@ -13,7 +13,7 @@
 #include "u8_set_test.h"
 #include "u8_hash_table.h"
 
-//#define RUN_U64_HASH_TABLE_TEST
+//#define RUN_U64_HASH_TABLE_TE+ST
 //#define RUN_MARK_BITMAP_TEST
 //#define RUN_HASH_TABLE_TEST
 //#define RUN_VM_INLINE_TEST

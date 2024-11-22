@@ -51,8 +51,8 @@ TEST(ssa_phis_inserter){
     struct function_object * function_ssa = get_function_package(package, "function_ssa");
     int n_instructions = function_ssa->chunk->in_use;
     init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
-    struct ssa_creation_result ssa_creation_result = create_ssa_ir(package, function_ssa, create_bytecode_list(function_ssa->chunk));
-    struct ssa_block * start_ssa_block = ssa_creation_result.start_block;
+    struct ssa_ir ssa_ir = create_ssa_ir(package, function_ssa, create_bytecode_list(function_ssa->chunk));
+    struct ssa_block * start_ssa_block = ssa_ir.first_block;
 
     ASSERT_TRUE(node_defines_ssa_name(start_ssa_block->first, 1)); //a1 = 1;
     //a1 > 0
@@ -229,12 +229,10 @@ static bool node_uses_version(struct ssa_data_node * start_node, int expected_ve
             case SSA_DATA_NODE_TYPE_PHI: {
                 struct ssa_data_phi_node *phi_node = (struct ssa_data_phi_node *) current;
                 struct u64_set_iterator definitions_iterator;
-                init_u64_set_iterator(&definitions_iterator, phi_node->ssa_definitions);
+                init_u64_set_iterator(&definitions_iterator, phi_node->ssa_versions);
 
                 while (has_next_u64_set_iterator(definitions_iterator)) {
-                    struct ssa_control_define_ssa_name_node *define_ssa_node = (void *) next_u64_set_iterator(
-                            &definitions_iterator);
-                    uint64_t actual_version = define_ssa_node->ssa_name.value.version;
+                    uint64_t actual_version =  (uint64_t) next_u64_set_iterator(&definitions_iterator);
 
                     if (actual_version != expected_version) {
                         free_stack_list(&pending);
@@ -290,11 +288,10 @@ static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expe
             case SSA_DATA_NODE_TYPE_PHI: {
                 struct ssa_data_phi_node * phi_node = (struct ssa_data_phi_node *) current;
                 struct u64_set_iterator definitions_iterator;
-                init_u64_set_iterator(&definitions_iterator, phi_node->ssa_definitions);
+                init_u64_set_iterator(&definitions_iterator, phi_node->ssa_versions);
 
                 while(has_next_u64_set_iterator(definitions_iterator)) {
-                    struct ssa_control_define_ssa_name_node * define_ssa_node = (void *) next_u64_set_iterator(&definitions_iterator);
-                    uint64_t actual_version = define_ssa_node->ssa_name.value.version;
+                    uint64_t actual_version = (uint64_t) next_u64_set_iterator(&definitions_iterator);
 
                     if(!contains_u64_set(&expected_versions_set, actual_version)){
                         free_stack_list(&pending);

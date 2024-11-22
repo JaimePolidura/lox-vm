@@ -9,6 +9,7 @@
 struct u64_hash_table_entry {
     uint64_t key;
     void * value;
+    bool some_value;
 };
 
 struct u64_hash_table {

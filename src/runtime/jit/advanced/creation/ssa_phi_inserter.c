@@ -90,7 +90,6 @@ static struct ssa_control_node * get_ssa_definition_node(struct ssa_phi_inserter
         struct ssa_data_get_ssa_name_node * get_function_parameter = ALLOC_SSA_DATA_NODE(
                 SSA_DATA_NODE_TYPE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL
         );
-        get_function_parameter->definition_node = NULL;
         get_function_parameter->ssa_name = ssa_name;
         struct ssa_control_define_ssa_name_node * define_function_parameter = ALLOC_SSA_CONTROL_NODE(
                 SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME, struct ssa_control_define_ssa_name_node
@@ -186,15 +185,13 @@ static void insert_phis_in_data_node_consumer(
             extract_get_local(inserter, parent_versions, control_node, block, local_number, parent_current_ptr);
         } else {
             //We are going to replace the OP_GET_LOCAL node with a phi node
-            struct ssa_name ssa_name = CREATE_SSA_NAME(get_local->local_number, get_version(parent_versions, get_local->local_number));
             struct ssa_data_phi_node * phi_node = ALLOC_SSA_DATA_NODE(
                     SSA_DATA_NODE_TYPE_PHI, struct ssa_data_phi_node, current_node->original_bytecode
             );
             phi_node->local_number = local_number;
-            init_u64_set(&phi_node->ssa_definitions);
-
-            struct ssa_control_define_ssa_name_node * ssa_definition_node = (struct ssa_control_define_ssa_name_node *) get_ssa_definition_node(inserter, ssa_name);
-            add_u64_set(&phi_node->ssa_definitions, (uint64_t) ssa_definition_node);
+            init_u64_set(&phi_node->ssa_versions);
+            uint8_t version = get_version(parent_versions, get_local->local_number);
+            add_u64_set(&phi_node->ssa_versions, version);
 
             //Replace parent pointer to child node
             //OP_GET_LOCAL will always be a child of another data node.
@@ -210,10 +207,7 @@ static void insert_phis_in_data_node_consumer(
             return;
         }
 
-        struct ssa_name new_ssa_name = CREATE_SSA_NAME(phi_node->local_number, last_version);
-        struct ssa_control_node * last_definition = get_ssa_definition_node(inserter, new_ssa_name);
-
-        add_u64_set(&phi_node->ssa_definitions, (uint64_t) last_definition);
+        add_u64_set(&phi_node->ssa_versions, last_version);
     }
 }
 
@@ -278,10 +272,10 @@ static void extract_get_local(
         void ** parent_to_extract_get_local_ptr
 ) {
     //a0 in the example, will be a phi node
-    struct ssa_name get_ssa_name = CREATE_SSA_NAME(local_number, get_version(parent_versions, local_number));
     struct ssa_data_phi_node * extracted_phi_node = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_PHI, struct ssa_data_phi_node, NULL);
-    init_u64_set(&extracted_phi_node->ssa_definitions);
-    add_u64_set(&extracted_phi_node->ssa_definitions, (uint64_t) get_u64_hash_table(&inserter->ssa_definitions_by_ssa_name, get_ssa_name.u16));
+
+    init_u64_set(&extracted_phi_node->ssa_versions);
+    add_u64_set(&extracted_phi_node->ssa_versions, get_version(parent_versions, local_number));
     extracted_phi_node->local_number = local_number;
 
     //a1 in the example, will be a define_ssa_node
@@ -298,9 +292,9 @@ static void extract_get_local(
     struct ssa_data_phi_node * new_get_local = ALLOC_SSA_DATA_NODE(
             SSA_DATA_NODE_TYPE_PHI, struct ssa_data_phi_node, NULL
     );
-    init_u64_set(&new_get_local->ssa_definitions);
+    init_u64_set(&new_get_local->ssa_versions);
     new_get_local->local_number = local_number;
-    add_u64_set(&new_get_local->ssa_definitions, (uint64_t) &extracted_set_local->control);
+    add_u64_set(&new_get_local->ssa_versions, new_version_extracted);
     *parent_to_extract_get_local_ptr = &new_get_local->data;
 
     //Insert the new node in the linkedlist of ssa_control_nodes

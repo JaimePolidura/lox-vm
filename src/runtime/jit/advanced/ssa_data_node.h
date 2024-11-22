@@ -163,13 +163,11 @@ struct ssa_data_phi_node {
     struct ssa_data_node data;
     uint8_t local_number;
 
-    //Stores pointers to ssa_data_define_ssa_name_node nodes
-    struct u64_set ssa_definitions;
+    struct u64_set ssa_versions;
 };
 
 //Will replace OP_GET_LOCAL, when a variable
 struct ssa_data_get_ssa_name_node {
     struct ssa_data_node data;
     struct ssa_name ssa_name;
-    void * definition_node; //If null, the ssa name is a function parameter
 };

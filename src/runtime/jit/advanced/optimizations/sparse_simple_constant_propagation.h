@@ -5,4 +5,4 @@
 #include "shared.h"
 
 //Implementation of "sparse simple constant propagation" algorithm
-void perform_sparse_constant_propagation(struct ssa_creation_result);
+void perform_sparse_simple_constant_propagation(struct ssa_ir *);

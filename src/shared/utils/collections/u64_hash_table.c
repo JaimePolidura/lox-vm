@@ -35,9 +35,10 @@ bool put_u64_hash_table(struct u64_hash_table * hash_hable, uint64_t key, void *
     }
 
     struct u64_hash_table_entry * entry = find_u64_hash_table_entry(hash_hable->entries, hash_hable->capacity, key);
-    bool key_already_exists = entry->value != NULL;
+    bool key_already_exists = entry->some_value;
     entry->key = key;
     entry->value = value;
+    entry->some_value = true;
 
     if (!key_already_exists) {
         hash_hable->size++;
@@ -54,7 +55,7 @@ static struct u64_hash_table_entry * find_u64_hash_table_entry(struct u64_hash_t
     uint64_t index = key & (capacity - 1);
     struct u64_hash_table_entry * current_entry = entries + index;
 
-    while (current_entry != NULL && current_entry->value != NULL && current_entry->key != key) {
+    while (current_entry->some_value && current_entry->key != key) {
         index = (index + 1) & (capacity - 1); //Optimized %
         current_entry = entries + index;
     }
@@ -70,10 +71,11 @@ static void grow_u64_hash_table(struct u64_hash_table * table) {
 
     for (int i = 0; i < table->capacity; i++) {
         struct u64_hash_table_entry * old_entry = &old_entries[i];
-        if (old_entry->key != 0 && old_entry->value != NULL) {
+        if (old_entry->some_value) {
             struct u64_hash_table_entry * new_entry = find_u64_hash_table_entry(new_entries, new_capacity, old_entry->key);
             new_entry->value = old_entry->value;
             new_entry->key = old_entry->key;
+            new_entry->some_value = true;
         }
     }
 
@@ -93,9 +95,9 @@ bool has_next_u64_hash_table_iterator(struct u64_hash_table_iterator iterator) {
 }
 
 struct u64_hash_table_entry next_u64_hash_table_iterator(struct u64_hash_table_iterator * iterator) {
-    while(has_next_u64_hash_table_iterator(*iterator)){
+    while (has_next_u64_hash_table_iterator(*iterator)) {
         struct u64_hash_table_entry entry = iterator->hash_table.entries[iterator->current_index++];
-        if(entry.key != 0 && entry.value != NULL){
+        if(entry.some_value){
             iterator->n_entries_returned++;
             return entry;
         }

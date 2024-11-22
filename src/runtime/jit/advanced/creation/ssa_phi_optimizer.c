@@ -83,9 +83,9 @@ static void optimize_phi_functions_consumer(
 
     if (current_node->type == SSA_DATA_NODE_TYPE_PHI) {
         struct ssa_data_phi_node * phi_node = (struct ssa_data_phi_node *) current_node;
-        if (size_u64_set(phi_node->ssa_definitions) == 1) {
+        if (size_u64_set(phi_node->ssa_versions) == 1) {
             remove_innecesary_phi_function(phi_node, parent_child_ptr);
-        } else if(size_u64_set(phi_node->ssa_definitions) > 1 && for_each_node_consumer_struct->control_node->type != SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME) {
+        } else if(size_u64_set(phi_node->ssa_versions) > 1 && for_each_node_consumer_struct->control_node->type != SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME) {
             extract_phi_to_ssa_name(for_each_node_consumer_struct, (struct ssa_data_phi_node *) current_node, parent_child_ptr);
         }
     }
@@ -98,15 +98,13 @@ static void remove_innecesary_phi_function(
         void ** parent_child_ptr
 ) {
     struct u64_set_iterator ssa_definition_iterator;
-    init_u64_set_iterator(&ssa_definition_iterator, phi_node->ssa_definitions);
-    void * ssa_definition_ptr = (void *) next_u64_set_iterator(&ssa_definition_iterator);
-    struct ssa_control_define_ssa_name_node * ssa_definition_node = ssa_definition_ptr;
+    init_u64_set_iterator(&ssa_definition_iterator, phi_node->ssa_versions);
+    uint8_t ssa_version = (uint8_t) next_u64_set_iterator(&ssa_definition_iterator);
 
     struct ssa_data_get_ssa_name_node * new_get_ssa_name = ALLOC_SSA_DATA_NODE(
             SSA_DATA_NODE_TYPE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL
     );
-    new_get_ssa_name->ssa_name = ssa_definition_node->ssa_name;
-    new_get_ssa_name->definition_node = ssa_definition_node;
+    new_get_ssa_name->ssa_name = CREATE_SSA_NAME(phi_node->local_number, ssa_version);
 
     //Replace node
     *parent_child_ptr = (void *) new_get_ssa_name;
@@ -135,7 +133,6 @@ static void extract_phi_to_ssa_name(
             SSA_DATA_NODE_TYPE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL
     );
 
-    get_extracted->definition_node = (void *) extracted_define_ssa_name;
     get_extracted->ssa_name = extracted_ssa_name;
 
     add_before_control_node_ssa_block(block, control_node, &extracted_define_ssa_name->control);
@@ -166,14 +163,13 @@ static void add_ssa_name_uses_to_map_consumer(
     if (current_node->type == SSA_DATA_NODE_TYPE_PHI) {
         struct ssa_data_phi_node * phi_node = (struct ssa_data_phi_node *) current_node;
         struct u64_set_iterator phi_uses_iterator;
-        init_u64_set_iterator(&phi_uses_iterator, phi_node->ssa_definitions);
+        init_u64_set_iterator(&phi_uses_iterator, phi_node->ssa_versions);
 
         while(has_next_u64_set_iterator(phi_uses_iterator)) {
-            void * definition_ptr = (void *) next_u64_set_iterator(&phi_uses_iterator);
-            struct ssa_control_define_ssa_name_node * definition_node = definition_ptr;
-            add_ssa_name_use(consumer_struct->uses_by_ssa_node, definition_node->ssa_name, consumer_struct->control_node);
+            uint8_t definition_ssa_version = (uint8_t) next_u64_set_iterator(&phi_uses_iterator);
+            struct ssa_name ssa_name = CREATE_SSA_NAME(phi_node->local_number, definition_ssa_version);
+            add_ssa_name_use(consumer_struct->uses_by_ssa_node, ssa_name, consumer_struct->control_node);
         }
-
     } else if(current_node->type == SSA_DATA_NODE_TYPE_GET_SSA_NAME) {
         struct ssa_data_get_ssa_name_node * get_name = (struct ssa_data_get_ssa_name_node *) current_node;
         add_ssa_name_use(consumer_struct->uses_by_ssa_node, get_name->ssa_name, consumer_struct->control_node);

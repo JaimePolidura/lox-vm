@@ -25,6 +25,9 @@ struct ssa_block {
     //Indicates if the current block belongs to the body of a loop
     bool loop_body;
 
+    //Set of pointers to ssa_block
+    struct u64_set predecesors;
+
     type_next_ssa_block_t type_next_ssa_block;
 
     union {
@@ -39,6 +42,8 @@ struct ssa_block {
 
 struct ssa_block * alloc_ssa_block();
 void init_ssa_block(struct ssa_block *);
+void free_ssa_block(struct ssa_block *);
+
 void add_last_control_node_ssa_block(struct ssa_block *, struct ssa_control_node *);
 void add_before_control_node_ssa_block(struct ssa_block *, struct ssa_control_node * before, struct ssa_control_node * new);
 
