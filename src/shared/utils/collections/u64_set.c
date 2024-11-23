@@ -37,3 +37,21 @@ bool has_next_u64_set_iterator(struct u64_set_iterator iterator) {
 uint64_t next_u64_set_iterator(struct u64_set_iterator * iterator) {
     return next_u64_hash_table_iterator(&iterator->inner_hashtable_iterator).key;
 }
+
+void union_u64_set(struct u64_set * values, struct u64_set other) {
+    struct u64_set_iterator other_it;
+    init_u64_set_iterator(&other_it, other);
+    while(has_next_u64_set_iterator(other_it)){
+        add_u64_set(values, next_u64_set_iterator(&other_it));
+    }
+}
+
+uint64_t get_first_value_u64_set(struct u64_set set) {
+    struct u64_set_iterator iterator;
+    init_u64_set_iterator(&iterator, set);
+    if(has_next_u64_set_iterator(iterator)){
+        return next_u64_set_iterator(&iterator);
+    } else {
+        return 0;
+    }
+}

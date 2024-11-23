@@ -159,6 +159,11 @@ struct ssa_name {
     };
 };
 
+#define FOR_EACH_VERSION_IN_PHI_NODE(phi_node, current_name) \
+    struct u64_set_iterator iterator; \
+    init_u64_set_iterator(&iterator, (phi_node)->ssa_versions); \
+    for(struct ssa_name current_name = CREATE_SSA_NAME((phi_node)->local_number, next_u64_set_iterator(&iterator)); has_next_u64_set_iterator(iterator);) \
+
 struct ssa_data_phi_node {
     struct ssa_data_node data;
     uint8_t local_number;

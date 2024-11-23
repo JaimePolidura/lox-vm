@@ -97,9 +97,7 @@ static void remove_innecesary_phi_function(
         struct ssa_data_phi_node * phi_node,
         void ** parent_child_ptr
 ) {
-    struct u64_set_iterator ssa_definition_iterator;
-    init_u64_set_iterator(&ssa_definition_iterator, phi_node->ssa_versions);
-    uint8_t ssa_version = (uint8_t) next_u64_set_iterator(&ssa_definition_iterator);
+    uint8_t ssa_version = get_first_value_u64_set(phi_node->ssa_versions);
 
     struct ssa_data_get_ssa_name_node * new_get_ssa_name = ALLOC_SSA_DATA_NODE(
             SSA_DATA_NODE_TYPE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL
@@ -161,13 +159,7 @@ static void add_ssa_name_uses_to_map_consumer(
     struct add_ssa_name_uses_to_map_consumer_struct * consumer_struct = extra;
 
     if (current_node->type == SSA_DATA_NODE_TYPE_PHI) {
-        struct ssa_data_phi_node * phi_node = (struct ssa_data_phi_node *) current_node;
-        struct u64_set_iterator phi_uses_iterator;
-        init_u64_set_iterator(&phi_uses_iterator, phi_node->ssa_versions);
-
-        while(has_next_u64_set_iterator(phi_uses_iterator)) {
-            uint8_t definition_ssa_version = (uint8_t) next_u64_set_iterator(&phi_uses_iterator);
-            struct ssa_name ssa_name = CREATE_SSA_NAME(phi_node->local_number, definition_ssa_version);
+        FOR_EACH_VERSION_IN_PHI_NODE((struct ssa_data_phi_node *) current_node, ssa_name) {
             add_ssa_name_use(consumer_struct->uses_by_ssa_node, ssa_name, consumer_struct->control_node);
         }
     } else if(current_node->type == SSA_DATA_NODE_TYPE_GET_SSA_NAME) {
