@@ -1,9 +1,10 @@
 #pragma once
 
-#include "shared.h"
-#include "shared/types/string_object.h"
+#include "shared/utils/memory/lox_allocator.h"
 #include "shared/utils/concurrency/rw_mutex.h"
+#include "shared/types/string_object.h"
 #include "shared/utils/utils.h"
+#include "shared.h"
 
 //Value, reference holder, extra ptr passed by the user in for_each_value_hash_table()
 typedef void (*lox_hashtable_consumer_t)(
@@ -20,10 +21,12 @@ struct hash_table_entry {
 };
 
 struct lox_hash_table {
-    int size;
-    int capacity;
-    struct rw_mutex rw_lock;
+    struct lox_allocator * allocator;
+
     struct hash_table_entry * entries;
+    struct rw_mutex rw_lock;
+    int capacity;
+    int size;
 };
 
 void for_each_value_hash_table(struct lox_hash_table * table, void * extra, lox_hashtable_consumer_t consumer);
@@ -52,5 +55,5 @@ bool contains_hash_table(struct lox_hash_table * table, struct string_object * k
 //Returns the key value_node by its hash
 struct string_object * get_key_by_hash(struct lox_hash_table * table, uint32_t keyHash);
 
-void init_hash_table(struct lox_hash_table * table);
-void free_hash_table(struct lox_hash_table * table);
+void init_hash_table(struct lox_hash_table *, struct lox_allocator *);
+void free_hash_table(struct lox_hash_table *);

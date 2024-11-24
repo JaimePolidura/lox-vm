@@ -1,16 +1,10 @@
 #include "stack_list.h"
 
-static struct stack_node * alloc_stack_node() {
-    struct stack_node * node = malloc(sizeof(struct stack_node));
-    node->next = NULL;
-    node->data = NULL;
-    node->prev = NULL;
-    return node;
-}
+static struct stack_node * alloc_stack_node(struct lox_allocator *);
 
-struct stack_list * alloc_stack_list() {
-    struct stack_list * stack = malloc(sizeof(struct stack_list));
-    init_stack_list(stack);
+struct stack_list * alloc_stack_list(struct lox_allocator * allocator) {
+    struct stack_list * stack = LOX_MALLOC(allocator, sizeof(struct stack_list));
+    init_stack_list(stack, allocator);
     return stack;
 }
 
@@ -31,14 +25,15 @@ void free_stack_list(struct stack_list * stack) {
     struct stack_node * current_node = stack->head;
     while(current_node != NULL){
         struct stack_node * next_to_current = current_node->next;
-        free(current_node);
+        LOX_FREE(stack->allocator, current_node);
         current_node = next_to_current;
     }
 
     stack->head = NULL;
 }
 
-void init_stack_list(struct stack_list * stack) {
+void init_stack_list(struct stack_list * stack, struct lox_allocator * allocator) {
+    stack->allocator = allocator;
     stack->head = NULL;
 }
 
@@ -53,7 +48,7 @@ void push_n_stack_list(struct stack_list * stack_list, void * to_push, int n) {
 }
 
 void push_stack_list(struct stack_list * stack, void * to_push) {
-    struct stack_node * new_node = alloc_stack_node();
+    struct stack_node * new_node = alloc_stack_node(stack->allocator);
     struct stack_node * prev_node = stack->head;
 
     if(prev_node != NULL){
@@ -87,7 +82,15 @@ void * pop_stack_list(struct stack_list * stack) {
         new_head->next = NULL;
     }
 
-    free(to_pop);
+    LOX_FREE(stack->allocator, to_pop);
 
     return data_to_pop;
+}
+
+static struct stack_node * alloc_stack_node(struct lox_allocator * allocator) {
+    struct stack_node * node = LOX_MALLOC(allocator, sizeof(struct stack_node));
+    node->next = NULL;
+    node->data = NULL;
+    node->prev = NULL;
+    return node;
 }

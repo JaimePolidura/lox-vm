@@ -3,14 +3,14 @@
 static struct pending_jump_to_resolve * alloc_pending_jump_to_resolve();
 
 void init_pending_jumps_to_resolve(struct pending_jumps_to_resolve * pending_jumps_to_resolve, int size) {
-    init_ptr_arraylist(&pending_jumps_to_resolve->pending);
+    init_ptr_arraylist(&pending_jumps_to_resolve->pending, NATIVE_LOX_ALLOCATOR());
     resize_ptr_arraylist(&pending_jumps_to_resolve->pending, size * sizeof(void *));
 }
 
 void free_pending_jumps_to_resolve(struct pending_jumps_to_resolve * pending_jumps_to_resolve) {
     for(int i = 0; i < pending_jumps_to_resolve->pending.in_use; i++){
         if(pending_jumps_to_resolve->pending.values[i] != NULL){
-            free(pending_jumps_to_resolve->pending.values[i]);
+            NATIVE_LOX_FREE(pending_jumps_to_resolve->pending.values[i]);
         }
     }
 
@@ -45,7 +45,7 @@ struct pending_jump_to_resolve get_pending_jump_to_resolve(struct pending_jumps_
 }
 
 static struct pending_jump_to_resolve * alloc_pending_jump_to_resolve() {
-    struct pending_jump_to_resolve * pending_jump_to_resolve = malloc(sizeof(struct pending_jump_to_resolve));
+    struct pending_jump_to_resolve * pending_jump_to_resolve = NATIVE_LOX_MALLOC(struct pending_jump_to_resolve, sizeof(struct pending_jump_to_resolve));
     memset(pending_jump_to_resolve->pending_resolve_data, 0, MAX_JUMPS_REFERENCES_TO_LINE);
     pending_jump_to_resolve->in_use = 0;
     return pending_jump_to_resolve;

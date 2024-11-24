@@ -7,16 +7,22 @@ struct lox_allocator {
     void (*lox_free)(struct lox_allocator*, void *);
 };
 
-void * native_lox_malloc(struct lox_allocator *, size_t size);
-void native_lox_free(struct lox_allocator *, void * ptr);
-
-#define NATIVE_LOX_ALLOCATOR() (struct native_allocator) { \
-    .lox_allocator = (struct lox_allocator) {.lox_free = default_lox_free, .lox_malloc = default_lox_malloc} \
-}
-
 struct native_allocator {
     struct lox_allocator lox_allocator;
 };
+
+void * native_lox_malloc(struct lox_allocator *, size_t size);
+void native_lox_free(struct lox_allocator *, void * ptr);
+
+struct native_allocator native_lox_allocator = (struct native_allocator) {
+        .lox_allocator = (struct lox_allocator) {.lox_free = native_lox_free, .lox_malloc = native_lox_malloc}
+};
+
+#define LOX_MALLOC(allocator, size) (allocator->lox_malloc(allocator, size))
+#define LOX_FREE(allocator, ptr) (allocator->lox_free(allocator, ptr))
+#define NATIVE_LOX_ALLOCATOR() (&native_lox_allocator.lox_allocator)
+#define NATIVE_LOX_MALLOC(type, size) ((type *) NATIVE_LOX_ALLOCATOR()->lox_malloc(NATIVE_LOX_ALLOCATOR(), (size)))
+#define NATIVE_LOX_FREE(ptr) (NATIVE_LOX_ALLOCATOR()->lox_free(NATIVE_LOX_ALLOCATOR(), (ptr)))
 
 void * native_lox_malloc(struct lox_allocator *, size_t size) {
     return malloc(size);

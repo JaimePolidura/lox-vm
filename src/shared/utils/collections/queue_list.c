@@ -1,7 +1,7 @@
 #include "queue_list.h"
 
-void init_queue_list(struct queue_list * queue) {
-    init_ptr_arraylist(&queue->inner_list);
+void init_queue_list(struct queue_list * queue, struct lox_allocator * allocator) {
+    init_ptr_arraylist(&queue->inner_list, allocator);
 }
 
 void free_queue_list(struct queue_list * queue) {

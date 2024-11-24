@@ -9,7 +9,5 @@ struct substring {
 };
 
 char * copy_substring_to_string(struct substring substring);
-
 int length_substring(struct substring substring);
-
 char * start_substring(struct substring substring);

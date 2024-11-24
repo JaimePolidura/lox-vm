@@ -1,5 +1,6 @@
 #pragma once
 
+#include "shared/utils/memory/lox_allocator.h"
 #include "shared/string_pool.h"
 #include "shared/types/types.h"
 #include "shared/utils/collections/lox_arraylist.h"

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "shared/utils/memory/lox_allocator.h"
 #include "u64_hash_table.h"
 
 struct u64_set {
@@ -17,8 +18,8 @@ struct u64_set_iterator {
         has_next_u64_set_iterator(iterator_set); \
         value = next_u64_set_iterator(&iterator_set)) \
 
-struct u64_set * alloc_u64_set();
-void init_u64_set(struct u64_set *);
+struct u64_set * alloc_u64_set(struct lox_allocator *);
+void init_u64_set(struct u64_set *, struct lox_allocator *);
 void free_u64_set(struct u64_set *);
 
 void add_u64_set(struct u64_set *, uint64_t);

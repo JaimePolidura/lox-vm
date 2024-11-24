@@ -8,15 +8,16 @@ static struct hash_table_entry * find_entry(struct hash_table_entry * entries, i
 static struct hash_table_entry * find_entry_by_hash(struct hash_table_entry * entries, int capacity, uint32_t key_hash);
 static void adjust_hash_table_capacity(struct lox_hash_table * table, int new_capacity);
 
-void init_hash_table(struct lox_hash_table * table) {
-    table->size = 0;
+void init_hash_table(struct lox_hash_table * table, struct lox_allocator * allocator) {
+    init_rw_mutex(&table->rw_lock);
+    table->allocator = allocator;
     table->capacity = -1;
     table->entries = NULL;
-    init_rw_mutex(&table->rw_lock);
+    table->size = 0;
 }
 
 void free_hash_table(struct lox_hash_table * table) {
-    free(table->entries);
+    LOX_FREE(table->allocator, table->entries);
     free_rw_mutex(&table->rw_lock);
 }
 
@@ -167,7 +168,7 @@ bool put_hash_table(struct lox_hash_table * table, struct string_object * key, l
 }
 
 static void adjust_hash_table_capacity(struct lox_hash_table * table, int new_capacity) {
-    struct hash_table_entry * new_entries = malloc(sizeof(struct hash_table_entry) * new_capacity);
+    struct hash_table_entry * new_entries = LOX_MALLOC(table->allocator, sizeof(struct hash_table_entry) * new_capacity);
 
     for (int i = 0; i < new_capacity; i++) {
         new_entries[i].key = NULL;
@@ -185,7 +186,7 @@ static void adjust_hash_table_capacity(struct lox_hash_table * table, int new_ca
         }
     }
 
-    free(table->entries);
+    LOX_FREE(table->allocator, table->entries);
     table->entries = new_entries;
     table->capacity = new_capacity;
 }

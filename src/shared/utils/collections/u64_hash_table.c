@@ -4,20 +4,21 @@ static struct u64_hash_table_entry * find_u64_hash_table_entry(struct u64_hash_t
 static void grow_u64_hash_table(struct u64_hash_table *);
 extern void runtime_panic(char * format, ...);
 
-void init_u64_hash_table(struct u64_hash_table * u64_hash_table) {
-    u64_hash_table->size = 0;
-    u64_hash_table->capacity = 0;
+void init_u64_hash_table(struct u64_hash_table * u64_hash_table, struct lox_allocator * allocator) {
+    u64_hash_table->allocator = allocator;
     u64_hash_table->entries = NULL;
+    u64_hash_table->capacity = 0;
+    u64_hash_table->size = 0;
 }
 
-struct u64_hash_table * alloc_u64_hash_table() {
-    struct u64_hash_table * u64_hash_table = malloc(sizeof(struct u64_hash_table));
-    init_u64_hash_table(u64_hash_table);
+struct u64_hash_table * alloc_u64_hash_table(struct lox_allocator * allocator) {
+    struct u64_hash_table * u64_hash_table = LOX_MALLOC(allocator, sizeof(struct u64_hash_table));
+    init_u64_hash_table(u64_hash_table, allocator);
     return u64_hash_table;
 }
 
 void free_u64_hash_table(struct u64_hash_table * u64_hash_table) {
-    free(u64_hash_table->entries);
+    LOX_FREE(u64_hash_table->allocator, u64_hash_table->entries);
 }
 
 void * get_u64_hash_table(struct u64_hash_table * hash_hable, uint64_t key) {
@@ -65,7 +66,7 @@ static struct u64_hash_table_entry * find_u64_hash_table_entry(struct u64_hash_t
 
 static void grow_u64_hash_table(struct u64_hash_table * table) {
     uint64_t new_capacity = MAX(U64_HASH_TABLE_INITIAL_CAPACITY, table->capacity << 1);
-    struct u64_hash_table_entry * new_entries = malloc(sizeof(struct u64_hash_table_entry) * new_capacity);
+    struct u64_hash_table_entry * new_entries = LOX_MALLOC(table->allocator, sizeof(struct u64_hash_table_entry) * new_capacity);
     struct u64_hash_table_entry * old_entries = table->entries;
     memset(new_entries, 0, new_capacity * sizeof(struct u64_hash_table_entry));
 
@@ -81,7 +82,7 @@ static void grow_u64_hash_table(struct u64_hash_table * table) {
 
     table->entries = new_entries;
     table->capacity = new_capacity;
-    free(old_entries);
+    LOX_FREE(table->allocator, old_entries);
 }
 
 void init_u64_hash_table_iterator(struct u64_hash_table_iterator * iterator, struct u64_hash_table hash_table) {

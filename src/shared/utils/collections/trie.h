@@ -1,5 +1,6 @@
 #pragma once
 
+#include "shared/utils/memory/lox_allocator.h"
 #include "shared/utils/utils.h"
 #include "shared.h"
 
@@ -22,12 +23,13 @@ struct trie_node {
 };
 
 struct trie_list {
+    struct lox_allocator * allocator;
     struct trie_node * head;
     int size;
 };
 
-struct trie_list * alloc_trie_list();
-void init_trie_list(struct trie_list * trie_list);
+struct trie_list * alloc_trie_list(struct lox_allocator *);
+void init_trie_list(struct trie_list * trie_list, struct lox_allocator *);
 void free_trie_list(struct trie_list * trie);
 
 void for_each_node(struct trie_list * trie, void * extra, consumer_t consumer_callback);

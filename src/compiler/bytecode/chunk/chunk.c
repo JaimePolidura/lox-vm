@@ -3,7 +3,7 @@
 #include <stdlib.h>
 
 struct chunk * alloc_chunk() {
-    struct chunk * allocated_chunk = malloc(sizeof(struct chunk));
+    struct chunk * allocated_chunk = NATIVE_LOX_MALLOC(struct chunk, sizeof(struct chunk));
     init_chunk(allocated_chunk);
     return allocated_chunk;
 }
@@ -21,8 +21,8 @@ void write_chunk(struct chunk * chunk_to_write, uint8_t byte) {
         int old_code_capacity = chunk_to_write->capacity;
         chunk_to_write->capacity = new_code_capacity;
 
-        chunk_to_write->code = GROW_ARRAY(uint8_t, chunk_to_write->code, old_code_capacity, new_code_capacity);
-        chunk_to_write->lines = GROW_ARRAY(int, chunk_to_write->lines, old_code_capacity, new_code_capacity);
+        chunk_to_write->code = GROW_ARRAY(NATIVE_LOX_ALLOCATOR(), uint8_t, chunk_to_write->code, old_code_capacity, new_code_capacity);
+        chunk_to_write->lines = GROW_ARRAY(NATIVE_LOX_ALLOCATOR(), int, chunk_to_write->lines, old_code_capacity, new_code_capacity);
     }
 
     int index_to_write = chunk_to_write->in_use++;
@@ -30,7 +30,7 @@ void write_chunk(struct chunk * chunk_to_write, uint8_t byte) {
 }
 
 void init_chunk(struct chunk * chunk) {
-    init_lox_arraylist(&chunk->constants);
+    init_lox_arraylist(&chunk->constants, NATIVE_LOX_ALLOCATOR());
     chunk->lines = NULL;
     chunk->capacity = 0;
     chunk->code = NULL;
@@ -72,10 +72,10 @@ struct chunk * copy_chunk(struct chunk * src) {
     dst->in_use = src->in_use;
     dst->lines = src->lines;
 
-    dst->code = malloc(sizeof(uint8_t) * src->capacity);
+    dst->code = NATIVE_LOX_MALLOC(uint8_t, sizeof(uint8_t) * src->capacity);
     memcpy(dst->code, src->code, src->capacity);
 
-    dst->constants.values = malloc(sizeof(lox_value_t) * src->constants.capacity);
+    dst->constants.values = NATIVE_LOX_MALLOC(lox_value_t, sizeof(lox_value_t) * src->constants.capacity);
     memcpy(dst->constants.values, src->constants.values, dst->constants.capacity);
     dst->constants.capacity = src->constants.capacity;
     dst->constants.in_use = src->constants.in_use;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "shared/utils/memory/lox_allocator.h"
 #include "shared/utils/utils.h"
 #include "shared.h"
 
@@ -13,6 +14,8 @@ struct u64_hash_table_entry {
 };
 
 struct u64_hash_table {
+    struct lox_allocator * allocator;
+
     int capacity;
     int size;
     struct u64_hash_table_entry * entries;
@@ -26,8 +29,8 @@ struct u64_hash_table_iterator {
 };
 
 
-void init_u64_hash_table(struct u64_hash_table *);
-struct u64_hash_table * alloc_u64_hash_table();
+void init_u64_hash_table(struct u64_hash_table *, struct lox_allocator *);
+struct u64_hash_table * alloc_u64_hash_table(struct lox_allocator *);
 void free_u64_hash_table(struct u64_hash_table *);
 
 //Returns the element of the hash table given a key. Returns NULL if it wasn't found

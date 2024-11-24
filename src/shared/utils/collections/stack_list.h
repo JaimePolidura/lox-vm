@@ -1,16 +1,15 @@
 #pragma once
 
+#include "shared/utils/memory/lox_allocator.h"
 #include "shared.h"
 
-/**
- *      prev
- * head --> other node
- *
- *      next_as
- * head <-- other node
- */
-
+// prev:
+// head -> other node
+//
+// next:
+// head <- other node
 struct stack_list {
+    struct lox_allocator * allocator;
     struct stack_node * head;
 };
 
@@ -20,9 +19,9 @@ struct stack_node {
     void * data;
 };
 
-struct stack_list * alloc_stack_list();
-void init_stack_list(struct stack_list * stack);
-void free_stack_list(struct stack_list * stack);
+struct stack_list * alloc_stack_list(struct lox_allocator *);
+void init_stack_list(struct stack_list *, struct lox_allocator *);
+void free_stack_list(struct stack_list *);
 
 void push_stack_list(struct stack_list *, void * to_push);
 void push_n_stack_list(struct stack_list *, void * to_push, int n);
