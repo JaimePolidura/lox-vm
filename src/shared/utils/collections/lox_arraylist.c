@@ -1,17 +1,18 @@
 #include "lox_arraylist.h"
 
-void init_lox_arraylist(struct lox_arraylist * array) {
-    array->values = NULL;
-    array->capacity = 0;
-    array->in_use = 0;
-}
-
-void init_lox_arraylist_with_size(struct lox_arraylist * array, int size) {
-    init_lox_arraylist(array);
+void init_lox_arraylist_with_size(struct lox_arraylist * array, int size, struct lox_allocator allocator) {
+    init_lox_arraylist(array, allocator);
     array->capacity = size;
     array->in_use = size;
     array->values = GROW_ARRAY(lox_value_t, array->values, 0, size);
     memset(array->values, 0, size * sizeof(lox_value_t));
+}
+
+void init_lox_arraylist(struct lox_arraylist * array, struct lox_allocator allocator) {
+    array->allocator = allocator;
+    array->values = NULL;
+    array->capacity = 0;
+    array->in_use = 0;
 }
 
 void append_lox_arraylist(struct lox_arraylist * array, lox_value_t value) {

@@ -21,7 +21,7 @@ struct sparse_simple_constant_propagation {
 
 struct constant_rewrite {
     struct ssa_data_node * node;
-    struct semilattice_value semilattice;
+    struct semilattice_value * semilattice;
 };
 
 extern lox_value_t addition_lox(lox_value_t a, lox_value_t b);
@@ -81,8 +81,6 @@ static void propagation(struct sparse_simple_constant_propagation * sscp) {
                     if(current_semilattice->type != prev_semilattice->type){
                         push_stack_list(&sscp->pending, (void *) current_ssa_name.u16);
                     }
-
-                    free(prev_semilattice);
                 }
             }
         }
@@ -213,7 +211,7 @@ struct constant_rewrite * rewrite_constant_expressions_data_node(
             binary_node->right = right->node;
             binary_node->left = left->node;
 
-            struct semilattice_value * result = join_semilattice(&left->semilattice, &right->semilattice, binary_node->operand);
+            struct semilattice_value * result = join_semilattice(left->semilattice, right->semilattice, binary_node->operand);
 
             switch (result->type) {
                 case SEMILATTICE_CONSTANT:
@@ -229,12 +227,12 @@ struct constant_rewrite * rewrite_constant_expressions_data_node(
             struct constant_rewrite * unary_operand_node = rewrite_constant_expressions_data_node(sscp, unary_node->operand);
             unary_node->operand = unary_operand_node->node;
 
-            switch (unary_operand_node->semilattice.type) {
+            switch (unary_operand_node->semilattice->type) {
                 case SEMILATTICE_CONSTANT:
                     struct u64_set new_possible_values;
                     init_u64_set(&new_possible_values);
 
-                    FOR_EACH_U64_SET_VALUE(unary_operand_node->semilattice.values, current_operand) {
+                    FOR_EACH_U64_SET_VALUE(unary_operand_node->semilattice->values, current_operand) {
                         lox_value_t current_result = calculate_unary_lox(current_operand, unary_node->operator_type);
                         add_u64_set(&new_possible_values, current_result);
                     }
@@ -273,7 +271,8 @@ struct constant_rewrite * rewrite_constant_expressions_data_node(
         }
         case SSA_DATA_NODE_TYPE_PHI: {
             struct ssa_data_phi_node * phi_node = (struct ssa_data_phi_node *) current_node;
-            return current_node;
+            struct semilattice_value * semilattice_phi = get_semilattice_phi(sscp, phi_node);
+            return alloc_constant_rewrite(current_node, semilattice_phi);
         }
         case SSA_DATA_NODE_TYPE_GET_LOCAL: {
             runtime_panic("Illegal get local node in sparse constant sscp ssa optimization");
@@ -480,4 +479,11 @@ static struct constant_rewrite * create_constant_rewrite_from_result(struct ssa_
     } else {
         return alloc_constant_rewrite(data_node, alloc_multiple_const_values_semilattice(possible_values));
     }
+}
+
+static struct constant_rewrite * alloc_constant_rewrite(struct ssa_data_node * node, struct semilattice_value * value) {
+    struct constant_rewrite * constant_rewrite = malloc(sizeof(struct constant_rewrite));
+    constant_rewrite->semilattice = value;
+    constant_rewrite->node = node;
+    return constant_rewrite;
 }
