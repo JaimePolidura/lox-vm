@@ -161,7 +161,7 @@ struct parse_rule rules[] = {
 
 struct compilation_result compile_bytecode(char * source_code, char * compiling_package_name, char * base_dir) {
     if(compiled_packages == NULL){
-        compiled_packages = alloc_trie_list();
+        compiled_packages = alloc_trie_list(NATIVE_LOX_ALLOCATOR());
     }
     if(compiling_base_dir == NULL){
         compiling_base_dir = base_dir;
@@ -299,7 +299,8 @@ static void struct_declaration(struct bytecode_compiler * compiler, bool is_publ
 
     struct_definition->n_fields = n_fields;
     struct_definition->name = add_to_global_string_pool(struct_name.start, struct_name.length, false).string_object;
-    struct_definition->field_names = malloc(sizeof(struct token) * n_fields);
+    struct_definition->field_names = NATIVE_LOX_ALLOCATOR()->lox_malloc(NATIVE_LOX_ALLOCATOR(), sizeof(struct string_object) * n_fields);
+
     for(int i = 0; i < n_fields; i++) {
         struct token field = fields[i];
         struct_definition->field_names[i] = add_to_global_string_pool(field.start, field.length, false).string_object;
@@ -770,7 +771,7 @@ static struct package * compile_package(struct bytecode_compiler * compiler, str
     package->state = PENDING_INITIALIZATION;
     package->package_id = ++compiler->next_package_id;
 
-    free(source_code);
+    NATIVE_LOX_FREE(source_code);
 
     return package;
 }
@@ -1067,14 +1068,14 @@ static void report_error(struct bytecode_compiler * compiler, struct token token
 }
 
 static struct bytecode_compiler * alloc_compiler(scope_type_t scope, char * package_name, bool is_standalone_mode) {
-    struct bytecode_compiler * compiler = malloc(sizeof(struct bytecode_compiler));
+    struct bytecode_compiler * compiler = NATIVE_LOX_MALLOC(struct bytecode_compiler, sizeof(struct bytecode_compiler));
     compiler->package = add_package_to_compiled_packages(package_name, strlen(package_name), is_standalone_mode);
     init_compiler(compiler, scope, NULL); //Parent bytecode_compiler null, this current_function will be the first one to be called
-    compiler->scanner = malloc(sizeof(struct scanner));
-    compiler->parser = malloc(sizeof(struct parser));
+    compiler->scanner = NATIVE_LOX_MALLOC(struct scanner, sizeof(struct scanner));
+    compiler->parser = NATIVE_LOX_MALLOC(struct parser, sizeof(struct parser));
     compiler->parser->has_error = false;
     compiler->is_standalone_mode = is_standalone_mode;
-    init_trie_list(&compiler->const_global_variables);
+    init_trie_list(&compiler->const_global_variables, NATIVE_LOX_ALLOCATOR());
 
     return compiler;
 }
@@ -1129,8 +1130,8 @@ static struct package * add_package_to_compiled_packages(char * package_import_n
 
 static void init_compiler(struct bytecode_compiler * compiler, scope_type_t scope_type, struct bytecode_compiler * parent_compiler) {
     compiler->current_function = alloc_function();
-    init_trie_list(&compiler->function_call_list);
-    init_trie_list(&compiler->const_global_variables);
+    init_trie_list(&compiler->function_call_list, NATIVE_LOX_ALLOCATOR());
+    init_trie_list(&compiler->const_global_variables, NATIVE_LOX_ALLOCATOR());
 
     if(scope_type == SCOPE_FUNCTION) {
         compiler->package = parent_compiler->package;
@@ -1165,7 +1166,7 @@ static void init_compiler(struct bytecode_compiler * compiler, scope_type_t scop
     compiler->last_monitor_entered = &compiler->monitor_numbers_entered[0];
     compiler->last_monitor_allocated_number = 0;
 
-    init_hash_table(&compiler->defined_functions);
+    init_hash_table(&compiler->defined_functions, NATIVE_LOX_ALLOCATOR());
 
     compiler->function_calls = NULL;
 
@@ -1183,17 +1184,17 @@ static void string(struct bytecode_compiler * compiler, bool can_assign) {
 
 static bool free_trie_node_key_string(void * key, void * extra_ignored) {
     struct trie_node * trie_node = key;
-    free(trie_node->key);
+    NATIVE_LOX_FREE(trie_node->key);
     return true;
 }
 
 static void free_compiler(struct bytecode_compiler * compiler) {
     free_scanner(compiler->scanner);
-    free(compiler->parser);
-    free(compiler->scanner);
+    NATIVE_LOX_FREE(compiler->parser);
+    NATIVE_LOX_FREE(compiler->scanner);
     for_each_node(&compiler->function_call_list, NULL, free_trie_node_key_string);
     free_trie_list(&compiler->function_call_list);
-    free(compiler);
+    NATIVE_LOX_FREE(compiler);
 }
 
 static struct function_object * end_compiler(struct bytecode_compiler * compiler) {

@@ -4,6 +4,7 @@
 #include "compiler/bytecode/chunk/chunk.h"
 
 #include "shared/bytecode/pending_jump_to_resolve.h"
+#include "shared/utils/memory/lox_allocator.h"
 #include "shared/bytecode/bytecode.h"
 #include "shared.h"
 
@@ -38,11 +39,13 @@ struct bytecode_list {
 
     //Only used when converting struct bytecode_list to struct chunk
     int to_chunk_index;
+
+    struct lox_allocator * allocator;
 };
 
-struct bytecode_list * create_bytecode_list(struct chunk *);
-struct bytecode_list * create_instruction_bytecode_list(bytecode_t bytecode);
-struct bytecode_list * alloc_bytecode_list();
+struct bytecode_list * create_bytecode_list(struct chunk *, struct lox_allocator *);
+struct bytecode_list * create_instruction_bytecode_list(bytecode_t bytecode, struct lox_allocator *);
+struct bytecode_list * alloc_bytecode_list(struct lox_allocator *);
 struct chunk * to_chunk_bytecode_list(struct bytecode_list *);
 void free_bytecode_list(struct bytecode_list *);
 

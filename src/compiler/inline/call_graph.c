@@ -13,9 +13,9 @@ static struct call_graph * get_call_graph_node(struct u64_hash_table *, struct f
 
 struct call_graph * create_call_graph(struct compilation_result * compilation_resul) {
     struct u64_hash_table functions_in_call_graph;
-    init_u64_hash_table(&functions_in_call_graph);
+    init_u64_hash_table(&functions_in_call_graph, NATIVE_LOX_ALLOCATOR());
     struct stack_list pending;
-    init_stack_list(&pending);
+    init_stack_list(&pending, NATIVE_LOX_ALLOCATOR());
 
     struct call_graph * call_graph = malloc(sizeof(struct call_graph));
     call_graph->function_object = compilation_resul->compiled_package->main_function;
@@ -135,9 +135,9 @@ void free_recursive_call_graph(struct call_graph * call_graph) {
 
 struct call_graph_iterator iterate_call_graph(struct call_graph * call_graph) {
     struct call_graph_iterator iterator;
-    init_u64_hash_table(&iterator.already_checked);
-    init_stack_list(&iterator.pending);
-    init_stack_list(&iterator.parents);
+    init_u64_hash_table(&iterator.already_checked, NATIVE_LOX_ALLOCATOR());
+    init_stack_list(&iterator.pending, NATIVE_LOX_ALLOCATOR());
+    init_stack_list(&iterator.parents, NATIVE_LOX_ALLOCATOR());
     push_stack_list(&iterator.pending, call_graph);
 
     return iterator;

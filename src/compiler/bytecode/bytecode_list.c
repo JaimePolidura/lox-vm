@@ -8,14 +8,15 @@ static void calculate_to_chunk_index(struct bytecode_list * head);
 extern void runtime_panic(char * format, ...);
 static void mark_as_loop_condition(struct bytecode_list * start);
 
-struct bytecode_list * create_instruction_bytecode_list(bytecode_t bytecode) {
-    struct bytecode_list * bytecode_list = alloc_bytecode_list();
+struct bytecode_list * create_instruction_bytecode_list(bytecode_t bytecode, struct lox_allocator * allocator) {
+    struct bytecode_list * bytecode_list = alloc_bytecode_list(allocator);
+    bytecode_list->allocator = allocator;
     bytecode_list->bytecode = bytecode;
     return bytecode_list;
 }
 
-struct bytecode_list * alloc_bytecode_list() {
-    struct bytecode_list * bytecode_list = malloc(sizeof(struct bytecode_list));
+struct bytecode_list * alloc_bytecode_list(struct lox_allocator * allocator) {
+    struct bytecode_list * bytecode_list = LOX_MALLOC(allocator, sizeof(struct bytecode_list));
     memset(bytecode_list, 0, sizeof(struct bytecode_list));
     return bytecode_list;
 }
@@ -24,7 +25,7 @@ void free_bytecode_list(struct bytecode_list * bytecode_list) {
     struct bytecode_list * current_instruction = bytecode_list;
     while(current_instruction != NULL) {
         struct bytecode_list * next = current_instruction->next;
-        free(current_instruction);
+        LOX_FREE(next->allocator, current_instruction);
         current_instruction = next;
     }
 }
@@ -151,7 +152,7 @@ void unlink_instruction_bytecode_list(struct bytecode_list * instruction) {
 
     restore_jump_references(instruction, instruction->next);
 
-    free(instruction);
+    LOX_FREE(instruction->allocator, instruction);
 }
 
 static void restore_jump_references(struct bytecode_list * referencee, struct bytecode_list * new_reference) {
@@ -166,7 +167,7 @@ static void restore_jump_references(struct bytecode_list * referencee, struct by
     }
 }
 
-struct bytecode_list * create_bytecode_list(struct chunk * chunk) {
+struct bytecode_list * create_bytecode_list(struct chunk * chunk, struct lox_allocator * allocator) {
     struct pending_jumps_to_resolve pending_jumps;
     init_pending_jumps_to_resolve(&pending_jumps, chunk->in_use);
     struct bytecode_list * head = NULL;

@@ -11,9 +11,9 @@ struct compilation_result inline_bytecode_compilation(struct compilation_result 
 
     struct call_graph * call_graph = create_call_graph(&bytecode_compilation);
     struct stack_list pending;
-    init_stack_list(&pending);
+    init_stack_list(&pending, NATIVE_LOX_ALLOCATOR());
     struct u64_hash_table nodes_already_checked;
-    init_u64_hash_table(&nodes_already_checked);
+    init_u64_hash_table(&nodes_already_checked, NATIVE_LOX_ALLOCATOR());
 
     struct call_graph_iterator iterator = iterate_call_graph(call_graph);
 

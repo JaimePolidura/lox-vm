@@ -693,12 +693,12 @@ static void map_data_nodes_bytecodes_to_control(
 static struct ssa_no_phis_inserter * alloc_ssa_no_phis_inserter() {
     struct ssa_no_phis_inserter * ssa_no_phis_inserter = malloc(sizeof(struct ssa_no_phis_inserter));
     init_u8_set(&ssa_no_phis_inserter->current_block_local_usage.assigned);
-    init_u64_hash_table(&ssa_no_phis_inserter->control_nodes_by_bytecode);
-    init_u64_hash_table(&ssa_no_phis_inserter->blocks_by_first_bytecode);
+    init_u64_hash_table(&ssa_no_phis_inserter->control_nodes_by_bytecode, NATIVE_LOX_ALLOCATOR());
+    init_u64_hash_table(&ssa_no_phis_inserter->blocks_by_first_bytecode, NATIVE_LOX_ALLOCATOR());
     init_u8_set(&ssa_no_phis_inserter->current_block_local_usage.used);
-    init_stack_list(&ssa_no_phis_inserter->pending_evaluation);
-    init_stack_list(&ssa_no_phis_inserter->data_nodes_stack);
-    init_stack_list(&ssa_no_phis_inserter->package_stack);
+    init_stack_list(&ssa_no_phis_inserter->pending_evaluation, NATIVE_LOX_ALLOCATOR());
+    init_stack_list(&ssa_no_phis_inserter->data_nodes_stack, NATIVE_LOX_ALLOCATOR());
+    init_stack_list(&ssa_no_phis_inserter->package_stack, NATIVE_LOX_ALLOCATOR());
     return ssa_no_phis_inserter;
 }
 

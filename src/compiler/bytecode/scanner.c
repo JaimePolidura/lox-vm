@@ -244,7 +244,7 @@ static bool at_the_end(struct scanner * scanner) {
 }
 
 struct scanner * alloc_scanner(char * source_code) {
-    struct scanner * scanner = malloc(sizeof(struct scanner));
+    struct scanner * scanner = NATIVE_LOX_MALLOC(struct scanner, sizeof(struct scanner));
     init_scanner(scanner, source_code);
 
     return scanner;

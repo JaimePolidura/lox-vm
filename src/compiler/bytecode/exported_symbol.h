@@ -1,8 +1,9 @@
 #pragma once
 
-#include "shared.h"
+#include "shared/utils/memory/lox_allocator.h"
 #include "shared/utils/collections/trie.h"
 #include "shared/types/function_object.h"
+#include "shared.h"
 
 typedef enum {
     EXPORTED_FUNCTION,

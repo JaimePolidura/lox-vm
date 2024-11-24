@@ -1,5 +1,7 @@
 #pragma once
 
+#include "shared/utils/memory/lox_allocator.h"
+
 typedef enum {
     // Single-character tokens.
     TOKEN_OPEN_PAREN, TOKEN_CLOSE_PAREN,

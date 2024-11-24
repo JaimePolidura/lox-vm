@@ -172,7 +172,7 @@ static void rename_argument_passing(
     struct bytecode_list * call_node = get_by_index_bytecode_list(*target_chunk, call_index);
 
     struct stack_list stack;
-    init_stack_list(&stack);
+    init_stack_list(&stack, NATIVE_LOX_ALLOCATOR());
     get_call_args_in_stack(&stack, *target_chunk, target_function, call_index);
 
     for (int i = 0; i < n_arguments; i++) {

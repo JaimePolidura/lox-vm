@@ -1,7 +1,8 @@
 #pragma once
 
-#include "shared/package.h"
+#include "shared/utils/memory/lox_allocator.h"
 #include "shared/types/function_scope.h"
+#include "shared/package.h"
 
 //When we compile a function and that functions calls another function, we store that profile_data.
 //We store if the call is inlined, the other function name and package and the pending_bytecode index of that call
