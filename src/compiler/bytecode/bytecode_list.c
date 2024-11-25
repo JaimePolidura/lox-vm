@@ -18,6 +18,7 @@ struct bytecode_list * create_instruction_bytecode_list(bytecode_t bytecode, str
 struct bytecode_list * alloc_bytecode_list(struct lox_allocator * allocator) {
     struct bytecode_list * bytecode_list = LOX_MALLOC(allocator, sizeof(struct bytecode_list));
     memset(bytecode_list, 0, sizeof(struct bytecode_list));
+    bytecode_list->allocator = allocator;
     return bytecode_list;
 }
 
@@ -25,7 +26,7 @@ void free_bytecode_list(struct bytecode_list * bytecode_list) {
     struct bytecode_list * current_instruction = bytecode_list;
     while(current_instruction != NULL) {
         struct bytecode_list * next = current_instruction->next;
-        LOX_FREE(next->allocator, current_instruction);
+        LOX_FREE(current_instruction->allocator, current_instruction);
         current_instruction = next;
     }
 }
