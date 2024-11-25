@@ -43,8 +43,8 @@ struct ssa_block {
     } next_as;
 };
 
-struct ssa_block * alloc_ssa_block();
-void init_ssa_block(struct ssa_block *);
+struct ssa_block * alloc_ssa_block(struct lox_allocator *);
+void init_ssa_block(struct ssa_block *, struct lox_allocator *);
 void free_ssa_block(struct ssa_block *);
 
 void add_last_control_node_ssa_block(struct ssa_block *, struct ssa_control_node *);

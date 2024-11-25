@@ -1,13 +1,15 @@
 #include "ssa_block.h"
 
-struct ssa_block * alloc_ssa_block() {
-    struct ssa_block * block = NATIVE_LOX_MALLOC(sizeof(struct ssa_block));
-    init_ssa_block(block);
+struct ssa_block * alloc_ssa_block(struct lox_allocator * allocator) {
+    struct ssa_block * block = LOX_MALLOC(allocator, sizeof(struct ssa_block));
+    init_ssa_block(block, allocator);
     return block;
 }
 
-void init_ssa_block(struct ssa_block * block) {
+void init_ssa_block(struct ssa_block * block, struct lox_allocator * allocator) {
     memset(block, 0, sizeof(struct ssa_block));
+    init_u64_set(&block->predecesors, allocator);
+    init_u64_set(&block->defined_ssa_names, allocator);
 }
 
 type_next_ssa_block_t get_type_next_ssa_block(struct ssa_control_node * node) {

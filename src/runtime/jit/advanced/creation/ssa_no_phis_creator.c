@@ -717,7 +717,7 @@ static struct ssa_block * get_block_by_first_bytecode(
     if(contains_u64_hash_table(&inserter->blocks_by_first_bytecode, (uint64_t) first_bytecode)){
         return get_u64_hash_table(&inserter->blocks_by_first_bytecode, (uint64_t) first_bytecode);
     } else {
-        struct ssa_block * new_block = alloc_ssa_block();
+        struct ssa_block * new_block = alloc_ssa_block(NATIVE_LOX_ALLOCATOR());
         put_u64_hash_table(&inserter->blocks_by_first_bytecode, (uint64_t) first_bytecode, new_block);
         return new_block;
     }
