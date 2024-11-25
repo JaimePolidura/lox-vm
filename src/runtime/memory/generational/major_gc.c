@@ -233,6 +233,7 @@ static void move_compacted_objects(struct old * old, struct object * free, struc
 
     set_marked_bitmap(old->mark_bitmap, (uint64_t *) free);
     set_unmarked_bitmap(old->mark_bitmap, (uint64_t *) scan);
+    fix_object_inner_pointers_when_moved(free);
 }
 
 static size_t free_size(struct old * old, struct object * ptr) {

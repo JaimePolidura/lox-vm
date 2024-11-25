@@ -57,7 +57,7 @@ struct struct_instance_object * alloc_struct_instance_gc_alg(struct struct_defin
     struct generational_gc * gc = current_vm.gc;
 
     int n_fields_hashtable_entries = get_req_capacity_lox_hash_table(definition->n_fields);
-    size_t struct_instance_size = sizeof(struct struct_instance_object) + sizeof(struct hash_table_entry) * n_fields_hashtable_entries;
+    size_t struct_instance_size = sizeof(struct struct_instance_object) + (sizeof(struct hash_table_entry) * n_fields_hashtable_entries);
     size_t struct_instance_size_aligned = align(struct_instance_size, sizeof(struct object));
     struct struct_instance_object * instance = (struct struct_instance_object *) try_alloc_object(struct_instance_size_aligned);
 
@@ -67,7 +67,7 @@ struct struct_instance_object * alloc_struct_instance_gc_alg(struct struct_defin
     instance->fields.capacity = n_fields_hashtable_entries;
     instance->fields.allocator = NULL;
     instance->fields.size = 0;
-    struct hash_table_entry * start_fields_ptr = (struct hash_table_entry *) ((uint8_t *) instance) + sizeof(struct struct_instance_object);
+    struct hash_table_entry * start_fields_ptr = (struct hash_table_entry *) (((uint8_t *) instance) + sizeof(struct struct_instance_object));
     instance->fields.entries = start_fields_ptr;
     for(int i = 0; i < n_fields_hashtable_entries; i++){
         start_fields_ptr[i].key = NULL;

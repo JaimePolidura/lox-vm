@@ -483,6 +483,7 @@ static bool move_object(struct object * object) {
     if (moved_successfully) {
         SET_FORWARDING_PTR(object, TO_LOX_VALUE_OBJECT(new_ptr));
         CLEAR_FORWARDING_PTR((struct object *) new_ptr);
+        fix_object_inner_pointers_when_moved((struct object *) new_ptr);
     }
 
     return moved_successfully;
