@@ -370,7 +370,7 @@ static void get_local(
 
 static void set_local(struct ssa_no_phis_inserter * inserter, struct pending_evaluate * to_evaluate) {
     struct ssa_control_set_local_node * set_local_node = ALLOC_SSA_CONTROL_NODE(
-            SSA_CONTORL_NODE_TYPE_SET_LOCAL, struct ssa_control_set_local_node
+            SSA_CONTORL_NODE_TYPE_SET_LOCAL, struct ssa_control_set_local_node, to_evaluate->block
     );
     struct ssa_data_node * new_local_value = pop_stack_list(&inserter->data_nodes_stack);
     int local_number = to_evaluate->pending_bytecode->as.u8;
@@ -386,7 +386,9 @@ static void set_local(struct ssa_no_phis_inserter * inserter, struct pending_eva
 }
 
 static void print(struct ssa_no_phis_inserter * inserter, struct pending_evaluate * to_evaluate) {
-    struct ssa_control_print_node * print_node = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_TYPE_PRINT, struct ssa_control_print_node);
+    struct ssa_control_print_node * print_node = ALLOC_SSA_CONTROL_NODE(
+            SSA_CONTROL_NODE_TYPE_PRINT, struct ssa_control_print_node, to_evaluate->block
+    );
     struct ssa_data_node * print_value = pop_stack_list(&inserter->data_nodes_stack);
     print_node->data = print_value;
 
@@ -397,7 +399,9 @@ static void print(struct ssa_no_phis_inserter * inserter, struct pending_evaluat
 }
 
 static void return_opcode(struct ssa_no_phis_inserter * inserter, struct pending_evaluate * to_evalute) {
-    struct ssa_control_return_node * return_node = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_TYPE_RETURN, struct ssa_control_return_node);
+    struct ssa_control_return_node * return_node = ALLOC_SSA_CONTROL_NODE(
+            SSA_CONTROL_NODE_TYPE_RETURN, struct ssa_control_return_node, to_evalute->block
+    );
     struct ssa_data_node * return_value = pop_stack_list(&inserter->data_nodes_stack);
 
     return_node->data = return_value;
@@ -417,7 +421,7 @@ static void enter_monitor_opcode(
     monitor_number_t monitor_number = to_evaluate->pending_bytecode->as.u8;
     struct monitor * monitor = &function->monitors[monitor_number];
     struct ssa_control_enter_monitor_node * enter_monitor_node = ALLOC_SSA_CONTROL_NODE(
-            SSA_CONTROL_NODE_TYPE_ENTER_MONITOR, struct ssa_control_enter_monitor_node
+            SSA_CONTROL_NODE_TYPE_ENTER_MONITOR, struct ssa_control_enter_monitor_node, to_evaluate->block
     );
 
     enter_monitor_node->monitor = monitor;
@@ -430,7 +434,7 @@ static void enter_monitor_opcode(
 static void enter_monitor_explicit(struct ssa_no_phis_inserter * inserter, struct pending_evaluate * to_evalute) {
     struct monitor * monitor = (struct monitor *) to_evalute->pending_bytecode->as.u64;
     struct ssa_control_enter_monitor_node * enter_monitor_node = ALLOC_SSA_CONTROL_NODE(
-            SSA_CONTROL_NODE_TYPE_ENTER_MONITOR, struct ssa_control_enter_monitor_node
+            SSA_CONTROL_NODE_TYPE_ENTER_MONITOR, struct ssa_control_enter_monitor_node, to_evalute->block
     );
 
     enter_monitor_node->monitor = monitor;
@@ -448,7 +452,7 @@ static void exit_monitor_opcode(
     monitor_number_t monitor_number = to_evalute->pending_bytecode->as.u8;
     struct monitor * monitor = &function->monitors[monitor_number];
     struct ssa_control_exit_monitor_node * exit_monitor_node = ALLOC_SSA_CONTROL_NODE(
-            SSA_CONTROL_NODE_TYPE_EXIT_MONITOR, struct ssa_control_exit_monitor_node
+            SSA_CONTROL_NODE_TYPE_EXIT_MONITOR, struct ssa_control_exit_monitor_node, to_evalute->block
     );
 
     exit_monitor_node->monitor = monitor;
@@ -461,7 +465,7 @@ static void exit_monitor_opcode(
 static void exit_monitor_explicit(struct ssa_no_phis_inserter * inserter, struct pending_evaluate * to_evalute) {
     struct monitor * monitor = (struct monitor *) to_evalute->pending_bytecode->as.u64;
     struct ssa_control_exit_monitor_node * exit_monitor_node = ALLOC_SSA_CONTROL_NODE(
-            SSA_CONTROL_NODE_TYPE_EXIT_MONITOR, struct ssa_control_exit_monitor_node
+            SSA_CONTROL_NODE_TYPE_EXIT_MONITOR, struct ssa_control_exit_monitor_node, to_evalute->block
     );
 
     exit_monitor_node->monitor = monitor;
@@ -477,7 +481,7 @@ static void set_global(
         struct pending_evaluate * to_evaluate
 ) {
     struct ssa_control_set_global_node * set_global_node = ALLOC_SSA_CONTROL_NODE(
-            SSA_CONTORL_NODE_TYPE_SET_GLOBAL, struct ssa_control_set_global_node
+            SSA_CONTORL_NODE_TYPE_SET_GLOBAL, struct ssa_control_set_global_node, to_evaluate->block
     );
 
     set_global_node->name = AS_STRING_OBJECT(READ_CONSTANT(function, to_evaluate->pending_bytecode));
@@ -495,7 +499,7 @@ static void set_struct_field(
         struct pending_evaluate * to_evalute
 ) {
     struct ssa_control_set_struct_field_node * set_struct_field = ALLOC_SSA_CONTROL_NODE(
-            SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD, struct ssa_control_set_struct_field_node
+            SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD, struct ssa_control_set_struct_field_node, to_evalute->block
     );
     struct ssa_data_node * field_value = pop_stack_list(&inserter->data_nodes_stack);
     struct ssa_data_node * instance = pop_stack_list(&inserter->data_nodes_stack);
@@ -513,7 +517,7 @@ static void set_struct_field(
 
 static void set_array_element(struct ssa_no_phis_inserter * inserter, struct pending_evaluate * to_evalute) {
     struct ssa_control_set_array_element_node * set_arrary_element_node = ALLOC_SSA_CONTROL_NODE(
-            SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT, struct ssa_control_set_array_element_node
+            SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT, struct ssa_control_set_array_element_node, to_evalute->block
     );
     struct ssa_data_node * instance = pop_stack_list(&inserter->data_nodes_stack);
     struct ssa_data_node * new_element = pop_stack_list(&inserter->data_nodes_stack);
@@ -533,7 +537,9 @@ static void set_array_element(struct ssa_no_phis_inserter * inserter, struct pen
 static void pop(struct ssa_no_phis_inserter * inserter, struct pending_evaluate * to_evalute) {
     if(!is_empty_stack_list(&inserter->data_nodes_stack)){
         struct ssa_data_node * data_node = pop_stack_list(&inserter->data_nodes_stack);
-        struct ssa_control_data_node * control_data_node = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_TYPE_DATA, struct ssa_control_data_node);
+        struct ssa_control_data_node * control_data_node = ALLOC_SSA_CONTROL_NODE(
+                SSA_CONTROL_NODE_TYPE_DATA, struct ssa_control_data_node, to_evalute->block
+        );
 
         control_data_node->data = data_node;
 
@@ -546,7 +552,9 @@ static void pop(struct ssa_no_phis_inserter * inserter, struct pending_evaluate 
 
 //Loop body is not added to the predecesors set of loop condition
 static void loop(struct ssa_no_phis_inserter * inserter, struct pending_evaluate * to_evalute) {
-    struct ssa_control_loop_jump_node * loop_jump_node = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_TYPE_LOOP_JUMP, struct ssa_control_loop_jump_node);
+    struct ssa_control_loop_jump_node * loop_jump_node = ALLOC_SSA_CONTROL_NODE(
+            SSA_CONTROL_NODE_TYPE_LOOP_JUMP, struct ssa_control_loop_jump_node, to_evalute->block
+    );
     struct bytecode_list * to_jump_bytecode = to_evalute->pending_bytecode->as.jump;
     struct bytecode_list * loop_condition_bytecode = get_next_bytecode_list(to_jump_bytecode, OP_JUMP_IF_FALSE);
     struct ssa_control_node * to_jump_ssa_node = get_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_jump_bytecode);
@@ -583,7 +591,7 @@ static void jump(struct ssa_no_phis_inserter * insterter, struct pending_evaluat
 
 static void jump_if_false(struct ssa_no_phis_inserter * inserter, struct pending_evaluate * to_evalute) {
     struct ssa_control_conditional_jump_node * cond_jump_node = ALLOC_SSA_CONTROL_NODE(
-            SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP, struct ssa_control_conditional_jump_node
+            SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP, struct ssa_control_conditional_jump_node, to_evalute->block
     );
     struct ssa_data_node * condition = pop_stack_list(&inserter->data_nodes_stack);
     cond_jump_node->condition = condition;

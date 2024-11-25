@@ -23,7 +23,6 @@ static void free_ssa_phi_inserter(struct ssa_phi_inserter *);
 static void extract_get_local(struct ssa_phi_inserter *inserter, struct u8_hash_table *parent_versions,
                               struct ssa_control_node *control_node_to_extract, struct ssa_block *,
                               uint8_t local_number, void ** parent_to_extract_get_local_ptr);
-static struct ssa_control_node * get_ssa_definition_node(struct ssa_phi_inserter *, struct ssa_name);
 static void put_version(struct u8_hash_table *, uint8_t local_number, uint8_t version);
 
 static void insert_phis_in_data_node_consumer(
@@ -80,29 +79,6 @@ struct phi_insertion_result insert_ssa_ir_phis(
         .max_version_allocated_per_local = inserter.max_version_allocated_per_local,
         .ssa_definitions_by_ssa_name = inserter.ssa_definitions_by_ssa_name,
     };
-}
-
-static struct ssa_control_node * get_ssa_definition_node(struct ssa_phi_inserter * inserter, struct ssa_name ssa_name) {
-    struct ssa_control_node * definition_node = (void *) get_u64_hash_table(&inserter->ssa_definitions_by_ssa_name, ssa_name.u16);
-    if (definition_node == NULL) {
-        //If some part of the code references a variable, which has not been defined, it means that it is a function arguemnt
-        //We will create the define node and add it the definitions inserter map
-        struct ssa_data_get_ssa_name_node * get_function_parameter = ALLOC_SSA_DATA_NODE(
-                SSA_DATA_NODE_TYPE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL
-        );
-        get_function_parameter->ssa_name = ssa_name;
-        struct ssa_control_define_ssa_name_node * define_function_parameter = ALLOC_SSA_CONTROL_NODE(
-                SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME, struct ssa_control_define_ssa_name_node
-        );
-        define_function_parameter->ssa_name = ssa_name;
-        define_function_parameter->value = &get_function_parameter->data;
-
-        put_u64_hash_table(&inserter->ssa_definitions_by_ssa_name, ssa_name.u16, define_function_parameter);
-
-        return &define_function_parameter->control;
-    } else {
-        return definition_node;
-    }
 }
 
 static void insert_phis_in_block(
@@ -281,7 +257,7 @@ static void extract_get_local(
 
     //a1 in the example, will be a define_ssa_node
     struct ssa_control_define_ssa_name_node * extracted_set_local = ALLOC_SSA_CONTROL_NODE(
-            SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME, struct ssa_control_define_ssa_name_node
+            SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME, struct ssa_control_define_ssa_name_node, to_extract_block
     );
     int new_version_extracted = allocate_new_version(&inserter->max_version_allocated_per_local, local_number);
     struct ssa_name set_ssa_name = CREATE_SSA_NAME(local_number, new_version_extracted);

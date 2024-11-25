@@ -31,6 +31,7 @@ typedef enum {
 } ssa_data_node_type;
 
 #define ALLOC_SSA_DATA_NODE(type, struct_type, bytecode) (struct_type *) allocate_ssa_data_node(type, sizeof(struct_type), bytecode)
+#define GET_CONST_VALUE_SSA_NODE(node) (((struct ssa_data_constant_node *) (node))->constant_lox_value)
 
 struct ssa_data_node {
     struct bytecode_list * original_bytecode;

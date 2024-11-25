@@ -17,6 +17,7 @@ struct sparse_simple_constant_propagation {
     struct stack_list pending;
     struct u64_hash_table semilattice_by_ssa_name;
     struct ssa_ir * ssa_ir;
+    struct u64_set removed_ssa_names;
 };
 
 struct constant_rewrite {
@@ -27,9 +28,10 @@ struct constant_rewrite {
 extern lox_value_t addition_lox(lox_value_t a, lox_value_t b);
 extern void runtime_panic(char * format, ...);
 
-static void initialization(struct sparse_simple_constant_propagation * sscp);
-static void propagation(struct sparse_simple_constant_propagation * sscp);
+static void initialization(struct sparse_simple_constant_propagation *);
+static void propagation(struct sparse_simple_constant_propagation *);
 
+static void remove_death_branch(struct sparse_simple_constant_propagation *, struct ssa_control_node *);
 static struct semilattice_value * get_semilattice_initialization_from_data(struct ssa_data_node *current_data_node);
 static struct semilattice_value * get_semilattice_propagation_from_data(struct sparse_simple_constant_propagation *, struct ssa_data_node *);
 struct sparse_simple_constant_propagation * alloc_sparse_constant_propagation(struct ssa_ir *);
@@ -48,12 +50,14 @@ static struct semilattice_value * get_semilattice_phi(struct sparse_simple_const
 static struct semilattice_value * join_semilattice(struct semilattice_value *, struct semilattice_value *, bytecode_t);
 static struct constant_rewrite * create_constant_rewrite_from_result(struct ssa_data_node *data_node, struct u64_set possible_values);
 static struct constant_rewrite * alloc_constant_rewrite(struct ssa_data_node *, struct semilattice_value *);
+static void remove_from_ir_removed_ssa_names(struct sparse_simple_constant_propagation *);
 
 void perform_sparse_simple_constant_propagation(struct ssa_ir * ssa_ir) {
     struct sparse_simple_constant_propagation * sscp = alloc_sparse_constant_propagation(ssa_ir);
 
     initialization(sscp);
     propagation(sscp);
+    remove_from_ir_removed_ssa_names(sscp);
 
     free_sparse_constant_propagation(sscp);
 }
@@ -61,8 +65,11 @@ void perform_sparse_simple_constant_propagation(struct ssa_ir * ssa_ir) {
 static void propagation(struct sparse_simple_constant_propagation * sscp) {
     while (!is_empty_stack_list(&sscp->pending)) {
         struct ssa_name current_ssa_name = CREATE_SSA_NAME_FROM_U64((uint64_t) pop_stack_list(&sscp->pending));
-        struct u64_set_iterator nodes_uses_ssa_name_it = node_uses_by_ssa_name_iterator(sscp->ssa_ir->node_uses_by_ssa_name, current_ssa_name);
+        if(contains_u64_set(&sscp->removed_ssa_names, current_ssa_name.u16)){
+            continue;
+        }
 
+        struct u64_set_iterator nodes_uses_ssa_name_it = node_uses_by_ssa_name_iterator(sscp->ssa_ir->node_uses_by_ssa_name, current_ssa_name);
         while (has_next_u64_set_iterator(nodes_uses_ssa_name_it)) {
             struct ssa_control_node * node_uses_ssa_name = (void *) next_u64_set_iterator(&nodes_uses_ssa_name_it);
             rewrite_constant_expressions(sscp, node_uses_ssa_name);
@@ -74,14 +81,17 @@ static void propagation(struct sparse_simple_constant_propagation * sscp) {
                         &sscp->semilattice_by_ssa_name, define_ssa_name.u16);
 
                 if (prev_semilattice->type != SEMILATTICE_BOTTOM) {
-                    struct semilattice_value * current_semilattice = get_semilattice_propagation_from_data(
-                            sscp, define_ssa_name_node->value);
+                    struct semilattice_value * current_semilattice = get_semilattice_propagation_from_data(sscp, define_ssa_name_node->value);
                     put_u64_hash_table(&sscp->semilattice_by_ssa_name, current_ssa_name.u16, current_semilattice);
 
                     if(current_semilattice->type != prev_semilattice->type){
                         push_stack_list(&sscp->pending, (void *) current_ssa_name.u16);
                     }
                 }
+
+            } else if (node_uses_ssa_name->type == SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP &&
+                    GET_CONDITION_CONDITIONAL_JUMP_SSA_NODE(node_uses_ssa_name)->type == SSA_DATA_NODE_TYPE_CONSTANT) {
+                remove_death_branch(sscp, node_uses_ssa_name);
             }
         }
     }
@@ -107,6 +117,46 @@ static void initialization(struct sparse_simple_constant_propagation * sscp) {
         if (semilattice_value->type != SEMILATTICE_TOP) {
             push_stack_list(&sscp->pending, (void *) current_ssa_name.u16);
         }
+    }
+}
+
+static void remove_death_branch(struct sparse_simple_constant_propagation * sscp, struct ssa_control_node * branch_node) {
+    struct ssa_control_conditional_jump_node * cond_jump = (struct ssa_control_conditional_jump_node *) branch_node;
+    bool branch_condition_folded = AS_BOOL(GET_CONST_VALUE_SSA_NODE(cond_jump->condition));
+    bool remove_true_branch = !branch_condition_folded;
+
+    struct branch_removed branch_removed = remove_branch_ssa_ir(branch_node->block, remove_true_branch, NATIVE_LOX_ALLOCATOR());
+
+    FOR_EACH_U64_SET_VALUE(branch_removed.ssa_name_definitions_removed, removed_ssa_definition_u64) {
+        struct ssa_name removed_ssa_definition = CREATE_SSA_NAME_FROM_U64(removed_ssa_definition_u64);
+        struct u64_set * removed_ssa_name_node_uses = get_u64_hash_table(&sscp->ssa_ir->node_uses_by_ssa_name, removed_ssa_definition.u16);
+
+        FOR_EACH_U64_SET_VALUE(*removed_ssa_name_node_uses, node_uses_removed_ssa_name_ptr) {
+            //Every node that uses the removed ssa_node in an extern node will use it to define another ssa name, with a phi function:
+            //a2 = phi(a0, a1)
+            struct ssa_control_define_ssa_name_node * node_uses_ssa_name = (void *) node_uses_removed_ssa_name_ptr;
+            if(!contains_u64_set(&branch_removed.blocks_removed, (uint64_t) node_uses_ssa_name->control.block)){
+                struct ssa_data_phi_node * phi_node = (struct ssa_data_phi_node *) node_uses_ssa_name->value;
+                //Remove ssa name usage from phi node
+                remove_u64_set(&phi_node->ssa_versions, removed_ssa_definition.u16);
+                //If there is only 1 usage of a ssa name in a phi node, replace it with ssa_data_get_ssa_name_node node
+                if (size_u64_set(phi_node->ssa_versions) == 1) {
+                    node_uses_ssa_name->value = (struct ssa_data_node *) ALLOC_SSA_DATA_NODE(
+                            SSA_DATA_NODE_TYPE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL
+                    );
+                }
+                //Remove semilattice of the removed ssa name
+                remove_u64_hash_table(&sscp->semilattice_by_ssa_name, removed_ssa_definition.u16);
+                //Rescan current node
+                struct semilattice_value * current_semilattice_node_uses = get_u64_hash_table(
+                        &sscp->semilattice_by_ssa_name, node_uses_ssa_name->ssa_name.u16);
+                current_semilattice_node_uses->type = SEMILATTICE_TOP;
+                clear_u64_set(&current_semilattice_node_uses->values);
+                push_stack_list(&sscp->pending, (void *) node_uses_ssa_name->ssa_name.u16);
+                //Mark removed ss name as removed
+                add_u64_set(&sscp->removed_ssa_names, node_uses_ssa_name->ssa_name.u16);
+            }
+        };
     }
 }
 
@@ -317,6 +367,7 @@ static lox_value_type calculate_unary_lox(lox_value_t operand_value, ssa_unary_o
 struct sparse_simple_constant_propagation * alloc_sparse_constant_propagation(struct ssa_ir * ssa_ir) {
     struct sparse_simple_constant_propagation * sscp = NATIVE_LOX_MALLOC(sizeof(struct sparse_simple_constant_propagation));
     init_u64_hash_table(&sscp->semilattice_by_ssa_name, NATIVE_LOX_ALLOCATOR());
+    init_u64_set(&sscp->removed_ssa_names, NATIVE_LOX_ALLOCATOR());
     init_stack_list(&sscp->pending, NATIVE_LOX_ALLOCATOR());
     sscp->ssa_ir = ssa_ir;
     return sscp;
@@ -425,8 +476,10 @@ static struct semilattice_value * get_semilattice_phi(
         } else if(current_semilatice->type == SEMILATTICE_TOP){
             final_semilattice_type = SEMILATTICE_TOP;
             top_value_found = true;
-        } else if(current_semilatice->type == SEMILATTICE_CONSTANT && !top_value_found){
+        } else if(current_semilatice->type == SEMILATTICE_CONSTANT && !top_value_found && size_u64_set(final_values) == 1){
             final_semilattice_type = SEMILATTICE_CONSTANT;
+        } else if(current_semilatice->type == SEMILATTICE_CONSTANT && !top_value_found && size_u64_set(final_values) > 1){
+            final_semilattice_type = SEMILATTICE_TOP;
         }
     }
 
@@ -486,4 +539,8 @@ static struct constant_rewrite * alloc_constant_rewrite(struct ssa_data_node * n
     constant_rewrite->semilattice = value;
     constant_rewrite->node = node;
     return constant_rewrite;
+}
+
+static void remove_from_ir_removed_ssa_names(struct sparse_simple_constant_propagation * sscp) {
+    remove_names_references_ssa_ir(sscp->ssa_ir, sscp->removed_ssa_names);
 }

@@ -1,5 +1,11 @@
 #include "u64_set.h"
 
+struct u64_set empty_u64_set(struct lox_allocator * allocator) {
+    struct u64_set set;
+    init_u64_set(&set, allocator);
+    return set;
+}
+
 struct u64_set * alloc_u64_set(struct lox_allocator * allocator) {
     struct u64_set * u64_set = LOX_MALLOC(allocator, sizeof(struct u64_set));
     init_u64_set(u64_set, allocator);
@@ -36,6 +42,10 @@ bool has_next_u64_set_iterator(struct u64_set_iterator iterator) {
 
 uint64_t next_u64_set_iterator(struct u64_set_iterator * iterator) {
     return next_u64_hash_table_iterator(&iterator->inner_hashtable_iterator).key;
+}
+
+void remove_u64_set(struct u64_set * set, uint64_t value) {
+    remove_u64_hash_table(&set->inner_hash_table, value);
 }
 
 void union_u64_set(struct u64_set * values, struct u64_set other) {

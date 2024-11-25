@@ -3,6 +3,22 @@
 #include "test.h"
 #include "shared/utils/collections/u64_hash_table.h"
 
+TEST(u64_hash_table_remove){
+    struct u64_hash_table table;
+    init_u64_hash_table(&table, NATIVE_LOX_ALLOCATOR());
+    put_u64_hash_table(&table, 1, NULL);
+    put_u64_hash_table(&table, 2, NULL);
+    put_u64_hash_table(&table, 3, NULL);
+    remove_u64_hash_table(&table, 1);
+
+    ASSERT_FALSE(contains_u64_hash_table(&table, 1));
+    ASSERT_TRUE(contains_u64_hash_table(&table, 2));
+    ASSERT_TRUE(contains_u64_hash_table(&table, 3));
+
+    put_u64_hash_table(&table, 1, NULL);
+    ASSERT_TRUE(contains_u64_hash_table(&table, 1));
+}
+
 TEST(u64_hash_table_grow) {
     struct u64_hash_table table;
     init_u64_hash_table(&table, NATIVE_LOX_ALLOCATOR());

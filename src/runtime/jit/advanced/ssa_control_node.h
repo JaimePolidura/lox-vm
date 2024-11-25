@@ -21,11 +21,18 @@ typedef enum {
     SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME,
 } ssa_control_node_type;
 
-#define ALLOC_SSA_CONTROL_NODE(type, struct_type) (struct_type *) allocate_ssa_block_node(type, sizeof(struct_type))
-void * allocate_ssa_block_node(ssa_control_node_type type, size_t size_bytes);
+//Fordward reference, so we can use it without including it to avoid cyclical dependencies.
+struct ssa_block;
+
+#define ALLOC_SSA_CONTROL_NODE(type, struct_type, block) (struct_type *) allocate_ssa_block_node(type, sizeof(struct_type), block)
+void * allocate_ssa_block_node(ssa_control_node_type type, size_t size_bytes, struct ssa_block * block);
+
+#define GET_CONDITION_CONDITIONAL_JUMP_SSA_NODE(node) (((struct ssa_control_conditional_jump_node *) (node))->condition)
 
 struct ssa_control_node {
     ssa_control_node_type type;
+
+    struct ssa_block * block;
 
     bool jumps_to_next_node;
 

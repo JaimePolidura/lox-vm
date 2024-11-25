@@ -19,8 +19,11 @@ struct ssa_ir {
     struct u64_hash_table ssa_definitions_by_ssa_name;
     //Max version allocated per local number
     struct u8_hash_table max_version_allocated_per_local;
-    //u64_hash_table of ssa_control_nodes per ssa name
+    //key: ssa_name, value: u64_set of pointers ssa_control_nodes
     struct u64_hash_table node_uses_by_ssa_name;
 };
 
-void remove_branch_ssa_ir(struct ssa_ir *, struct ssa_block *, bool true_branch);
+//Removes the references in the struct ssa_ir data structure to the ssa_name. It doest
+//remove the nodes that uses the ssa name
+void remove_names_references_ssa_ir(struct ssa_ir *, struct u64_set);
+void remove_name_references_ssa_ir(struct ssa_ir *, struct ssa_name);

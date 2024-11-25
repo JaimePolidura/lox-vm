@@ -48,8 +48,20 @@ bool put_u64_hash_table(struct u64_hash_table * hash_hable, uint64_t key, void *
     return key_already_exists;
 }
 
-bool contains_u64_hash_table(struct u64_hash_table * table, uint64_t key) {
-    return get_u64_hash_table(table, key) != NULL;
+bool contains_u64_hash_table(struct u64_hash_table * hash_hable, uint64_t key) {
+    if(hash_hable->size == 0){
+        return false;
+    }
+
+    struct u64_hash_table_entry * entry = find_u64_hash_table_entry(hash_hable->entries, hash_hable->capacity, key);
+    return entry != NULL && entry->some_value;
+}
+
+void remove_u64_hash_table(struct u64_hash_table * hash_hable, uint64_t key) {
+    struct u64_hash_table_entry * entry = find_u64_hash_table_entry(hash_hable->entries, hash_hable->capacity, key);
+    if(entry->some_value) {
+        entry->some_value = false;
+    }
 }
 
 static struct u64_hash_table_entry * find_u64_hash_table_entry(struct u64_hash_table_entry * entries, int capacity, uint64_t key) {

@@ -122,7 +122,7 @@ static void extract_phi_to_ssa_name(
     uint8_t extracted_version = allocate_new_ssa_version(phi_node->local_number, phi_insertion_result);
     struct ssa_name extracted_ssa_name = CREATE_SSA_NAME(phi_node->local_number, extracted_version);
     struct ssa_control_define_ssa_name_node * extracted_define_ssa_name = ALLOC_SSA_CONTROL_NODE(
-            SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME, struct ssa_control_define_ssa_name_node
+            SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME, struct ssa_control_define_ssa_name_node, block
     );
     extracted_define_ssa_name->ssa_name = extracted_ssa_name;
     extracted_define_ssa_name->value = &phi_node->data;

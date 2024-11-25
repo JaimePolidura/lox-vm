@@ -1,5 +1,6 @@
 #pragma once
 
+#include "shared/utils/collections/queue_list.h"1
 #include "shared/utils/collections/u8_set.h"
 #include "ssa_control_node.h"
 
@@ -49,5 +50,13 @@ void free_ssa_block(struct ssa_block *);
 
 void add_last_control_node_ssa_block(struct ssa_block *, struct ssa_control_node *);
 void add_before_control_node_ssa_block(struct ssa_block *, struct ssa_control_node * before, struct ssa_control_node * new);
+
+//Removes a true/false branch/block and the subsequent children of the branch/block to remove (subgraph)
+//This method doest remove the references to the ssa name definitions done in the removed subgraph
+struct branch_removed {
+    struct u64_set ssa_name_definitions_removed;
+    struct u64_set blocks_removed;
+};
+struct branch_removed remove_branch_ssa_ir(struct ssa_block *, bool true_branch, struct lox_allocator *);
 
 type_next_ssa_block_t get_type_next_ssa_block(struct ssa_control_node *);
