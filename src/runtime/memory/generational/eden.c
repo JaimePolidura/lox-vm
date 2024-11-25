@@ -4,7 +4,7 @@ struct eden * alloc_eden(struct config config) {
     size_t size_blocks_in_bytes = config.generational_gc_config.eden_block_size_kb * 1024;
     size_t size_eden_in_bytes = config.generational_gc_config.eden_size_mb * 1024 * 1024;
 
-    struct eden * eden = malloc(sizeof(struct eden));
+    struct eden * eden = NATIVE_LOX_MALLOC(sizeof(struct eden));
     int n_addresses = (int) round_up_8(size_eden_in_bytes / 8);
     init_memory_space(&eden->memory_space, size_eden_in_bytes);
     eden->mark_bitmap = alloc_mark_bitmap(n_addresses, (uint64_t *) eden->memory_space.start);
@@ -15,7 +15,7 @@ struct eden * alloc_eden(struct config config) {
 }
 
 struct eden_thread * alloc_eden_thread() {
-    struct eden_thread * eden_thread = malloc(sizeof(struct eden_thread));
+    struct eden_thread * eden_thread = NATIVE_LOX_MALLOC(sizeof(struct eden_thread));
     eden_thread->current_block = NULL;
     eden_thread->start_block = NULL;
     eden_thread->end_block = NULL;

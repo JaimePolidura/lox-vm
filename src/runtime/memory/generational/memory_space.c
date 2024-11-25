@@ -1,13 +1,13 @@
 #include "memory_space.h"
 
 struct memory_space * alloc_memory_space(size_t size_in_bytes) {
-    struct memory_space * memory_space = malloc(sizeof(struct memory_space));
+    struct memory_space * memory_space = NATIVE_LOX_MALLOC(sizeof(struct memory_space));
     init_memory_space(memory_space, size_in_bytes);
     return memory_space;
 }
 
 void init_memory_space(struct memory_space * memory_space, size_t size_in_bytes) {
-    memory_space->start = malloc(size_in_bytes);
+    memory_space->start = NATIVE_LOX_MALLOC(size_in_bytes);
     memory_space->current = memory_space->start;
     memory_space->end = memory_space->start + size_in_bytes;
     memory_space->size_in_bytes = size_in_bytes;

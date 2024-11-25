@@ -178,7 +178,7 @@ struct bytecode_list * create_bytecode_list(struct chunk * chunk, struct lox_all
         bytecode_t current_instruction = next_instruction_chunk_iterator(&chunk_iterator);
         int current_instruction_index = current_instruction_index_chunk_iterator(&chunk_iterator);
         
-        struct bytecode_list * current_node = alloc_bytecode_list();
+        struct bytecode_list * current_node = alloc_bytecode_list(allocator);
         current_node->original_chunk_index = current_instruction_index;
         current_node->bytecode = current_instruction;
         current_node->prev = last_allocated;

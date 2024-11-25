@@ -36,7 +36,7 @@ void free_heap_allocated_lox_object(struct object * object) {
 }
 
 void * grow_array(struct lox_allocator * allocator, size_t new_size, void * original_array, size_t old_size) {
-    void * new_array = allocator->lox_malloc(allocator, new_size);
+    void * new_array = LOX_MALLOC(allocator, new_size);
     memset(new_array, 0, new_size);
 
     if(original_array != NULL) {

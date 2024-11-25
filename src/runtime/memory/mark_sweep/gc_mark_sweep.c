@@ -93,7 +93,7 @@ struct gc_result try_start_gc_alg(int n_args, lox_value_t * args) {
 static struct gc_result start_gc() {
     struct mark_sweep_global_info * gc_mark_sweep = current_vm.gc;
     struct stack_list terminated_threads;
-    init_stack_list(&terminated_threads);
+    init_stack_list(&terminated_threads, NATIVE_LOX_ALLOCATOR());
     struct gc_result gc_result;
     init_gc_result(&gc_result);
 
@@ -164,7 +164,7 @@ void * alloc_gc_object_info_alg() {
 }
 
 void * alloc_gc_thread_info_alg() {
-    struct mark_sweep_thread_info * gc_thread_info_ms = malloc(sizeof(struct mark_sweep_thread_info));
+    struct mark_sweep_thread_info * gc_thread_info_ms = NATIVE_LOX_MALLOC(sizeof(struct mark_sweep_thread_info));
     gc_thread_info_ms->mark_sweep = current_vm.gc;
     gc_thread_info_ms->next_gc = 1024 * 1024;
     gc_thread_info_ms->bytes_allocated = 0;
@@ -174,7 +174,7 @@ void * alloc_gc_thread_info_alg() {
 }
 
 void * alloc_gc_vm_info_alg() {
-    struct mark_sweep_global_info * gc_mark_sweep = malloc(sizeof(struct mark_sweep_global_info));
+    struct mark_sweep_global_info * gc_mark_sweep = NATIVE_LOX_MALLOC(sizeof(struct mark_sweep_global_info));
     gc_mark_sweep->number_threads_ack_start_gc_signal = 0;
     gc_mark_sweep->gray_stack = NULL;
     gc_mark_sweep->gray_capacity = 0;
@@ -223,12 +223,12 @@ static void mark_globals() {
 }
 
 static bool for_each_package_callback(void * trie_node_ptr, void * extra_ignored) {
-    struct package * package = (struct package *) ((struct trie_node *) trie_node_ptr)->profile_data;
+    struct package * package = (struct package *) ((struct trie_node *) trie_node_ptr);
 
     for(int i = 0; i < package->global_variables.capacity && package->state != PENDING_COMPILATION; i++) {
         struct hash_table_entry * entry = &package->global_variables.entries[i];
         if(entry != NULL && entry->key != NULL){
-            mark_value(&entry->value_node);
+            mark_value(&entry->value);
             mark_object(&entry->key->object);
         }
     }
@@ -241,7 +241,7 @@ static void mark_root_dependences(struct mark_sweep_global_info * gc_mark_sweep)
         switch (object->type) {
             case OBJ_STRUCT_INSTANCE: {
                 struct struct_instance_object * struct_object = (struct struct_instance_object *) object;
-                mark_hash_table(&struct_object->fields_nodes);
+                mark_hash_table(&struct_object->fields);
                 mark_object(&struct_object->object);
                 break;
             }
@@ -395,18 +395,18 @@ static void finish_gc() {
 }
 
 struct struct_instance_object * alloc_struct_instance_gc_alg(struct struct_definition_object * definition) {
-    struct struct_instance_object * instance_node = malloc(sizeof(struct struct_instance_object));
+    struct struct_instance_object * instance_node = NATIVE_LOX_MALLOC(sizeof(struct struct_instance_object));
     init_struct_instance_object(instance_node, definition);
     add_object_to_heap_gc_alg(&instance_node->object);
     return instance_node;
 }
 
 struct string_object * alloc_string_gc_alg(char * chars, int length) {
-    struct string_object * string = malloc(sizeof(struct string_object));
+    struct string_object * string = NATIVE_LOX_MALLOC(sizeof(struct string_object));
     init_object(&string->object, OBJ_STRING);
     string->length = length;
     string->hash = hash_string(chars, length);
-    string->chars = malloc(sizeof(char) * length + 1);
+    string->chars = NATIVE_LOX_MALLOC(sizeof(char) * length + 1);
     memcpy(string->chars, chars, length);
     string->chars[length] = '\0';
     add_object_to_heap_gc_alg(&string->object);
@@ -414,8 +414,8 @@ struct string_object * alloc_string_gc_alg(char * chars, int length) {
 }
 
 struct array_object * alloc_array_gc_alg(int n_elements) {
-    struct array_object * array_object = malloc(sizeof(struct array_object));
-    init_lox_arraylist_with_size(&array_object->values, n_elements);
+    struct array_object * array_object = NATIVE_LOX_MALLOC(sizeof(struct array_object));
+    init_lox_arraylist_with_size(&array_object->values, n_elements, NATIVE_LOX_ALLOCATOR());
     init_object(&array_object->object, OBJ_ARRAY);
     add_object_to_heap_gc_alg(&array_object->object);
     return array_object;

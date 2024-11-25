@@ -5,7 +5,7 @@ struct string_object * copy_chars_to_string_object(const char * chars, int lengt
     string_object->object.type = OBJ_STRING;
     string_object->length = length;
     string_object->hash = hash_string(chars, length);
-    string_object->chars = malloc(sizeof(char) * length + 1);
+    string_object->chars = NATIVE_LOX_MALLOC(sizeof(char) * length + 1);
     memcpy(string_object->chars, chars, length);
     string_object->chars[length] = '\0';
 

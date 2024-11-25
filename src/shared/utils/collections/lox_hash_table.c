@@ -201,6 +201,10 @@ void for_each_value_hash_table(struct lox_hash_table * table, void * extra, lox_
     }
 }
 
+int get_req_capacity_lox_hash_table(int n_expected_elements) {
+    return round_up_8(n_expected_elements);
+}
+
 static struct hash_table_entry * find_entry(struct hash_table_entry * entries, int capacity, struct string_object * key) {
     return find_entry_by_hash(entries, capacity, key->hash);
 }

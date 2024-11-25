@@ -9,7 +9,7 @@ static void for_each_ssa_data_node_recursive(
 );
 
 void * allocate_ssa_data_node(ssa_data_node_type type, size_t struct_size_bytes, struct bytecode_list * bytecode) {
-    struct ssa_data_node * ssa_control_node = malloc(struct_size_bytes);
+    struct ssa_data_node * ssa_control_node = NATIVE_LOX_MALLOC(struct_size_bytes);
     memset(ssa_control_node, 0, struct_size_bytes);
     ssa_control_node->produced_type = PROFILE_DATA_TYPE_ANY;
     ssa_control_node->original_bytecode = bytecode;
@@ -148,7 +148,7 @@ static void free_ssa_data_node_consumer(
         struct ssa_data_node * current_node,
         void * ___
 ) {
-    free(current_node);
+    NATIVE_LOX_FREE(current_node);
 }
 
 void free_ssa_data_node(struct ssa_data_node * node_to_free) {

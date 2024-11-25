@@ -3,14 +3,14 @@
 extern const char * compiling_base_dir;
 
 struct package * alloc_package() {
-    struct package * package = malloc(sizeof(struct package));
+    struct package * package = NATIVE_LOX_MALLOC(sizeof(struct package));
     init_package(package);
     return package;
 }
 
 void init_package(struct package * package) {
-    init_trie_list(&package->struct_definitions);
-    init_trie_list(&package->exported_symbols);
+    init_trie_list(&package->struct_definitions, NATIVE_LOX_ALLOCATOR());
+    init_trie_list(&package->exported_symbols, NATIVE_LOX_ALLOCATOR());
 
     package->name = NULL;
     package->state = PENDING_COMPILATION;
@@ -30,8 +30,8 @@ struct function_object * get_function_package(struct package * package, char * f
         function = (struct function_object *) AS_OBJECT(value);
     }
 
-    free(function_name_string_object->chars);
-    free(function_name_string_object);
+    NATIVE_LOX_FREE(function_name_string_object->chars);
+    NATIVE_LOX_FREE(function_name_string_object);
 
     return function;
 }
@@ -46,7 +46,7 @@ char * read_package_source_code(char * absolute_path) {
     long file_size = ftell(file);
     fseek(file, 0, SEEK_SET);
 
-    char * content = (char*) malloc(file_size + 1); // +1 for null terminator
+    char * content = (char*) NATIVE_LOX_MALLOC(file_size + 1); // +1 for null terminator
     if (content == NULL) {
         fclose(file);
         return NULL;
@@ -55,7 +55,7 @@ char * read_package_source_code(char * absolute_path) {
     size_t bytes_read = fread(content, 1, file_size, file);
     if (bytes_read == 0) {
         fclose(file);
-        free(content);
+        NATIVE_LOX_FREE(content);
         return NULL;
     }
 
@@ -88,7 +88,7 @@ char * import_name_to_absolute_path(char * import_name, int import_name_length) 
     bool is_path = string_contains(import_name, import_name_length, '.');
 
     if (is_path) {
-        char * ptr = malloc(strlen(compiling_base_dir) + strlen(import_name) + 2);
+        char * ptr = NATIVE_LOX_MALLOC(strlen(compiling_base_dir) + strlen(import_name) + 2);
         memcpy(ptr, compiling_base_dir, strlen(compiling_base_dir));
         ptr[strlen(compiling_base_dir)] = '/';
         memcpy(ptr + strlen(compiling_base_dir) + 1, import_name, import_name_length);

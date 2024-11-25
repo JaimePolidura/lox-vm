@@ -39,13 +39,13 @@ struct phi_insertion_result insert_ssa_ir_phis(
     struct ssa_phi_inserter inserter;
     init_ssa_phi_inserter(&inserter);
 
-    push_pending_evaluate(&inserter, start_block, alloc_u8_hash_table());
+    push_pending_evaluate(&inserter, start_block, alloc_u8_hash_table(NATIVE_LOX_ALLOCATOR()));
 
     while(!is_empty_stack_list(&inserter.pending_evaluate)) {
         struct pending_evaluate * pending_evaluate = pop_stack_list(&inserter.pending_evaluate);
         struct ssa_block * block_to_evaluate = pending_evaluate->pending_block_to_evaluate;
         struct u8_hash_table * parent_versions = pending_evaluate->parent_versions;
-        free(pending_evaluate);
+        NATIVE_LOX_FREE(pending_evaluate);
 
         insert_phis_in_block(&inserter, block_to_evaluate, parent_versions);
 
@@ -65,11 +65,11 @@ struct phi_insertion_result insert_ssa_ir_phis(
                 }
                 break;
             case TYPE_NEXT_SSA_BLOCK_BRANCH:
-                push_pending_evaluate(&inserter, block_to_evaluate->next_as.branch.false_branch, clone_u8_hash_table(parent_versions));
+                push_pending_evaluate(&inserter, block_to_evaluate->next_as.branch.false_branch, clone_u8_hash_table(parent_versions, NATIVE_LOX_ALLOCATOR()));
                 push_pending_evaluate(&inserter, block_to_evaluate->next_as.branch.true_branch, parent_versions);
                 break;
             case TYPE_NEXT_SSA_BLOCK_NONE:
-                free(parent_versions);
+                NATIVE_LOX_FREE(parent_versions);
                 break;
         }
     }
@@ -190,7 +190,7 @@ static void insert_phis_in_data_node_consumer(
                     SSA_DATA_NODE_TYPE_PHI, struct ssa_data_phi_node, current_node->original_bytecode
             );
             phi_node->local_number = local_number;
-            init_u64_set(&phi_node->ssa_versions);
+            init_u64_set(&phi_node->ssa_versions, NATIVE_LOX_ALLOCATOR());
             uint8_t version = get_version(parent_versions, get_local->local_number);
             add_u64_set(&phi_node->ssa_versions, version);
 
@@ -245,7 +245,7 @@ static void push_pending_evaluate(
         struct ssa_block * parent,
         struct u8_hash_table * parent_versions
 ) {
-    struct pending_evaluate * pending_evaluate = malloc(sizeof(struct pending_evaluate));
+    struct pending_evaluate * pending_evaluate = NATIVE_LOX_MALLOC(sizeof(struct pending_evaluate));
     pending_evaluate->parent_versions = parent_versions;
     pending_evaluate->pending_block_to_evaluate = parent;
     push_stack_list(&inserter->pending_evaluate, pending_evaluate);
@@ -253,9 +253,9 @@ static void push_pending_evaluate(
 
 static void init_ssa_phi_inserter(struct ssa_phi_inserter * ssa_phi_inserter) {
     init_u8_hash_table(&ssa_phi_inserter->max_version_allocated_per_local);
-    init_u64_hash_table(&ssa_phi_inserter->ssa_definitions_by_ssa_name);
-    init_stack_list(&ssa_phi_inserter->pending_evaluate);
-    init_u64_set(&ssa_phi_inserter->loops_evaluted);
+    init_u64_hash_table(&ssa_phi_inserter->ssa_definitions_by_ssa_name, NATIVE_LOX_ALLOCATOR());
+    init_stack_list(&ssa_phi_inserter->pending_evaluate, NATIVE_LOX_ALLOCATOR());
+    init_u64_set(&ssa_phi_inserter->loops_evaluted, NATIVE_LOX_ALLOCATOR());
 }
 
 static void free_ssa_phi_inserter(struct ssa_phi_inserter * inserter) {
@@ -275,7 +275,7 @@ static void extract_get_local(
     //a0 in the example, will be a phi node
     struct ssa_data_phi_node * extracted_phi_node = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_PHI, struct ssa_data_phi_node, NULL);
 
-    init_u64_set(&extracted_phi_node->ssa_versions);
+    init_u64_set(&extracted_phi_node->ssa_versions, NATIVE_LOX_ALLOCATOR());
     add_u64_set(&extracted_phi_node->ssa_versions, get_version(parent_versions, local_number));
     extracted_phi_node->local_number = local_number;
 
@@ -294,7 +294,7 @@ static void extract_get_local(
     struct ssa_data_phi_node * new_get_local = ALLOC_SSA_DATA_NODE(
             SSA_DATA_NODE_TYPE_PHI, struct ssa_data_phi_node, NULL
     );
-    init_u64_set(&new_get_local->ssa_versions);
+    init_u64_set(&new_get_local->ssa_versions, NATIVE_LOX_ALLOCATOR());
     new_get_local->local_number = local_number;
     add_u64_set(&new_get_local->ssa_versions, new_version_extracted);
     *parent_to_extract_get_local_ptr = &new_get_local->data;

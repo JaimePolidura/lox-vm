@@ -17,7 +17,8 @@ typedef enum {
     OBJ_STRUCT_INSTANCE,
     OBJ_STRUCT_DEFINITION,
     OBJ_PACKAGE,
-    OBJ_ARRAY
+    OBJ_ARRAY,
+    OBJ_HEAP,
 } object_type_t;
 
 struct object {

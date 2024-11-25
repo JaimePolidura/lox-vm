@@ -1,9 +1,10 @@
 #pragma once
 
+#include "shared/utils/memory/lox_allocator.h"
+#include "shared/config/config.h"
 #include "shared.h"
 
 #include "runtime/memory/generational/mark_bitmap.h"
-#include "shared/config/config.h"
 
 struct card_table {
     uint64_t * start_address_memory_space;

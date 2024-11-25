@@ -27,8 +27,8 @@ struct function_inline_result inline_function(
         struct function_object * function_to_inline,
         bool is_from_external_package
 ) {
-    struct bytecode_list * chunk_to_inline = create_bytecode_list(function_to_inline->chunk);
-    struct bytecode_list * target_chunk = create_bytecode_list(target->chunk);
+    struct bytecode_list * chunk_to_inline = create_bytecode_list(function_to_inline->chunk, NATIVE_LOX_ALLOCATOR());
+    struct bytecode_list * target_chunk = create_bytecode_list(target->chunk, NATIVE_LOX_ALLOCATOR());
     struct bytecode_list * target_call = get_by_index_bytecode_list(target_chunk, chunk_target_index);
     struct bytecode_list * next_to_target_call = target_call->next;
     int n_arguments_to_inline = function_to_inline->n_arguments;
@@ -177,7 +177,7 @@ static void rename_argument_passing(
 
     for (int i = 0; i < n_arguments; i++) {
         struct bytecode_list * arg_node = pop_stack_list(&stack);
-        struct bytecode_list * set_local = alloc_bytecode_list();
+        struct bytecode_list * set_local = alloc_bytecode_list(NATIVE_LOX_ALLOCATOR());
         set_local->bytecode = OP_SET_LOCAL;
         set_local->as.u8 = i + target_function->n_locals + 1; //All functions local variables starts with 1
 

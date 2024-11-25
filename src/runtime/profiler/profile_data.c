@@ -27,11 +27,11 @@ profile_data_type_t get_type_by_local_function_profile_data(struct function_prof
 }
 
 void init_function_profile_data(struct function_profile_data * function_profile_data, int n_instructions, int n_locals) {
-    function_profile_data->data_by_instruction_index = malloc(sizeof(struct instruction_profile_data) * n_instructions);
+    function_profile_data->data_by_instruction_index = NATIVE_LOX_MALLOC(sizeof(struct instruction_profile_data) * n_instructions);
     for(int i = 0; i < n_instructions; i++) {
         init_instruction_profile_data(&function_profile_data->data_by_instruction_index[i]);
     }
-    function_profile_data->local_profile_data = malloc(sizeof(struct type_profile_data) * n_locals);
+    function_profile_data->local_profile_data = NATIVE_LOX_MALLOC(sizeof(struct type_profile_data) * n_locals);
     for(int i = 0; i < n_locals; i++) {
         init_type_profile_data(&function_profile_data->local_profile_data[i]);
     }
@@ -42,7 +42,7 @@ void init_type_profile_data(struct type_profile_data * type_profile_data) {
 }
 
 struct instruction_profile_data * alloc_instruction_profile_data() {
-    struct instruction_profile_data * instruction_profile_data = malloc(sizeof(struct instruction_profile_data));
+    struct instruction_profile_data * instruction_profile_data = NATIVE_LOX_MALLOC(sizeof(struct instruction_profile_data));
     init_instruction_profile_data(instruction_profile_data);
     return instruction_profile_data;
 }

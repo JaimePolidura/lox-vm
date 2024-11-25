@@ -838,7 +838,7 @@ static struct jit_compiler init_jit_compiler(struct function_object * function) 
     struct jit_compiler compiler;
 
     compiler.current_mode = MODE_JIT;
-    compiler.compiled_bytecode_to_native_by_index = malloc(sizeof(uint16_t) * function->chunk->in_use);
+    compiler.compiled_bytecode_to_native_by_index = NATIVE_LOX_MALLOC(sizeof(uint16_t) * function->chunk->in_use);
     memset(compiler.compiled_bytecode_to_native_by_index, 0, sizeof(uint16_t) * function->chunk->in_use);
 
     compiler.last_stack_slot_allocated = function->n_arguments > 0 ? function->n_arguments : -1;
@@ -848,7 +848,7 @@ static struct jit_compiler init_jit_compiler(struct function_object * function) 
     init_pending_jumps_to_resolve(&compiler.pending_jumps_to_resolve, function->chunk->in_use);
     init_register_allocator(&compiler.register_allocator);
     init_u8_arraylist(&compiler.native_compiled_code, NATIVE_LOX_ALLOCATOR());
-    init_stack_list(&compiler.package_stack);
+    init_stack_list(&compiler.package_stack, NATIVE_LOX_ALLOCATOR());
     init_jit_stack(&compiler.jit_stack);
 
     return compiler;
@@ -999,7 +999,7 @@ static uint16_t get_compiled_native_index_by_bytecode_index(struct jit_compiler 
 
 static void free_jit_compiler(struct jit_compiler * jit_compiler) {
     free_pending_jumps_to_resolve(&jit_compiler->pending_jumps_to_resolve);
-    free(jit_compiler->compiled_bytecode_to_native_by_index);
+    NATIVE_LOX_FREE(jit_compiler->compiled_bytecode_to_native_by_index);
     free_stack_list(&jit_compiler->package_stack);
 }
 

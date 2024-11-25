@@ -35,7 +35,7 @@ static void update_card_table_array(struct array_object *);
 void start_major_generational_gc() {
     struct generational_gc * gc = current_vm.gc;
     struct stack_list terminated_threads;
-    init_stack_list(&terminated_threads);
+    init_stack_list(&terminated_threads, NATIVE_LOX_ALLOCATOR());
     gc->previous_major = true;
 
     clear_mark_bitmaps_generational_gc(gc);
@@ -158,7 +158,7 @@ static bool traverse_globals_to_update_references(void * trie_node_ptr, void * e
 static void traverse_value_and_update_references(lox_value_t * root_value) {
     struct generational_gc * gc = current_vm.gc;
     struct stack_list pending;
-    init_stack_list(&pending);
+    init_stack_list(&pending, NATIVE_LOX_ALLOCATOR());
     push_stack_list(&pending, root_value);
 
     while (!is_empty_stack_list(&pending)) {
@@ -322,7 +322,7 @@ static void traverse_value_to_mark(lox_value_t root_value) {
 static void traverse_object_to_mark(struct object * object) {
     struct generational_gc * gc = current_vm.gc;
     struct stack_list pending;
-    init_stack_list(&pending);
+    init_stack_list(&pending, NATIVE_LOX_ALLOCATOR());
     push_stack_list(&pending, object);
 
     while (!is_empty_stack_list(&pending)) {

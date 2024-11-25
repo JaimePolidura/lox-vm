@@ -45,7 +45,7 @@ struct pending_jump_to_resolve get_pending_jump_to_resolve(struct pending_jumps_
 }
 
 static struct pending_jump_to_resolve * alloc_pending_jump_to_resolve() {
-    struct pending_jump_to_resolve * pending_jump_to_resolve = NATIVE_LOX_MALLOC(struct pending_jump_to_resolve, sizeof(struct pending_jump_to_resolve));
+    struct pending_jump_to_resolve * pending_jump_to_resolve = NATIVE_LOX_MALLOC(sizeof(struct pending_jump_to_resolve));
     memset(pending_jump_to_resolve->pending_resolve_data, 0, MAX_JUMPS_REFERENCES_TO_LINE);
     pending_jump_to_resolve->in_use = 0;
     return pending_jump_to_resolve;

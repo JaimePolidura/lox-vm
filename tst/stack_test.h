@@ -4,7 +4,7 @@
 #include "shared/utils/collections/stack_list.h"
 
 TEST(simple_stack_push_pop_test) {
-    struct stack_list * stack = alloc_stack_list();
+    struct stack_list * stack = alloc_stack_list(NATIVE_LOX_ALLOCATOR());
     push_stack_list(stack, (void *) 0x01);
 
     ASSERT_TRUE(pop_stack_list(stack) == (void *) 0x01);
@@ -25,7 +25,7 @@ TEST(simple_stack_push_pop_test) {
 }
 
 TEST(simple_stack_clear_test) {
-    struct stack_list * stack = alloc_stack_list();
+    struct stack_list * stack = alloc_stack_list(NATIVE_LOX_ALLOCATOR());
     push_stack_list(stack, (void *) 0x01);
     free_stack_list(stack);
     ASSERT_TRUE(pop_stack_list(stack) == NULL);

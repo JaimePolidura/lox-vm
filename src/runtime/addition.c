@@ -16,22 +16,22 @@ lox_value_t addition_lox(lox_value_t a, lox_value_t b) {
     size_t b_length = strlen(b_chars);
 
     size_t new_length = a_length + b_length; //Include \0
-    char * concatenated = malloc(sizeof(char) * (new_length + 1));
+    char * concatenated = NATIVE_LOX_MALLOC(sizeof(char) * (new_length + 1));
     memcpy(concatenated, a_chars, a_length);
     memcpy(concatenated + a_length, b_chars, b_length);
     concatenated[new_length] = '\0';
 
     if(IS_NUMBER(a)){
-        free(a_chars);
+        NATIVE_LOX_FREE(a_chars);
     }
     if(IS_NUMBER(b)){
-        free(b_chars);
+        NATIVE_LOX_FREE(b_chars);
     }
 
     struct string_pool_add_result add_result = add_to_global_string_pool(concatenated, new_length, true);
 
     if(!add_result.created_new) {
-        free(concatenated);
+        NATIVE_LOX_FREE(concatenated);
     }
 
     return TO_LOX_VALUE_OBJECT(add_result.string_object);

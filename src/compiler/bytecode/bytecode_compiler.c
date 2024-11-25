@@ -1068,11 +1068,11 @@ static void report_error(struct bytecode_compiler * compiler, struct token token
 }
 
 static struct bytecode_compiler * alloc_compiler(scope_type_t scope, char * package_name, bool is_standalone_mode) {
-    struct bytecode_compiler * compiler = NATIVE_LOX_MALLOC(struct bytecode_compiler, sizeof(struct bytecode_compiler));
+    struct bytecode_compiler * compiler = NATIVE_LOX_MALLOC(sizeof(struct bytecode_compiler));
     compiler->package = add_package_to_compiled_packages(package_name, strlen(package_name), is_standalone_mode);
     init_compiler(compiler, scope, NULL); //Parent bytecode_compiler null, this current_function will be the first one to be called
-    compiler->scanner = NATIVE_LOX_MALLOC(struct scanner, sizeof(struct scanner));
-    compiler->parser = NATIVE_LOX_MALLOC(struct parser, sizeof(struct parser));
+    compiler->scanner = NATIVE_LOX_MALLOC(sizeof(struct scanner));
+    compiler->parser = NATIVE_LOX_MALLOC(sizeof(struct parser));
     compiler->parser->has_error = false;
     compiler->is_standalone_mode = is_standalone_mode;
     init_trie_list(&compiler->const_global_variables, NATIVE_LOX_ALLOCATOR());

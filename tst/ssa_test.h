@@ -51,7 +51,7 @@ TEST(ssa_phis_inserter){
     struct function_object * function_ssa = get_function_package(package, "function_ssa");
     int n_instructions = function_ssa->chunk->in_use;
     init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
-    struct ssa_ir ssa_ir = create_ssa_ir(package, function_ssa, create_bytecode_list(function_ssa->chunk));
+    struct ssa_ir ssa_ir = create_ssa_ir(package, function_ssa, create_bytecode_list(function_ssa->chunk, NATIVE_LOX_ALLOCATOR()));
     struct ssa_block * start_ssa_block = ssa_ir.first_block;
 
     ASSERT_EQ(size_u64_set(start_ssa_block->predecesors), 0);
@@ -152,7 +152,7 @@ TEST(ssa_ir_no_phis_creation) {
     init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
 
     struct ssa_block * ssa_block = create_ssa_ir_no_phis(
-            package, function_ssa, create_bytecode_list(function_ssa->chunk)
+            package, function_ssa, create_bytecode_list(function_ssa->chunk, NATIVE_LOX_ALLOCATOR())
     );
 
     // [c = 1, ¿a < 0?]
@@ -226,7 +226,7 @@ static void int_array_to_set(struct u64_set *, int n_array_elements, int array[n
 
 static bool node_uses_version(struct ssa_data_node * start_node, int expected_version) {
     struct stack_list pending;
-    init_stack_list(&pending);
+    init_stack_list(&pending, NATIVE_LOX_ALLOCATOR());
     push_stack_list(&pending, start_node);
 
     while(!is_empty_stack_list(&pending)) {
@@ -281,11 +281,11 @@ static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expe
     int expected_versions[n_expected_versions];
     VARARGS_TO_ARRAY(int, expected_versions, n_expected_versions);
     struct u64_set expected_versions_set;
-    init_u64_set(&expected_versions_set);
+    init_u64_set(&expected_versions_set, NATIVE_LOX_ALLOCATOR());
     int_array_to_set(&expected_versions_set, n_expected_versions, expected_versions);
 
     struct stack_list pending;
-    init_stack_list(&pending);
+    init_stack_list(&pending, NATIVE_LOX_ALLOCATOR());
     push_stack_list(&pending, start_node);
 
     while(!is_empty_stack_list(&pending)){

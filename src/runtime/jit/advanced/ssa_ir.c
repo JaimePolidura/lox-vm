@@ -32,11 +32,11 @@ void remove_branch_ssa_ir(struct ssa_ir * ssa_ir, struct ssa_block * branch_bloc
 //Nodes: {A, C, E} Edges: A -> C, C -> E
 static struct u64_set get_blocks_to_remove(struct ssa_block * start_block) {
     struct u64_set blocks_to_be_removed;
-    init_u64_set(&blocks_to_be_removed);
+    init_u64_set(&blocks_to_be_removed, NATIVE_LOX_ALLOCATOR());
     add_u64_set(&blocks_to_be_removed, (uint64_t) start_block);
 
     struct queue_list pending;
-    init_queue_list(&pending);
+    init_queue_list(&pending, NATIVE_LOX_ALLOCATOR());
 
     enqueue_queue_list(&pending, start_block);
 

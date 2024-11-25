@@ -3,7 +3,7 @@
 static void init_vm_thread(struct vm_thread * vm_thread);
 
 struct vm_thread * alloc_vm_thread() {
-    struct vm_thread * vm_thread = malloc(sizeof(struct vm_thread));
+    struct vm_thread * vm_thread = NATIVE_LOX_MALLOC(sizeof(struct vm_thread));
     init_vm_thread(vm_thread);
     return vm_thread;
 }
@@ -17,7 +17,7 @@ static void init_vm_thread(struct vm_thread * vm_thread) {
     vm_thread->frames_in_use = 0;
     vm_thread->terminated_state = THREAD_TERMINATED_NONE;
 
-    init_stack_list(&vm_thread->package_stack);
+    init_stack_list(&vm_thread->package_stack, NATIVE_LOX_ALLOCATOR());
     
     for(int i = 0; i < MAX_THREADS_PER_THREAD; i++){
         vm_thread->children[i] = NULL;
@@ -30,7 +30,7 @@ void free_vm_thread(struct vm_thread * vm_thread) {
 
 void for_each_thread(struct vm_thread * start_thread, thread_consumer_t callback, void * extra, long options) {
     struct stack_list pending;
-    init_stack_list(&pending);
+    init_stack_list(&pending, NATIVE_LOX_ALLOCATOR());
     push_stack_list(&pending, start_thread);
 
     if (!(options & THREADS_OPT_EXCLUSIVE)) {

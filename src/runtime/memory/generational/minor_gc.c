@@ -60,7 +60,7 @@ static void update_string_pool_references();
 void start_minor_generational_gc(bool start_major) {
     struct generational_gc * gc = current_vm.gc;
     struct stack_list terminated_threads;
-    init_stack_list(&terminated_threads);
+    init_stack_list(&terminated_threads, NATIVE_LOX_ALLOCATOR());
 
     signal_threads_start_gc_alg_and_await();
 
@@ -70,10 +70,10 @@ void start_minor_generational_gc(bool start_major) {
             runtime_panic("Out of memory!");
         }
 
-       start_major_generational_gc();
-       free_stack_list(&terminated_threads);
-       start_minor_generational_gc(false);
-       return;
+        start_major_generational_gc();
+        free_stack_list(&terminated_threads);
+        start_minor_generational_gc(false);
+        return;
     }
 
     clear_mark_bitmaps_generational_gc(gc);
@@ -200,7 +200,7 @@ static bool traverse_thread_stack_to_update_references(struct vm_thread * parent
 static void mark_references_in_card_table(struct object * object_root_in_old) {
     struct generational_gc * gc = current_vm.gc;
     struct stack_list pending;
-    init_stack_list(&pending);
+    init_stack_list(&pending, NATIVE_LOX_ALLOCATOR());
     push_stack_list(&pending, object_root_in_old);
 
     while (!is_empty_stack_list(&pending)) {
@@ -266,7 +266,7 @@ static void traverse_value_and_update_references(lox_value_t root_value, lox_val
     struct generational_gc * generational_gc = current_vm.gc;
     struct object * root_object = AS_OBJECT(root_value);
     struct stack_list pending;
-    init_stack_list(&pending);
+    init_stack_list(&pending, NATIVE_LOX_ALLOCATOR());
     push_stack_list(&pending, alloc_object_to_traverse(root_object, root_reference_holder));
 
     while (!is_empty_stack_list(&pending)) {
@@ -316,8 +316,8 @@ static bool traverse_heap_and_move(struct stack_list * terminated_threads) {
 
     //Thread stacks
     struct for_each_thread_traverse_and_move for_each_thread_data = (struct for_each_thread_traverse_and_move) {
-        .pending = terminated_threads,
-        .moved_all_successfuly = &moved_all_successfuly
+            .pending = terminated_threads,
+            .moved_all_successfuly = &moved_all_successfuly
     };
     for_each_thread(current_vm.root, traverse_thread_stack_to_move, &for_each_thread_data,
                     THREADS_OPT_INCLUDE_TERMINATED |
@@ -394,7 +394,7 @@ static bool traverse_value_and_move(lox_value_t root_value) {
 static bool traverse_object_and_move(struct object * root_object) {
     struct generational_gc * generational_gc = current_vm.gc;
     struct stack_list pending;
-    init_stack_list(&pending);
+    init_stack_list(&pending, NATIVE_LOX_ALLOCATOR());
     push_stack_list(&pending, alloc_object_to_traverse(root_object, NULL));
     bool moved_all_successfuly = true;
 
@@ -464,7 +464,7 @@ static bool can_be_moved(struct object * object) {
     uintptr_t object_ptr = (uintptr_t) object;
 
     return belongs_to_young_generational_gc(generational_gc, object_ptr) &&
-        !is_marked_generational_gc(generational_gc, object_ptr); //Not already moved
+           !is_marked_generational_gc(generational_gc, object_ptr); //Not already moved
 }
 
 static void mark_object(struct object * object) {

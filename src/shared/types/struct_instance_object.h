@@ -2,14 +2,14 @@
 
 #include "shared.h"
 
-#include "types.h"
-#include "string_object.h"
 #include "shared/utils/collections/lox_arraylist.h"
 #include "shared/utils/collections/lox_hash_table.h"
+#include "shared/types/string_object.h"
+#include "shared/types/types.h"
 
 struct struct_instance_object {
     struct object object;
-    struct lox_hash_table fields;
+    struct lox_hash_table fields; //Contains struct heap_object *, which points to lox_hash_table
     struct struct_definition_object * definition;
 };
 

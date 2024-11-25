@@ -9,7 +9,7 @@ void init_function_calls(struct function_call * function_call) {
 }
 
 struct function_call * alloc_function_call() {
-    struct function_call * function_call = NATIVE_LOX_MALLOC(struct function_call, sizeof(struct function_call));
+    struct function_call * function_call = NATIVE_LOX_MALLOC(sizeof(struct function_call));
     init_function_calls(function_call);
     return function_call;
 }

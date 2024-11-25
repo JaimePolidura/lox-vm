@@ -3,7 +3,7 @@
 #include <stdlib.h>
 
 struct chunk * alloc_chunk() {
-    struct chunk * allocated_chunk = NATIVE_LOX_MALLOC(struct chunk, sizeof(struct chunk));
+    struct chunk * allocated_chunk = NATIVE_LOX_MALLOC(sizeof(struct chunk));
     init_chunk(allocated_chunk);
     return allocated_chunk;
 }
@@ -72,10 +72,10 @@ struct chunk * copy_chunk(struct chunk * src) {
     dst->in_use = src->in_use;
     dst->lines = src->lines;
 
-    dst->code = NATIVE_LOX_MALLOC(uint8_t, sizeof(uint8_t) * src->capacity);
+    dst->code = NATIVE_LOX_MALLOC(sizeof(uint8_t) * src->capacity);
     memcpy(dst->code, src->code, src->capacity);
 
-    dst->constants.values = NATIVE_LOX_MALLOC(lox_value_t, sizeof(lox_value_t) * src->constants.capacity);
+    dst->constants.values = NATIVE_LOX_MALLOC(sizeof(lox_value_t) * src->constants.capacity);
     memcpy(dst->constants.values, src->constants.values, dst->constants.capacity);
     dst->constants.capacity = src->constants.capacity;
     dst->constants.in_use = src->constants.in_use;

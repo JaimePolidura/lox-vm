@@ -52,6 +52,8 @@ bool put_hash_table(struct lox_hash_table * table, struct string_object * key, l
 //Returns true if key is present in the map
 bool contains_hash_table(struct lox_hash_table * table, struct string_object * key);
 
+int get_req_capacity_lox_hash_table(int n_expected_elements);
+
 //Returns the key value_node by its hash
 struct string_object * get_key_by_hash(struct lox_hash_table * table, uint32_t keyHash);
 

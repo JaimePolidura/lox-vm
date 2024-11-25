@@ -194,7 +194,7 @@ struct ssa_block * create_ssa_ir_no_phis(
                 break;
         }
 
-        free(to_evaluate);
+        NATIVE_LOX_FREE(to_evaluate);
     }
 
     free_ssa_no_phis_inserter(inserter);
@@ -268,7 +268,7 @@ static void initialize_array(struct ssa_no_phis_inserter * inserter, struct pend
     initialize_array_node->empty_initialization = empty_initialization;
     initialize_array_node->n_elements = n_elements;
     if(!empty_initialization){
-        initialize_array_node->elememnts_node = malloc(sizeof(struct ssa_data_node *) * n_elements);
+        initialize_array_node->elememnts_node = NATIVE_LOX_MALLOC(sizeof(struct ssa_data_node *) * n_elements);
     }
     for(int i = n_elements - 1; i >= 0 && !empty_initialization; i--){
         initialize_array_node->elememnts_node[i] = pop_stack_list(&inserter->data_nodes_stack);
@@ -288,7 +288,7 @@ static void initialize_struct(
     );
     struct struct_definition_object * definition = (struct struct_definition_object *) AS_OBJECT(READ_CONSTANT(function, to_evaluate->pending_bytecode));
     initialize_struct_node->data.produced_type = PROFILE_DATA_TYPE_OBJECT;
-    initialize_struct_node->fields_nodes = malloc(sizeof(struct struct_definition_object *) * definition->n_fields);
+    initialize_struct_node->fields_nodes = NATIVE_LOX_MALLOC(sizeof(struct struct_definition_object *) * definition->n_fields);
     initialize_struct_node->definition = definition;
     for (int i = definition->n_fields - 1; i >= 0; i--) {
         initialize_struct_node->fields_nodes[i] = pop_stack_list(&inserter->data_nodes_stack);
@@ -338,7 +338,7 @@ static void call(struct ssa_no_phis_inserter * inserter, struct pending_evaluate
     call_node->function = function_to_call;
     call_node->is_parallel = is_paralell;
     call_node->n_arguments = n_args;
-    call_node->arguments = malloc(sizeof(struct ssa_data_node *) * n_args);
+    call_node->arguments = NATIVE_LOX_MALLOC(sizeof(struct ssa_data_node *) * n_args);
     for(int i = n_args; i > 0; i--){
         call_node->arguments[i - 1] = pop_stack_list(&inserter->data_nodes_stack);
     }
@@ -636,7 +636,7 @@ static void push_pending_evaluate(
         struct ssa_block * block
 ) {
     if (pending_bytecode != NULL) {
-        struct pending_evaluate * pending_evalutaion = malloc(sizeof(struct pending_evaluate));
+        struct pending_evaluate * pending_evalutaion = NATIVE_LOX_MALLOC(sizeof(struct pending_evaluate));
         pending_evalutaion->pending_bytecode = pending_bytecode;
         pending_evalutaion->prev_control_node = prev_ssa_node;
         pending_evalutaion->block = block;
@@ -691,7 +691,7 @@ static void map_data_nodes_bytecodes_to_control(
 }
 
 static struct ssa_no_phis_inserter * alloc_ssa_no_phis_inserter() {
-    struct ssa_no_phis_inserter * ssa_no_phis_inserter = malloc(sizeof(struct ssa_no_phis_inserter));
+    struct ssa_no_phis_inserter * ssa_no_phis_inserter = NATIVE_LOX_MALLOC(sizeof(struct ssa_no_phis_inserter));
     init_u8_set(&ssa_no_phis_inserter->current_block_local_usage.assigned);
     init_u64_hash_table(&ssa_no_phis_inserter->control_nodes_by_bytecode, NATIVE_LOX_ALLOCATOR());
     init_u64_hash_table(&ssa_no_phis_inserter->blocks_by_first_bytecode, NATIVE_LOX_ALLOCATOR());

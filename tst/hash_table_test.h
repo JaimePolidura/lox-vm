@@ -14,7 +14,7 @@
 
 TEST(hash_table_put_if_absent){
     struct lox_hash_table table;
-    init_hash_table(&table);
+    init_hash_table(&table, NATIVE_LOX_ALLOCATOR());
     struct string_object key1 = STRING_TO_OBJ("key1");
 
     put_hash_table(&table, &key1, TO_LOX_VALUE_NUMBER(1));
@@ -36,7 +36,7 @@ TEST(hash_table_put_if_absent){
 
 TEST(hash_table_put_if_present){
     struct lox_hash_table table;
-    init_hash_table(&table);
+    init_hash_table(&table, NATIVE_LOX_ALLOCATOR());
     struct string_object key1 = STRING_TO_OBJ("key1");
 
     ASSERT_FALSE(put_if_present_hash_table(&table, &key1, TO_LOX_VALUE_NUMBER(1)));
@@ -54,7 +54,7 @@ TEST(hash_table_put_if_present){
 
 TEST(hash_table_multiple_put_test) {
     struct lox_hash_table table;
-    init_hash_table(&table);
+    init_hash_table(&table, NATIVE_LOX_ALLOCATOR());
 
     struct string_object key1 = STRING_TO_OBJ("key1");
 
@@ -72,7 +72,7 @@ TEST(hash_table_multiple_put_test) {
 
 TEST(hash_table_put_contains_remove_get_test) {
     struct lox_hash_table table;
-    init_hash_table(&table);
+    init_hash_table(&table, NATIVE_LOX_ALLOCATOR());
 
     struct string_object key1 = STRING_TO_OBJ("key1-1");
     struct string_object key2 = STRING_TO_OBJ("key1");

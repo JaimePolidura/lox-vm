@@ -4,14 +4,14 @@ static inline uint8_t * get_slot_ptr(struct mark_bitmap *, void * addresss);
 static inline uint8_t get_index_in_slot(void * address);
 
 struct mark_bitmap * alloc_mark_bitmap(int n_addresses, void * start_address) {
-    struct mark_bitmap * bitmap = malloc(sizeof(struct mark_bitmap));
+    struct mark_bitmap * bitmap = NATIVE_LOX_MALLOC(sizeof(struct mark_bitmap));
     init_mark_bitmap(bitmap, n_addresses, start_address);
     return bitmap;
 }
 
 void init_mark_bitmap(struct mark_bitmap * mark_bitmap, int n_addresses, void * start_address) {
     size_t size_bitmap = round_up_8(n_addresses / 8);
-    uint8_t * ptr = malloc(size_bitmap);
+    uint8_t * ptr = NATIVE_LOX_MALLOC(size_bitmap);
 
     mark_bitmap->start_address = start_address;
     mark_bitmap->end = ((uint8_t *) ptr) + size_bitmap;
@@ -20,7 +20,7 @@ void init_mark_bitmap(struct mark_bitmap * mark_bitmap, int n_addresses, void * 
 }
 
 void free_mark_bitmap(struct mark_bitmap * mark_bitmap) {
-    free(mark_bitmap->start);
+    NATIVE_LOX_FREE(mark_bitmap->start);
 }
 
 void set_unmarked_bitmap(struct mark_bitmap * mark_bitmap, void * address) {

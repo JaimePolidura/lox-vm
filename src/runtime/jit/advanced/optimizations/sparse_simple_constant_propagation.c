@@ -230,7 +230,7 @@ struct constant_rewrite * rewrite_constant_expressions_data_node(
             switch (unary_operand_node->semilattice->type) {
                 case SEMILATTICE_CONSTANT:
                     struct u64_set new_possible_values;
-                    init_u64_set(&new_possible_values);
+                    init_u64_set(&new_possible_values, NATIVE_LOX_ALLOCATOR());
 
                     FOR_EACH_U64_SET_VALUE(unary_operand_node->semilattice->values, current_operand) {
                         lox_value_t current_result = calculate_unary_lox(current_operand, unary_node->operator_type);
@@ -315,9 +315,9 @@ static lox_value_type calculate_unary_lox(lox_value_t operand_value, ssa_unary_o
 }
 
 struct sparse_simple_constant_propagation * alloc_sparse_constant_propagation(struct ssa_ir * ssa_ir) {
-    struct sparse_simple_constant_propagation * sscp = malloc(sizeof(struct sparse_simple_constant_propagation));
-    init_u64_hash_table(&sscp->semilattice_by_ssa_name);
-    init_stack_list(&sscp->pending);
+    struct sparse_simple_constant_propagation * sscp = NATIVE_LOX_MALLOC(sizeof(struct sparse_simple_constant_propagation));
+    init_u64_hash_table(&sscp->semilattice_by_ssa_name, NATIVE_LOX_ALLOCATOR());
+    init_stack_list(&sscp->pending, NATIVE_LOX_ALLOCATOR());
     sscp->ssa_ir = ssa_ir;
     return sscp;
 }
@@ -350,7 +350,7 @@ static struct u64_set_iterator node_uses_by_ssa_name_iterator(struct u64_hash_ta
     } else {
         //Return emtpy iterator
         struct u64_set empty_set;
-        init_u64_set(&empty_set);
+        init_u64_set(&empty_set,NATIVE_LOX_ALLOCATOR());
         struct u64_set_iterator node_uses_by_ssa_name_empty_iterator;
         init_u64_set_iterator(&node_uses_by_ssa_name_empty_iterator, empty_set);
         return node_uses_by_ssa_name_empty_iterator;
@@ -358,31 +358,31 @@ static struct u64_set_iterator node_uses_by_ssa_name_iterator(struct u64_hash_ta
 }
 
 static struct semilattice_value * alloc_multiple_const_values_semilattice(struct u64_set values) {
-    struct semilattice_value * semilattice = malloc(sizeof(struct semilattice_value));
-    init_u64_set(&semilattice->values);
+    struct semilattice_value * semilattice = NATIVE_LOX_MALLOC(sizeof(struct semilattice_value));
+    init_u64_set(&semilattice->values, NATIVE_LOX_ALLOCATOR());
     semilattice->type = SEMILATTICE_CONSTANT;
     union_u64_set(&semilattice->values, values);
     return semilattice;
 }
 
 static struct semilattice_value * alloc_single_const_value_semilattice(lox_value_t value) {
-    struct semilattice_value * semilattice = malloc(sizeof(struct semilattice_value));
-    init_u64_set(&semilattice->values);
+    struct semilattice_value * semilattice = NATIVE_LOX_MALLOC(sizeof(struct semilattice_value));
+    init_u64_set(&semilattice->values, NATIVE_LOX_ALLOCATOR());
     semilattice->type = SEMILATTICE_CONSTANT;
     add_u64_set(&semilattice->values, value);
     return semilattice;
 }
 
 static struct semilattice_value * alloc_top_semilatttice() {
-    struct semilattice_value * semilattice = malloc(sizeof(struct semilattice_value));
-    init_u64_set(&semilattice->values);
+    struct semilattice_value * semilattice = NATIVE_LOX_MALLOC(sizeof(struct semilattice_value));
+    init_u64_set(&semilattice->values, NATIVE_LOX_ALLOCATOR());
     semilattice->type = SEMILATTICE_TOP;
     return semilattice;
 }
 
 static struct semilattice_value * alloc_bottom_semilatttice() {
-    struct semilattice_value * semilattice = malloc(sizeof(struct semilattice_value));
-    init_u64_set(&semilattice->values);
+    struct semilattice_value * semilattice = NATIVE_LOX_MALLOC(sizeof(struct semilattice_value));
+    init_u64_set(&semilattice->values, NATIVE_LOX_ALLOCATOR());
     semilattice->type = SEMILATTICE_BOTTOM;
     return semilattice;
 }
@@ -393,13 +393,13 @@ static void free_sparse_constant_propagation(struct sparse_simple_constant_propa
     init_u64_hash_table_iterator(&iterator, sscp->semilattice_by_ssa_name);
     while(has_next_u64_hash_table_iterator(iterator)){
         struct semilattice_value * semilattice = next_u64_hash_table_iterator(&iterator).value;
-        free(semilattice);
+        NATIVE_LOX_FREE(semilattice);
     }
-    free(sscp);
+    NATIVE_LOX_FREE(sscp);
 }
 
 static struct semilattice_value * alloc_semilatttice(semilattice_type_t type, struct u64_set values) {
-    struct semilattice_value * semilattice = malloc(sizeof(struct semilattice_value));
+    struct semilattice_value * semilattice = NATIVE_LOX_MALLOC(sizeof(struct semilattice_value));
     semilattice->values = values;
     semilattice->type = type;
     return semilattice;
@@ -412,7 +412,7 @@ static struct semilattice_value * get_semilattice_phi(
     semilattice_type_t final_semilattice_type = SEMILATTICE_TOP;
     bool top_value_found = false;
     struct u64_set final_values;
-    init_u64_set(&final_values);
+    init_u64_set(&final_values, NATIVE_LOX_ALLOCATOR());
 
     FOR_EACH_VERSION_IN_PHI_NODE(phi_node, current_name) {
         struct semilattice_value * current_semilatice = get_u64_hash_table(&sscp->semilattice_by_ssa_name, current_name.u16);
@@ -443,7 +443,7 @@ static struct semilattice_value * join_semilattice(
     }
 
     struct u64_set final_values;
-    init_u64_set(&final_values);
+    init_u64_set(&final_values, NATIVE_LOX_ALLOCATOR());
 
     if(left->type == SEMILATTICE_TOP || right->type == SEMILATTICE_TOP){
         union_u64_set(&final_values, right->values);
@@ -482,7 +482,7 @@ static struct constant_rewrite * create_constant_rewrite_from_result(struct ssa_
 }
 
 static struct constant_rewrite * alloc_constant_rewrite(struct ssa_data_node * node, struct semilattice_value * value) {
-    struct constant_rewrite * constant_rewrite = malloc(sizeof(struct constant_rewrite));
+    struct constant_rewrite * constant_rewrite = NATIVE_LOX_MALLOC(sizeof(struct constant_rewrite));
     constant_rewrite->semilattice = value;
     constant_rewrite->node = node;
     return constant_rewrite;

@@ -47,6 +47,6 @@ void remove_entry_string_pool(struct string_object * key) {
 }
 
 void init_global_string_pool() {
-    init_hash_table(&global_string_pool.strings);
+    init_hash_table(&global_string_pool.strings, NATIVE_LOX_ALLOCATOR());
     init_mutex(&global_string_pool.lock);
 }

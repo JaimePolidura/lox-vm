@@ -259,7 +259,7 @@ static void setup_package_execution(struct package * package) {
     self_thread->current_package = package;
 
     if(package->state != READY_TO_USE) {
-        init_hash_table(&package->global_variables);
+        init_hash_table(&package->global_variables, NATIVE_LOX_ALLOCATOR());
         setup_native_functions();
 
         setup_call_frame_function(self_thread, package->main_function);
@@ -761,7 +761,7 @@ static int try_add_child_to_parent_list(struct vm_thread * new_child_thread) {
                 current_thread_slot->terminated_state == THREAD_TERMINATED_GC_DONE) {
 
             new_child_thread->gc_info = current_thread_slot->gc_info;
-            free(current_thread_slot);
+            NATIVE_LOX_FREE(current_thread_slot);
             self_thread->children[i] = new_child_thread;
             return i;
         }

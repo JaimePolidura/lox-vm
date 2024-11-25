@@ -27,9 +27,9 @@ struct phi_optimization_result optimize_ssa_ir_phis(
         struct phi_insertion_result * phi_insertion_result
 ) {
     struct u64_hash_table uses_by_ssa_node;
-    init_u64_hash_table(&uses_by_ssa_node);
+    init_u64_hash_table(&uses_by_ssa_node, NATIVE_LOX_ALLOCATOR());
     struct stack_list pending;
-    init_stack_list(&pending);
+    init_stack_list(&pending, NATIVE_LOX_ALLOCATOR());
     push_stack_list(&pending, start_block);
 
     while(!is_empty_stack_list(&pending)) {
@@ -186,7 +186,7 @@ static void add_ssa_name_use(
         struct ssa_control_node * control_node
 ) {
     if(!contains_u64_hash_table(uses_by_ssa_node, ssa_name.u16)) {
-        struct u64_set * u64_set = alloc_u64_set();
+        struct u64_set * u64_set = alloc_u64_set(NATIVE_LOX_ALLOCATOR());
         put_u64_hash_table(uses_by_ssa_node, ssa_name.u16, u64_set);
     }
 

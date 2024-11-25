@@ -16,6 +16,9 @@ static void save_new_eden_block_info(struct eden_block_allocation);
 static void notify_start_gc_signal_acked();
 static void await_until_gc_finished();
 
+static void * generational_gc_lox_malloc(struct lox_allocator *, size_t);
+static void generational_gc_lox_free(struct lox_allocator *, void *);
+
 struct gc_barriers get_barriers_gc_alg() {
     return (struct gc_barriers) {
         .write_array_element = write_array_element_barrier_generational_gc,
@@ -50,11 +53,27 @@ void check_gc_on_safe_point_alg() {
     }
 }
 
-//TODO Memory leak, internal struct hashmap is not being freed
 struct struct_instance_object * alloc_struct_instance_gc_alg(struct struct_definition_object * definition) {
-    size_t aligned_size = align(sizeof(struct struct_instance_object), sizeof(struct object));
-    struct struct_instance_object * instance = (struct struct_instance_object *) try_alloc_object(aligned_size);
+    struct generational_gc * gc = current_vm.gc;
+
+    int n_fields_hashtable_entries = get_req_capacity_lox_hash_table(definition->n_fields);
+    size_t struct_instance_size = sizeof(struct struct_instance_object) + sizeof(struct hash_table_entry) * n_fields_hashtable_entries;
+    size_t struct_instance_size_aligned = align(struct_instance_size, sizeof(struct object));
+    struct struct_instance_object * instance = (struct struct_instance_object *) try_alloc_object(struct_instance_size_aligned);
+
     init_struct_instance_object(instance, definition);
+    //Struct fields hashtable is not expected to resize, since the number of fields in a struct is always the same in runtime
+    init_rw_mutex(&instance->fields.rw_lock);
+    instance->fields.capacity = n_fields_hashtable_entries;
+    instance->fields.allocator = NULL;
+    instance->fields.size = 0;
+    struct hash_table_entry * start_fields_ptr = (struct hash_table_entry *) ((uint8_t *) instance) + sizeof(struct struct_instance_object);
+    instance->fields.entries = start_fields_ptr;
+    for(int i = 0; i < n_fields_hashtable_entries; i++){
+        start_fields_ptr[i].key = NULL;
+        start_fields_ptr[i].value = 0;
+    }
+
     return instance;
 }
 
@@ -67,12 +86,14 @@ struct string_object * alloc_string_gc_alg(char * chars, int length) {
     string_ptr->chars = (char *) (((uint8_t *) string_ptr) + sizeof(struct string_object));
     memcpy(string_ptr->chars, chars, length);
     string_ptr->chars[length] = '\0';
-    free(chars);
+    NATIVE_LOX_FREE(chars);
 
     return string_ptr;
 }
 
 struct array_object * alloc_array_gc_alg(int n_elements) {
+    struct generational_thread_gc * gc_thread_info = self_thread->gc_info;
+
     size_t not_aligned_size = sizeof(struct array_object) + (n_elements * sizeof(lox_value_t));
     size_t total_size_aligned = align(not_aligned_size, sizeof(struct object));
     struct array_object * array = (struct array_object *) try_alloc_object(total_size_aligned);
@@ -81,6 +102,7 @@ struct array_object * alloc_array_gc_alg(int n_elements) {
     array->values.values = (lox_value_t *) (((uint8_t *) array) + sizeof(struct array_object));
     array->values.capacity = n_elements;
     array->values.in_use = n_elements;
+    array->values.allocator = NULL; //The array won't grow/shrink
 
     return array;
 }
@@ -90,13 +112,13 @@ void * alloc_gc_object_info_alg() {
 }
 
 void * alloc_gc_thread_info_alg() {
-    struct generational_thread_gc * generational_gc = malloc(sizeof(struct generational_thread_gc));
+    struct generational_thread_gc * generational_gc = NATIVE_LOX_MALLOC(sizeof(struct generational_thread_gc));
     generational_gc->eden = alloc_eden_thread();
     return generational_gc;
 }
 
 void * alloc_gc_vm_info_alg() {
-    struct generational_gc * generational_gc = malloc(sizeof(struct generational_gc));
+    struct generational_gc * generational_gc = NATIVE_LOX_MALLOC(sizeof(struct generational_gc));
     generational_gc->survivor = alloc_survivor(config);
     generational_gc->eden = alloc_eden(config);
     generational_gc->old = alloc_old(config);
@@ -107,6 +129,12 @@ void * alloc_gc_vm_info_alg() {
     pthread_cond_init(&generational_gc->await_gc_cond, NULL);
     init_mutex(&generational_gc->await_gc_cond_mutex);
     generational_gc->number_threads_ack_start_gc_signal = 0;
+    generational_gc->allocator = (struct generational_gc_lox_allocator) {
+        .lox_allocator = (struct lox_allocator) {
+            .lox_malloc = generational_gc_lox_malloc,
+            .lox_free = generational_gc_lox_free
+        }
+    };
 
     return generational_gc;
 }
@@ -259,5 +287,12 @@ size_t get_bytes_allocated_generational_gc(struct generational_gc * gc) {
     return allocated_eden + allocated_survivor + allocated_old;
 }
 
-#endif
+static void * generational_gc_lox_malloc(struct lox_allocator * lox_allocator, size_t size) {
+    return (struct object *) try_alloc_object(size);
+}
 
+static void generational_gc_lox_free(struct lox_allocator*, void *) {
+    //We don't do anything, the memory will get reclaimed in a minir/major gc pause.
+}
+
+#endif

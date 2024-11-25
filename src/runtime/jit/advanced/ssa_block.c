@@ -1,7 +1,7 @@
 #include "ssa_block.h"
 
 struct ssa_block * alloc_ssa_block() {
-    struct ssa_block * block = malloc(sizeof(struct ssa_block));
+    struct ssa_block * block = NATIVE_LOX_MALLOC(sizeof(struct ssa_block));
     init_ssa_block(block);
     return block;
 }

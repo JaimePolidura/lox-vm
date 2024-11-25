@@ -4,14 +4,14 @@ static struct mark_bitmap * find_card(struct card_table *, uint64_t * address);
 static struct mark_bitmap * add_card(struct card_table *, int index);
 
 struct card_table * alloc_card_table(struct config config, uint64_t * memory_space_start_address, uint64_t * memory_space_end_address) {
-    struct card_table * card_table = malloc(sizeof(struct card_table));
+    struct card_table * card_table = NATIVE_LOX_MALLOC(sizeof(struct card_table));
     init_card_table(card_table, config, memory_space_start_address, memory_space_end_address);
     return card_table;
 }
 
 void init_card_table(struct card_table * card_table, struct config config, uint64_t * memory_space_start_address, uint64_t * memory_space_end_address) {
     int n_cards = ceil((memory_space_end_address - memory_space_start_address) / (double) config.generational_gc_config.n_addresses_per_card_table);
-    card_table->cards = malloc(sizeof(struct mark_bitmap *) * n_cards);
+    card_table->cards = NATIVE_LOX_MALLOC(sizeof(struct mark_bitmap *) * n_cards);
     memset(card_table->cards, 0, sizeof(struct mark_bitmap *) * n_cards);
 
     card_table->n_addresses_per_card_table = config.generational_gc_config.n_addresses_per_card_table;
@@ -33,7 +33,7 @@ void clear_card_table(struct card_table * table) {
     for (int i = 0; i < table->n_cards; ++i) {
         if (table->cards[i] != NULL) {
             free_mark_bitmap(table->cards[i]);
-            free(table->cards[i]);
+            NATIVE_LOX_FREE(table->cards[i]);
             table->cards[i] = NULL;
         }
     }

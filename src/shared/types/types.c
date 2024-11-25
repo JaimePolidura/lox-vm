@@ -18,7 +18,7 @@ void init_object(struct object * object, object_type_t type) {
 }
 
 struct object * allocate_object(size_t size, object_type_t type) {
-    struct object * object = (struct object *) malloc(size);
+    struct object * object = (struct object *) NATIVE_LOX_MALLOC(size);
     init_object(object, type);
 
     return object;
@@ -40,7 +40,7 @@ char * to_string(lox_value_t value) {
     } else if(IS_BOOL(value)) {
         return AS_OBJECT(value) ? "true" : "false";
     } else if(IS_NUMBER(value)) {
-        char * string_as_double = malloc(sizeof(char) * 20);
+        char * string_as_double = NATIVE_LOX_MALLOC(sizeof(char) * 20);
         sprintf(string_as_double, "%f", AS_NUMBER(value));
         return string_as_double;
     }
@@ -48,7 +48,7 @@ char * to_string(lox_value_t value) {
     switch (value_node.type) {
         case VAL_NIL: return "nil"; break;
         case VAL_NUMBER: {
-            char * string_as_double = malloc(sizeof(char) * 20);
+            char * string_as_double = NATIVE_LOX_MALLOC(sizeof(char) * 20);
             sprintf(string_as_double, "%f", value_node.value_as.immediate);
             return string_as_double;
         }

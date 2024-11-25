@@ -1,11 +1,12 @@
 #pragma once
 
+#include "shared/utils/memory/lox_allocator.h"
+
 #include "runtime/memory/generational/survivor.h"
 #include "runtime/memory/generational/eden.h"
 #include "runtime/memory/generational/old.h"
 #include "runtime/memory/gc_algorithm.h"
 #include "runtime/memory/gc_result.h"
-
 #include "runtime/threads/vm_thread.h"
 #include "runtime/vm.h"
 
@@ -15,12 +16,18 @@ typedef enum {
     GC_IN_PROGRESS, //Performing GC
 } gc_gen_state_t;
 
+//Global. Maintained in struct generational_gc
+struct generational_gc_lox_allocator {
+    struct lox_allocator lox_allocator;
+};
+
 //Global struct. Maintained in vm.h
 struct generational_gc {
     struct eden * eden;
     struct survivor * survivor;
     struct old * old;
     bool previous_major;
+    struct generational_gc_lox_allocator allocator;
 
     volatile gc_gen_state_t state;
 

@@ -3,7 +3,7 @@
 struct survivor * alloc_survivor(struct config config) {
     size_t size_in_bytes = config.generational_gc_config.survivor_size_mb * 1024 * 1024;
 
-    struct survivor * survivor = malloc(sizeof(struct survivor));
+    struct survivor * survivor = NATIVE_LOX_MALLOC(sizeof(struct survivor));
     survivor->from = alloc_memory_space(size_in_bytes);
     survivor->to = alloc_memory_space(size_in_bytes);
 

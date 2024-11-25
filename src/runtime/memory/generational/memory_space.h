@@ -1,5 +1,6 @@
 #pragma once
 
+#include "shared/utils/memory/lox_allocator.h"
 #include "shared.h"
 
 struct memory_space {

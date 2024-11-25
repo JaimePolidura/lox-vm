@@ -1,7 +1,7 @@
 #include "old.h"
 
 struct old * alloc_old(struct config config) {
-    struct old * old = malloc(sizeof(struct old));
+    struct old * old = NATIVE_LOX_MALLOC(sizeof(struct old));
     size_t size_old_in_bytes = config.generational_gc_config.old_size_mb * 1024 * 1024;
     init_memory_space(&old->memory_space, size_old_in_bytes);
 
