@@ -8,8 +8,13 @@ static void for_each_ssa_data_node_recursive(
         ssa_data_node_consumer_t consumer
 );
 
-void * allocate_ssa_data_node(ssa_data_node_type type, size_t struct_size_bytes, struct bytecode_list * bytecode) {
-    struct ssa_data_node * ssa_control_node = NATIVE_LOX_MALLOC(struct_size_bytes);
+void * allocate_ssa_data_node(
+        ssa_data_node_type type,
+        size_t struct_size_bytes,
+        struct bytecode_list * bytecode,
+        struct lox_allocator * allocator
+) {
+    struct ssa_data_node * ssa_control_node = LOX_MALLOC(allocator, struct_size_bytes);
     memset(ssa_control_node, 0, struct_size_bytes);
     ssa_control_node->produced_type = PROFILE_DATA_TYPE_ANY;
     ssa_control_node->original_bytecode = bytecode;
@@ -97,9 +102,13 @@ static void for_each_ssa_data_node_recursive(
     consumer(parent_current, parent_current_ptr, current_node, extra);
 }
 
-struct ssa_data_constant_node * create_ssa_const_node(lox_value_t constant_value, struct bytecode_list * bytecode) {
+struct ssa_data_constant_node * create_ssa_const_node(
+        lox_value_t constant_value,
+        struct bytecode_list * bytecode,
+        struct lox_allocator * allocator
+) {
     struct ssa_data_constant_node * constant_node = ALLOC_SSA_DATA_NODE(
-            SSA_DATA_NODE_TYPE_CONSTANT, struct ssa_data_constant_node, bytecode
+            SSA_DATA_NODE_TYPE_CONSTANT, struct ssa_data_constant_node, bytecode, allocator
     );
 
     constant_node->constant_lox_value = constant_value;

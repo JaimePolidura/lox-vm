@@ -16,8 +16,13 @@ struct arena {
     struct arena_block * current;
 };
 
+struct arena_lox_allocator {
+    struct lox_allocator lox_allocator;
+    struct arena arena;
+};
+
 void init_arena(struct arena *);
 void free_arena(struct arena *);
 
 void * malloc_arena(struct arena *, size_t to_alloc_size);
-struct lox_allocator to_lox_allocator_arena(struct arena);
+struct arena_lox_allocator to_lox_allocator_arena(struct arena);

@@ -33,6 +33,8 @@ void init_u64_hash_table(struct u64_hash_table *, struct lox_allocator *);
 struct u64_hash_table * alloc_u64_hash_table(struct lox_allocator *);
 void free_u64_hash_table(struct u64_hash_table *);
 
+void clear_u64_hash_table(struct u64_hash_table *);
+
 //Returns the element of the hash table given a key. Returns NULL if it wasn't found
 void * get_u64_hash_table(struct u64_hash_table *, uint64_t key);
 

@@ -1,9 +1,13 @@
 #include "ssa_phi_inserter.h"
 
+#define GET_SSA_NODES_ALLOCATOR(inserter) (&(inserter)->ssa_nodes_lox_allocator->lox_allocator)
+
 struct ssa_phi_inserter {
     struct u8_hash_table max_version_allocated_per_local;
     struct u64_set loops_evaluted; //Stores ssa_block->next_as.loop address
     struct stack_list pending_evaluate;
+    struct arena_lox_allocator * ssa_nodes_lox_allocator;
+
     //Key struct ssa_name, Value: pointer to ssa_control_node
     struct u64_hash_table ssa_definitions_by_ssa_name;
 };
@@ -18,7 +22,7 @@ static void insert_phis_in_block(struct ssa_phi_inserter *, struct ssa_block *bl
 static void insert_ssa_versions_in_control_node(struct ssa_phi_inserter *, struct ssa_block *, struct ssa_control_node * control_node, struct u8_hash_table * parent_versions);
 static uint8_t allocate_new_version(struct u8_hash_table * max_version_allocated_per_local, uint8_t local_number);
 static int get_version(struct u8_hash_table * parent_versions, uint8_t local_number);
-static void init_ssa_phi_inserter(struct ssa_phi_inserter *);
+static void init_ssa_phi_inserter(struct ssa_phi_inserter *, struct arena_lox_allocator *);
 static void free_ssa_phi_inserter(struct ssa_phi_inserter *);
 static void extract_get_local(struct ssa_phi_inserter *inserter, struct u8_hash_table *parent_versions,
                               struct ssa_control_node *control_node_to_extract, struct ssa_block *,
@@ -33,10 +37,11 @@ static void insert_phis_in_data_node_consumer(
 );
 
 struct phi_insertion_result insert_ssa_ir_phis(
-        struct ssa_block * start_block
+        struct ssa_block * start_block,
+        struct arena_lox_allocator * ssa_nodes_lox_allocator
 ) {
     struct ssa_phi_inserter inserter;
-    init_ssa_phi_inserter(&inserter);
+    init_ssa_phi_inserter(&inserter, ssa_nodes_lox_allocator);
 
     push_pending_evaluate(&inserter, start_block, alloc_u8_hash_table(NATIVE_LOX_ALLOCATOR()));
 
@@ -163,7 +168,7 @@ static void insert_phis_in_data_node_consumer(
         } else {
             //We are going to replace the OP_GET_LOCAL node with a phi node
             struct ssa_data_phi_node * phi_node = ALLOC_SSA_DATA_NODE(
-                    SSA_DATA_NODE_TYPE_PHI, struct ssa_data_phi_node, current_node->original_bytecode
+                    SSA_DATA_NODE_TYPE_PHI, struct ssa_data_phi_node, current_node->original_bytecode, GET_SSA_NODES_ALLOCATOR(consumer_struct->inserter)
             );
             phi_node->local_number = local_number;
             init_u64_set(&phi_node->ssa_versions, NATIVE_LOX_ALLOCATOR());
@@ -227,11 +232,12 @@ static void push_pending_evaluate(
     push_stack_list(&inserter->pending_evaluate, pending_evaluate);
 }
 
-static void init_ssa_phi_inserter(struct ssa_phi_inserter * ssa_phi_inserter) {
-    init_u8_hash_table(&ssa_phi_inserter->max_version_allocated_per_local);
-    init_u64_hash_table(&ssa_phi_inserter->ssa_definitions_by_ssa_name, NATIVE_LOX_ALLOCATOR());
+static void init_ssa_phi_inserter(struct ssa_phi_inserter * ssa_phi_inserter, struct arena_lox_allocator * ssa_nodes_lox_allocator) {
+    init_u64_hash_table(&ssa_phi_inserter->ssa_definitions_by_ssa_name, &ssa_nodes_lox_allocator->lox_allocator);
     init_stack_list(&ssa_phi_inserter->pending_evaluate, NATIVE_LOX_ALLOCATOR());
     init_u64_set(&ssa_phi_inserter->loops_evaluted, NATIVE_LOX_ALLOCATOR());
+    init_u8_hash_table(&ssa_phi_inserter->max_version_allocated_per_local);
+    ssa_phi_inserter->ssa_nodes_lox_allocator = ssa_nodes_lox_allocator;
 }
 
 static void free_ssa_phi_inserter(struct ssa_phi_inserter * inserter) {
@@ -249,7 +255,9 @@ static void extract_get_local(
         void ** parent_to_extract_get_local_ptr
 ) {
     //a0 in the example, will be a phi node
-    struct ssa_data_phi_node * extracted_phi_node = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_PHI, struct ssa_data_phi_node, NULL);
+    struct ssa_data_phi_node * extracted_phi_node = ALLOC_SSA_DATA_NODE(
+            SSA_DATA_NODE_TYPE_PHI, struct ssa_data_phi_node, NULL, GET_SSA_NODES_ALLOCATOR(inserter)
+    );
 
     init_u64_set(&extracted_phi_node->ssa_versions, NATIVE_LOX_ALLOCATOR());
     add_u64_set(&extracted_phi_node->ssa_versions, get_version(parent_versions, local_number));
@@ -257,7 +265,7 @@ static void extract_get_local(
 
     //a1 in the example, will be a define_ssa_node
     struct ssa_control_define_ssa_name_node * extracted_set_local = ALLOC_SSA_CONTROL_NODE(
-            SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME, struct ssa_control_define_ssa_name_node, to_extract_block
+            SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME, struct ssa_control_define_ssa_name_node, to_extract_block, GET_SSA_NODES_ALLOCATOR(inserter)
     );
     int new_version_extracted = allocate_new_version(&inserter->max_version_allocated_per_local, local_number);
     struct ssa_name set_ssa_name = CREATE_SSA_NAME(local_number, new_version_extracted);
@@ -268,7 +276,7 @@ static void extract_get_local(
 
     //phi(a1) in the example, will be a define_ssa_node. Replace get_local node with phi node
     struct ssa_data_phi_node * new_get_local = ALLOC_SSA_DATA_NODE(
-            SSA_DATA_NODE_TYPE_PHI, struct ssa_data_phi_node, NULL
+            SSA_DATA_NODE_TYPE_PHI, struct ssa_data_phi_node, NULL, GET_SSA_NODES_ALLOCATOR(inserter)
     );
     init_u64_set(&new_get_local->ssa_versions, NATIVE_LOX_ALLOCATOR());
     new_get_local->local_number = local_number;

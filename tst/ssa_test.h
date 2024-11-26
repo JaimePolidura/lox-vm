@@ -1,17 +1,12 @@
 #pragma once
 
+#include "runtime/jit/advanced/creation/ssa_no_phis_creator.h"
 #include "runtime/jit/advanced/creation/ssa_phi_inserter.h"
 #include "runtime/jit/advanced/creation/ssa_creator.h"
 #include "shared/utils/collections/u8_set.h"
 #include "runtime/jit/advanced/ssa_block.h"
 #include "compiler/compiler.h"
 #include "test.h"
-
-extern struct ssa_block * create_ssa_ir_no_phis(
-        struct package * package,
-        struct function_object * function,
-        struct bytecode_list * start_function_bytecode
-);
 
 static bool node_uses_version(struct ssa_data_node * start_node, int n_expected_version);
 static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expected_versions, ...);
@@ -150,9 +145,12 @@ TEST(ssa_ir_no_phis_creation) {
     struct function_object * function_ssa = get_function_package(package, "function_ssa");
     int n_instructions = function_ssa->chunk->in_use;
     init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
+    struct arena arena;
+    init_arena(&arena);
+    struct arena_lox_allocator arena_lox_allocator = to_lox_allocator_arena(arena);
 
     struct ssa_block * ssa_block = create_ssa_ir_no_phis(
-            package, function_ssa, create_bytecode_list(function_ssa->chunk, NATIVE_LOX_ALLOCATOR())
+            package, function_ssa, create_bytecode_list(function_ssa->chunk, NATIVE_LOX_ALLOCATOR()), &arena_lox_allocator
     );
 
     // [c = 1, ¿a < 0?]
@@ -215,6 +213,8 @@ TEST(ssa_ir_no_phis_creation) {
     //[c = 1, ¿a < 0?] -(false)-> [c = 1, i = 0] -> [¿i < 10?] -(false)-> FINAL BLOCK
     struct ssa_block * ssa_block_false_for_condition_false = ssa_block_false_for_condition->next_as.branch.false_branch;
     ASSERT_EQ(ssa_block_false_for_condition_false, final_block);
+
+    free_arena(&arena_lox_allocator.arena);
 }
 
 static bool node_defines_ssa_name(struct ssa_control_node * node, int version) {

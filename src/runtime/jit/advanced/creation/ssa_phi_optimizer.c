@@ -6,7 +6,10 @@ struct optimize_phi_functions_consumer_struct {
     //u64_set of ssa_control_nodes per ssa name
     struct u64_hash_table * node_uses_by_ssa_name;
     struct ssa_block * block;
+    struct arena_lox_allocator * ssa_nodes_allocator;
 };
+
+#define GET_LOX_ALLOCATOR(inserter) (&(inserter)->ssa_nodes_allocator->lox_allocator)
 
 static void optimize_phi_functions_consumer (
         struct ssa_data_node * __,
@@ -14,7 +17,7 @@ static void optimize_phi_functions_consumer (
         struct ssa_data_node * current_node,
         void * control_node_ptr
 );
-static void remove_innecesary_phi_function(struct ssa_data_phi_node * phi_node, void ** parent_child_ptr);
+static void remove_innecesary_phi_function(struct optimize_phi_functions_consumer_struct *, struct ssa_data_phi_node *, void ** parent_child_ptr);
 static void extract_phi_to_ssa_name(struct optimize_phi_functions_consumer_struct *, struct ssa_data_phi_node *, void ** parent_child_ptr);
 static uint8_t allocate_new_ssa_version(int local_number, struct phi_insertion_result *);
 static void add_ssa_name_uses_to_map(struct u64_hash_table * uses_by_ssa_node, struct ssa_control_node *);
@@ -24,10 +27,11 @@ static void add_ssa_name_use(struct u64_hash_table * uses_by_ssa_node, struct ss
 //Also extract phi nodes to ssa names, for example: print phi(a0, a1) -> a2 = phi(a0, a1); print a2
 struct phi_optimization_result optimize_ssa_ir_phis(
         struct ssa_block * start_block,
-        struct phi_insertion_result * phi_insertion_result
+        struct phi_insertion_result * phi_insertion_result,
+        struct arena_lox_allocator * ssa_nodes_allocator
 ) {
     struct u64_hash_table uses_by_ssa_node;
-    init_u64_hash_table(&uses_by_ssa_node, NATIVE_LOX_ALLOCATOR());
+    init_u64_hash_table(&uses_by_ssa_node, &ssa_nodes_allocator->lox_allocator);
     struct stack_list pending;
     init_stack_list(&pending, NATIVE_LOX_ALLOCATOR());
     push_stack_list(&pending, start_block);
@@ -37,8 +41,9 @@ struct phi_optimization_result optimize_ssa_ir_phis(
 
         for(struct ssa_control_node * current = current_block->first;; current = current->next) {
             struct optimize_phi_functions_consumer_struct for_each_node_struct = (struct optimize_phi_functions_consumer_struct) {
-                .node_uses_by_ssa_name = &uses_by_ssa_node,
                 .phi_insertion_result = phi_insertion_result,
+                .ssa_nodes_allocator = ssa_nodes_allocator,
+                .node_uses_by_ssa_name = &uses_by_ssa_node,
                 .control_node = current,
                 .block = current_block,
             };
@@ -84,7 +89,7 @@ static void optimize_phi_functions_consumer(
     if (current_node->type == SSA_DATA_NODE_TYPE_PHI) {
         struct ssa_data_phi_node * phi_node = (struct ssa_data_phi_node *) current_node;
         if (size_u64_set(phi_node->ssa_versions) == 1) {
-            remove_innecesary_phi_function(phi_node, parent_child_ptr);
+            remove_innecesary_phi_function(for_each_node_consumer_struct, phi_node, parent_child_ptr);
         } else if(size_u64_set(phi_node->ssa_versions) > 1 && for_each_node_consumer_struct->control_node->type != SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME) {
             extract_phi_to_ssa_name(for_each_node_consumer_struct, (struct ssa_data_phi_node *) current_node, parent_child_ptr);
         }
@@ -94,13 +99,14 @@ static void optimize_phi_functions_consumer(
 }
 
 static void remove_innecesary_phi_function(
+        struct optimize_phi_functions_consumer_struct * optimizer,
         struct ssa_data_phi_node * phi_node,
         void ** parent_child_ptr
 ) {
     uint8_t ssa_version = get_first_value_u64_set(phi_node->ssa_versions);
 
     struct ssa_data_get_ssa_name_node * new_get_ssa_name = ALLOC_SSA_DATA_NODE(
-            SSA_DATA_NODE_TYPE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL
+            SSA_DATA_NODE_TYPE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL, GET_LOX_ALLOCATOR(optimizer)
     );
     new_get_ssa_name->ssa_name = CREATE_SSA_NAME(phi_node->local_number, ssa_version);
 
@@ -122,13 +128,13 @@ static void extract_phi_to_ssa_name(
     uint8_t extracted_version = allocate_new_ssa_version(phi_node->local_number, phi_insertion_result);
     struct ssa_name extracted_ssa_name = CREATE_SSA_NAME(phi_node->local_number, extracted_version);
     struct ssa_control_define_ssa_name_node * extracted_define_ssa_name = ALLOC_SSA_CONTROL_NODE(
-            SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME, struct ssa_control_define_ssa_name_node, block
+            SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME, struct ssa_control_define_ssa_name_node, block, GET_LOX_ALLOCATOR(consumer_struct)
     );
     extracted_define_ssa_name->ssa_name = extracted_ssa_name;
     extracted_define_ssa_name->value = &phi_node->data;
 
     struct ssa_data_get_ssa_name_node * get_extracted = ALLOC_SSA_DATA_NODE(
-            SSA_DATA_NODE_TYPE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL
+            SSA_DATA_NODE_TYPE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL, GET_LOX_ALLOCATOR(consumer_struct)
     );
 
     get_extracted->ssa_name = extracted_ssa_name;

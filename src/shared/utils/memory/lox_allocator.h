@@ -16,7 +16,7 @@ void native_lox_free(struct lox_allocator *, void * ptr);
 
 extern struct native_allocator native_lox_allocator;
 
-#define LOX_MALLOC(allocator, size) (allocator->lox_malloc(allocator, size))
+#define LOX_MALLOC(allocator, size) ((allocator)->lox_malloc((allocator), (size)))
 #define LOX_FREE(allocator, ptr) (allocator->lox_free(allocator, ptr))
 #define NATIVE_LOX_ALLOCATOR() (&native_lox_allocator.lox_allocator)
 #define NATIVE_LOX_MALLOC(size) (NATIVE_LOX_ALLOCATOR()->lox_malloc(NATIVE_LOX_ALLOCATOR(), (size)))

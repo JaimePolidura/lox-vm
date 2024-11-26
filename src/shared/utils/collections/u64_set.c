@@ -6,6 +6,10 @@ struct u64_set empty_u64_set(struct lox_allocator * allocator) {
     return set;
 }
 
+void clear_u64_set(struct u64_set * set) {
+    clear_u64_hash_table(&set->inner_hash_table);
+}
+
 struct u64_set * alloc_u64_set(struct lox_allocator * allocator) {
     struct u64_set * u64_set = LOX_MALLOC(allocator, sizeof(struct u64_set));
     init_u64_set(u64_set, allocator);

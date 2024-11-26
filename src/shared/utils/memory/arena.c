@@ -34,7 +34,7 @@ void * malloc_arena(struct arena * arena, size_t to_alloc_size) {
 }
 
 static void create_new_block(struct arena * arena) {
-    struct arena_block * new_block = malloc(sizeof(struct arena));
+    struct arena_block * new_block = malloc(sizeof(struct arena_block));
     new_block->prev = arena->current;
     arena->current = new_block;
     new_block->next_index = 0;
@@ -51,13 +51,8 @@ static inline void * malloc_block(struct arena_block * block, size_t to_allocate
     return ptr;
 }
 
-struct fixed_arena_lox_allocator {
-    struct lox_allocator lox_allocator;
-    struct arena arena;
-};
-
 void * fixed_arena_lox_malloc(struct lox_allocator * allocator, size_t bytes) {
-    struct fixed_arena_lox_allocator * fixed_arena_lox_allocator = (struct fixed_arena_lox_allocator *) allocator;
+    struct arena_lox_allocator * fixed_arena_lox_allocator = (struct arena_lox_allocator *) allocator;
     return malloc_arena(&fixed_arena_lox_allocator->arena, bytes);
 }
 
@@ -65,13 +60,12 @@ void fixed_arena_lox_free(struct lox_allocator * allocator, void * ptr) {
     //We don't do anything. The memory will get free when the user manually frees the arena with: "free_arena()"
 }
 
-struct lox_allocator to_lox_allocator_arena(struct arena arena) {
-    struct fixed_arena_lox_allocator fixed_arena_lox_allocator = (struct fixed_arena_lox_allocator) {
+struct arena_lox_allocator to_lox_allocator_arena(struct arena arena) {
+    return (struct arena_lox_allocator) {
         .arena = arena,
         .lox_allocator = (struct lox_allocator) {
             .lox_malloc = fixed_arena_lox_malloc,
             .lox_free = fixed_arena_lox_free
         }
     };
-    return fixed_arena_lox_allocator.lox_allocator;
 }

@@ -14,5 +14,6 @@ struct phi_optimization_result {
 
 struct phi_optimization_result optimize_ssa_ir_phis(
         struct ssa_block * start_block,
-        struct phi_insertion_result * phi_insertion_result
+        struct phi_insertion_result * phi_insertion_result,
+        struct arena_lox_allocator * ssa_nodes_allocator
 );

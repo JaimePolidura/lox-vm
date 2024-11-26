@@ -11,6 +11,7 @@
 #include "shared/utils/collections/queue_list.h"
 #include "shared/types/function_object.h"
 #include "shared/types/package_object.h"
+#include "shared/utils/memory/arena.h"
 #include "shared/package.h"
 
 struct ssa_ir {
@@ -21,6 +22,8 @@ struct ssa_ir {
     struct u8_hash_table max_version_allocated_per_local;
     //key: ssa_name, value: u64_set of pointers ssa_control_nodes
     struct u64_hash_table node_uses_by_ssa_name;
+    //All control, data & blocks will be allocated in the arena
+    struct arena_lox_allocator ssa_nodes_allocator_arena;
 };
 
 //Removes the references in the struct ssa_ir data structure to the ssa_name. It doest

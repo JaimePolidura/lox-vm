@@ -24,8 +24,8 @@ typedef enum {
 //Fordward reference, so we can use it without including it to avoid cyclical dependencies.
 struct ssa_block;
 
-#define ALLOC_SSA_CONTROL_NODE(type, struct_type, block) (struct_type *) allocate_ssa_block_node(type, sizeof(struct_type), block)
-void * allocate_ssa_block_node(ssa_control_node_type type, size_t size_bytes, struct ssa_block * block);
+#define ALLOC_SSA_CONTROL_NODE(type, struct_type, block, allocator) (struct_type *) allocate_ssa_block_node(type, sizeof(struct_type), block, allocator)
+void * allocate_ssa_block_node(ssa_control_node_type type, size_t size_bytes, struct ssa_block * block, struct lox_allocator *);
 
 #define GET_CONDITION_CONDITIONAL_JUMP_SSA_NODE(node) (((struct ssa_control_conditional_jump_node *) (node))->condition)
 

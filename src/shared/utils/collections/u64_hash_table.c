@@ -64,6 +64,14 @@ void remove_u64_hash_table(struct u64_hash_table * hash_hable, uint64_t key) {
     }
 }
 
+void clear_u64_hash_table(struct u64_hash_table * hash_table) {
+    hash_table->size = 0;
+    for(int i = 0; i < hash_table->capacity; i++){
+        struct u64_hash_table_entry * current_entry = hash_table->entries + i;
+        current_entry->some_value = false;
+    }
+}
+
 static struct u64_hash_table_entry * find_u64_hash_table_entry(struct u64_hash_table_entry * entries, int capacity, uint64_t key) {
     uint64_t index = key & (capacity - 1);
     struct u64_hash_table_entry * current_entry = entries + index;
