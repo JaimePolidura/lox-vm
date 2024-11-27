@@ -1,5 +1,6 @@
 #pragma once
 
+#include "runtime/jit/advanced/optimizations/sparse_constant_propagation.h"
 #include "runtime/jit/advanced/creation/ssa_no_phis_creator.h"
 #include "runtime/jit/advanced/creation/ssa_phi_inserter.h"
 #include "runtime/jit/advanced/creation/ssa_creator.h"
@@ -11,6 +12,35 @@
 static bool node_uses_version(struct ssa_data_node * start_node, int n_expected_version);
 static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expected_versions, ...);
 static bool node_defines_ssa_name(struct ssa_control_node *, int version);
+
+TEST(ssa_scp_optimizations){
+    struct compilation_result compilation = compile_standalone(
+            "fun function_ssa(a, b) {"
+            "   a = 1;"
+            "   if(a > 0) {"
+            "      if(b > 0) {"
+            "          a = 12 + a + 2;"
+            "      } else {"
+            "          for(var i = 0; i < 10; i = i + 1) {"
+            "              b = 12;"
+            "          }"
+            "      }"
+            "   } else {"
+            "      b = 10;"
+            "   }"
+            "   print a;"
+            "   print b;"
+            "}"
+    );
+    struct package * package = compilation.compiled_package;
+    struct function_object * function_ssa = get_function_package(package, "function_ssa");
+    int n_instructions = function_ssa->chunk->in_use;
+    init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
+    struct ssa_ir ssa_ir = create_ssa_ir(package, function_ssa, create_bytecode_list(function_ssa->chunk, NATIVE_LOX_ALLOCATOR()));
+    perform_sparse_constant_propagation(&ssa_ir);
+
+
+}
 
 //Expect
 //[a1 = 1; ¿a1 > 0?]

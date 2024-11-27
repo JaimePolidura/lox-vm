@@ -572,6 +572,7 @@ static void jump(struct ssa_no_phis_inserter * insterter, struct pending_evaluat
     struct bytecode_list * to_jump_bytecode = simplify_redundant_unconditional_jump_bytecodes(to_evalute->pending_bytecode->as.jump);
     struct ssa_block * new_block = get_block_by_first_bytecode(insterter, to_jump_bytecode);
 
+    //FIXME Bug here, to_evalute->prev_control_node is NULL
     to_evalute->block->last = to_evalute->prev_control_node;
     to_evalute->block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_SEQ;
     to_evalute->block->next_as.next = new_block;
@@ -593,11 +594,13 @@ static void jump_if_false(struct ssa_no_phis_inserter * inserter, struct pending
     struct bytecode_list * false_branch_bytecode = to_evalute->pending_bytecode->as.jump;
     struct bytecode_list * true_branch_bytecode = to_evalute->pending_bytecode->next;
     struct ssa_block * parent_block = to_evalute->block;
-    struct ssa_block * false_branch_block = get_block_by_first_bytecode(inserter, false_branch_bytecode);
     struct ssa_block * true_branch_block = get_block_by_first_bytecode(inserter, true_branch_bytecode);
+    struct ssa_block * false_branch_block = get_block_by_first_bytecode(inserter, false_branch_bytecode);
 
     //Loop conditions, are creatd in the graph as a separated block
-    if(to_evalute->pending_bytecode->loop_condition){
+    if(to_evalute->pending_bytecode->loop_condition) {
+        false_branch_bytecode = simplify_redundant_unconditional_jump_bytecodes(false_branch_bytecode);
+        false_branch_block = get_block_by_first_bytecode(inserter, false_branch_bytecode);
         struct ssa_block * condition_block = get_block_by_first_bytecode(inserter, to_evalute->pending_bytecode);
         parent_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_SEQ;
         parent_block->next_as.next = condition_block;

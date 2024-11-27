@@ -13,20 +13,20 @@
 #include "u8_set_test.h"
 #include "u8_hash_table.h"
 
-#define RUN_U64_HASH_TABLE_TEST
-#define RUN_MARK_BITMAP_TEST
-#define RUN_HASH_TABLE_TEST
-#define RUN_VM_INLINE_TEST
-#define RUN_COMPILER_TEST
-#define RUN_U8_HASH_TABLE
-#define RUN_PACKAGE_TEST
-#define RUN_VM_JIT_TEST
-#define RUN_U8_SET_TEST
-#define RUN_UTILS_TEST
-#define RUN_STACK_TEST
-#define RUN_TRIE_TEST
+//#define RUN_U64_HASH_TABLE_TEST
+//#define RUN_MARK_BITMAP_TEST
+//#define RUN_HASH_TABLE_TEST
+//#define RUN_VM_INLINE_TEST
+//#define RUN_COMPILER_TEST
+//#define RUN_U8_HASH_TABLE
+//#define RUN_PACKAGE_TEST
+//#define RUN_VM_JIT_TEST
+//#define RUN_U8_SET_TEST
+//#define RUN_UTILS_TEST
+//#define RUN_STACK_TEST
+//#define RUN_TRIE_TEST
 #define RUN_SSA_TEST
-#define RUN_VM_TEST
+//#define RUN_VM_TEST
 
 extern struct trie_list * compiled_packages;
 extern const char * compiling_base_dir;
@@ -46,8 +46,9 @@ int main() {
     u8_set_test_add_contains_outer();
 #endif
 #ifdef RUN_SSA_TEST
-    ssa_phis_inserter_outer();
-    ssa_ir_no_phis_creation_outer();
+    ssa_scp_optimizations_outer();
+//    ssa_phis_inserter_outer();
+//    ssa_ir_no_phis_creation_outer();
 #endif
 #ifdef RUN_MARK_BITMAP_TEST
     multiple_mark_bitmap_test_outer();
