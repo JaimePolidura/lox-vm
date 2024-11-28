@@ -2,6 +2,7 @@
 
 struct function_object * alloc_function() {
     struct function_object * function_object = ALLOCATE_OBJ(struct function_object, OBJ_FUNCTION);
+    init_u8_hash_table(&function_object->local_numbers_to_names);
     function_object->chunk = alloc_chunk();
     function_object->n_arguments = 0;
     function_object->name = NULL;

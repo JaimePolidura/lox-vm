@@ -1,13 +1,16 @@
 #pragma once
 
-#include "runtime/threads/monitor.h"
-#include "string_object.h"
-#include "compiler/bytecode/chunk/chunk.h"
+#include "shared/utils/collections/u8_hash_table.h"
 #include "shared/utils/collections/trie.h"
-#include "types.h"
+#include "shared/types/function_scope.h"
+#include "shared/types/string_object.h"
+#include "shared/types/types.h"
+
 #include "runtime/jit/jit_compilation_result.h"
-#include "function_scope.h"
 #include "runtime/profiler/profile_data.h"
+#include "runtime/threads/monitor.h"
+
+#include "compiler/bytecode/chunk/chunk.h"
 
 #define MAX_MONITORS_PER_FUNCTION 8
 
@@ -26,6 +29,9 @@ struct function_object {
     struct string_object * name;
     int n_locals;
     struct function_call * function_calls;
+
+    //Mapping of local numbers to local variable names;
+    struct u8_hash_table local_numbers_to_names;
 
     volatile function_state_t state;
     union {
