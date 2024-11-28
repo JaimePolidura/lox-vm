@@ -1,4 +1,4 @@
-#include "sparse_constant_propagation.h"
+#include "scp.h"
 
 //TOP > SEMILATTICE_BOTTOM > CONSTANT
 //Don't change the order, the higher the index, the stronger when calculating binary operations
