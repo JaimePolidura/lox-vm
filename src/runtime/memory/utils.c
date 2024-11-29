@@ -46,3 +46,21 @@ void * grow_array(struct lox_allocator * allocator, size_t new_size, void * orig
 
     return new_array;
 }
+
+char * dynamic_format_string(const char * format, ...) {
+    va_list args;
+    va_start(args, format);
+    int length = vsnprintf(NULL, 0, format, args);
+    va_end(args);
+
+    if (length < 0) {
+        return NULL;
+    }
+
+    char * formatted_string = (char *) malloc((length + 1) * sizeof(char));
+    va_start(args, format);
+    vsnprintf(formatted_string, length + 1, format, args);
+    va_end(args);
+
+    return formatted_string;
+}

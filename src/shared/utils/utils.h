@@ -38,3 +38,4 @@ void * grow_array(struct lox_allocator *, size_t new_size, void * original_array
 int round_up_8(int number);
 int align(int not_aligned, int value_to_align);
 bool has_decimals(double double_value);
+char * dynamic_format_string(const char * format, ...);
