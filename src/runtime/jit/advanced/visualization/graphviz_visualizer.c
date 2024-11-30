@@ -177,7 +177,7 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             struct ssa_data_function_call_node * call = (struct ssa_data_function_call_node *) node;
             int function_node_id = generate_data_node_graph(visualizer, call->function);
 
-            append_new_data_node_graphviz_file(visualizer, "Call", self_node_id);
+            append_new_data_node_graphviz_file(visualizer, "FunctionCall", self_node_id);
             link_data_data_node_graphviz_file(visualizer, self_node_id, function_node_id);
             for (int i = 0; i < call->n_arguments; i++){
                 int function_arg_node_id = generate_data_node_graph(visualizer, call->arguments[i]);
@@ -185,6 +185,51 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             }
             break;
         }
+        case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD: {
+            struct ssa_data_get_struct_field_node * get_struct_field = (struct ssa_data_get_struct_field_node *) node;
+            char * node_desc = dynamic_format_string("GetStructField %s", get_struct_field->field_name->chars);
+            int struct_instance_node_id = generate_data_node_graph(visualizer, get_struct_field->instance_node);
+
+            append_new_data_node_graphviz_file(visualizer, node_desc, self_node_id);
+            link_data_data_node_graphviz_file(visualizer, self_node_id, struct_instance_node_id);
+            free(node_desc);
+            break;
+        }
+        case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT: {
+            struct ssa_data_initialize_struct_node * initialize_struct = (struct ssa_data_initialize_struct_node *) node;
+            char * node_desc = dynamic_format_string("InitializeStruct %s", initialize_struct->definition->name);
+
+            append_new_data_node_graphviz_file(visualizer, node_desc, self_node_id);
+            for(int i = 0; i < initialize_struct->definition->n_fields; i++){
+                int struct_field_node_id = generate_data_node_graph(visualizer, initialize_struct->fields_nodes[i]);
+                link_data_data_node_graphviz_file(visualizer, self_node_id, struct_field_node_id);
+            }
+            free(node_desc);
+            break;
+        }
+        case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
+            struct ssa_data_get_array_element_node * get_array_element = (struct ssa_data_get_array_element_node *) node;
+            char * node_desc = dynamic_format_string("GetArrayElement %i", get_array_element->index);
+
+            append_new_data_node_graphviz_file(visualizer, node_desc, self_node_id);
+            int array_instance_node_id = generate_data_node_graph(visualizer, get_array_element->instance);
+            link_data_data_node_graphviz_file(visualizer, self_node_id, array_instance_node_id);
+            free(node_desc);
+            break;
+        }
+        case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY: {
+            struct ssa_data_initialize_array_node * initialize_array = (struct ssa_data_initialize_array_node *) node;
+            char * node_desc = dynamic_format_string("InitializeArray %i", initialize_array->n_elements);
+
+            append_new_data_node_graphviz_file(visualizer, node_desc, self_node_id);
+            for(int i = 0; i < initialize_array->n_elements && !initialize_array->empty_initialization; i++){
+                int array_element_node_id = generate_data_node_graph(visualizer, initialize_array->elememnts_node[i]);
+                link_data_data_node_graphviz_file(visualizer, self_node_id, array_element_node_id);
+            }
+            free(node_desc);
+            break;
+        }
+
         case SSA_DATA_NODE_TYPE_PHI: {
             struct ssa_data_phi_node * phi = (struct ssa_data_phi_node *) node;
             char * local_name = get_u8_hash_table(&visualizer->function->local_numbers_to_names, phi->local_number);
@@ -196,17 +241,8 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
 
             break;
         }
-        case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD: {
-            struct ssa_data_get_struct_field_node * get_struct_field = (struct ssa_data_get_struct_field_node *) node;
-            char * node_desc = dynamic_format_string("GetStructField %s (", get_struct_field->field_name->chars);
-            break;
-        }
-        case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT:
-            break;
-        case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT:
-            break;
-        case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY:
-            break;
+
+
         case SSA_DATA_NODE_TYPE_CONSTANT: {
             lox_value_t const_value = GET_CONST_VALUE_SSA_NODE(node);
             append_new_data_node_graphviz_file(visualizer, to_string(const_value), self_node_id);
