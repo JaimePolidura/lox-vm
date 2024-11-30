@@ -20,4 +20,6 @@ void free_string_builder(struct string_builder *);
 
 void append_string_builder(struct string_builder *, char *);
 void append_with_length_string_builder(struct string_builder *, char *, int);
+void remove_last_string_builder(struct string_builder *);
+
 char * to_string_string_builder(struct string_builder *, struct lox_allocator *);

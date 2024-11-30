@@ -47,9 +47,9 @@ static void pop(struct ssa_no_phis_inserter *, struct pending_evaluate *);
 static void set_array_element(struct ssa_no_phis_inserter *, struct pending_evaluate *);
 static void set_struct_field(struct function_object *, struct ssa_no_phis_inserter *, struct pending_evaluate *);
 static void set_global(struct function_object *, struct ssa_no_phis_inserter *, struct pending_evaluate *);
-static void exit_monitor_explicit(struct ssa_no_phis_inserter *, struct pending_evaluate *);
+static void exit_monitor_explicit(struct ssa_no_phis_inserter *, struct pending_evaluate *, struct function_object *);
 static void exit_monitor_opcode(struct function_object *, struct ssa_no_phis_inserter *, struct pending_evaluate *);
-static void enter_monitor_explicit(struct ssa_no_phis_inserter *, struct pending_evaluate *);
+static void enter_monitor_explicit(struct ssa_no_phis_inserter *, struct pending_evaluate *, struct function_object *);
 static void enter_monitor_opcode(struct function_object *, struct ssa_no_phis_inserter *, struct pending_evaluate *);
 static void return_opcode(struct ssa_no_phis_inserter *, struct pending_evaluate *);
 static void print(struct ssa_no_phis_inserter *, struct pending_evaluate *);
@@ -101,9 +101,9 @@ struct ssa_block * create_ssa_ir_no_phis(
             case OP_SET_ARRAY_ELEMENT: set_array_element(inserter, to_evaluate); break;
             case OP_SET_STRUCT_FIELD: set_struct_field(function, inserter, to_evaluate); break;
             case OP_SET_GLOBAL: set_global(function, inserter, to_evaluate); break;
-            case OP_EXIT_MONITOR_EXPLICIT: exit_monitor_explicit(inserter, to_evaluate); break;
+            case OP_EXIT_MONITOR_EXPLICIT: exit_monitor_explicit(inserter, to_evaluate, function); break;
             case OP_EXIT_MONITOR: exit_monitor_opcode(function, inserter, to_evaluate); break;
-            case OP_ENTER_MONITOR_EXPLICIT: enter_monitor_explicit(inserter, to_evaluate); break;
+            case OP_ENTER_MONITOR_EXPLICIT: enter_monitor_explicit(inserter, to_evaluate, function); break;
             case OP_ENTER_MONITOR: enter_monitor_opcode(function, inserter, to_evaluate); break;
             case OP_RETURN: return_opcode(inserter, to_evaluate); break;
             case OP_PRINT: print(inserter, to_evaluate); break;
@@ -418,6 +418,7 @@ static void enter_monitor_opcode(
             SSA_CONTROL_NODE_TYPE_ENTER_MONITOR, struct ssa_control_enter_monitor_node, to_evaluate->block, GET_SSA_NODES_ALLOCATOR(inserter)
     );
 
+    enter_monitor_node->monitor_number = monitor_number;
     enter_monitor_node->monitor = monitor;
 
     add_last_control_node_ssa_block(to_evaluate->block, &enter_monitor_node->control);
@@ -425,12 +426,13 @@ static void enter_monitor_opcode(
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evaluate->pending_bytecode, enter_monitor_node);
 }
 
-static void enter_monitor_explicit(struct ssa_no_phis_inserter * inserter, struct pending_evaluate * to_evalute) {
+static void enter_monitor_explicit(struct ssa_no_phis_inserter * inserter, struct pending_evaluate * to_evalute, struct function_object * function) {
     struct monitor * monitor = (struct monitor *) to_evalute->pending_bytecode->as.u64;
     struct ssa_control_enter_monitor_node * enter_monitor_node = ALLOC_SSA_CONTROL_NODE(
             SSA_CONTROL_NODE_TYPE_ENTER_MONITOR, struct ssa_control_enter_monitor_node, to_evalute->block, GET_SSA_NODES_ALLOCATOR(inserter)
     );
 
+    enter_monitor_node->monitor_number = (monitor_number_t) (monitor - &function->monitors[0]);
     enter_monitor_node->monitor = monitor;
 
     add_last_control_node_ssa_block(to_evalute->block, &enter_monitor_node->control);
@@ -449,6 +451,7 @@ static void exit_monitor_opcode(
             SSA_CONTROL_NODE_TYPE_EXIT_MONITOR, struct ssa_control_exit_monitor_node, to_evalute->block, GET_SSA_NODES_ALLOCATOR(inserter)
     );
 
+    exit_monitor_node->monitor_number = monitor_number;
     exit_monitor_node->monitor = monitor;
 
     add_last_control_node_ssa_block(to_evalute->block, &exit_monitor_node->control);
@@ -456,12 +459,13 @@ static void exit_monitor_opcode(
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, exit_monitor_node);
 }
 
-static void exit_monitor_explicit(struct ssa_no_phis_inserter * inserter, struct pending_evaluate * to_evalute) {
+static void exit_monitor_explicit(struct ssa_no_phis_inserter * inserter, struct pending_evaluate * to_evalute, struct function_object * function) {
     struct monitor * monitor = (struct monitor *) to_evalute->pending_bytecode->as.u64;
     struct ssa_control_exit_monitor_node * exit_monitor_node = ALLOC_SSA_CONTROL_NODE(
             SSA_CONTROL_NODE_TYPE_EXIT_MONITOR, struct ssa_control_exit_monitor_node, to_evalute->block, GET_SSA_NODES_ALLOCATOR(inserter)
     );
 
+    exit_monitor_node->monitor_number = (monitor_number_t) (monitor - &function->monitors[0]);
     exit_monitor_node->monitor = monitor;
 
     add_last_control_node_ssa_block(to_evalute->block, &exit_monitor_node->control);

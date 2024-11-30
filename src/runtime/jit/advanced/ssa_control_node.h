@@ -5,7 +5,6 @@
 
 typedef enum {
     SSA_CONTROL_NODE_TYPE_DATA,
-    SSA_CONTROL_NODE_TYPE_START,
     SSA_CONTROL_NODE_TYPE_RETURN,
     SSA_CONTROL_NODE_TYPE_PRINT,
     SSA_CONTROL_NODE_TYPE_ENTER_MONITOR,
@@ -83,12 +82,14 @@ struct ssa_control_return_node {
 struct ssa_control_enter_monitor_node {
     struct ssa_control_node control;
 
+    monitor_number_t monitor_number;
     struct monitor * monitor;
 };
 
 struct ssa_control_exit_monitor_node {
     struct ssa_control_node control;
 
+    monitor_number_t monitor_number;
     struct monitor * monitor;
 };
 
