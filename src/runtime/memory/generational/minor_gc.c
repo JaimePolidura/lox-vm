@@ -160,7 +160,7 @@ static void for_each_string_pool_entry(
         *key_reference_holder = (struct string_object *) AS_OBJECT(forwading_ptr);
         *value_reference_holder = forwading_ptr;
     } else if (belongs_to_young_heap && !has_been_moved) {
-        //Objects in young heap are always moved in every gc. If they haven't been moved, the string is unreachable,
+        //Objects in young heap are always moved in every gc. If they haven't been moved, the chars is unreachable,
         //so we need to reclaim its inner_hash_table entry
         remove_hash_table(&global_string_pool.strings, string);
     }

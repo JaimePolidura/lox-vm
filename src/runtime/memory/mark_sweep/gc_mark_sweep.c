@@ -402,15 +402,15 @@ struct struct_instance_object * alloc_struct_instance_gc_alg(struct struct_defin
 }
 
 struct string_object * alloc_string_gc_alg(char * chars, int length) {
-    struct string_object * string = NATIVE_LOX_MALLOC(sizeof(struct string_object));
-    init_object(&string->object, OBJ_STRING);
-    string->length = length;
-    string->hash = hash_string(chars, length);
-    string->chars = NATIVE_LOX_MALLOC(sizeof(char) * length + 1);
-    memcpy(string->chars, chars, length);
-    string->chars[length] = '\0';
-    add_object_to_heap_gc_alg(&string->object);
-    return string;
+    struct string_object * chars = NATIVE_LOX_MALLOC(sizeof(struct string_object));
+    init_object(&chars->object, OBJ_STRING);
+    chars->length = length;
+    chars->hash = hash_string(chars, length);
+    chars->chars = NATIVE_LOX_MALLOC(sizeof(char) * length + 1);
+    memcpy(chars->chars, chars, length);
+    chars->chars[length] = '\0';
+    add_object_to_heap_gc_alg(&chars->object);
+    return chars;
 }
 
 struct array_object * alloc_array_gc_alg(int n_elements) {

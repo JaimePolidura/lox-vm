@@ -25,7 +25,7 @@
 //#define RUN_UTILS_TEST
 //#define RUN_STACK_TEST
 //#define RUN_TRIE_TEST
-#define RUN_SSA_TEST
+//#define RUN_SSA_TEST
 //#define RUN_VM_TEST
 
 extern struct trie_list * compiled_packages;
@@ -87,6 +87,7 @@ int main() {
     package_read_package_name_test_outer();
 #endif
 #ifdef RUN_UTILS_TEST
+    utils_string_builder_test_outer();
     utils_string_equals_ignore_case_test_outer();
     utils_string_contains_test_outer();
     utils_to_upper_case_test_outer();

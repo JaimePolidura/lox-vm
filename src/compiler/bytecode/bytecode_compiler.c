@@ -210,7 +210,7 @@ static void import_packages(struct bytecode_compiler * compiler) {
 
         struct token package_import_name = compiler->parser->previous;
 
-        // -2 and +1 to avoid including in the string "
+        // -2 and +1 to avoid including in the chars "
         add_package_to_compiled_packages(package_import_name.start + 1,
                                          package_import_name.length - 2, compiler->is_standalone_mode);
 

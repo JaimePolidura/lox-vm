@@ -2,7 +2,7 @@
 
 #include "shared.h"
 #include "shared/utils/collections/lox_hash_table.h"
-#include "utils/substring.h"
+#include "shared/utils/strings/substring.h"
 #include "utils/concurrency/mutex.h"
 
 struct string_pool {

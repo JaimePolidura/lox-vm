@@ -1,8 +1,22 @@
 #pragma once
 
 #include "shared/utils/utils.h"
+#include "shared/utils/strings/string_builder.h"
 
 #include "test.h"
+
+TEST(utils_string_builder_test){
+    struct string_builder string_builder;
+    init_string_builder(&string_builder, NATIVE_LOX_ALLOCATOR());
+    append_string_builder(&string_builder, "Tu");
+    append_string_builder(&string_builder, "Puta");
+    append_with_length_string_builder(&string_builder, "Madre", strlen("Madre"));
+
+    char * final_string = to_string_string_builder(&string_builder, NATIVE_LOX_ALLOCATOR());
+    free_string_builder(&string_builder);
+
+    ASSERT_STRING_EQ(final_string, "TuPutaMadre");
+}
 
 TEST(utils_to_upper_case_test) {
     char * to_test1 = "holA soy Jaime_";

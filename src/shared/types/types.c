@@ -59,7 +59,7 @@ char * to_string(lox_value_t value) {
             }
     };
 #endif
-    runtime_panic("Cannot parse to string");
+    runtime_panic("Cannot parse to chars");
     return NULL;
 }
 

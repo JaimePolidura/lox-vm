@@ -18,7 +18,7 @@
 #include "shared/types/package_object.h"
 #include "shared/types/array_object.h"
 #include "shared/types/string_object.h"
-#include "shared/utils/substring.h"
+#include "shared/utils/strings/substring.h"
 #include "shared/utils/utils.h"
 #include "shared/package.h"
 #include "shared.h"
