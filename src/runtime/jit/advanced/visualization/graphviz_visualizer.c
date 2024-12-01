@@ -6,16 +6,17 @@ struct graphviz_visualizer {
     struct ssa_ir ssa_ir;
     struct function_object * function;
     //Set of block pointers visualized
-    struct u64_set blocks_visisted;
+    struct u64_hash_table blocks_visisted;
     int next_block_id;
     int next_control_node_id;
     int next_data_node_id;
 };
 
 static void generate_graph_and_write(struct graphviz_visualizer *, struct ssa_block *);
-static void generate_block_graph(struct graphviz_visualizer *, struct ssa_block *);
+static int generate_block_graph(struct graphviz_visualizer *, struct ssa_block *);
 static int generate_control_node_graph(struct graphviz_visualizer *, struct ssa_control_node *);
 static int generate_data_node_graph(struct graphviz_visualizer *, struct ssa_data_node *);
+static void generate_blocks_graph(struct graphviz_visualizer *, int prev_block_id, struct ssa_block * first);
 
 static char * unary_operator_to_string(ssa_unary_operator_type_t);
 static char * binary_operator_to_string(bytecode_t);
@@ -26,6 +27,7 @@ void append_new_block_graphviz_file(struct graphviz_visualizer *, int);
 void append_new_data_node_graphviz_file(struct graphviz_visualizer *, char *, int);
 void link_data_data_node_graphviz_file(struct graphviz_visualizer *visualizer, int from, int to);
 void link_control_data_node_graphviz_file(struct graphviz_visualizer *visualizer, int from, int to);
+void link_block_block_node_graphviz_file(struct graphviz_visualizer *visualizer, int from, int to);
 void append_new_control_node_graphviz_file(struct graphviz_visualizer *, char *, int);
 
 void generate_ssa_graphviz_graph(
@@ -88,17 +90,43 @@ void generate_ssa_graphviz_graph(
 static void generate_graph_and_write(struct graphviz_visualizer * graphviz_visualizer, struct ssa_block * first_block) {
     append_new_line_graphviz_file(graphviz_visualizer, "digraph G {");
 
-    generate_block_graph(graphviz_visualizer, first_block);
+    generate_blocks_graph(graphviz_visualizer, -1, first_block);
 
     append_new_line_graphviz_file(graphviz_visualizer, "}");
 }
 
-static void generate_block_graph(struct graphviz_visualizer * graphviz_visualizer, struct ssa_block * block) {
-    if(contains_u64_set(&graphviz_visualizer->blocks_visisted, (uint64_t) block)){
+static void generate_blocks_graph(struct graphviz_visualizer * visualizer, int prev_block_id, struct ssa_block * block) {
+    int block_id = generate_block_graph(visualizer, block);
+    if(prev_block_id != -1){
+        link_block_block_node_graphviz_file(visualizer, prev_block_id, block_id);
         return;
     }
-    add_u64_set(&graphviz_visualizer->blocks_visisted, (uint64_t) block);
+
+    switch (block->type_next_ssa_block) {
+        case TYPE_NEXT_SSA_BLOCK_SEQ: {
+            generate_blocks_graph(visualizer, block_id, block->next_as.next);
+            break;
+        }
+        case TYPE_NEXT_SSA_BLOCK_LOOP: {
+            generate_blocks_graph(visualizer, block_id, block->next_as.loop);
+            break;
+        }
+        case TYPE_NEXT_SSA_BLOCK_BRANCH: {
+            generate_blocks_graph(visualizer, block_id, block->next_as.branch.true_branch);
+            generate_blocks_graph(visualizer, block_id, block->next_as.branch.false_branch);
+            break;
+        }
+        case TYPE_NEXT_SSA_BLOCK_NONE:
+            break;
+    }
+}
+
+static int generate_block_graph(struct graphviz_visualizer * graphviz_visualizer, struct ssa_block * block) {
+    if(contains_u64_hash_table(&graphviz_visualizer->blocks_visisted, (uint64_t) block)){
+        return (int) get_u64_hash_table(&graphviz_visualizer->blocks_visisted, (uint64_t) block);
+    }
     int new_block_id = graphviz_visualizer->next_block_id++;
+    put_u64_hash_table(&graphviz_visualizer->blocks_visisted, (uint64_t) block, (void *) new_block_id);
 
     append_new_block_graphviz_file(graphviz_visualizer, new_block_id);
 
@@ -111,6 +139,8 @@ static void generate_block_graph(struct graphviz_visualizer * graphviz_visualize
     }
 
     append_new_line_graphviz_file(graphviz_visualizer, "}");
+
+    return new_block_id;
 }
 
 static int generate_control_node_graph(struct graphviz_visualizer * visualizer, struct ssa_control_node * node) {
@@ -445,4 +475,8 @@ static char * unary_operator_to_string(ssa_unary_operator_type_t operator) {
         case UNARY_OPERATION_TYPE_NOT: return "not";
         case UNARY_OPERATION_TYPE_NEGATION: return "-";
     }
+}
+
+void link_block_block_node_graphviz_file(struct graphviz_visualizer *visualizer, int from, int to) {
+    //TODO
 }
