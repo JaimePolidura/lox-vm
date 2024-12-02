@@ -1,5 +1,7 @@
 #include "graphviz_visualizer.h"
 
+extern void runtime_panic(char * format, ...);
+
 struct graphviz_visualizer {
     FILE * file;
 
@@ -41,7 +43,10 @@ void append_new_block_graphviz_file(struct graphviz_visualizer *, int);
 void append_new_data_node_graphviz_file(struct graphviz_visualizer *, char *, int);
 void link_data_data_node_graphviz_file(struct graphviz_visualizer *, int from, int to);
 void link_control_data_node_graphviz_file(struct graphviz_visualizer *, int from, int to);
+void link_control_data_node_label_graphviz_file(struct graphviz_visualizer *, char *, int from, int to);
 void link_control_control_node_graphviz_file(struct graphviz_visualizer *, int from, int to);
+void link_control_control_label_node_graphviz_file(struct graphviz_visualizer *, char *, int from, int to);
+void link_block_block_label_node_graphviz_file(struct graphviz_visualizer *, char *, struct block_graph_generated, struct block_graph_generated);
 void link_block_block_node_graphviz_file(struct graphviz_visualizer *, struct block_graph_generated, struct block_graph_generated);
 void append_new_control_node_graphviz_file(struct graphviz_visualizer *, char *, int);
 
@@ -104,6 +109,7 @@ void generate_ssa_graphviz_graph(
 
 static void generate_graph_and_write(struct graphviz_visualizer * graphviz_visualizer, struct ssa_block * first_block) {
     append_new_line_graphviz_file(graphviz_visualizer, "digraph G {");
+    append_new_line_graphviz_file(graphviz_visualizer, "\trankdir=TB;");
     generate_blocks_graph(graphviz_visualizer, first_block);
     append_new_line_graphviz_file(graphviz_visualizer, "}");
 }
@@ -118,15 +124,17 @@ static struct block_graph_generated generate_blocks_graph(struct graphviz_visual
             break;
         }
         case TYPE_NEXT_SSA_BLOCK_LOOP: {
-            struct block_graph_generated loop_block_graph_data = generate_blocks_graph(visualizer, first_block->next_as.loop);
-            link_block_block_node_graphviz_file(visualizer, first_block_graph_data, loop_block_graph_data);
+            uint64_t loop_block_graph_data_u64 = (uint64_t) get_u64_hash_table(&visualizer->block_generated_graph_by_block,
+                (uint64_t) first_block->next_as.loop);
+            struct block_graph_generated loop_block_graph_data = (struct block_graph_generated){.u64_value = loop_block_graph_data_u64};
+            link_block_block_label_node_graphviz_file(visualizer, "loop", first_block_graph_data, loop_block_graph_data);
             break;
         }
         case TYPE_NEXT_SSA_BLOCK_BRANCH: {
             struct block_graph_generated branch_false_block_graph_data = generate_blocks_graph(visualizer, first_block->next_as.branch.false_branch);
             struct block_graph_generated branch_true_block_graph_data = generate_blocks_graph(visualizer, first_block->next_as.branch.true_branch);
-            link_block_block_node_graphviz_file(visualizer, first_block_graph_data, branch_false_block_graph_data);
-            link_block_block_node_graphviz_file(visualizer, first_block_graph_data, branch_true_block_graph_data);
+            link_block_block_label_node_graphviz_file(visualizer, "false", first_block_graph_data, branch_false_block_graph_data);
+            link_block_block_label_node_graphviz_file(visualizer, "true", first_block_graph_data, branch_true_block_graph_data);
             break;
         }
         case TYPE_NEXT_SSA_BLOCK_NONE:
@@ -147,18 +155,24 @@ static struct block_graph_generated generate_block_graph(struct graphviz_visuali
     append_new_block_graphviz_file(visualizer, visualizer->next_block_id++);
     int first_control_node_id = 0;
     int last_control_node_id = 0;
+    int prev_node_id = 0;
     for(struct ssa_control_node * current = block->first;; current = current->next){
         int control_node_id = generate_control_node_graph(visualizer, current);
 
-        if(current == block->last){
+        if(current == block->first){
             first_control_node_id = control_node_id;
+        }
+        if(current != block->first){
+            link_control_control_node_graphviz_file(visualizer, prev_node_id, control_node_id);
         }
         if(current == block->last){
             last_control_node_id = control_node_id;
             break;
         }
+
+        prev_node_id = control_node_id;
     }
-    append_new_line_graphviz_file(visualizer, "}");
+    append_new_line_graphviz_file(visualizer, "\t}");
 
     put_u64_hash_table(&visualizer->block_generated_graph_by_block, (uint64_t) block, (void *)last_control_node_id);
 
@@ -194,7 +208,7 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
         }
         case SSA_CONTROL_NODE_TYPE_ENTER_MONITOR: {
             struct ssa_control_enter_monitor_node * enter_monitor = (struct ssa_control_enter_monitor_node *) node;
-            char * node_desc = dynamic_format_string("EnterMonitor %i\n0x", enter_monitor->monitor_number, enter_monitor->monitor);
+            char * node_desc = dynamic_format_string("EnterMonitor %i\\n0x", enter_monitor->monitor_number, enter_monitor->monitor);
 
             append_new_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
             free(node_desc);
@@ -202,7 +216,7 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
         }
         case SSA_CONTROL_NODE_TYPE_EXIT_MONITOR: {
             struct ssa_control_exit_monitor_node * exit_monitor = (struct ssa_control_exit_monitor_node *) node;
-            char * node_desc = dynamic_format_string("ExitMonitor %i\n0x", exit_monitor->monitor_number, exit_monitor->monitor);
+            char * node_desc = dynamic_format_string("ExitMonitor %i\\n0x", exit_monitor->monitor_number, exit_monitor->monitor);
 
             append_new_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
             free(node_desc);
@@ -212,7 +226,7 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
             struct ssa_control_set_global_node * set_global = (struct ssa_control_set_global_node *) node;
             char * package_name = set_global->package->name;
             char * global_name = set_global->name->chars;
-            char * node_desc = dynamic_format_string("SetGlobal\npackage: %s\nname: %s", package_name, global_name);
+            char * node_desc = dynamic_format_string("SetGlobal\\npackage: %s\\nname: %s", package_name, global_name);
 
             int global_value_data_node_id = generate_data_node_graph(visualizer, set_global->value_node);
             append_new_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
@@ -226,7 +240,7 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
             char * node_desc = dynamic_format_string("SetLocal %s", local_name);
 
             int local_value_data_node_id = generate_data_node_graph(visualizer, set_local->new_local_value);
-            append_new_data_node_graphviz_file(visualizer, node_desc, self_control_node_id);
+            append_new_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
             link_control_data_node_graphviz_file(visualizer, self_control_node_id, local_value_data_node_id);
             free(node_desc);
             break;
@@ -256,10 +270,10 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
         }
         case SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP: {
             struct ssa_control_conditional_jump_node * cond_jump = (struct ssa_control_conditional_jump_node *) node;
-            char * node_desc = dynamic_format_string("ConditionalJump\nLoop condition: %i", cond_jump->loop_condition);
+            char * node_desc = dynamic_format_string("ConditionalJump\\nLoop condition: %i", cond_jump->loop_condition);
 
             int condition_data_node_id = generate_data_node_graph(visualizer, cond_jump->condition);
-            append_new_control_node_graphviz_file(visualizer, node_desc, condition_data_node_id);
+            append_new_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
             link_control_data_node_graphviz_file(visualizer, self_control_node_id, condition_data_node_id);
             free(node_desc);
             break;
@@ -425,6 +439,15 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
     return self_data_node_id;
 }
 
+void link_block_block_label_node_graphviz_file(
+        struct graphviz_visualizer * visualizer,
+        char * label,
+        struct block_graph_generated from,
+        struct block_graph_generated to
+) {
+    link_control_control_label_node_graphviz_file(visualizer, label, from.value.last_control_node_id, to.value.first_control_node_id);
+}
+
 void link_block_block_node_graphviz_file(
         struct graphviz_visualizer * visualizer,
         struct block_graph_generated from,
@@ -434,35 +457,47 @@ void link_block_block_node_graphviz_file(
 }
 
 void link_data_data_node_graphviz_file(struct graphviz_visualizer * visualizer, int from, int to) {
-    char * link_node_text = dynamic_format_string("data_%i -> data_%i;", from, to);
+    char * link_node_text = dynamic_format_string("\t\tdata_%i -> data_%i;", from, to);
     append_new_line_graphviz_file(visualizer, dynamic_format_string(link_node_text));
     free(link_node_text);
 }
 
 void link_control_data_node_graphviz_file(struct graphviz_visualizer * visualizer, int from, int to) {
-    char * link_node_text = dynamic_format_string("control_%i -> data_%i;", from, to);
+    char * link_node_text = dynamic_format_string("\t\tcontrol_%i -> data_%i;", from, to);
+    append_new_line_graphviz_file(visualizer, dynamic_format_string(link_node_text));
+    free(link_node_text);
+}
+
+void link_control_data_node_label_graphviz_file(struct graphviz_visualizer * visualizer, char * label, int from, int to) {
+    char * link_node_text = dynamic_format_string("\t\tcontrol_%i -> data_%i [label=\"%s\"];", from, to, label);
+    append_new_line_graphviz_file(visualizer, dynamic_format_string(link_node_text));
+    free(link_node_text);
+}
+
+void link_control_control_label_node_graphviz_file(struct graphviz_visualizer * visualizer, char * label, int from, int to) {
+    char * link_node_text = dynamic_format_string("\t\tcontrol_%i -> control_%i [label=\"%s\"];", from, to, label);
     append_new_line_graphviz_file(visualizer, dynamic_format_string(link_node_text));
     free(link_node_text);
 }
 
 void link_control_control_node_graphviz_file(struct graphviz_visualizer * visualizer, int from, int to) {
-    char * link_node_text = dynamic_format_string("control_%i -> control_%i;", from, to);
+    char * link_node_text = dynamic_format_string("\t\tcontrol_%i -> control_%i;", from, to);
     append_new_line_graphviz_file(visualizer, dynamic_format_string(link_node_text));
     free(link_node_text);
 }
 
 void append_new_control_node_graphviz_file(struct graphviz_visualizer * visualizer, char * name, int control_node_id) {
-    fprintf(visualizer->file, "\t\tcontrol_%i [label=%s, style=filled, fillcolor=yellow:white];\n", control_node_id, name);
+    fprintf(visualizer->file, "\t\tcontrol_%i [label=\"%s\", style=filled, fillcolor=yellow, shape=rectangle];\n", control_node_id, name);
 }
 
 void append_new_data_node_graphviz_file(struct graphviz_visualizer * visualizer, char * name, int data_node_id) {
-    fprintf(visualizer->file, "\t\tdata_%i [label=%s, style=filled, fillcolor=green];\n", data_node_id, name);
+    fprintf(visualizer->file, "\t\tdata_%i [label=\"%s\", style=filled, fillcolor=green];\n", data_node_id, name);
 }
 
 void append_new_block_graphviz_file(struct graphviz_visualizer * visualizer, int block_id) {
-    fprintf(visualizer->file, "subgraph block_%i{\n", block_id);
-    fprintf(visualizer->file, "\tstyle=filled;\n");
-    fprintf(visualizer->file, "\tcolor=lightgrey;\n");
+    fprintf(visualizer->file, "\tsubgraph cluster_block_%i{\n", block_id);
+    fprintf(visualizer->file, "\t\tstyle=filled;\n");
+    fprintf(visualizer->file, "\t\tcolor=lightgrey;\n");
 }
 
 void append_new_line_graphviz_file(struct graphviz_visualizer * visualizer, char * to_append) {
@@ -477,6 +512,7 @@ struct graphviz_visualizer create_graphviz_visualizer(
 ) {
     FILE * file = fopen(path, "a");
     if (file == NULL) {
+        runtime_panic("Cannot open/create file!");
         exit(-1);
     }
 

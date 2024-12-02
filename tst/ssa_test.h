@@ -1,11 +1,13 @@
 #pragma once
 
-#include "runtime/jit/advanced/optimizations/scp.h"
+#include "runtime/jit/advanced/visualization/graphviz_visualizer.h"
 #include "runtime/jit/advanced/creation/ssa_no_phis_creator.h"
 #include "runtime/jit/advanced/creation/ssa_phi_inserter.h"
 #include "runtime/jit/advanced/creation/ssa_creator.h"
-#include "shared/utils/collections/u8_set.h"
+#include "runtime/jit/advanced/optimizations/scp.h"
 #include "runtime/jit/advanced/ssa_block.h"
+
+#include "shared/utils/collections/u8_set.h"
 #include "compiler/compiler.h"
 #include "test.h"
 
@@ -32,14 +34,17 @@ TEST(ssa_scp_optimizations){
             "   print b;"
             "}"
     );
+
     struct package * package = compilation.compiled_package;
     struct function_object * function_ssa = get_function_package(package, "function_ssa");
+
     int n_instructions = function_ssa->chunk->in_use;
     init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
+    generate_ssa_graphviz_graph(package, function_ssa, NO_PHIS_PHASE_SSA_GRAPHVIZ, "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt");
+    exit(1);
+
     struct ssa_ir ssa_ir = create_ssa_ir(package, function_ssa, create_bytecode_list(function_ssa->chunk, NATIVE_LOX_ALLOCATOR()));
     perform_sparse_constant_propagation(&ssa_ir);
-
-
 }
 
 //Expect
@@ -76,6 +81,10 @@ TEST(ssa_phis_inserter){
     struct function_object * function_ssa = get_function_package(package, "function_ssa");
     int n_instructions = function_ssa->chunk->in_use;
     init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
+
+    generate_ssa_graphviz_graph(package, function_ssa, NO_PHIS_PHASE_SSA_GRAPHVIZ, "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt");
+    exit(1);
+
     struct ssa_ir ssa_ir = create_ssa_ir(package, function_ssa, create_bytecode_list(function_ssa->chunk, NATIVE_LOX_ALLOCATOR()));
     struct ssa_block * start_ssa_block = ssa_ir.first_block;
 

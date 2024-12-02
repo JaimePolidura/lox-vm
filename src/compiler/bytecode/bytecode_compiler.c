@@ -1243,7 +1243,7 @@ static int add_local_variable(struct bytecode_compiler * compiler, struct token 
 
     compiler->max_locals = MAX(compiler->max_locals, compiler->local_count);
 
-    put_u8_hash_table(&compiler->current_function->local_numbers_to_names, local->depth,
+    put_u8_hash_table(&compiler->current_function->local_numbers_to_names, compiler->local_count - 1,
         copy_string(new_variable_name.start, new_variable_name.length));
 
     return compiler->local_count - 1;
