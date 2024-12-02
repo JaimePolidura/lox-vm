@@ -19,9 +19,17 @@ typedef enum {
     ALL_PHASE_SSA_GRAPHVIZ,
 } phase_ssa_graphviz_t;
 
+enum {
+    DEFAULT_GRAPHVIZ_OPT = 0,
+
+    NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT = 1 << 0,
+    NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT = 1 << 1,
+};
+
 void generate_ssa_graphviz_graph(
         struct package * package,
         struct function_object * function,
         phase_ssa_graphviz_t phase,
+        long options,
         char * path
 );

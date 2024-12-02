@@ -40,7 +40,13 @@ TEST(ssa_scp_optimizations){
 
     int n_instructions = function_ssa->chunk->in_use;
     init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
-    generate_ssa_graphviz_graph(package, function_ssa, NO_PHIS_PHASE_SSA_GRAPHVIZ, "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt");
+    generate_ssa_graphviz_graph(
+            package,
+            function_ssa,
+            PHIS_OPTIMIZED_PHASE_SSA_GRAPHVIZ,
+            DEFAULT_GRAPHVIZ_OPT,
+            "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
+    );
     exit(1);
 
     struct ssa_ir ssa_ir = create_ssa_ir(package, function_ssa, create_bytecode_list(function_ssa->chunk, NATIVE_LOX_ALLOCATOR()));
@@ -81,9 +87,6 @@ TEST(ssa_phis_inserter){
     struct function_object * function_ssa = get_function_package(package, "function_ssa");
     int n_instructions = function_ssa->chunk->in_use;
     init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
-
-    generate_ssa_graphviz_graph(package, function_ssa, NO_PHIS_PHASE_SSA_GRAPHVIZ, "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt");
-    exit(1);
 
     struct ssa_ir ssa_ir = create_ssa_ir(package, function_ssa, create_bytecode_list(function_ssa->chunk, NATIVE_LOX_ALLOCATOR()));
     struct ssa_block * start_ssa_block = ssa_ir.first_block;
