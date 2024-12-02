@@ -602,7 +602,7 @@ static void jump_if_false(struct ssa_no_phis_inserter * inserter, struct pending
     struct ssa_block * false_branch_block = get_block_by_first_bytecode(inserter, false_branch_bytecode);
 
     //Loop conditions, are creatd in the graph as a separated block
-    if(to_evalute->pending_bytecode->loop_condition) {
+     if(to_evalute->pending_bytecode->loop_condition) {
         false_branch_bytecode = simplify_redundant_unconditional_jump_bytecodes(false_branch_bytecode);
         false_branch_block = get_block_by_first_bytecode(inserter, false_branch_bytecode);
         struct ssa_block * condition_block = get_block_by_first_bytecode(inserter, to_evalute->pending_bytecode);

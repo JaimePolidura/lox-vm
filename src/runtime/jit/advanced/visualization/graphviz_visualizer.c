@@ -183,11 +183,14 @@ static struct block_graph_generated generate_block_graph(struct graphviz_visuali
 
         prev_node_id = control_node_id;
     }
+
     add_new_line_graphviz_file(visualizer, "\t}");
 
-    put_u64_hash_table(&visualizer->block_generated_graph_by_block, (uint64_t) block, (void *)last_control_node_id);
+    struct block_graph_generated block_graph_generated = (struct block_graph_generated) { .value = { first_control_node_id, last_control_node_id }};
 
-    return (struct block_graph_generated) { .value = { first_control_node_id, last_control_node_id }};
+    put_u64_hash_table(&visualizer->block_generated_graph_by_block, (uint64_t) block, (void *) block_graph_generated.u64_value);
+
+    return block_graph_generated;
 }
 
 static int generate_control_node_graph(struct graphviz_visualizer * visualizer, struct ssa_control_node * node) {
@@ -506,13 +509,13 @@ void link_control_data_node_label_graphviz_file(struct graphviz_visualizer * vis
 }
 
 void link_control_control_label_node_graphviz_file(struct graphviz_visualizer * visualizer, char * label, int from, int to) {
-    char * link_node_text = dynamic_format_string("\t\tcontrol_%i -> control_%i [label=\"%s\"];", from, to, label);
+    char * link_node_text = dynamic_format_string("\t\tcontrol_%i -> control_%i [penwidth=3, label=\"%s\"];", from, to, label);
     add_new_line_graphviz_file(visualizer, dynamic_format_string(link_node_text));
     free(link_node_text);
 }
 
 void link_control_control_node_graphviz_file(struct graphviz_visualizer * visualizer, int from, int to) {
-    char * link_node_text = dynamic_format_string("\t\tcontrol_%i -> control_%i;", from, to);
+    char * link_node_text = dynamic_format_string("\t\tcontrol_%i -> control_%i [penwidth=3];", from, to);
     add_new_line_graphviz_file(visualizer, dynamic_format_string(link_node_text));
     free(link_node_text);
 }
