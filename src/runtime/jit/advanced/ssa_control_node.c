@@ -104,7 +104,6 @@ void for_each_data_node_in_control_node(struct ssa_control_node * control_node, 
         case SSA_CONTROL_NODE_TYPE_ENTER_MONITOR:
         case SSA_CONTROL_NODE_TYPE_EXIT_MONITOR:
         case SSA_CONTROL_NODE_TYPE_LOOP_JUMP:
-        case SSA_CONTROL_NODE_TYPE_START:
             break;
     }
 }

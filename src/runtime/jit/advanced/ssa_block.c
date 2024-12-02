@@ -14,7 +14,6 @@ void init_ssa_block(struct ssa_block * block, struct lox_allocator * allocator) 
 
 type_next_ssa_block_t get_type_next_ssa_block(struct ssa_control_node * node) {
     switch(node->type) {
-        case SSA_CONTROL_NODE_TYPE_START:
         case SSA_CONTROL_NODE_TYPE_PRINT:
         case SSA_CONTROL_NODE_TYPE_ENTER_MONITOR:
         case SSA_CONTROL_NODE_TYPE_EXIT_MONITOR:
