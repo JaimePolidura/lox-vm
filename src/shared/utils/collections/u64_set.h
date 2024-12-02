@@ -14,9 +14,10 @@ struct u64_set_iterator {
 #define FOR_EACH_U64_SET_VALUE(set, value) \
     struct u64_set_iterator iterator##value; \
     init_u64_set_iterator(&iterator##value, (set)); \
-    for(uint64_t value = has_next_u64_set_iterator(iterator##value) ? next_u64_set_iterator(&iterator##value) : 0; \
-        has_next_u64_set_iterator(iterator##value); \
-        value = next_u64_set_iterator(&iterator##value)) \
+    uint64_t value = has_next_u64_set_iterator(iterator##value) ? next_u64_set_iterator(&iterator##value) : 0; \
+    for(int i##value = 0; \
+        i##value < (set).inner_hash_table.size; \
+        i##value++, value = has_next_u64_set_iterator(iterator##value) ? next_u64_set_iterator(&iterator##value) : 0)
 
 struct u64_set empty_u64_set(struct lox_allocator *);
 struct u64_set * alloc_u64_set(struct lox_allocator *);

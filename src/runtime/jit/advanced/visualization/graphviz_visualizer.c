@@ -419,12 +419,15 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             char * local_name = get_u8_hash_table(&visualizer->function->local_numbers_to_names, phi->local_number);
             struct string_builder node_desc_string_builder;
             init_string_builder(&node_desc_string_builder, NATIVE_LOX_ALLOCATOR());
-            append_string_builder(&node_desc_string_builder, "Phi (");
+            append_string_builder(&node_desc_string_builder, "Phi ");
+            append_string_builder(&node_desc_string_builder, local_name);
+            append_string_builder(&node_desc_string_builder, "(");
             FOR_EACH_VERSION_IN_PHI_NODE(phi, current_version) {
                 char * to_append = dynamic_format_string("%i", current_version.value.version);
                 append_string_builder(&node_desc_string_builder, to_append);
                 append_string_builder(&node_desc_string_builder, ", ");
             };
+
             //Remove the last: ", "
             remove_last_string_builder(&node_desc_string_builder);
             append_string_builder(&node_desc_string_builder, ")");

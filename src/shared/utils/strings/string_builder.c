@@ -39,6 +39,18 @@ void append_with_length_string_builder(struct string_builder * string_builder, c
 }
 
 void remove_last_string_builder(struct string_builder * string_builder) {
+    //Emtpy string builder
+    if (string_builder->first == NULL && string_builder->last == NULL) {
+        return;
+    }
+    //Only 1 element
+    if (string_builder->first == string_builder->last) {
+        LOX_FREE(string_builder->allocator, string_builder->first);
+        string_builder->first = NULL;
+        string_builder->last = NULL;
+        return;
+    }
+
     //Get prev to last node
     struct string_builder_node * prev_to_last = string_builder->first;
     while(prev_to_last != NULL && prev_to_last->next != NULL && prev_to_last->next != string_builder->last){
