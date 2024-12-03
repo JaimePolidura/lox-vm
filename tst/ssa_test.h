@@ -43,7 +43,7 @@ TEST(ssa_scp_optimizations){
     generate_ssa_graphviz_graph(
             package,
             function_ssa,
-            PHIS_OPTIMIZED_PHASE_SSA_GRAPHVIZ,
+            SPARSE_CONSTANT_PROPAGATION_PHASE_SSA_GRAPHVIZ,
             DEFAULT_GRAPHVIZ_OPT,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
     );

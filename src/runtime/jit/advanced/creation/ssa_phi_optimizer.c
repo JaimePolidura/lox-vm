@@ -132,6 +132,7 @@ static void extract_phi_to_ssa_name(
     );
     extracted_define_ssa_name->ssa_name = extracted_ssa_name;
     extracted_define_ssa_name->value = &phi_node->data;
+    put_u64_hash_table(&phi_insertion_result->ssa_definitions_by_ssa_name, extracted_ssa_name.u16, extracted_define_ssa_name);
 
     struct ssa_data_get_ssa_name_node * get_extracted = ALLOC_SSA_DATA_NODE(
             SSA_DATA_NODE_TYPE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL, GET_LOX_ALLOCATOR(consumer_struct)

@@ -46,7 +46,9 @@ static lox_value_type calculate_binary_lox(lox_value_t, lox_value_t, bytecode_t 
 static lox_value_type calculate_unary_lox(lox_value_t, ssa_unary_operator_type_t operator);
 static void rewrite_graph_as_constant(struct scp *, struct ssa_data_node * old_node, struct ssa_data_node ** parent_ptr, lox_value_t constant);
 static struct u64_set_iterator node_uses_by_ssa_name_iterator(struct scp *, struct u64_hash_table, struct ssa_name);
-static void rewrite_constant_expressions(struct scp *, struct ssa_control_node *);
+static void rewrite_constant_expressions_propagation(struct scp *scp, struct ssa_control_node *current_node);
+static void rewrite_constant_expressions_initialization(struct scp *scp, struct ssa_control_node *current_node);
+
 static struct semilattice_value * alloc_semilatttice(struct scp *, semilattice_type_t, struct u64_set);
 static struct semilattice_value * alloc_single_const_value_semilattice(struct scp *, lox_value_t value);
 static struct semilattice_value * alloc_multiple_const_values_semilattice(struct scp *, struct u64_set values);
@@ -78,7 +80,7 @@ static void propagation(struct scp * scp) {
         struct u64_set_iterator nodes_uses_ssa_name_it = node_uses_by_ssa_name_iterator(scp, scp->ssa_ir->node_uses_by_ssa_name, current_ssa_name);
         while (has_next_u64_set_iterator(nodes_uses_ssa_name_it)) {
             struct ssa_control_node * node_uses_ssa_name = (void *) next_u64_set_iterator(&nodes_uses_ssa_name_it);
-            rewrite_constant_expressions(scp, node_uses_ssa_name);
+            rewrite_constant_expressions_propagation(scp, node_uses_ssa_name);
 
             if (node_uses_ssa_name->type == SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME) {
                 struct ssa_control_define_ssa_name_node * define_ssa_name_node = (struct ssa_control_define_ssa_name_node *) node_uses_ssa_name;
@@ -115,7 +117,7 @@ static void initialization(struct scp * scp) {
         struct ssa_control_define_ssa_name_node * current_definition = entry.value;
 
         //We rewrite constant expressions
-        rewrite_constant_expressions(scp, entry.value);
+        rewrite_constant_expressions_initialization(scp, entry.value);
 
         struct semilattice_value * semilattice_value = get_semilattice_initialization_from_data(scp, current_definition->value);
         put_u64_hash_table(&scp->semilattice_by_ssa_name, current_ssa_name.u16, semilattice_value);
@@ -207,47 +209,7 @@ static struct semilattice_value * get_semilattice_propagation_from_data(
     }
 }
 
-static struct semilattice_value * get_semilattice_initialization_from_data(struct scp * scp, struct ssa_data_node *current_data_node) {
-    switch (current_data_node->type) {
-        case SSA_DATA_NODE_TYPE_BINARY: {
-            return alloc_top_semilatttice(scp);
-        }
-        case SSA_DATA_NODE_TYPE_UNARY: {
-            return alloc_top_semilatttice(scp);
-        }
-        case SSA_DATA_NODE_TYPE_GET_SSA_NAME: {
-            struct ssa_data_get_ssa_name_node * get_ssa_name = (struct ssa_data_get_ssa_name_node *) current_data_node;
-            if (get_ssa_name->ssa_name.value.version == 0) {
-                return alloc_bottom_semilatttice(scp); //Function parameter, can have multiple values
-            } else {
-                return alloc_top_semilatttice(scp);
-            }
-        }
-        //Constant value:
-        case SSA_DATA_NODE_TYPE_CONSTANT: {
-            struct ssa_data_constant_node * constant_node = (struct ssa_data_constant_node *) current_data_node;
-            return alloc_single_const_value_semilattice(scp, constant_node->constant_lox_value);
-        }
-        //Unknown value
-        case SSA_DATA_NODE_TYPE_PHI: {
-            return alloc_top_semilatttice(scp);
-        }
-        //Multiple values:
-        case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT:
-        case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD:
-        case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT:
-        case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY:
-        case SSA_DATA_NODE_TYPE_GET_GLOBAL:
-        case SSA_DATA_NODE_TYPE_CALL: {
-            return alloc_bottom_semilatttice(scp);
-        }
-        case SSA_DATA_NODE_TYPE_GET_LOCAL:
-        default:
-            runtime_panic("Unhandled ssa data node type %i in get_semilattice_initialization_from_data() in scp.c", current_data_node->type);
-    }
-}
-
-struct constant_rewrite * rewrite_constant_expressions_data_node(
+struct constant_rewrite * rewrite_constant_expressions_propagation_data_node(
         struct scp * scp,
         struct ssa_data_node * current_node
 ) {
@@ -256,14 +218,14 @@ struct constant_rewrite * rewrite_constant_expressions_data_node(
             struct ssa_data_function_call_node * call_node = (struct ssa_data_function_call_node *) current_node;
             for(int i = 0; i < call_node->n_arguments; i++){
                 struct ssa_data_node * current_argument = call_node->arguments[i];
-                call_node->arguments[i] = rewrite_constant_expressions_data_node(scp, current_argument)->node;
+                call_node->arguments[i] = rewrite_constant_expressions_propagation_data_node(scp, current_argument)->node;
             }
-            return alloc_constant_rewrite(scp, current_node, alloc_top_semilatttice(scp));
+            return alloc_constant_rewrite(scp, current_node, alloc_bottom_semilatttice(scp));
         }
         case SSA_DATA_NODE_TYPE_BINARY: {
             struct ssa_data_binary_node * binary_node = (struct ssa_data_binary_node *) current_node;
-            struct constant_rewrite * right = rewrite_constant_expressions_data_node(scp, binary_node->right);
-            struct constant_rewrite * left = rewrite_constant_expressions_data_node(scp, binary_node->left);
+            struct constant_rewrite * right = rewrite_constant_expressions_propagation_data_node(scp, binary_node->right);
+            struct constant_rewrite * left = rewrite_constant_expressions_propagation_data_node(scp, binary_node->left);
             binary_node->right = right->node;
             binary_node->left = left->node;
 
@@ -280,20 +242,19 @@ struct constant_rewrite * rewrite_constant_expressions_data_node(
         }
         case SSA_DATA_NODE_TYPE_UNARY: {
             struct ssa_data_unary_node * unary_node = (struct ssa_data_unary_node *) current_node;
-            struct constant_rewrite * unary_operand_node = rewrite_constant_expressions_data_node(scp, unary_node->operand);
+            struct constant_rewrite * unary_operand_node = rewrite_constant_expressions_propagation_data_node(scp, unary_node->operand);
             unary_node->operand = unary_operand_node->node;
 
             switch (unary_operand_node->semilattice->type) {
-                case SEMILATTICE_CONSTANT:
+                case SEMILATTICE_CONSTANT: {
                     struct u64_set new_possible_values;
                     init_u64_set(&new_possible_values, GET_SCP_ALLOCATOR(scp));
-
                     FOR_EACH_U64_SET_VALUE(unary_operand_node->semilattice->values, current_operand) {
                         lox_value_t current_result = calculate_unary_lox(current_operand, unary_node->operator_type);
                         add_u64_set(&new_possible_values, current_result);
                     }
-
                     return create_constant_rewrite_from_result(scp, current_node, new_possible_values);
+                }
                 case SEMILATTICE_BOTTOM:
                     return alloc_constant_rewrite(scp, current_node, alloc_bottom_semilatttice(scp));
                 case SEMILATTICE_TOP:
@@ -338,23 +299,154 @@ struct constant_rewrite * rewrite_constant_expressions_data_node(
     return NULL;
 }
 
-static void rewrite_constant_expressions_consumer(
+struct constant_rewrite * rewrite_constant_expressions_initialization_data_node(
+        struct scp * scp,
+        struct ssa_data_node * current_node
+) {
+    switch (current_node->type) {
+        case SSA_DATA_NODE_TYPE_CALL: {
+            struct ssa_data_function_call_node * call_node = (struct ssa_data_function_call_node *) current_node;
+            for(int i = 0; i < call_node->n_arguments; i++){
+                struct ssa_data_node * current_argument = call_node->arguments[i];
+                call_node->arguments[i] = rewrite_constant_expressions_initialization_data_node(scp, current_argument)->node;
+            }
+
+            return alloc_constant_rewrite(scp, current_node, alloc_bottom_semilatttice(scp));
+        }
+        case SSA_DATA_NODE_TYPE_BINARY: {
+            struct ssa_data_binary_node * binary_node = (struct ssa_data_binary_node *) current_node;
+            struct constant_rewrite * right = rewrite_constant_expressions_initialization_data_node(scp, binary_node->right);
+            struct constant_rewrite * left = rewrite_constant_expressions_initialization_data_node(scp, binary_node->left);
+            binary_node->right = right->node;
+            binary_node->left = left->node;
+
+            if(left->semilattice->type == SEMILATTICE_CONSTANT && right->semilattice->type == SEMILATTICE_CONSTANT) {
+                struct semilattice_value * result = join_semilattice(scp, left->semilattice, right->semilattice, binary_node->operand);
+                return create_constant_rewrite_from_result(scp, current_node, result->values);
+            } else {
+                struct semilattice_value * result = join_semilattice(scp, left->semilattice, right->semilattice, binary_node->operand);
+                return alloc_constant_rewrite(scp, current_node, result);
+            }
+
+            runtime_panic("Illegal code path in rewrite_constant_expressions_initialization_data_node");
+        }
+        case SSA_DATA_NODE_TYPE_UNARY: {
+            struct ssa_data_unary_node * unary_node = (struct ssa_data_unary_node *) current_node;
+            struct constant_rewrite * unary_operand_node = rewrite_constant_expressions_initialization_data_node(scp, unary_node->operand);
+            unary_node->operand = unary_operand_node->node;
+
+            switch (unary_operand_node->semilattice->type) {
+                case SEMILATTICE_CONSTANT: {
+                    lox_value_t unary_operand = get_first_value_u64_set(unary_operand_node->semilattice->values);
+                    lox_value_t unary_result = calculate_unary_lox(unary_operand, unary_node->operator_type);
+                    return alloc_constant_rewrite(scp, current_node, alloc_single_const_value_semilattice(scp, unary_result));
+                }
+                case SEMILATTICE_BOTTOM: {
+                    return alloc_constant_rewrite(scp, current_node, alloc_bottom_semilatttice(scp));
+                }
+                case SEMILATTICE_TOP: {
+                    return alloc_constant_rewrite(scp, current_node, alloc_top_semilatttice(scp));
+                }
+            }
+        }
+        case SSA_DATA_NODE_TYPE_GET_SSA_NAME:
+        case SSA_DATA_NODE_TYPE_PHI: {
+            return alloc_constant_rewrite(scp, current_node, alloc_top_semilatttice(scp));
+        }
+        case SSA_DATA_NODE_TYPE_CONSTANT: {
+            struct ssa_data_constant_node * const_node = (struct ssa_data_constant_node *) current_node;
+            return alloc_constant_rewrite(scp, current_node, alloc_single_const_value_semilattice(scp, const_node->constant_lox_value));
+        }
+        case SSA_DATA_NODE_TYPE_GET_GLOBAL:
+        case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD:
+        case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT:
+        case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT:
+        case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY: {
+            return alloc_constant_rewrite(scp, current_node, alloc_bottom_semilatttice(scp));
+        }
+        case SSA_DATA_NODE_TYPE_GET_LOCAL: {
+            runtime_panic("Illegal get local node in sparse constant scp ssa optimization");
+        }
+    }
+
+    return NULL;
+}
+
+static struct semilattice_value * get_semilattice_initialization_from_data(struct scp * scp, struct ssa_data_node *current_data_node) {
+    switch (current_data_node->type) {
+        case SSA_DATA_NODE_TYPE_BINARY: {
+            return alloc_top_semilatttice(scp);
+        }
+        case SSA_DATA_NODE_TYPE_UNARY: {
+            return alloc_top_semilatttice(scp);
+        }
+        case SSA_DATA_NODE_TYPE_GET_SSA_NAME: {
+            struct ssa_data_get_ssa_name_node * get_ssa_name = (struct ssa_data_get_ssa_name_node *) current_data_node;
+            if (get_ssa_name->ssa_name.value.version == 0) {
+                return alloc_bottom_semilatttice(scp); //Function parameter, can have multiple values
+            } else {
+                return alloc_top_semilatttice(scp);
+            }
+        }
+        //Constant value:
+        case SSA_DATA_NODE_TYPE_CONSTANT: {
+            struct ssa_data_constant_node * constant_node = (struct ssa_data_constant_node *) current_data_node;
+            return alloc_single_const_value_semilattice(scp, constant_node->constant_lox_value);
+        }
+        //Unknown value
+        case SSA_DATA_NODE_TYPE_PHI: {
+            return alloc_top_semilatttice(scp);
+        }
+        //Multiple values:
+        case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT:
+        case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD:
+        case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT:
+        case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY:
+        case SSA_DATA_NODE_TYPE_GET_GLOBAL:
+        case SSA_DATA_NODE_TYPE_CALL: {
+            return alloc_bottom_semilatttice(scp);
+        }
+        case SSA_DATA_NODE_TYPE_GET_LOCAL:
+        default:
+            runtime_panic("Unhandled ssa data node type %i in get_semilattice_initialization_from_data() in scp.c", current_data_node->type);
+    }
+}
+
+static void rewrite_constant_expressions_propagation_consumer(
         struct ssa_data_node * _,
         void ** parent_child_ptr,
         struct ssa_data_node * current_node,
         void * extra
 ) {
     struct scp * scp = extra;
-    *parent_child_ptr = rewrite_constant_expressions_data_node(scp, current_node);
+    *parent_child_ptr = rewrite_constant_expressions_propagation_data_node(scp, current_node)->node;
 }
 
-static void rewrite_constant_expressions(
+static void rewrite_constant_expressions_propagation(
         struct scp * scp,
         struct ssa_control_node * current_node
 ) {
-    // We iterate all the ssa_data_nodes in current_node
+    // We iterate all the ssa_data_nodes in method rewrite_constant_expressions_propagation_consumer
     for_each_data_node_in_control_node(current_node, scp, SSA_CONTROL_NODE_OPT_NOT_RECURSIVE,
-                                       rewrite_constant_expressions_consumer);
+                                       rewrite_constant_expressions_propagation_consumer);
+}
+
+static void rewrite_constant_expressions_initialization_consumer(
+        struct ssa_data_node * _,
+        void ** parent_child_ptr,
+        struct ssa_data_node * current_node,
+        void * extra
+) {
+    struct scp * scp = extra;
+    *parent_child_ptr = rewrite_constant_expressions_initialization_data_node(scp, current_node)->node;
+}
+
+static void rewrite_constant_expressions_initialization(
+        struct scp * scp,
+        struct ssa_control_node * current_node
+) {
+    for_each_data_node_in_control_node(current_node, scp, SSA_CONTROL_NODE_OPT_NOT_RECURSIVE,
+                                       rewrite_constant_expressions_initialization_consumer);
 }
 
 static lox_value_type calculate_unary_lox(lox_value_t operand_value, ssa_unary_operator_type_t operator) {
@@ -541,7 +633,11 @@ static struct semilattice_value * join_semilattice(
     return alloc_semilatttice(scp, SEMILATTICE_CONSTANT, final_values);
 }
 
-static struct constant_rewrite * create_constant_rewrite_from_result(struct scp * scp, struct ssa_data_node * data_node, struct u64_set possible_values) {
+static struct constant_rewrite * create_constant_rewrite_from_result(
+        struct scp * scp,
+        struct ssa_data_node * data_node,
+        struct u64_set possible_values
+) {
     if(size_u64_set(possible_values) == 1){
         lox_value_t value = get_first_value_u64_set(possible_values);
         struct ssa_data_node * const_node = (struct ssa_data_node *) create_ssa_const_node(value, NULL, GET_SCP_ALLOCATOR(scp));
