@@ -133,17 +133,17 @@ struct ssa_block * create_ssa_ir_no_phis(
                 break;
             }
             case OP_FALSE: {
-                push_stack_list(&inserter->data_nodes_stack, create_ssa_const_node(TAG_FALSE, to_evaluate->pending_bytecode, &ssa_node_allocator->lox_allocator));
+                push_stack_list(&inserter->data_nodes_stack, create_ssa_const_node(FALSE_VALUE, to_evaluate->pending_bytecode, &ssa_node_allocator->lox_allocator));
                 push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
                 break;
             }
             case OP_TRUE: {
-                push_stack_list(&inserter->data_nodes_stack, create_ssa_const_node(TAG_TRUE, to_evaluate->pending_bytecode, &ssa_node_allocator->lox_allocator));
+                push_stack_list(&inserter->data_nodes_stack, create_ssa_const_node(TRUE_VALUE, to_evaluate->pending_bytecode, &ssa_node_allocator->lox_allocator));
                 push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
                 break;
             }
             case OP_NIL: {
-                push_stack_list(&inserter->data_nodes_stack, create_ssa_const_node(TAG_NIL, to_evaluate->pending_bytecode, &ssa_node_allocator->lox_allocator));
+                push_stack_list(&inserter->data_nodes_stack, create_ssa_const_node(NIL_VALUE, to_evaluate->pending_bytecode, &ssa_node_allocator->lox_allocator));
                 push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
                 break;
             }

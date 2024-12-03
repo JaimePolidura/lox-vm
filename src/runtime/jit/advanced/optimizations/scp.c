@@ -42,12 +42,13 @@ static struct semilattice_value * get_semilattice_initialization_from_data(struc
 static struct semilattice_value * get_semilattice_propagation_from_data(struct scp *, struct ssa_data_node *);
 struct scp * alloc_sparse_constant_propagation(struct ssa_ir *);
 static void free_sparse_constant_propagation(struct scp *);
-static lox_value_type calculate_binary_lox(lox_value_t, lox_value_t, bytecode_t operator);
-static lox_value_type calculate_unary_lox(lox_value_t, ssa_unary_operator_type_t operator);
+static lox_value_t calculate_binary_lox(lox_value_t, lox_value_t, bytecode_t operator);
+static lox_value_t calculate_unary_lox(lox_value_t, ssa_unary_operator_type_t operator);
 static void rewrite_graph_as_constant(struct scp *, struct ssa_data_node * old_node, struct ssa_data_node ** parent_ptr, lox_value_t constant);
 static struct u64_set_iterator node_uses_by_ssa_name_iterator(struct scp *, struct u64_hash_table, struct ssa_name);
 static void rewrite_constant_expressions_propagation(struct scp *scp, struct ssa_control_node *current_node);
 static void rewrite_constant_expressions_initialization(struct scp *scp, struct ssa_control_node *current_node);
+static struct semilattice_value * get_semillatice_by_ssa_name(struct scp *, struct ssa_name);
 
 static struct semilattice_value * alloc_semilatttice(struct scp *, semilattice_type_t, struct u64_set);
 static struct semilattice_value * alloc_single_const_value_semilattice(struct scp *, lox_value_t value);
@@ -77,6 +78,10 @@ static void propagation(struct scp * scp) {
             continue;
         }
 
+        if(current_ssa_name.value.version == 1 && current_ssa_name.value.local_number == 1) {
+            puts("a");
+        }
+
         struct u64_set_iterator nodes_uses_ssa_name_it = node_uses_by_ssa_name_iterator(scp, scp->ssa_ir->node_uses_by_ssa_name, current_ssa_name);
         while (has_next_u64_set_iterator(nodes_uses_ssa_name_it)) {
             struct ssa_control_node * node_uses_ssa_name = (void *) next_u64_set_iterator(&nodes_uses_ssa_name_it);
@@ -84,16 +89,15 @@ static void propagation(struct scp * scp) {
 
             if (node_uses_ssa_name->type == SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME) {
                 struct ssa_control_define_ssa_name_node * define_ssa_name_node = (struct ssa_control_define_ssa_name_node *) node_uses_ssa_name;
-                struct ssa_name define_ssa_name = define_ssa_name_node->ssa_name;
-                struct semilattice_value * prev_semilattice = get_u64_hash_table(
-                        &scp->semilattice_by_ssa_name, define_ssa_name.u16);
+                struct ssa_name defined_ssa_name = define_ssa_name_node->ssa_name;
+                struct semilattice_value * prev_semilattice = get_semillatice_by_ssa_name(scp, defined_ssa_name);
 
                 if (prev_semilattice->type != SEMILATTICE_BOTTOM) {
-                    struct semilattice_value * current_semilattice = get_semilattice_propagation_from_data(scp, define_ssa_name_node->value);
-                    put_u64_hash_table(&scp->semilattice_by_ssa_name, current_ssa_name.u16, current_semilattice);
+                    struct semilattice_value * new_semilattice = get_semilattice_propagation_from_data(scp, define_ssa_name_node->value);
+                    put_u64_hash_table(&scp->semilattice_by_ssa_name, defined_ssa_name.u16, new_semilattice);
 
-                    if(current_semilattice->type != prev_semilattice->type){
-                        push_stack_list(&scp->pending, (void *) current_ssa_name.u16);
+                    if(new_semilattice->type != prev_semilattice->type){
+                        push_stack_list(&scp->pending, (void *) defined_ssa_name.u16);
                     }
                 }
 
@@ -156,10 +160,10 @@ static void remove_death_branch(struct scp * scp, struct ssa_control_node * bran
                 //Remove semilattice of the removed ssa name
                 remove_u64_hash_table(&scp->semilattice_by_ssa_name, removed_ssa_definition.u16);
                 //Rescan current node
-                struct semilattice_value * current_semilattice_node_uses = get_u64_hash_table(
-                        &scp->semilattice_by_ssa_name, node_uses_ssa_name->ssa_name.u16);
+                struct semilattice_value * current_semilattice_node_uses = get_semillatice_by_ssa_name(scp, node_uses_ssa_name->ssa_name);
                 current_semilattice_node_uses->type = SEMILATTICE_TOP;
                 clear_u64_set(&current_semilattice_node_uses->values);
+
                 push_stack_list(&scp->pending, (void *) node_uses_ssa_name->ssa_name.u16);
                 //Mark removed ss name as removed
                 add_u64_set(&scp->removed_ssa_names, node_uses_ssa_name->ssa_name.u16);
@@ -185,7 +189,7 @@ static struct semilattice_value * get_semilattice_propagation_from_data(
         }
         case SSA_DATA_NODE_TYPE_GET_SSA_NAME: {
             struct ssa_data_get_ssa_name_node * get_ssa_name = (struct ssa_data_get_ssa_name_node *) current_node;
-            return get_u64_hash_table(&scp->semilattice_by_ssa_name, get_ssa_name->ssa_name.u16);
+            return get_semillatice_by_ssa_name(scp, get_ssa_name->ssa_name);
         }
         case SSA_DATA_NODE_TYPE_CONSTANT: {
             struct ssa_data_constant_node * constant_node = (struct ssa_data_constant_node *) current_node;
@@ -265,7 +269,7 @@ struct constant_rewrite * rewrite_constant_expressions_propagation_data_node(
         }
         case SSA_DATA_NODE_TYPE_GET_SSA_NAME: {
             struct ssa_data_get_ssa_name_node * get_ssa_name = (struct ssa_data_get_ssa_name_node *) current_node;
-            struct semilattice_value * semilattice_ssa_name = get_u64_hash_table(&scp->semilattice_by_ssa_name, get_ssa_name->ssa_name.u16);
+            struct semilattice_value * semilattice_ssa_name = get_semillatice_by_ssa_name(scp, get_ssa_name->ssa_name);
 
             if (semilattice_ssa_name->type == SEMILATTICE_CONSTANT && size_u64_set(semilattice_ssa_name->values) == 1) {
                 lox_value_t ssa_value = get_first_value_u64_set(semilattice_ssa_name->values);
@@ -449,7 +453,7 @@ static void rewrite_constant_expressions_initialization(
                                        rewrite_constant_expressions_initialization_consumer);
 }
 
-static lox_value_type calculate_unary_lox(lox_value_t operand_value, ssa_unary_operator_type_t operator) {
+static lox_value_t calculate_unary_lox(lox_value_t operand_value, ssa_unary_operator_type_t operator) {
     switch (operator) {
         case UNARY_OPERATION_TYPE_NEGATION: {
             return TO_LOX_VALUE_NUMBER(-AS_NUMBER(operand_value));
@@ -476,7 +480,7 @@ struct scp * alloc_sparse_constant_propagation(struct ssa_ir * ssa_ir) {
     return scp;
 }
 
-static lox_value_type calculate_binary_lox(lox_value_t left, lox_value_t right, bytecode_t operator) {
+static lox_value_t calculate_binary_lox(lox_value_t left, lox_value_t right, bytecode_t operator) {
     switch (operator) {
         case OP_ADD: return addition_lox(left, right);
         case OP_SUB: return TO_LOX_VALUE_NUMBER(AS_NUMBER(left) - AS_NUMBER(right));
@@ -574,7 +578,8 @@ static struct semilattice_value * get_semilattice_phi(
     init_u64_set(&final_values, GET_SCP_ALLOCATOR(scp));
 
     FOR_EACH_VERSION_IN_PHI_NODE(phi_node, current_name) {
-        struct semilattice_value * current_semilatice = get_u64_hash_table(&scp->semilattice_by_ssa_name, current_name.u16);
+        struct semilattice_value * current_semilatice = get_semillatice_by_ssa_name(scp, current_name);
+
         union_u64_set(&final_values, current_semilatice->values);
 
         if(final_semilattice_type == SEMILATTICE_BOTTOM) {
@@ -656,4 +661,17 @@ static struct constant_rewrite * alloc_constant_rewrite(struct scp * scp, struct
 
 static void remove_from_ir_removed_ssa_names(struct scp * scp) {
     remove_names_references_ssa_ir(scp->ssa_ir, scp->removed_ssa_names);
+}
+
+static struct semilattice_value * get_semillatice_by_ssa_name(struct scp * scp, struct ssa_name ssa_name) {
+    struct semilattice_value * semilattice_value = get_u64_hash_table(&scp->semilattice_by_ssa_name, ssa_name.u16);
+    //If it is null, it means that the ssa name comes from a function argument, which is used but not defined in the ir
+    //A function argument is always bottom, since it could contain multiple values
+    if (semilattice_value == NULL){
+        struct semilattice_value * semilattice_value_func_arg = alloc_bottom_semilatttice(scp);
+        put_u64_hash_table(&scp->semilattice_by_ssa_name, ssa_name.u16, semilattice_value_func_arg);
+        return semilattice_value_func_arg;
+    } else {
+        return semilattice_value;
+    }
 }
