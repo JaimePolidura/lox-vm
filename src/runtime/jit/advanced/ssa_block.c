@@ -37,6 +37,34 @@ type_next_ssa_block_t get_type_next_ssa_block(struct ssa_control_node * node) {
     }
 }
 
+void remove_control_node_ssa_block(
+        struct ssa_block * ssa_block,
+        struct ssa_control_node * node_to_remove
+) {
+    //The block has only 1 control node
+    if(ssa_block->first == ssa_block->last){
+        ssa_block->first = ssa_block->last = NULL;
+        return;
+    }
+    //We are removing the first node
+    if(ssa_block->first == node_to_remove) {
+        ssa_block->first = node_to_remove->next;
+    }
+    //We are removing the last node
+    if(ssa_block->last == node_to_remove){
+        ssa_block->last = node_to_remove->prev;
+    }
+    //There is only one node remaining
+    if(ssa_block->last == ssa_block->first){
+        ssa_block->first->next = NULL;
+        ssa_block->first->prev = NULL;
+        return;
+    }
+    //Unlink the node from the control node linkedlist in a block
+    node_to_remove->prev->next = node_to_remove->next;
+    node_to_remove->next->prev = node_to_remove->prev;
+}
+
 void add_last_control_node_ssa_block(struct ssa_block * block, struct ssa_control_node * node) {
     if(block->first == NULL){
         block->first = node;
@@ -70,6 +98,10 @@ void add_before_control_node_ssa_block(
 
 static struct u64_set get_blocks_to_remove(struct ssa_block *);
 
+bool is_emtpy_ssa_block(struct ssa_block * block) {
+    return block->first == NULL && block->last == NULL;
+}
+
 struct branch_removed remove_branch_ssa_ir(
         struct ssa_block * branch_block,
         bool true_branch,
@@ -84,24 +116,29 @@ struct branch_removed remove_branch_ssa_ir(
         };
     }
 
-    branch_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_SEQ;
-    branch_block->next_as.next = branch_remains;
+    struct u64_set blocks_removed = get_blocks_to_remove(branch_to_be_removed);
 
-    struct u64_set subgraph_blocks_to_remove = get_blocks_to_remove(branch_block);
+    //We get the set of ssa names removed
     struct u64_set_iterator subgraph_blocks_to_remove_it;
-    init_u64_set_iterator(&subgraph_blocks_to_remove_it, subgraph_blocks_to_remove);
-
+    init_u64_set_iterator(&subgraph_blocks_to_remove_it, blocks_removed);
     struct u64_set ssa_name_definitinos_subgraph;
     init_u64_set(&ssa_name_definitinos_subgraph, lox_allocator);
-
     while (has_next_u64_set_iterator(subgraph_blocks_to_remove_it)) {
         struct ssa_block * block_to_remove = (struct ssa_block *) next_u64_set_iterator(&subgraph_blocks_to_remove_it);
         union_u64_set(&ssa_name_definitinos_subgraph, block_to_remove->defined_ssa_names);
     }
 
+    branch_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_SEQ;
+    branch_block->next_as.next = branch_remains;
+    remove_control_node_ssa_block(branch_block, branch_block->last); //The last is the jump_conditional node
+    if(is_emtpy_ssa_block(branch_block)){
+        add_u64_set(&blocks_removed, (uint64_t) branch_block);
+        replace_block_ssa_block(branch_block, branch_remains);
+    }
+
     return (struct branch_removed) {
-            .ssa_name_definitions_removed = ssa_name_definitinos_subgraph,
-            .blocks_removed = subgraph_blocks_to_remove,
+        .ssa_name_definitions_removed = ssa_name_definitinos_subgraph,
+        .blocks_removed = blocks_removed,
     };
 }
 
@@ -152,4 +189,35 @@ static struct u64_set get_blocks_to_remove(struct ssa_block * start_block) {
     free_queue_list(&pending);
 
     return blocks_to_be_removed;
+}
+
+void replace_block_ssa_block(struct ssa_block * old_block, struct ssa_block * new_block) {
+    FOR_EACH_U64_SET_VALUE(old_block->predecesors, predecesor_u64_ptr) {
+        struct ssa_block * predecesor_node = (void *) predecesor_u64_ptr;
+        switch (predecesor_node->type_next_ssa_block) {
+            case TYPE_NEXT_SSA_BLOCK_LOOP: {
+                if (predecesor_node->next_as.loop == old_block) {
+                    predecesor_node->next_as.loop = new_block;
+                }
+                break;
+            }
+            case TYPE_NEXT_SSA_BLOCK_SEQ: {
+                if(predecesor_node->next_as.next == old_block) {
+                    predecesor_node->next_as.next = new_block;
+                }
+                break;
+            }
+            case TYPE_NEXT_SSA_BLOCK_BRANCH: {
+                if(predecesor_node->next_as.branch.true_branch == old_block){
+                    predecesor_node->next_as.branch.true_branch = new_block;
+                }
+                if(predecesor_node->next_as.branch.false_branch == old_block){
+                    predecesor_node->next_as.branch.false_branch = new_block;
+                }
+                break;
+            }
+            case TYPE_NEXT_SSA_BLOCK_NONE:
+                break;
+        }
+    }
 }

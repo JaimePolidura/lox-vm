@@ -26,7 +26,7 @@ struct ssa_block {
     //Indicates if the current block belongs to the body of a loop
     bool loop_body;
 
-    //Set of pointers to ssa_block
+    //Set of pointers to ssa_block that points to this ssa_block
     struct u64_set predecesors;
 
     //Set of struct ssa_name, defined in the current block
@@ -50,9 +50,12 @@ void free_ssa_block(struct ssa_block *);
 
 void add_last_control_node_ssa_block(struct ssa_block *, struct ssa_control_node *);
 void add_before_control_node_ssa_block(struct ssa_block *, struct ssa_control_node * before, struct ssa_control_node * new);
-
+void remove_control_node_ssa_block(struct ssa_block *, struct ssa_control_node *);
+bool is_emtpy_ssa_block(struct ssa_block *);
+//Replaces references to old_block of the predecessors of old_block to point to new_block
+//Example: A -> B -> C. replace_block_ssa_block(old_block = B, new_block = C), the result: A -> C
+void replace_block_ssa_block(struct ssa_block * old_block, struct ssa_block * new_block);
 //Removes a true/false branch/block and the subsequent children of the branch/block to remove (subgraph)
-//This method doest remove the references to the ssa name definitions done in the removed subgraph
 struct branch_removed {
     struct u64_set ssa_name_definitions_removed;
     struct u64_set blocks_removed;

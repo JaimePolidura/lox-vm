@@ -78,10 +78,6 @@ static void propagation(struct scp * scp) {
             continue;
         }
 
-        if(current_ssa_name.value.version == 1 && current_ssa_name.value.local_number == 1) {
-            puts("a");
-        }
-
         struct u64_set_iterator nodes_uses_ssa_name_it = node_uses_by_ssa_name_iterator(scp, scp->ssa_ir->node_uses_by_ssa_name, current_ssa_name);
         while (has_next_u64_set_iterator(nodes_uses_ssa_name_it)) {
             struct ssa_control_node * node_uses_ssa_name = (void *) next_u64_set_iterator(&nodes_uses_ssa_name_it);
@@ -159,14 +155,14 @@ static void remove_death_branch(struct scp * scp, struct ssa_control_node * bran
                 }
                 //Remove semilattice of the removed ssa name
                 remove_u64_hash_table(&scp->semilattice_by_ssa_name, removed_ssa_definition.u16);
-                //Rescan current node
+                //Clear node_uses_ssa_name's semilattice values.
                 struct semilattice_value * current_semilattice_node_uses = get_semillatice_by_ssa_name(scp, node_uses_ssa_name->ssa_name);
-                current_semilattice_node_uses->type = SEMILATTICE_TOP;
                 clear_u64_set(&current_semilattice_node_uses->values);
-
+                //Rescan node_uses_ssa_name: Mark as TOP and push it to the pending stack
+                current_semilattice_node_uses->type = SEMILATTICE_TOP;
                 push_stack_list(&scp->pending, (void *) node_uses_ssa_name->ssa_name.u16);
-                //Mark removed ss name as removed
-                add_u64_set(&scp->removed_ssa_names, node_uses_ssa_name->ssa_name.u16);
+                //Mark removed ssa name as removed
+                add_u64_set(&scp->removed_ssa_names, removed_ssa_definition.u16);
             }
         };
     }
