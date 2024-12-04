@@ -9,17 +9,30 @@ struct graphviz_visualizer {
     struct ssa_ir ssa_ir;
     struct function_object * function;
     //Set of pointers of struct ssa_block visited
-    struct u64_set visited_blocks;
-    //Last contorl node graph id by block pointer
+    struct u64_set blocks_graph_generated;
+    //Last control node graph id by block pointer
     struct u64_hash_table block_generated_graph_by_block;
+    //Stores struct edge_graph_generated
+    struct u64_set blocks_edges_generated;
 
     int next_block_id;
     int next_control_node_id;
     int next_data_node_id;
 };
 
-//We use a union so that we can store this struct in block_generated_graph_by_block as u64 easily
+struct edge_graph_generated {
+    //We use a union so that we can store this struct in blocks_edges_generated as u64 easily
+    union {
+        struct {
+            int from_block_last_control_node_id;
+            int to_block_first_control_node_id;
+        } value;
+        uint64_t u64_value;
+    };
+};
+
 struct block_graph_generated {
+    //We use a union so that we can store this struct in block_generated_graph_by_block as u64 easily
     union {
         struct {
             int first_control_node_id;
@@ -150,12 +163,12 @@ static struct block_graph_generated generate_blocks_graph(struct graphviz_visual
 }
 
 static struct block_graph_generated generate_block_graph(struct graphviz_visualizer * visualizer, struct ssa_block * block) {
-    if(contains_u64_set(&visualizer->visited_blocks, (uint64_t) block)) {
+    if(contains_u64_set(&visualizer->blocks_graph_generated, (uint64_t) block)) {
         uint64_t block_generated_graph_by_block_u64 = (uint64_t) get_u64_hash_table(&visualizer->block_generated_graph_by_block, (uint64_t) block);
         return (struct block_graph_generated) {.u64_value = block_generated_graph_by_block_u64};
     }
 
-    add_u64_set(&visualizer->visited_blocks, (uint64_t) block);
+    add_u64_set(&visualizer->blocks_graph_generated, (uint64_t) block);
     add_block_graphviz_file(visualizer, visualizer->next_block_id++);
 
     int first_control_node_id = 0;
@@ -186,7 +199,9 @@ static struct block_graph_generated generate_block_graph(struct graphviz_visuali
 
     add_new_line_graphviz_file(visualizer, "\t}");
 
-    struct block_graph_generated block_graph_generated = (struct block_graph_generated) { .value = { first_control_node_id, last_control_node_id }};
+    struct block_graph_generated block_graph_generated = (struct block_graph_generated) {
+        .value = { first_control_node_id, last_control_node_id }
+    };
 
     put_u64_hash_table(&visualizer->block_generated_graph_by_block, (uint64_t) block, (void *) block_graph_generated.u64_value);
 
@@ -512,15 +527,26 @@ void link_control_data_node_label_graphviz_file(struct graphviz_visualizer * vis
 }
 
 void link_control_control_label_node_graphviz_file(struct graphviz_visualizer * visualizer, char * label, int from, int to) {
-    char * link_node_text = dynamic_format_string("\t\tcontrol_%i -> control_%i [penwidth=3, label=\"%s\"];", from, to, label);
-    add_new_line_graphviz_file(visualizer, dynamic_format_string(link_node_text));
-    free(link_node_text);
+    struct edge_graph_generated edge = (struct edge_graph_generated) {.value = {from, to}};
+
+
+    if(!contains_u64_set(&visualizer->blocks_edges_generated, edge.u64_value)){
+        char * link_node_text = dynamic_format_string("\t\tcontrol_%i -> control_%i [penwidth=3, label=\"%s\"];", from, to, label);
+        add_new_line_graphviz_file(visualizer, dynamic_format_string(link_node_text));
+        free(link_node_text);
+        add_u64_set(&visualizer->blocks_edges_generated, edge.u64_value);
+    }
 }
 
 void link_control_control_node_graphviz_file(struct graphviz_visualizer * visualizer, int from, int to) {
-    char * link_node_text = dynamic_format_string("\t\tcontrol_%i -> control_%i [penwidth=3];", from, to);
-    add_new_line_graphviz_file(visualizer, dynamic_format_string(link_node_text));
-    free(link_node_text);
+    struct edge_graph_generated edge = (struct edge_graph_generated) {.value = {from, to}};
+
+    if(!contains_u64_set(&visualizer->blocks_edges_generated, edge.u64_value)){
+        char * link_node_text = dynamic_format_string("\t\tcontrol_%i -> control_%i [penwidth=3];", from, to);
+        add_new_line_graphviz_file(visualizer, dynamic_format_string(link_node_text));
+        free(link_node_text);
+        add_u64_set(&visualizer->blocks_edges_generated, edge.u64_value);
+    }
 }
 
 void add_start_control_node_graphviz_file(struct graphviz_visualizer * visualizer) {
@@ -567,10 +593,13 @@ struct graphviz_visualizer create_graphviz_visualizer(
     init_u64_hash_table(&last_block_control_node_by_block, &arena_lox_allocator->lox_allocator);
     struct u64_set visited_blocks;
     init_u64_set(&visited_blocks, &arena_lox_allocator->lox_allocator);
+    struct u64_set blocks_edges_generated;
+    init_u64_set(&blocks_edges_generated, &arena_lox_allocator->lox_allocator);
 
     return (struct graphviz_visualizer) {
         .block_generated_graph_by_block = last_block_control_node_by_block,
-        .visited_blocks = visited_blocks,
+        .blocks_edges_generated = blocks_edges_generated,
+        .blocks_graph_generated = visited_blocks,
         .next_control_node_id = 0,
         .next_data_node_id = 0,
         .function = function,

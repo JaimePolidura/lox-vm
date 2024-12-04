@@ -15,6 +15,34 @@ static bool node_uses_version(struct ssa_data_node * start_node, int n_expected_
 static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expected_versions, ...);
 static bool node_defines_ssa_name(struct ssa_control_node *, int version);
 
+TEST(ssa_scp_optimizations2){
+    struct compilation_result compilation = compile_standalone(
+            "fun function_ssa(a, b) {"
+            "   a = 2;"
+            "   a = a + 2;"
+            "   if(a > 10){"
+            "       a = 5;"
+            "   }"
+            "   if(a < 10) {"
+            "       a = 10;"
+            "   }"
+            "   return a;"
+            "}"
+    );
+    struct package * package = compilation.compiled_package;
+    struct function_object * function_ssa = get_function_package(package, "function_ssa");
+    int n_instructions = function_ssa->chunk->in_use;
+    init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
+
+    generate_ssa_graphviz_graph(
+            package,
+            function_ssa,
+            PHIS_OPTIMIZED_PHASE_SSA_GRAPHVIZ,
+            DEFAULT_GRAPHVIZ_OPT,
+            "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
+    );
+}
+
 TEST(ssa_scp_optimizations){
     struct compilation_result compilation = compile_standalone(
             "fun function_ssa(a, b) {"
@@ -30,8 +58,8 @@ TEST(ssa_scp_optimizations){
             "   } else {"
             "      b = 10;"
             "   }"
-            "   print a;"
             "   print b;"
+            "   print a;"
             "}"
     );
 
@@ -40,17 +68,13 @@ TEST(ssa_scp_optimizations){
 
     int n_instructions = function_ssa->chunk->in_use;
     init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
-    generate_ssa_graphviz_graph(
-            package,
-            function_ssa,
-            SPARSE_CONSTANT_PROPAGATION_PHASE_SSA_GRAPHVIZ,
-            DEFAULT_GRAPHVIZ_OPT,
-            "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
-    );
-    exit(1);
-
     struct ssa_ir ssa_ir = create_ssa_ir(package, function_ssa, create_bytecode_list(function_ssa->chunk, NATIVE_LOX_ALLOCATOR()));
     perform_sparse_constant_propagation(&ssa_ir);
+
+    ASSERT_EQ(ssa_ir.first_block->type_next_ssa_block, TYPE_NEXT_SSA_BLOCK_SEQ);
+    struct ssa_block * final_block = ssa_ir.first_block->next_as.branch.true_branch->next_as.next->next_as.next;
+    struct ssa_control_define_ssa_name_node * print_b_extract = (struct ssa_control_define_ssa_name_node *) final_block->first;
+    ASSERT_TRUE(node_uses_phi_versions(print_b_extract->value, 2, 0, 1));
 }
 
 //Expect

@@ -146,7 +146,7 @@ static void remove_death_branch(struct scp * scp, struct ssa_control_node * bran
             if(!contains_u64_set(&branch_removed.blocks_removed, (uint64_t) node_uses_ssa_name->control.block)){
                 struct ssa_data_phi_node * phi_node = (struct ssa_data_phi_node *) node_uses_ssa_name->value;
                 //Remove ssa name usage from phi node
-                remove_u64_set(&phi_node->ssa_versions, removed_ssa_definition.u16);
+                remove_u64_set(&phi_node->ssa_versions, removed_ssa_definition.value.version);
                 //If there is only 1 usage of a ssa name in a phi node, replace it with ssa_data_get_ssa_name_node node
                 if (size_u64_set(phi_node->ssa_versions) == 1) {
                     node_uses_ssa_name->value = (struct ssa_data_node *) ALLOC_SSA_DATA_NODE(

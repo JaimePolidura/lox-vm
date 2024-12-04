@@ -46,7 +46,8 @@ int main() {
     u8_set_test_add_contains_outer();
 #endif
 #ifdef RUN_SSA_TEST
-    ssa_scp_optimizations_outer();
+    ssa_scp_optimizations2_outer();
+//    ssa_scp_optimizations_outer();
 //    ssa_phis_inserter_outer();
 //    ssa_ir_no_phis_creation_outer();
 #endif

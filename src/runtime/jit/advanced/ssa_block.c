@@ -61,8 +61,12 @@ void remove_control_node_ssa_block(
         return;
     }
     //Unlink the node from the control node linkedlist in a block
-    node_to_remove->prev->next = node_to_remove->next;
-    node_to_remove->next->prev = node_to_remove->prev;
+    if (node_to_remove != NULL) {
+        node_to_remove->prev->next = node_to_remove->next;
+    }
+    if(node_to_remove->next != NULL){
+        node_to_remove->next->prev = node_to_remove->prev;
+    }
 }
 
 void add_last_control_node_ssa_block(struct ssa_block * block, struct ssa_control_node * node) {
@@ -147,6 +151,10 @@ struct branch_removed remove_branch_ssa_ir(
 //If we concluide that we want to remove the branch A -> B. The final graph would be:
 //Nodes: {A, C, E} Edges: A -> C, C -> E
 static struct u64_set get_blocks_to_remove(struct ssa_block * start_block) {
+    if(size_u64_set(start_block->predecesors) > 1){
+        return empty_u64_set(NATIVE_LOX_ALLOCATOR());
+    }
+
     struct u64_set blocks_to_be_removed;
     init_u64_set(&blocks_to_be_removed, NATIVE_LOX_ALLOCATOR());
     add_u64_set(&blocks_to_be_removed, (uint64_t) start_block);

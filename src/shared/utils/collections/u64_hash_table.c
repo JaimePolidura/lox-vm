@@ -60,6 +60,7 @@ bool contains_u64_hash_table(struct u64_hash_table * hash_hable, uint64_t key) {
 void remove_u64_hash_table(struct u64_hash_table * hash_hable, uint64_t key) {
     struct u64_hash_table_entry * entry = find_u64_hash_table_entry(hash_hable->entries, hash_hable->capacity, key);
     if(entry->some_value) {
+        hash_hable->size--;
         entry->some_value = false;
     }
 }
