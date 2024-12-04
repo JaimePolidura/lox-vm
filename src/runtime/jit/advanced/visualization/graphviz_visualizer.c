@@ -529,7 +529,6 @@ void link_control_data_node_label_graphviz_file(struct graphviz_visualizer * vis
 void link_control_control_label_node_graphviz_file(struct graphviz_visualizer * visualizer, char * label, int from, int to) {
     struct edge_graph_generated edge = (struct edge_graph_generated) {.value = {from, to}};
 
-
     if(!contains_u64_set(&visualizer->blocks_edges_generated, edge.u64_value)){
         char * link_node_text = dynamic_format_string("\t\tcontrol_%i -> control_%i [penwidth=3, label=\"%s\"];", from, to, label);
         add_new_line_graphviz_file(visualizer, dynamic_format_string(link_node_text));

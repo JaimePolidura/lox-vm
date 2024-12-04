@@ -12,6 +12,8 @@ struct phi_optimization_result {
     struct u64_hash_table node_uses_by_ssa_name;
 };
 
+//Removes innecesary phi functions. Like a1 = phi(a0), it will replace it with: a1 = a0. a0 will be represented with the node
+//Also extract phi nodes to ssa names, for example: print phi(a0, a1) -> a2 = phi(a0, a1); print a2
 struct phi_optimization_result optimize_ssa_ir_phis(
         struct ssa_block * start_block,
         struct phi_insertion_result * phi_insertion_result,

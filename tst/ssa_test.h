@@ -83,7 +83,7 @@ TEST(ssa_scp_optimizations){
 //      -> True: [b1 = 3; a2 = 3] -> FINAL BLOCK
 //      -> False: [b2 = 3] -> FINAL BLOCK
 //  -> False: [a3 = 3; i1 = 1] -> [i4 = phi(i1, 13) ¿i4 < 10?]
-//      -> True: [b3 = 12; i2 = phi(i1, i3); i3 = i2 + 1;]
+//      -> True: [b3 = 12; i2 = i4; i3 = i2 + 1;]
 //      -> False: FINAL BLOCK
 //FINAL BLOCK: [a4 = phi(a1, a2, a3); print a4; b4 = phi(b0, b1, b2, b3); print b4]
 TEST(ssa_phis_inserter){
@@ -154,12 +154,12 @@ TEST(ssa_phis_inserter){
     ASSERT_TRUE(node_defines_ssa_name(for_loop_body_block->first, 3)); //b3 = 12;
     //Loop increment
     struct ssa_control_set_local_node * extract_i_loop = (struct ssa_control_set_local_node *) for_loop_body_block->first->next;
-    ASSERT_TRUE(node_defines_ssa_name(for_loop_body_block->first->next, 2)); //i2 = phi(i1, i3) + 1;
-    ASSERT_TRUE(node_uses_phi_versions(extract_i_loop->new_local_value, 2, 1, 3)); //i2 = phi(i1, i3) + 1
+    ASSERT_TRUE(node_defines_ssa_name(for_loop_body_block->first->next, 2)); //i2 = i4
+    ASSERT_TRUE(node_uses_phi_versions(extract_i_loop->new_local_value, 1, 4)); //i2 = i4
     struct ssa_control_set_local_node * increment_i_loop = (struct ssa_control_set_local_node *) extract_i_loop->control.next;
     ASSERT_TRUE(node_defines_ssa_name(&increment_i_loop->control, 3)); //i3 = i2 + 1;
     ASSERT_TRUE(node_uses_phi_versions(increment_i_loop->new_local_value, 1, 2)); //i3 = i2 + 1;
-
+    
     //Final block
     struct ssa_block * final_block = a_condition_true_b_condition_true->next_as.next;
     struct ssa_control_define_ssa_name_node * final_block_print_a = (struct ssa_control_define_ssa_name_node *) final_block->first;

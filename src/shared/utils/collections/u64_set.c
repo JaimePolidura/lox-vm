@@ -36,6 +36,22 @@ uint8_t size_u64_set(struct u64_set set) {
     return set.inner_hash_table.size;
 }
 
+void difference_u64_set(struct u64_set * a, struct u64_set b) {
+    FOR_EACH_U64_SET_VALUE(b, curent_b_value) {
+        remove_u64_set(a, curent_b_value);
+    }
+}
+
+bool is_subset_u64_set(struct u64_set a, struct u64_set b) {
+    FOR_EACH_U64_SET_VALUE(b, current_b_value) {
+        if (!contains_u64_set(&a, current_b_value)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 void init_u64_set_iterator(struct u64_set_iterator * iterator, struct u64_set set) {
     init_u64_hash_table_iterator(&iterator->inner_hashtable_iterator, set.inner_hash_table);
 }

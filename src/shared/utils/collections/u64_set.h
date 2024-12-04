@@ -31,6 +31,10 @@ uint64_t get_first_value_u64_set(struct u64_set);
 void union_u64_set(struct u64_set *, struct u64_set);
 void remove_u64_set(struct u64_set *, uint64_t);
 void clear_u64_set(struct u64_set *);
+//Returns true if b is subset of a
+bool is_subset_u64_set(struct u64_set a, struct u64_set b);
+//Example: a: {1, 2} b: {2, 3}, a - b = {1}
+void difference_u64_set(struct u64_set * a, struct u64_set b);
 
 void init_u64_set_iterator(struct u64_set_iterator *, struct u64_set);
 bool has_next_u64_set_iterator(struct u64_set_iterator);

@@ -22,9 +22,9 @@ static void extract_phi_to_ssa_name(struct optimize_phi_functions_consumer_struc
 static uint8_t allocate_new_ssa_version(int local_number, struct phi_insertion_result *);
 static void add_ssa_name_uses_to_map(struct u64_hash_table * uses_by_ssa_node, struct ssa_control_node *);
 static void add_ssa_name_use(struct u64_hash_table * uses_by_ssa_node, struct ssa_name, struct ssa_control_node *);
+static void propagate_extracted_phi(struct arena_lox_allocator*, struct ssa_block*, struct ssa_control_node*,
+        struct ssa_data_phi_node*, uint8_t extracted_version);
 
-//Removes innecesary phi functions. Like a1 = phi(a0), it will replace it with: a1 = a0. a0 will be represented with the node
-//Also extract phi nodes to ssa names, for example: print phi(a0, a1) -> a2 = phi(a0, a1); print a2
 struct phi_optimization_result optimize_ssa_ir_phis(
         struct ssa_block * start_block,
         struct phi_insertion_result * phi_insertion_result,
@@ -140,8 +140,114 @@ static void extract_phi_to_ssa_name(
 
     get_extracted->ssa_name = extracted_ssa_name;
 
+    propagate_extracted_phi(consumer_struct->ssa_nodes_allocator, block, control_node, phi_node, extracted_version);
+
     add_before_control_node_ssa_block(block, control_node, &extracted_define_ssa_name->control);
     *parent_child_ptr = get_extracted;
+}
+
+//a2 = phi(a0, a1) Local number = "a". versions_extracted = {0, 1}. to_extracted_version = 2
+struct propagation_extracted_phi {
+    uint8_t local_number;
+    struct u64_set versions_extracted;
+    uint8_t to_extracted_version;
+};
+
+static void propagate_extracted_phi_in_data_node(
+        struct ssa_data_node * _,
+        void ** __,
+        struct ssa_data_node * current,
+        void * extra
+) {
+    struct propagation_extracted_phi * propagation_extracted_phi = extra;
+
+    if (current->type == SSA_DATA_NODE_TYPE_PHI &&
+        ((struct ssa_data_phi_node *) current)->local_number == propagation_extracted_phi->local_number) {
+        struct ssa_data_phi_node * current_phi_node = (struct ssa_data_phi_node *) current;
+
+        if (is_subset_u64_set(current_phi_node->ssa_versions, propagation_extracted_phi->versions_extracted)) {
+            //Remove propagation_extracted_phi->versions_extracted from current phi node
+            difference_u64_set(&current_phi_node->ssa_versions, propagation_extracted_phi->versions_extracted);
+
+            add_u64_set(&current_phi_node->ssa_versions, propagation_extracted_phi->to_extracted_version);
+        }
+    }
+}
+
+static void propagate_extracted_phi_in_block(
+        struct ssa_control_node * control_node,
+        struct propagation_extracted_phi propagation_extracted_phi
+){
+    struct ssa_control_node * current_node = control_node;
+    while (current_node != NULL) {
+        for_each_data_node_in_control_node(
+                current_node,
+                &propagation_extracted_phi,
+                SSA_CONTROL_NODE_OPT_RECURSIVE,
+                propagate_extracted_phi_in_data_node
+        );
+
+        current_node = current_node->next;
+    }
+}
+
+//Given block1: print phi(a1, a2) and block 2: return phi(a1, a2)
+//When print phi(a1, a2) is extracted by the method extract_phi_to_ssa_name(), it will generate: a3 = phi(a1, a2); print a3
+//This method will propagate a3 to replace phi nodes of nodes a1 and a2. In the example:
+//a3 = phi(a1, a2); print a3; return a3.
+static void propagate_extracted_phi(
+        struct arena_lox_allocator * arena_lox_allocator,
+        struct ssa_block * block,
+        struct ssa_control_node * control_node,
+        struct ssa_data_phi_node * phi_node,
+        uint8_t extracted_version
+) {
+    struct propagation_extracted_phi propagation_extracted_phi = {
+            .versions_extracted = phi_node->ssa_versions,
+            .local_number = phi_node->local_number,
+            .to_extracted_version = extracted_version,
+    };
+
+    //Propagate change in the block where the extracted phi was done
+    propagate_extracted_phi_in_block(control_node->next, propagation_extracted_phi);
+
+    //Propagate the change to all subblocks of the subgraph whose only parent is block
+    struct queue_list pending;
+    init_queue_list(&pending, &arena_lox_allocator->lox_allocator);
+    enqueue_queue_list(&pending, block);
+    struct u64_set expeced_predecessors;
+    init_u64_set(&expeced_predecessors, &arena_lox_allocator->lox_allocator);
+    add_u64_set(&expeced_predecessors, (uint64_t) block);
+    if(block->type_next_ssa_block == TYPE_NEXT_SSA_BLOCK_SEQ){
+        enqueue_queue_list(&pending, block->next_as.next);
+    } else if(block->type_next_ssa_block == TYPE_NEXT_SSA_BLOCK_BRANCH) {
+        enqueue_queue_list(&pending, block->next_as.branch.false_branch);
+        enqueue_queue_list(&pending, block->next_as.branch.true_branch);
+    }
+
+    while(!is_empty_queue_list(&pending)){
+        struct ssa_block * current_block = dequeue_queue_list(&pending);
+        bool can_extracted_phi_be_propagated = true;
+
+        FOR_EACH_U64_SET_VALUE(current_block->predecesors, current_predecesor) {
+            if(!contains_u64_set(&expeced_predecessors, current_predecesor)){
+                can_extracted_phi_be_propagated = false;
+                break;
+            }
+        }
+
+        if(can_extracted_phi_be_propagated){
+            add_u64_set(&expeced_predecessors, (uint64_t) current_block);
+            propagate_extracted_phi_in_block(current_block->first, propagation_extracted_phi);
+
+            if(current_block->type_next_ssa_block == TYPE_NEXT_SSA_BLOCK_SEQ){
+                enqueue_queue_list(&pending, current_block->next_as.next);
+            } else if(current_block->type_next_ssa_block == TYPE_NEXT_SSA_BLOCK_BRANCH) {
+                enqueue_queue_list(&pending, current_block->next_as.branch.false_branch);
+                enqueue_queue_list(&pending, current_block->next_as.branch.true_branch);
+            }
+        }
+    }
 }
 
 static uint8_t allocate_new_ssa_version(int local_number, struct phi_insertion_result * phi_insertion_result) {
