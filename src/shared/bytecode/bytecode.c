@@ -15,7 +15,7 @@ struct bytecode_instruction_data bytecode_instructions_data[] = {
         [OP_DIV] = {.constant = false, .size = OP_DIV_LENGTH, .n_pops = 2, .n_push = 1},
         [OP_GREATER] = {.constant = false, .size = OP_GREATER_LENGTH, .n_pops = 2, .n_push = 1},
         [OP_LESS] = {.constant = false, .size = OP_LESS_LENGTH, .n_pops = 2, .n_push = 1},
-        [OP_FALSE] =  {.constant = true, .size = OP_FALSE_LENGTH, .n_pops = 0, .n_push = 1},
+        [OP_FALSE] = {.constant = true, .size = OP_FALSE_LENGTH, .n_pops = 0, .n_push = 1},
         [OP_TRUE] = {.constant = true, .size = OP_TRUE_LENGTH, .n_pops = 0, .n_push = 1},
         [OP_NIL] = {.constant = true, .size = OP_NIL_LENGTH, .n_pops = 0, .n_push = 1},
         [OP_NOT] = {.constant = false, .size = OP_NOT_LENGTH, .n_pops = 1, .n_push = 1},
@@ -53,6 +53,10 @@ struct bytecode_instruction_data bytecode_instructions_data[] = {
         [OP_ENTER_MONITOR_EXPLICIT] = {.constant = false, .size = OP_ENTER_MONITOR_EXPLICIT_LENGTH, .n_pops = 0, .n_push = 0},
         [OP_EXIT_MONITOR_EXPLICIT] = {.constant = false, .size = OP_EXIT_MONITOR_EXPLICIT_LENGTH, .n_pops = 0, .n_push = 0},
  };
+
+bool is_commutative_bytecode_instruction(bytecode_t instruction) {
+    return instruction == OP_ADD || instruction == OP_MUL || instruction == OP_EQUAL;
+}
 
 int get_size_bytecode_instruction(bytecode_t instruction) {
     return bytecode_instructions_data[instruction].size;

@@ -51,15 +51,15 @@ void remove_last_string_builder(struct string_builder * string_builder) {
         return;
     }
 
-    //Get prev to last node
+    //Get prev to last control_node
     struct string_builder_node * prev_to_last = string_builder->first;
     while(prev_to_last != NULL && prev_to_last->next != NULL && prev_to_last->next != string_builder->last){
         prev_to_last = prev_to_last->next;
     }
-    //Remove last node
+    //Remove last control_node
     struct string_builder_node * last_node = string_builder->last;
     LOX_FREE(string_builder->allocator, last_node);
-    //Set last node to prev last node
+    //Set last control_node to prev last control_node
     string_builder->last = prev_to_last;
 }
 

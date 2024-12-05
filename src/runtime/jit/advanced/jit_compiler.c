@@ -1,4 +1,4 @@
-#include "runtime/jit/advanced/optimizations/scp.h"
+#include "runtime/jit/advanced/optimizations/sparse_constant_propagation.h"
 #include "runtime/jit/advanced/creation/ssa_creator.h"
 #include "runtime/jit/jit_compilation_result.h"
 #include "runtime/threads/vm_thread.h"

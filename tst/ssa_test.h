@@ -4,7 +4,7 @@
 #include "runtime/jit/advanced/creation/ssa_no_phis_creator.h"
 #include "runtime/jit/advanced/creation/ssa_phi_inserter.h"
 #include "runtime/jit/advanced/creation/ssa_creator.h"
-#include "runtime/jit/advanced/optimizations/scp.h"
+#include "runtime/jit/advanced/optimizations/sparse_constant_propagation.h"
 #include "runtime/jit/advanced/ssa_block.h"
 
 #include "shared/utils/collections/u8_set.h"
@@ -19,7 +19,7 @@ TEST(ssa_nested_loop){
     struct compilation_result compilation = compile_standalone(
             "fun function_ssa(a, b) {"
             "   for(var i = 0; i < 10; i = i + 1) {"
-            "       for(var j = 0; j < 10; j = j + 1) {"
+            "       for(var j = i; j < i; j = j + 1) {"
             "       }"
             "   }"
             "}"
@@ -33,7 +33,7 @@ TEST(ssa_nested_loop){
     generate_ssa_graphviz_graph(
             package,
             function_ssa,
-            SPARSE_CONSTANT_PROPAGATION_PHASE_SSA_GRAPHVIZ,
+            PHIS_INSERTED_PHASE_SSA_GRAPHVIZ,
             NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
     );
@@ -107,6 +107,16 @@ TEST(ssa_phis_inserter){
     struct function_object * function_ssa = get_function_package(package, "function_ssa");
     int n_instructions = function_ssa->chunk->in_use;
     init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
+
+    //Observe the generated graph IR
+    generate_ssa_graphviz_graph(
+            package,
+            function_ssa,
+            PHIS_OPTIMIZED_PHASE_SSA_GRAPHVIZ,
+            NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT,
+            "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
+    );
+    exit(1);
 
     struct ssa_ir ssa_ir = create_ssa_ir(package, function_ssa, create_bytecode_list(function_ssa->chunk, NATIVE_LOX_ALLOCATOR()));
     struct ssa_block * start_ssa_block = ssa_ir.first_block;

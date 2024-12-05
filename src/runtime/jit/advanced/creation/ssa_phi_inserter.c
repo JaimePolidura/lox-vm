@@ -120,11 +120,11 @@ static void insert_ssa_versions_in_control_node(
         .block = block,
     };
 
-    for_each_data_node_in_control_node(control_node, &consumer_struct, SSA_CONTROL_NODE_OPT_RECURSIVE, &insert_phis_in_data_node_consumer);
+    for_each_data_node_in_control_node(control_node, &consumer_struct, SSA_DATA_NODE_OPT_NONE, &insert_phis_in_data_node_consumer);
 
     if (control_node->type == SSA_CONTORL_NODE_TYPE_SET_LOCAL) {
-        //set_local node and define_ssa_name have the same memory outlay, we do this, so we can change the node easily in the graph
-        //without creating any new node
+        //set_local control_node and define_ssa_name have the same memory outlay, we do this, so we can change the control_node easily in the graph
+        //without creating any new control_node
         struct ssa_control_set_local_node * set_local = (struct ssa_control_set_local_node *) control_node;
         struct ssa_control_define_ssa_name_node * define_ssa_name = (struct ssa_control_define_ssa_name_node *) control_node;
         uint8_t local_number = (uint8_t) set_local->local_number;
@@ -160,12 +160,13 @@ static void insert_phis_in_data_node_consumer(
         uint8_t local_number = get_local->local_number;
 
         if(BELONGS_TO_LOOP_BODY_BLOCK(block) &&
-           inside_expression &&
-           contains_u8_set(&block->use_before_assigment, local_number)
+            !block->loop_condition &&
+            inside_expression &&
+            contains_u8_set(&block->use_before_assigment, local_number)
         ){
             extract_get_local(inserter, parent_versions, control_node, block, local_number, parent_current_ptr);
         } else {
-            //We are going to replace the OP_GET_LOCAL node with a phi node
+            //We are going to replace the OP_GET_LOCAL control_node with a phi control_node
             struct ssa_data_phi_node * phi_node = ALLOC_SSA_DATA_NODE(
                     SSA_DATA_NODE_TYPE_PHI, struct ssa_data_phi_node, current_node->original_bytecode, GET_SSA_NODES_ALLOCATOR(consumer_struct->inserter)
             );
@@ -174,8 +175,8 @@ static void insert_phis_in_data_node_consumer(
             uint8_t version = get_version(parent_versions, get_local->local_number);
             add_u64_set(&phi_node->ssa_versions, version);
 
-            //Replace parent pointer to child node
-            //OP_GET_LOCAL will always be a child of another data node.
+            //Replace parent pointer to child control_node
+            //OP_GET_LOCAL will always be a child of another data control_node.
             *parent_current_ptr = &phi_node->data;
         }
     } else if (current_node->type == SSA_DATA_NODE_TYPE_PHI) {
@@ -253,7 +254,7 @@ static void extract_get_local(
         uint8_t local_number,
         void ** parent_to_extract_get_local_ptr
 ) {
-    //a0 in the example, will be a phi node
+    //a0 in the example, will be a phi control_node
     struct ssa_data_phi_node * extracted_phi_node = ALLOC_SSA_DATA_NODE(
             SSA_DATA_NODE_TYPE_PHI, struct ssa_data_phi_node, NULL, GET_SSA_NODES_ALLOCATOR(inserter)
     );
@@ -273,7 +274,7 @@ static void extract_get_local(
     put_u64_hash_table(&inserter->ssa_definitions_by_ssa_name, set_ssa_name.u16, extracted_set_local);
     add_u64_set(&to_extract_block->defined_ssa_names, set_ssa_name.u16);
 
-    //phi(a1) in the example, will be a define_ssa_node. Replace get_local node with phi node
+    //phi(a1) in the example, will be a define_ssa_node. Replace get_local control_node with phi control_node
     struct ssa_data_phi_node * new_get_local = ALLOC_SSA_DATA_NODE(
             SSA_DATA_NODE_TYPE_PHI, struct ssa_data_phi_node, NULL, GET_SSA_NODES_ALLOCATOR(inserter)
     );
@@ -282,7 +283,7 @@ static void extract_get_local(
     add_u64_set(&new_get_local->ssa_versions, new_version_extracted);
     *parent_to_extract_get_local_ptr = &new_get_local->data;
 
-    //Insert the new node in the linkedlist of ssa_control_nodes
+    //Insert the new control_node in the linkedlist of ssa_control_nodes
     extracted_set_local->control.next = control_node_to_extract;
     extracted_set_local->control.prev = control_node_to_extract->prev;
     if(control_node_to_extract->prev != NULL){

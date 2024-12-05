@@ -10,7 +10,7 @@ struct graphviz_visualizer {
     struct function_object * function;
     //Set of pointers of struct ssa_block visited
     struct u64_set blocks_graph_generated;
-    //Last control node graph id by block pointer
+    //Last control control_node graph id by block pointer
     struct u64_hash_table block_generated_graph_by_block;
     //Stores struct edge_graph_generated
     struct u64_set blocks_edges_generated;
@@ -175,7 +175,7 @@ static struct block_graph_generated generate_block_graph(struct graphviz_visuali
     int last_control_node_id = 0;
     int prev_node_id = -1;
 
-    //If we haven't added any node, add the start node
+    //If we haven't added any control_node, add the start control_node
     if(visualizer->next_data_node_id == 0 && visualizer->next_control_node_id == 0){
         add_start_control_node_graphviz_file(visualizer);
         prev_node_id = visualizer->next_control_node_id - 1;

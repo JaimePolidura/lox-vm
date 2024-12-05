@@ -38,12 +38,6 @@ struct ssa_control_node {
     struct ssa_control_node * prev;
     struct ssa_control_node * next;
 };
-
-enum {
-    SSA_CONTROL_NODE_OPT_RECURSIVE = 0,
-    SSA_CONTROL_NODE_OPT_NOT_RECURSIVE = 1,
-};
-
 void for_each_data_node_in_control_node(struct ssa_control_node *, void *, long options, ssa_data_node_consumer_t);
 
 //OP_SET_LOCAL
@@ -120,11 +114,11 @@ struct ssa_control_conditional_jump_node {
     struct ssa_data_node * condition;
 };
 
-//This node will be only used when inserting phi functions in the graph ir creation process
+//This control_node will be only used when inserting phi functions in the graph ir creation process
 //Will replace OP_SET_LOCAL
 //The memory outlay of ssa_control_define_ssa_name_node and ssa_control_set_local_node is the same. We create two
 //different struct definitions to note, the differences between the two process in the ssa ir graph creation.
-//And the same memory outlay so we can replace the node in the graph easily, by just changing the node type
+//And the same memory outlay so we can replace the control_node in the graph easily, by just changing the control_node type
 struct ssa_control_define_ssa_name_node {
     struct ssa_control_node control;
 

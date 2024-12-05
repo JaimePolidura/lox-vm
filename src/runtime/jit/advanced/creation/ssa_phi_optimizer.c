@@ -48,7 +48,7 @@ struct phi_optimization_result optimize_ssa_ir_phis(
                 .block = current_block,
             };
 
-            for_each_data_node_in_control_node(current, &for_each_node_struct, SSA_CONTROL_NODE_OPT_RECURSIVE, optimize_phi_functions_consumer);
+            for_each_data_node_in_control_node(current, &for_each_node_struct, SSA_DATA_NODE_OPT_NONE, optimize_phi_functions_consumer);
 
             if(current == current_block->last){
                 break;
@@ -110,7 +110,7 @@ static void remove_innecesary_phi_function(
     );
     new_get_ssa_name->ssa_name = CREATE_SSA_NAME(phi_node->local_number, ssa_version);
 
-    //Replace node
+    //Replace control_node
     *parent_child_ptr = (void *) new_get_ssa_name;
 }
 
@@ -166,7 +166,7 @@ static void propagate_extracted_phi_in_data_node(
         struct ssa_data_phi_node * current_phi_node = (struct ssa_data_phi_node *) current;
 
         if (is_subset_u64_set(current_phi_node->ssa_versions, propagation_extracted_phi->versions_extracted)) {
-            //Remove propagation_extracted_phi->versions_extracted from current phi node
+            //Remove propagation_extracted_phi->versions_extracted from current phi control_node
             difference_u64_set(&current_phi_node->ssa_versions, propagation_extracted_phi->versions_extracted);
 
             add_u64_set(&current_phi_node->ssa_versions, propagation_extracted_phi->to_extracted_version);
@@ -183,7 +183,7 @@ static void propagate_extracted_phi_in_block(
         for_each_data_node_in_control_node(
                 current_node,
                 &propagation_extracted_phi,
-                SSA_CONTROL_NODE_OPT_RECURSIVE,
+                SSA_DATA_NODE_OPT_NONE,
                 propagate_extracted_phi_in_data_node
         );
 
@@ -290,7 +290,7 @@ static void add_ssa_name_uses_to_map(
         .control_node = control_node,
     };
 
-    for_each_data_node_in_control_node(control_node, &consumer_struct, SSA_CONTROL_NODE_OPT_RECURSIVE, add_ssa_name_uses_to_map_consumer);
+    for_each_data_node_in_control_node(control_node, &consumer_struct, SSA_DATA_NODE_OPT_NONE, add_ssa_name_uses_to_map_consumer);
 }
 
 static void add_ssa_name_use(

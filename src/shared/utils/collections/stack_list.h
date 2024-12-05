@@ -4,10 +4,10 @@
 #include "shared.h"
 
 // prev:
-// head -> other node
+// head -> other control_node
 //
 // next:
-// head <- other node
+// head <- other control_node
 struct stack_list {
     struct lox_allocator * allocator;
     struct stack_node * head;

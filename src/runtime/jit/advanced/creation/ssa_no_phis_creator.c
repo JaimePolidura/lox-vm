@@ -299,7 +299,7 @@ static void get_global(
 ) {
     struct package * global_variable_package = peek_stack_list(&inserter->data_nodes_stack);
     struct string_object * global_variable_name = AS_STRING_OBJECT(READ_CONSTANT(function, to_evaluate->pending_bytecode));
-    //If the global variable is constant, we will return a CONST_NODE instead of GET_GLOBAL node
+    //If the global variable is constant, we will return a CONST_NODE instead of GET_GLOBAL control_node
     if(contains_trie(&global_variable_package->const_global_variables_names, global_variable_name->chars, global_variable_name->length)) {
         lox_value_t constant_value;
         get_hash_table(&global_variable_package->global_variables, global_variable_name, &constant_value);
@@ -557,11 +557,6 @@ static void loop(struct ssa_no_phis_inserter * inserter, struct pending_evaluate
     struct bytecode_list * loop_condition_bytecode = get_next_bytecode_list(to_jump_bytecode, OP_JUMP_IF_FALSE);
     struct ssa_control_node * to_jump_ssa_node = get_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_jump_bytecode);
 
-    if(to_jump_ssa_node->type == SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP){
-        struct ssa_control_conditional_jump_node * loop_condition_node = (struct ssa_control_conditional_jump_node *) to_jump_ssa_node;
-        to_evalute->block->loop_condition = true;
-    }
-
     to_evalute->block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_LOOP;
     to_evalute->block->next_as.loop = get_u64_hash_table(&inserter->blocks_by_first_bytecode, (uint64_t) loop_condition_bytecode);
 
@@ -691,7 +686,7 @@ static void map_data_nodes_bytecodes_to_control_consumer(
                        consumer_struct->to_map_control);
 }
 
-//This function will map the control node bytecode to the to_map_control control node
+//This function will map the control control_node bytecode to the to_map_control control control_node
 //Example: Given OP_CONST_1, OP_CONST_2, OP_ADD, OP_PRINT
 //The first 3 bytecodes will point to OP_PRINT
 static void map_data_nodes_bytecodes_to_control(
@@ -704,7 +699,13 @@ static void map_data_nodes_bytecodes_to_control(
             .to_map_control = to_map_control,
     };
 
-    for_each_ssa_data_node(data_node, NULL, &consumer_struct, map_data_nodes_bytecodes_to_control_consumer);
+    for_each_ssa_data_node(
+            data_node,
+            NULL,
+            &consumer_struct,
+            SSA_DATA_NODE_OPT_POST_ORDER | SSA_DATA_NODE_OPT_RECURSIVE,
+            map_data_nodes_bytecodes_to_control_consumer
+    );
 }
 
 static struct ssa_no_phis_inserter * alloc_ssa_no_phis_inserter(struct arena_lox_allocator * ssa_node_allocator) {

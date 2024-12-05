@@ -33,25 +33,37 @@ typedef enum {
 #define ALLOC_SSA_DATA_NODE(type, struct_type, bytecode, allocator) (struct_type *) allocate_ssa_data_node(type, sizeof(struct_type), bytecode, allocator)
 #define GET_CONST_VALUE_SSA_NODE(node) (((struct ssa_data_constant_node *) (node))->constant_lox_value)
 
+//Represents expressions in CFG
 struct ssa_data_node {
     struct bytecode_list * original_bytecode;
     profile_data_type_t produced_type;
     ssa_data_node_type type;
 };
 
+//Start control_node is inclusive. The iteration order will be post order
+void * allocate_ssa_data_node(ssa_data_node_type type, size_t struct_size_bytes, struct bytecode_list *, struct lox_allocator *);
+void free_ssa_data_node(struct ssa_data_node *);
+
+enum {
+    SSA_DATA_NODE_OPT_NONE = 1,
+    //Default options:
+    SSA_DATA_NODE_OPT_POST_ORDER = 1,
+    SSA_DATA_NODE_OPT_RECURSIVE = 1,
+
+    SSA_DATA_NODE_OPT_NOT_RECURSIVE = 1 << 1,
+    SSA_DATA_NODE_OPT_PRE_ORDER = 1 << 1,
+};
 typedef void (*ssa_data_node_consumer_t)(
         struct ssa_data_node * parent,
         void ** parent_child_ptr,
         struct ssa_data_node * child,
         void * extra
 );
-//Start node is inclusive. The iteration order will be post order
-void * allocate_ssa_data_node(ssa_data_node_type type, size_t struct_size_bytes, struct bytecode_list *, struct lox_allocator *);
-void free_ssa_data_node(struct ssa_data_node *);
+void for_each_ssa_data_node(struct ssa_data_node *, void **, void *, long options, ssa_data_node_consumer_t);
 
-void for_each_ssa_data_node(struct ssa_data_node *, void **, void *, ssa_data_node_consumer_t);
 struct ssa_data_constant_node * create_ssa_const_node(lox_value_t, struct bytecode_list *, struct lox_allocator *);
 struct u8_set get_used_locals_ssa_data_node(struct ssa_data_node *);
+uint64_t hash_ssa_data_node(struct ssa_data_node *);
 
 //OP_GET_LOCAL
 struct ssa_data_get_local_node {

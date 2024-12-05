@@ -29,7 +29,7 @@ struct ssa_block {
     //If it is 0, it means that the block doest not belong to a loop body
     int nested_loop_body;
     //Indicates if the current block belongs to the condition of a loop
-    //If this is true, it means that another OP_LOOP node will point to this node
+    //If this is true, it means that another OP_LOOP control_node will point to this control_node
     bool loop_condition;
 
     //Set of pointers to ssa_block that points to this ssa_block

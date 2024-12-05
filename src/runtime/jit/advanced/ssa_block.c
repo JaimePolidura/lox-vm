@@ -41,26 +41,26 @@ void remove_control_node_ssa_block(
         struct ssa_block * ssa_block,
         struct ssa_control_node * node_to_remove
 ) {
-    //The block has only 1 control node
+    //The block has only 1 control control_node
     if(ssa_block->first == ssa_block->last){
         ssa_block->first = ssa_block->last = NULL;
         return;
     }
-    //We are removing the first node
+    //We are removing the first control_node
     if(ssa_block->first == node_to_remove) {
         ssa_block->first = node_to_remove->next;
     }
-    //We are removing the last node
+    //We are removing the last control_node
     if(ssa_block->last == node_to_remove){
         ssa_block->last = node_to_remove->prev;
     }
-    //There is only one node remaining
+    //There is only one control_node remaining
     if(ssa_block->last == ssa_block->first){
         ssa_block->first->next = NULL;
         ssa_block->first->prev = NULL;
         return;
     }
-    //Unlink the node from the control node linkedlist in a block
+    //Unlink the control_node from the control control_node linkedlist in a block
     if (node_to_remove != NULL) {
         node_to_remove->prev->next = node_to_remove->next;
     }
@@ -134,7 +134,7 @@ struct branch_removed remove_branch_ssa_ir(
 
     branch_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_SEQ;
     branch_block->next_as.next = branch_remains;
-    remove_control_node_ssa_block(branch_block, branch_block->last); //The last is the jump_conditional node
+    remove_control_node_ssa_block(branch_block, branch_block->last); //The last is the jump_conditional control_node
     if(is_emtpy_ssa_block(branch_block)){
         add_u64_set(&blocks_removed, (uint64_t) branch_block);
         replace_block_ssa_block(branch_block, branch_remains);
@@ -169,7 +169,7 @@ static struct u64_set get_blocks_to_remove(struct ssa_block * start_block) {
         struct u64_set_iterator current_block_predecesors_it;
         init_u64_set_iterator(&current_block_predecesors_it, current_block->predecesors);
 
-        //We check that the predecessors of the node that we are scanning, is contained the set of nodes that we want to
+        //We check that the predecessors of the control_node that we are scanning, is contained the set of nodes that we want to
         //remove
         bool current_block_can_be_removed = true;
         while(has_next_u64_set_iterator(current_block_predecesors_it)){

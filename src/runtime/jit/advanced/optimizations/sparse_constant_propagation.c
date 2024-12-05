@@ -1,4 +1,4 @@
-#include "scp.h"
+#include "sparse_constant_propagation.h"
 
 //TOP > SEMILATTICE_BOTTOM > CONSTANT
 //Don't change the order, the higher the index, the stronger when calculating binary operations
@@ -140,14 +140,14 @@ static void remove_death_branch(struct scp * scp, struct ssa_control_node * bran
         struct u64_set * removed_ssa_name_node_uses = get_u64_hash_table(&scp->ssa_ir->node_uses_by_ssa_name, removed_ssa_definition.u16);
 
         FOR_EACH_U64_SET_VALUE(*removed_ssa_name_node_uses, node_uses_removed_ssa_name_ptr) {
-            //Every node that uses the removed ssa_node in an extern node will use it to define another ssa name, with a phi function:
+            //Every control_node that uses the removed ssa_node in an extern control_node will use it to define another ssa name, with a phi function:
             //a2 = phi(a0, a1)
             struct ssa_control_define_ssa_name_node * node_uses_ssa_name = (void *) node_uses_removed_ssa_name_ptr;
             if(!contains_u64_set(&branch_removed.blocks_removed, (uint64_t) node_uses_ssa_name->control.block)){
                 struct ssa_data_phi_node * phi_node = (struct ssa_data_phi_node *) node_uses_ssa_name->value;
-                //Remove ssa name usage from phi node
+                //Remove ssa name usage from phi control_node
                 remove_u64_set(&phi_node->ssa_versions, removed_ssa_definition.value.version);
-                //If there is only 1 usage of a ssa name in a phi node, replace it with ssa_data_get_ssa_name_node node
+                //If there is only 1 usage of a ssa name in a phi control_node, replace it with ssa_data_get_ssa_name_node control_node
                 if (size_u64_set(phi_node->ssa_versions) == 1) {
                     node_uses_ssa_name->value = (struct ssa_data_node *) ALLOC_SSA_DATA_NODE(
                             SSA_DATA_NODE_TYPE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL, &scp->ssa_ir->ssa_nodes_allocator_arena.lox_allocator
@@ -205,7 +205,7 @@ static struct semilattice_value * get_semilattice_propagation_from_data(
         }
         case SSA_DATA_NODE_TYPE_GET_LOCAL:
         default:
-            runtime_panic("Unhandled ssa data node type %i in get_semilattice_initialization_from_data() in scp.c", current_node->type);
+            runtime_panic("Unhandled ssa data control_node type %i in get_semilattice_initialization_from_data() in scp.c", current_node->type);
     }
 }
 
@@ -292,7 +292,7 @@ struct constant_rewrite * rewrite_constant_expressions_propagation_data_node(
             return alloc_constant_rewrite(scp, current_node, semilattice_phi);
         }
         case SSA_DATA_NODE_TYPE_GET_LOCAL: {
-            runtime_panic("Illegal get local node in sparse constant scp ssa optimization");
+            runtime_panic("Illegal get local control_node in sparse constant scp ssa optimization");
         }
     }
 
@@ -365,7 +365,7 @@ struct constant_rewrite * rewrite_constant_expressions_initialization_data_node(
             return alloc_constant_rewrite(scp, current_node, alloc_bottom_semilatttice(scp));
         }
         case SSA_DATA_NODE_TYPE_GET_LOCAL: {
-            runtime_panic("Illegal get local node in sparse constant scp ssa optimization");
+            runtime_panic("Illegal get local control_node in sparse constant scp ssa optimization");
         }
     }
 
@@ -408,7 +408,7 @@ static struct semilattice_value * get_semilattice_initialization_from_data(struc
         }
         case SSA_DATA_NODE_TYPE_GET_LOCAL:
         default:
-            runtime_panic("Unhandled ssa data node type %i in get_semilattice_initialization_from_data() in scp.c", current_data_node->type);
+            runtime_panic("Unhandled ssa data control_node type %i in get_semilattice_initialization_from_data() in scp.c", current_data_node->type);
     }
 }
 
@@ -427,7 +427,7 @@ static void rewrite_constant_expressions_propagation(
         struct ssa_control_node * current_node
 ) {
     // We iterate all the ssa_data_nodes in method rewrite_constant_expressions_propagation_consumer
-    for_each_data_node_in_control_node(current_node, scp, SSA_CONTROL_NODE_OPT_NOT_RECURSIVE,
+    for_each_data_node_in_control_node(current_node, scp, SSA_DATA_NODE_OPT_NONE,
                                        rewrite_constant_expressions_propagation_consumer);
 }
 
@@ -445,7 +445,7 @@ static void rewrite_constant_expressions_initialization(
         struct scp * scp,
         struct ssa_control_node * current_node
 ) {
-    for_each_data_node_in_control_node(current_node, scp, SSA_CONTROL_NODE_OPT_NOT_RECURSIVE,
+    for_each_data_node_in_control_node(current_node, scp, SSA_DATA_NODE_OPT_NONE,
                                        rewrite_constant_expressions_initialization_consumer);
 }
 

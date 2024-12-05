@@ -96,12 +96,13 @@ typedef enum {
 
 #define N_VARIABLE_INSTRUCTION_N_POPS 0xFFFF
 
-bool is_fwd_jump_bytecode_instruction(bytecode_t instruction);
-bool is_bwd_jump_bytecode_instruction(bytecode_t instruction);
-bool is_jump_bytecode_instruction(bytecode_t instruction);
-bool is_constant_bytecode_instruction(bytecode_t instruction);
+bool is_fwd_jump_bytecode_instruction(bytecode_t);
+bool is_bwd_jump_bytecode_instruction(bytecode_t);
+bool is_jump_bytecode_instruction(bytecode_t);
+bool is_constant_bytecode_instruction(bytecode_t);
+bool is_commutative_bytecode_instruction(bytecode_t);
 
-int get_n_push_bytecode_instruction(bytecode_t instruction);
-int get_n_pop_bytecode_instruction(bytecode_t instruction);
+int get_n_push_bytecode_instruction(bytecode_t);
+int get_n_pop_bytecode_instruction(bytecode_t);
 
-int get_size_bytecode_instruction(bytecode_t instruction);
+int get_size_bytecode_instruction(bytecode_t);
