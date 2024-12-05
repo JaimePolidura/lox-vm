@@ -1,6 +1,6 @@
 #pragma once
 
-#include "shared/utils/collections/queue_list.h"1
+#include "shared/utils/collections/queue_list.h"
 #include "shared/utils/collections/u8_set.h"
 #include "ssa_control_node.h"
 
@@ -10,6 +10,8 @@ typedef enum {
     TYPE_NEXT_SSA_BLOCK_BRANCH,
     TYPE_NEXT_SSA_BLOCK_NONE, //OP_RETURN returns won't point to anything
 } type_next_ssa_block_t;
+
+#define BELONGS_TO_LOOP_BODY_BLOCK(block) ((block)->nested_loop_body > 0)
 
 //A block represents a list of instructions that run sequentially, there are no branches inside it
 //If there is a branch instruction, this block will point to a different block which will contain the branched code
@@ -23,8 +25,12 @@ struct ssa_block {
     //know what variables to copy
     struct u8_set use_before_assigment;
 
-    //Indicates if the current block belongs to the body of a loop
-    bool loop_body;
+    //Number of nested loops of which the block belongs to the loop body.
+    //If it is 0, it means that the block doest not belong to a loop body
+    int nested_loop_body;
+    //Indicates if the current block belongs to the condition of a loop
+    //If this is true, it means that another OP_LOOP node will point to this node
+    bool loop_condition;
 
     //Set of pointers to ssa_block that points to this ssa_block
     struct u64_set predecesors;

@@ -559,7 +559,7 @@ static void loop(struct ssa_no_phis_inserter * inserter, struct pending_evaluate
 
     if(to_jump_ssa_node->type == SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP){
         struct ssa_control_conditional_jump_node * loop_condition_node = (struct ssa_control_conditional_jump_node *) to_jump_ssa_node;
-        loop_condition_node->loop_condition = true;
+        to_evalute->block->loop_condition = true;
     }
 
     to_evalute->block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_LOOP;
@@ -575,6 +575,8 @@ static void jump(struct ssa_no_phis_inserter * insterter, struct pending_evaluat
     //OP_JUMP are translated to edges in the ssa ir graph
     struct bytecode_list * to_jump_bytecode = simplify_redundant_unconditional_jump_bytecodes(to_evalute->pending_bytecode->as.jump);
     struct ssa_block * new_block = get_block_by_first_bytecode(insterter, to_jump_bytecode);
+
+    new_block->nested_loop_body = to_evalute->block->nested_loop_body;
 
     //FIXME Bug here, to_evalute->prev_control_node is NULL
     to_evalute->block->last = to_evalute->prev_control_node;
@@ -612,7 +614,10 @@ static void jump_if_false(struct ssa_no_phis_inserter * inserter, struct pending
         condition_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_BRANCH;
         condition_block->next_as.branch.true_branch = true_branch_block;
         condition_block->next_as.branch.false_branch = false_branch_block;
-        true_branch_block->loop_body = true;
+        condition_block->loop_condition = true;
+        condition_block->nested_loop_body = parent_block->nested_loop_body + 1;
+        true_branch_block->nested_loop_body = parent_block->nested_loop_body + 1;
+        false_branch_block->nested_loop_body = parent_block->nested_loop_body;
 
         add_u64_set(&condition_block->predecesors, (uint64_t) parent_block);
         add_u64_set(&false_branch_block->predecesors, (uint64_t) condition_block);
@@ -623,6 +628,9 @@ static void jump_if_false(struct ssa_no_phis_inserter * inserter, struct pending
         parent_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_BRANCH;
         parent_block->next_as.branch.false_branch = false_branch_block;
         parent_block->next_as.branch.true_branch = true_branch_block;
+
+        false_branch_block->nested_loop_body = parent_block->nested_loop_body;
+        true_branch_block->nested_loop_body = parent_block->nested_loop_body;
 
         add_u64_set(&false_branch_block->predecesors, (uint64_t) parent_block);
         add_u64_set(&true_branch_block->predecesors, (uint64_t) parent_block);

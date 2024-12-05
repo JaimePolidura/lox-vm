@@ -15,18 +15,13 @@ static bool node_uses_version(struct ssa_data_node * start_node, int n_expected_
 static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expected_versions, ...);
 static bool node_defines_ssa_name(struct ssa_control_node *, int version);
 
-TEST(ssa_scp_optimizations2){
+TEST(ssa_nested_loop){
     struct compilation_result compilation = compile_standalone(
             "fun function_ssa(a, b) {"
-            "   a = 2;"
-            "   a = a + 2;"
-            "   if(a > 10){"
-            "       a = 5;"
+            "   for(var i = 0; i < 10; i = i + 1) {"
+            "       for(var j = 0; j < 10; j = j + 1) {"
+            "       }"
             "   }"
-            "   if(a < 10) {"
-            "       a = 10;"
-            "   }"
-            "   return a;"
             "}"
     );
     struct package * package = compilation.compiled_package;
@@ -34,11 +29,12 @@ TEST(ssa_scp_optimizations2){
     int n_instructions = function_ssa->chunk->in_use;
     init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
 
+    //Observe the generated graph IR
     generate_ssa_graphviz_graph(
             package,
             function_ssa,
-            PHIS_OPTIMIZED_PHASE_SSA_GRAPHVIZ,
-            DEFAULT_GRAPHVIZ_OPT,
+            SPARSE_CONSTANT_PROPAGATION_PHASE_SSA_GRAPHVIZ,
+            NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
     );
 }
@@ -159,7 +155,7 @@ TEST(ssa_phis_inserter){
     struct ssa_control_set_local_node * increment_i_loop = (struct ssa_control_set_local_node *) extract_i_loop->control.next;
     ASSERT_TRUE(node_defines_ssa_name(&increment_i_loop->control, 3)); //i3 = i2 + 1;
     ASSERT_TRUE(node_uses_phi_versions(increment_i_loop->new_local_value, 1, 2)); //i3 = i2 + 1;
-    
+
     //Final block
     struct ssa_block * final_block = a_condition_true_b_condition_true->next_as.next;
     struct ssa_control_define_ssa_name_node * final_block_print_a = (struct ssa_control_define_ssa_name_node *) final_block->first;

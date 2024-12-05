@@ -156,11 +156,10 @@ static void insert_phis_in_data_node_consumer(
     //We replace nodes with type SSA_DATA_NODE_TYPE_GET_LOCAL to SSA_DATA_NODE_TYPE_PHI
     if (current_node->type == SSA_DATA_NODE_TYPE_GET_LOCAL) {
         //We don't want to extract a = b; we want to extract only get_locals that are inside an expression
-
         struct ssa_data_get_local_node * get_local = (struct ssa_data_get_local_node *) current_node;
         uint8_t local_number = get_local->local_number;
 
-        if(block->loop_body &&
+        if(BELONGS_TO_LOOP_BODY_BLOCK(block) &&
            inside_expression &&
            contains_u8_set(&block->use_before_assigment, local_number)
         ){
@@ -286,7 +285,9 @@ static void extract_get_local(
     //Insert the new node in the linkedlist of ssa_control_nodes
     extracted_set_local->control.next = control_node_to_extract;
     extracted_set_local->control.prev = control_node_to_extract->prev;
-    control_node_to_extract->prev->next = &extracted_set_local->control;
+    if(control_node_to_extract->prev != NULL){
+        control_node_to_extract->prev->next = &extracted_set_local->control;
+    }
     control_node_to_extract->prev = &extracted_set_local->control;
     if(to_extract_block->first == control_node_to_extract){
         to_extract_block->first = &extracted_set_local->control;

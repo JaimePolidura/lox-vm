@@ -314,8 +314,8 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
         }
         case SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP: {
             struct ssa_control_conditional_jump_node * cond_jump = (struct ssa_control_conditional_jump_node *) node;
-            char * node_desc = dynamic_format_string("ConditionalJump\\nLoop condition: %i", cond_jump->loop_condition);
-
+            char * node_desc = dynamic_format_string("ConditionalJump");
+            
             add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
             free(node_desc);
             if(!IS_FLAG_SET(visualizer->options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
