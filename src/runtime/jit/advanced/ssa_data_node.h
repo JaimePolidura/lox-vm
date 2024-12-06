@@ -64,6 +64,7 @@ void for_each_ssa_data_node(struct ssa_data_node *, void **, void *, long option
 struct ssa_data_constant_node * create_ssa_const_node(lox_value_t, struct bytecode_list *, struct lox_allocator *);
 struct u8_set get_used_locals_ssa_data_node(struct ssa_data_node *);
 uint64_t hash_ssa_data_node(struct ssa_data_node *);
+bool is_eq_ssa_data_node(struct ssa_data_node *, struct ssa_data_node *);
 
 //OP_GET_LOCAL
 struct ssa_data_get_local_node {

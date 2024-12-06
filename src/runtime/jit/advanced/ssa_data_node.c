@@ -43,6 +43,119 @@ struct u8_set get_used_locals_ssa_data_node(struct ssa_data_node * node) {
     return used_locals_set;
 }
 
+bool is_eq_ssa_data_node(struct ssa_data_node * a, struct ssa_data_node * b) {
+    if(a->type != b->type){
+        return false;
+    }
+
+    //At this point a & b have the same type.
+    switch (a->type) {
+        case SSA_DATA_NODE_TYPE_CONSTANT: {
+            return GET_CONST_VALUE_SSA_NODE(a) == GET_CONST_VALUE_SSA_NODE(b);
+        }
+        case SSA_DATA_NODE_TYPE_PHI: {
+            struct ssa_data_phi_node * a_phi = (struct ssa_data_phi_node *) a;
+            struct ssa_data_phi_node * b_phi = (struct ssa_data_phi_node *) b;
+            return a_phi->local_number == b_phi->local_number &&
+                size_u64_set(a_phi->ssa_versions) == size_u64_set(b_phi->ssa_versions) &&
+                is_subset_u64_set(a_phi->ssa_versions, b_phi->ssa_versions);
+        }
+        case SSA_DATA_NODE_TYPE_UNARY: {
+            struct ssa_data_unary_node * a_unary = (struct ssa_data_unary_node *) a;
+            struct ssa_data_unary_node * b_unary = (struct ssa_data_unary_node *) b;
+            return a_unary->operator_type == b_unary->operator_type &&
+                    is_eq_ssa_data_node(a_unary->operand, b_unary->operand);
+        }
+        case SSA_DATA_NODE_TYPE_GET_SSA_NAME: {
+            struct ssa_data_get_ssa_name_node * a_get_ssa_name = (struct ssa_data_get_ssa_name_node *) a;
+            struct ssa_data_get_ssa_name_node * b_get_ssa_name = (struct ssa_data_get_ssa_name_node *) b;
+            return a_get_ssa_name->ssa_name.value.local_number == b_get_ssa_name->ssa_name.value.local_number &&
+                    a_get_ssa_name->ssa_name.value.version == b_get_ssa_name->ssa_name.value.version;
+        }
+        case SSA_DATA_NODE_TYPE_GET_LOCAL: {
+            struct ssa_data_get_local_node * a_get_local = (struct ssa_data_get_local_node *) a;
+            struct ssa_data_get_local_node * b_get_local = (struct ssa_data_get_local_node *) b;
+            return a_get_local->local_number == b_get_local->local_number;
+        }
+        case SSA_DATA_NODE_TYPE_GET_GLOBAL: {
+            struct ssa_data_get_global_node * a_get_glocal = (struct ssa_data_get_global_node *) a;
+            struct ssa_data_get_global_node * b_get_glocal = (struct ssa_data_get_global_node *) b;
+            return a_get_glocal->package == b_get_glocal->package &&
+                a_get_glocal->name->length == b_get_glocal->name->length &&
+                string_equals_ignore_case(a_get_glocal->name->chars, b_get_glocal->name->chars, b_get_glocal->name->length);
+        }
+        case SSA_DATA_NODE_TYPE_CALL: {
+            struct ssa_data_function_call_node * a_call = (struct ssa_data_function_call_node *) a;
+            struct ssa_data_function_call_node * b_call = (struct ssa_data_function_call_node *) b;
+            if(a_call->is_parallel != b_call->is_parallel || is_eq_ssa_data_node(a_call->function, b_call->function)) {
+                return false;
+            }
+            for(int i = 0; i < a_call->n_arguments; i++){
+                if(!is_eq_ssa_data_node(a_call->arguments[i], b_call->arguments[i])){
+                    return false;
+                }
+            }
+            return true;
+        }
+        case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD: {
+            struct ssa_data_get_struct_field_node * a_get_field = (struct ssa_data_get_struct_field_node *) a;
+            struct ssa_data_get_struct_field_node * b_get_field = (struct ssa_data_get_struct_field_node *) b;
+            return a_get_field->field_name->length == b_get_field->field_name->length &&
+                    string_equals_ignore_case(a_get_field->field_name->chars, b_get_field->field_name->chars, a_get_field->field_name->length) &&
+                    is_eq_ssa_data_node(a_get_field->instance_node, b_get_field->instance_node);
+        }
+        case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT: {
+            struct ssa_data_initialize_struct_node * a_init_struct = (struct ssa_data_initialize_struct_node *) a;
+            struct ssa_data_initialize_struct_node * b_init_struct = (struct ssa_data_initialize_struct_node *) b;
+            if(a_init_struct->definition != b_init_struct->definition){
+                return false;
+            }
+            for(int i = 0; i < a_init_struct->definition->n_fields; i++){
+                if(!is_eq_ssa_data_node(a_init_struct->fields_nodes[i], b_init_struct->fields_nodes[i])){
+                    return false;
+                }
+            }
+            return true;
+        }
+        case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
+            struct ssa_data_get_array_element_node * a_get_array_ele = (struct ssa_data_get_array_element_node *) a;
+            struct ssa_data_get_array_element_node * b_get_array_ele = (struct ssa_data_get_array_element_node *) b;
+            return a_get_array_ele->index == b_get_array_ele->index &&
+                   is_eq_ssa_data_node(a_get_array_ele->instance, b_get_array_ele->instance);
+        }
+        case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY: {
+            struct ssa_data_initialize_array_node * a_init_array = (struct ssa_data_initialize_array_node *) a;
+            struct ssa_data_initialize_array_node * b_init_array = (struct ssa_data_initialize_array_node *) b;
+            if (a_init_array->empty_initialization != b_init_array->empty_initialization ||
+                a_init_array->n_elements != b_init_array->n_elements) {
+                return false;
+            }
+
+            for(int i = 0; i < a_init_array->n_elements && !a_init_array->empty_initialization; i++){
+                if(is_eq_ssa_data_node(a_init_array->elememnts_node[i], b_init_array->elememnts_node[i])){
+                    return false;
+                }
+            }
+
+            return true;
+        }
+        case SSA_DATA_NODE_TYPE_BINARY: {
+            struct ssa_data_binary_node * a_binary = (struct ssa_data_binary_node *) a;
+            struct ssa_data_binary_node * b_binary = (struct ssa_data_binary_node *) b;
+            if(a_binary->operand != b_binary->operand){
+                return false;
+            }
+            bool is_commutative = is_commutative_bytecode_instruction(a_binary->operand);
+            if(is_commutative) {
+                return (is_eq_ssa_data_node(a_binary->left, b_binary->left) && is_eq_ssa_data_node(a_binary->right, b_binary->right)) ||
+                        (is_eq_ssa_data_node(a_binary->left, b_binary->right) && is_eq_ssa_data_node(a_binary->left, b_binary->right));
+            } else {
+                return is_eq_ssa_data_node(a_binary->left, b_binary->left) && is_eq_ssa_data_node(a_binary->right, b_binary->right);
+            }
+        }
+    }
+}
+
 void for_each_ssa_data_node(struct ssa_data_node * node, void ** parent_ptr, void * extra, long options, ssa_data_node_consumer_t consumer) {
     for_each_ssa_data_node_recursive(NULL, parent_ptr, node, extra, options, consumer);
 }
