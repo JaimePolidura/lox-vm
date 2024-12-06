@@ -229,3 +229,8 @@ void replace_block_ssa_block(struct ssa_block * old_block, struct ssa_block * ne
         }
     }
 }
+
+bool dominates_ssa_block(struct ssa_block * a, struct ssa_block * b) {
+    //TODO
+    return false;
+}

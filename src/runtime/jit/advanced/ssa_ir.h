@@ -24,9 +24,14 @@ struct ssa_ir {
     struct u64_hash_table node_uses_by_ssa_name;
     //All control, data & blocks will be allocated in the arena
     struct arena_lox_allocator ssa_nodes_allocator_arena;
+    //Function of the ssa_ir
+    struct function_object * function;
 };
 
 //Removes the references in the struct ssa_ir data structure to the ssa_name. It doest
 //remove the nodes that uses the ssa name
 void remove_names_references_ssa_ir(struct ssa_ir *, struct u64_set);
 void remove_name_references_ssa_ir(struct ssa_ir *, struct ssa_name);
+
+struct ssa_name alloc_ssa_name_ssa_ir(struct ssa_ir *, int ssa_version, char *local_name);
+void add_ssa_name_use_ssa_ir(struct ssa_ir *, struct ssa_name, struct ssa_control_node *);

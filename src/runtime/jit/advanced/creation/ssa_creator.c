@@ -26,6 +26,7 @@ struct ssa_ir create_ssa_ir(
         .node_uses_by_ssa_name = optimization_result.node_uses_by_ssa_name,
         .ssa_nodes_allocator_arena = ssa_nodes_allocator,
         .first_block = first_block,
+        .function = function,
     };
 }
 
