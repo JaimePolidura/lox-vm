@@ -59,7 +59,8 @@ void add_before_control_node_ssa_block(struct ssa_block *, struct ssa_control_no
 void remove_control_node_ssa_block(struct ssa_block *, struct ssa_control_node *);
 bool is_emtpy_ssa_block(struct ssa_block *);
 //a dominates b
-bool dominates_ssa_block(struct ssa_block * a, struct ssa_block * b);
+bool dominates_ssa_block(struct ssa_block * a, struct ssa_block * b, struct lox_allocator *);
+struct u64_set get_dominator_set_ssa_block(struct ssa_block *, struct lox_allocator *);
 
 //Replaces references to old_block of the predecessors of old_block to point to new_block
 //Example: A -> B -> C. replace_block_ssa_block(old_block = B, new_block = C), the result: A -> C

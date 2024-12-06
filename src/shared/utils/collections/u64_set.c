@@ -68,6 +68,14 @@ void remove_u64_set(struct u64_set * set, uint64_t value) {
     remove_u64_hash_table(&set->inner_hash_table, value);
 }
 
+void intersection_u64_set(struct u64_set * a, struct u64_set b) {
+    FOR_EACH_U64_SET_VALUE(*a, current_a_value) {
+        if(!contains_u64_set(&b, current_a_value)){
+            remove_u64_set(a, current_a_value);
+        }
+    }
+}
+
 void union_u64_set(struct u64_set * values, struct u64_set other) {
     struct u64_set_iterator other_it;
     init_u64_set_iterator(&other_it, other);

@@ -230,7 +230,23 @@ void replace_block_ssa_block(struct ssa_block * old_block, struct ssa_block * ne
     }
 }
 
-bool dominates_ssa_block(struct ssa_block * a, struct ssa_block * b) {
-    //TODO
-    return false;
+bool dominates_ssa_block(struct ssa_block * a, struct ssa_block * b, struct lox_allocator * allocator) {
+    struct u64_set dominator_set_b = get_dominator_set_ssa_block(b, allocator);
+    return contains_u64_set(&dominator_set_b, (uint64_t) a);
+}
+
+struct u64_set get_dominator_set_ssa_block(struct ssa_block * block, struct lox_allocator * allocator) {
+    struct u64_set dominator_set;
+    init_u64_set(&dominator_set, allocator);
+
+    if (size_u64_set(block->predecesors) == 0) {
+        add_u64_set(&dominator_set, (uint64_t) block);
+    }
+
+    FOR_EACH_U64_SET_VALUE(block->predecesors, predecesor_block_ptr) {
+        struct ssa_block * predecessor = (struct ssa_block *) predecesor_block_ptr;
+        intersection_u64_set(&dominator_set, get_dominator_set_ssa_block(predecessor, allocator));
+    }
+
+    return dominator_set;
 }
