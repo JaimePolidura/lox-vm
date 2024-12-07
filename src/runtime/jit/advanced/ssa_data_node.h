@@ -50,7 +50,7 @@ enum {
     SSA_DATA_NODE_OPT_NOT_RECURSIVE = 1 << 2,
     SSA_DATA_NODE_OPT_PRE_ORDER = 1 << 3,
 };
-typedef void (*ssa_data_node_consumer_t)(
+typedef bool (*ssa_data_node_consumer_t)(
         struct ssa_data_node * parent,
         void ** parent_child_ptr,
         struct ssa_data_node * child,

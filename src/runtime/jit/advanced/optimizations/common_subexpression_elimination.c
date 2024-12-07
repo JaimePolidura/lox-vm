@@ -86,7 +86,7 @@ void perform_cse_block(struct cse * cse, struct ssa_block * block) {
     }
 }
 
-void perform_cse_data_node_consumer(
+bool perform_cse_data_node_consumer(
         struct ssa_data_node * _,
         void ** parent_child_ptr,
         struct ssa_data_node * current_data_node,
@@ -103,13 +103,13 @@ void perform_cse_data_node_consumer(
             current_data_node->type == SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD ||
             current_data_node->type == SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT ||
             current_data_node->type == SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY) {
-        return;
+        return true;
     }
     //We don't want to replace the main expression that is used in a loop condition
     if (current_control_node->type == SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP &&
         perform_cse_data_node->block->loop_condition &&
         current_data_node == GET_CONDITION_CONDITIONAL_JUMP_SSA_NODE(current_control_node)) {
-        return;
+        return true;
     }
 
     uint64_t hash_current_node = hash_ssa_data_node(current_data_node);
@@ -118,10 +118,10 @@ void perform_cse_data_node_consumer(
                 &perform_cse_data_node->cse->expressions_by_hash, hash_current_node);
 
         if(!is_eq_ssa_data_node(subexpression_to_reuse->data_node, current_data_node, &cse->cse_allocator.lox_allocator)){
-            return;
+            return true;
         }
         if(!dominates_ssa_block(subexpression_to_reuse->block, perform_cse_data_node->block, &cse->cse_allocator.lox_allocator)){
-            return;
+            return true;
         }
 
         if(subexpression_to_reuse->state == NOT_REUSABLE_SUBEXPRESSION){
@@ -129,10 +129,13 @@ void perform_cse_data_node_consumer(
         }
 
         reuse_subexpression(cse, subexpression_to_reuse, parent_child_ptr, current_control_node);
+        return false;
     } else {
         struct subexpression * subexpression = alloc_not_reusable_subsexpression(
                 perform_cse_data_node, current_data_node, parent_child_ptr);
         put_u64_hash_table(&cse->expressions_by_hash, hash_current_node, subexpression);
+
+        return true;
     }
 }
 

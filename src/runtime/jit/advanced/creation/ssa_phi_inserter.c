@@ -29,7 +29,7 @@ static void extract_get_local(struct ssa_phi_inserter *inserter, struct u8_hash_
                               uint8_t local_number, void ** parent_to_extract_get_local_ptr);
 static void put_version(struct u8_hash_table *, uint8_t local_number, uint8_t version);
 
-static void insert_phis_in_data_node_consumer(
+static bool insert_phis_in_data_node_consumer(
         struct ssa_data_node * parent,
         void ** parent_current_ptr,
         struct ssa_data_node * current_node,
@@ -145,7 +145,7 @@ static void insert_ssa_versions_in_control_node(
     }
 }
 
-static void insert_phis_in_data_node_consumer(
+static bool insert_phis_in_data_node_consumer(
         struct ssa_data_node * parent,
         void ** parent_current_ptr,
         struct ssa_data_node * current_node,
@@ -191,11 +191,13 @@ static void insert_phis_in_data_node_consumer(
         //Prevents this issue: i2 = phi(i0, i2) + 1 when inserting phi function in loop bodies
         if(control_node->type == SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME &&
             ((struct ssa_control_define_ssa_name_node *) control_node)->ssa_name.value.version == last_version){
-            return;
+            return true;
         }
 
         add_u64_set(&phi_node->ssa_versions, last_version);
     }
+
+    return true;
 }
 
 static uint8_t allocate_new_version(struct u8_hash_table * max_version_allocated_per_local, uint8_t local_number) {

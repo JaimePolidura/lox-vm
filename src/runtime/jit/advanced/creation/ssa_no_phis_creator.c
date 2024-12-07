@@ -673,7 +673,7 @@ struct map_data_nodes_bytecodes_to_control_struct {
     struct ssa_control_node * to_map_control;
 };
 
-static void map_data_nodes_bytecodes_to_control_consumer(
+static bool map_data_nodes_bytecodes_to_control_consumer(
         struct ssa_data_node * _,
         void ** __,
         struct ssa_data_node * current_node,
@@ -684,6 +684,8 @@ static void map_data_nodes_bytecodes_to_control_consumer(
     //Add data_node
     put_u64_hash_table(consumer_struct->control_ssa_nodes_by_bytecode, (uint64_t) current_node->original_bytecode,
                        consumer_struct->to_map_control);
+
+    return true;
 }
 
 //This function will map the control control_node bytecode to the to_map_control control control_node

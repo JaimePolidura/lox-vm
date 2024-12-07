@@ -5,7 +5,7 @@ static bool uses_same_binary_operation(struct ssa_data_node *, bytecode_t);
 static struct u64_set flat_out_binary_operand_nodes(struct ssa_data_node *node, struct lox_allocator *);
 static bool check_equivalence_flatted_out(struct u64_set, struct u64_set, struct lox_allocator *);
 
-static void for_each_ssa_data_node_recursive(
+static bool for_each_ssa_data_node_recursive(
         struct ssa_data_node * parent_current,
         void ** parent_current_ptr,
         struct ssa_data_node * current_node,
@@ -28,13 +28,15 @@ void * allocate_ssa_data_node(
     return ssa_control_node;
 }
 
-void get_used_locals_consumer(struct ssa_data_node * _, void ** __, struct ssa_data_node * current_node, void * extra) {
+bool get_used_locals_consumer(struct ssa_data_node * _, void ** __, struct ssa_data_node * current_node, void * extra) {
     struct u8_set * used_locals_set = (struct u8_set *) extra;
 
     if(current_node->type == SSA_DATA_NODE_TYPE_GET_LOCAL){
         struct ssa_data_get_local_node * get_local = (struct ssa_data_get_local_node *) current_node;
         add_u8_set(used_locals_set, get_local->local_number);
     }
+
+    return true;
 }
 
 struct u8_set get_used_locals_ssa_data_node(struct ssa_data_node * node) {
@@ -178,7 +180,7 @@ void for_each_ssa_data_node(struct ssa_data_node * node, void ** parent_ptr, voi
     for_each_ssa_data_node_recursive(NULL, parent_ptr, node, extra, options, consumer);
 }
 
-static void for_each_ssa_data_node_recursive(
+static bool for_each_ssa_data_node_recursive(
         struct ssa_data_node * parent_current,
         void ** parent_current_ptr,
         struct ssa_data_node * current_node,
@@ -186,62 +188,68 @@ static void for_each_ssa_data_node_recursive(
         long options,
         ssa_data_node_consumer_t consumer
 ) {
+    bool continue_for_each = true;
+
     if(IS_FLAG_SET(options, SSA_DATA_NODE_OPT_PRE_ORDER)){
-        consumer(parent_current, parent_current_ptr, current_node, extra);
+        continue_for_each = consumer(parent_current, parent_current_ptr, current_node, extra);
     }
 
     switch (current_node->type) {
         case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT: {
             struct ssa_data_initialize_struct_node * init_struct = (struct ssa_data_initialize_struct_node *) current_node;
-            for(int i = 0; i < init_struct->definition->n_fields; i++) {
-                if (IS_FLAG_SET(options, SSA_DATA_NODE_OPT_NOT_RECURSIVE)) {
-                    consumer(current_node, (void **) &init_struct->fields_nodes[i], init_struct->fields_nodes[i], extra);
-                } else {
-                    for_each_ssa_data_node_recursive(current_node, (void **) &init_struct->fields_nodes[i], init_struct->fields_nodes[i], extra, options, consumer);
-                }
+            for(int i = 0; i < init_struct->definition->n_fields && continue_for_each; i++) {
+                continue_for_each = IS_FLAG_SET(options, SSA_DATA_NODE_OPT_NOT_RECURSIVE) ?
+                        consumer(current_node, (void **) &init_struct->fields_nodes[i], init_struct->fields_nodes[i], extra) :
+                        for_each_ssa_data_node_recursive(current_node, (void **) &init_struct->fields_nodes[i], init_struct->fields_nodes[i], extra, options, consumer);
             }
             break;
         }
         case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD: {
             struct ssa_data_get_struct_field_node * get_struct_field = (struct ssa_data_get_struct_field_node *) current_node;
             if (IS_FLAG_SET(options, SSA_DATA_NODE_OPT_NOT_RECURSIVE)) {
-                consumer(current_node, (void **) &get_struct_field->instance_node, get_struct_field->instance_node, extra);
+                continue_for_each = consumer(current_node, (void **) &get_struct_field->instance_node, get_struct_field->instance_node, extra);
             } else {
-                for_each_ssa_data_node_recursive(current_node, (void **) &get_struct_field->instance_node, get_struct_field->instance_node, extra, options, consumer);
+                continue_for_each = for_each_ssa_data_node_recursive(current_node, (void **) &get_struct_field->instance_node, get_struct_field->instance_node, extra, options, consumer);
             }
             break;
         }
         case SSA_DATA_NODE_TYPE_BINARY: {
             struct ssa_data_binary_node * binary_node = (struct ssa_data_binary_node *) current_node;
-            if (IS_FLAG_SET(options, SSA_DATA_NODE_OPT_NOT_RECURSIVE)) {
-                consumer(current_node, (void **) &binary_node->left, binary_node->left, extra);
-                consumer(current_node, (void **) &binary_node->right, binary_node->right, extra);
-            } else {
-                for_each_ssa_data_node_recursive(current_node, (void **) &binary_node->left, binary_node->left, extra, options, consumer);
-                for_each_ssa_data_node_recursive(current_node, (void **) &binary_node->right, binary_node->right, extra, options, consumer);
-            }
+            if (IS_FLAG_SET(options, SSA_DATA_NODE_OPT_NOT_RECURSIVE))
+                continue_for_each = consumer(current_node, (void **) &binary_node->left, binary_node->left, extra);
+            else
+                continue_for_each = for_each_ssa_data_node_recursive(current_node, (void **) &binary_node->left, binary_node->left, extra, options, consumer);
+
+            if(!continue_for_each)
+                break;
+
+            if (IS_FLAG_SET(options, SSA_DATA_NODE_OPT_NOT_RECURSIVE))
+                continue_for_each = consumer(current_node, (void **) &binary_node->right, binary_node->right, extra);
+            else
+                continue_for_each = for_each_ssa_data_node_recursive(current_node, (void **) &binary_node->right, binary_node->right, extra, options, consumer);
+
             break;
         }
         case SSA_DATA_NODE_TYPE_UNARY: {
             struct ssa_data_unary_node * unary = (struct ssa_data_unary_node *) current_node;
             if (IS_FLAG_SET(options, SSA_DATA_NODE_OPT_NOT_RECURSIVE)) {
-                consumer(current_node, (void **) &unary->operand, unary->operand, extra);
+                continue_for_each = consumer(current_node, (void **) &unary->operand, unary->operand, extra);
             } else {
-                for_each_ssa_data_node_recursive(current_node, (void **) &unary->operand, unary->operand, extra, options, consumer);
+                continue_for_each = for_each_ssa_data_node_recursive(current_node, (void **) &unary->operand, unary->operand, extra, options, consumer);
             }
             break;
         }
         case SSA_DATA_NODE_TYPE_CALL: {
             struct ssa_data_function_call_node * call_node = (struct ssa_data_function_call_node *) current_node;
             if (IS_FLAG_SET(options, SSA_DATA_NODE_OPT_NOT_RECURSIVE)) {
-                consumer(current_node, (void **) &call_node->function, call_node->function, extra);
-                for (int i = 0; i < call_node->n_arguments; i++) {
-                    consumer(current_node, (void **) &call_node->arguments[i], call_node->arguments[i], extra);
+                continue_for_each = consumer(current_node, (void **) &call_node->function, call_node->function, extra);
+                for (int i = 0; i < call_node->n_arguments && continue_for_each; i++) {
+                    continue_for_each = consumer(current_node, (void **) &call_node->arguments[i], call_node->arguments[i], extra);
                 }
             } else {
-                for_each_ssa_data_node_recursive(current_node, (void **) &call_node->function, call_node->function, extra, options, consumer);
-                for (int i = 0; i < call_node->n_arguments; i++) {
-                    for_each_ssa_data_node_recursive(current_node, (void **) &call_node->arguments[i], call_node->arguments[i], extra, options, consumer);
+                continue_for_each = for_each_ssa_data_node_recursive(current_node, (void **) &call_node->function, call_node->function, extra, options, consumer);
+                for (int i = 0; i < call_node->n_arguments && continue_for_each; i++) {
+                    continue_for_each = for_each_ssa_data_node_recursive(current_node, (void **) &call_node->arguments[i], call_node->arguments[i], extra, options, consumer);
                 }
             }
             break;
@@ -249,21 +257,22 @@ static void for_each_ssa_data_node_recursive(
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
             struct ssa_data_get_array_element_node * get_array_element = (struct ssa_data_get_array_element_node *) current_node;
             if (IS_FLAG_SET(options, SSA_DATA_NODE_OPT_NOT_RECURSIVE)) {
-                consumer(current_node, (void **) &get_array_element->instance, get_array_element->instance, extra);
+                continue_for_each = consumer(current_node, (void **) &get_array_element->instance, get_array_element->instance, extra);
             } else {
-                for_each_ssa_data_node_recursive(current_node, (void **) &get_array_element->instance, get_array_element->instance, extra, options, consumer);
+                continue_for_each = for_each_ssa_data_node_recursive(current_node, (void **) &get_array_element->instance, get_array_element->instance, extra, options, consumer);
             }
             break;
         }
         case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY: {
             struct ssa_data_initialize_array_node * init_array = (struct ssa_data_initialize_array_node *) current_node;
             if (IS_FLAG_SET(options, SSA_DATA_NODE_OPT_NOT_RECURSIVE)) {
-                for(int i = 0; i < init_array->n_elements && !init_array->empty_initialization; i++){
-                    consumer(current_node, (void **) &init_array->elememnts_node[i], init_array->elememnts_node[i], extra);
+                for(int i = 0; i < init_array->n_elements && !init_array->empty_initialization && continue_for_each; i++){
+                    continue_for_each = consumer(current_node, (void **) &init_array->elememnts_node[i], init_array->elememnts_node[i], extra);
                 }
             } else {
-                for(int i = 0; i < init_array->n_elements && !init_array->empty_initialization; i++){
-                    for_each_ssa_data_node_recursive(current_node, (void **) &init_array->elememnts_node[i], init_array->elememnts_node[i], extra, options, consumer);
+                for(int i = 0; i < init_array->n_elements && !init_array->empty_initialization && continue_for_each; i++){
+                    continue_for_each = for_each_ssa_data_node_recursive(current_node, (void **) &init_array->elememnts_node[i],
+                        init_array->elememnts_node[i], extra, options, consumer);
                 }
             }
             break;
@@ -272,9 +281,11 @@ static void for_each_ssa_data_node_recursive(
             break;
     }
 
-    if (IS_FLAG_SET(options, SSA_DATA_NODE_OPT_POST_ORDER)) {
-        consumer(parent_current, parent_current_ptr, current_node, extra);
+    if (IS_FLAG_SET(options, SSA_DATA_NODE_OPT_POST_ORDER) && continue_for_each) {
+        continue_for_each = consumer(parent_current, parent_current_ptr, current_node, extra);
     }
+
+    return continue_for_each;
 }
 
 struct ssa_data_constant_node * create_ssa_const_node(
@@ -324,13 +335,14 @@ struct ssa_data_constant_node * create_ssa_const_node(
     return constant_node;
 }
 
-static void free_ssa_data_node_consumer(
+static bool free_ssa_data_node_consumer(
         struct ssa_data_node * _,
         void ** __,
         struct ssa_data_node * current_node,
         void * ___
 ) {
     NATIVE_LOX_FREE(current_node);
+    return true;
 }
 
 void free_ssa_data_node(struct ssa_data_node * node_to_free) {
@@ -437,7 +449,7 @@ struct uses_same_binary_operation_consumer_struct {
     bytecode_t expected_operation;
 };
 
-void uses_same_binary_operation_consumer(
+bool uses_same_binary_operation_consumer(
         struct ssa_data_node * _,
         void ** __,
         struct ssa_data_node * child,
@@ -450,6 +462,8 @@ void uses_same_binary_operation_consumer(
             consumer_struct->uses_same_op = false;
         }
     }
+
+    return true;
 }
 
 static bool uses_same_binary_operation(struct ssa_data_node * start_node, bytecode_t operation) {
@@ -469,7 +483,7 @@ static bool uses_same_binary_operation(struct ssa_data_node * start_node, byteco
     return consumer_struct.uses_same_op;
 }
 
-static void flat_out_binary_operand_nodes_consumer(
+static bool flat_out_binary_operand_nodes_consumer(
         struct ssa_data_node * _,
         void ** __,
         struct ssa_data_node * child,
@@ -479,6 +493,7 @@ static void flat_out_binary_operand_nodes_consumer(
     if (child->type != SSA_DATA_NODE_TYPE_BINARY) {
         add_u64_set(operands, (uint64_t) child);
     }
+    return true;
 }
 
 static struct u64_set flat_out_binary_operand_nodes(struct ssa_data_node * node, struct lox_allocator * allocator) {
