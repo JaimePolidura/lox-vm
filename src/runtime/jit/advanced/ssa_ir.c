@@ -12,7 +12,7 @@ void remove_name_references_ssa_ir(struct ssa_ir * ssa_ir, struct ssa_name ssa_n
     remove_u64_hash_table(&ssa_ir->node_uses_by_ssa_name, ssa_name_to_remove.u16);
 }
 
-struct ssa_name allco_ssa_name_ssa_ir(struct ssa_ir * ssa_ir, int ssa_version, char * local_name) {
+struct ssa_name alloc_ssa_name_ssa_ir(struct ssa_ir * ssa_ir, int ssa_version, char * local_name) {
     int local_number = ++ssa_ir->function->n_locals;
     struct ssa_name ssa_name = CREATE_SSA_NAME(local_number, ssa_version);
     put_u8_hash_table(&ssa_ir->function->local_numbers_to_names, local_number, local_name);

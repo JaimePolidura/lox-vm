@@ -56,7 +56,7 @@ void perform_cse(struct cse * cse) {
     init_stack_list(&pending, &cse->cse_allocator.lox_allocator);
     push_stack_list(&pending, cse->ssa_ir->first_block);
 
-    while(is_empty_stack_list(&pending)){
+    while(!is_empty_stack_list(&pending)){
         struct ssa_block * current_block = pop_stack_list(&pending);
 
         perform_cse_block(cse, current_block);
@@ -95,6 +95,14 @@ void perform_cse_data_node_consumer(
     struct ssa_control_node * current_control_node = perform_cse_data_node->control_node;
     struct cse * cse = perform_cse_data_node->cse;
 
+    //These data node types won't be optimized
+    if(current_data_node->type == SSA_DATA_NODE_TYPE_CALL ||
+            current_data_node->type == SSA_DATA_NODE_TYPE_CONSTANT ||
+            current_data_node->type == SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD ||
+            current_data_node->type == SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT ||
+            current_data_node->type == SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY) {
+        return;
+    }
     //We don't want to replace the main expression that is used in a loop condition
     if (current_control_node->type == SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP &&
         perform_cse_data_node->block->loop_condition &&
@@ -110,7 +118,7 @@ void perform_cse_data_node_consumer(
         if(!is_eq_ssa_data_node(subexpression_to_reuse->data_node, current_data_node)){
             return;
         }
-        if(!dominates_ssa_block(subexpression_to_reuse->block, perform_cse_data_node->block)){
+        if(!dominates_ssa_block(subexpression_to_reuse->block, perform_cse_data_node->block, &cse->cse_allocator.lox_allocator)){
             return;
         }
 
@@ -183,7 +191,8 @@ static void extract_to_ssa_name(struct cse * cse, struct subexpression * subexpr
     struct ssa_name extracted_ssa_name = alloc_ssa_name_ssa_ir(cse->ssa_ir, 1, "temp");
 
     struct ssa_control_define_ssa_name_node * define_ssa_name_extracted = ALLOC_SSA_CONTROL_NODE(
-            SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME, struct ssa_control_define_ssa_name_node, subexpression_to_extract->block, NULL
+            SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME, struct ssa_control_define_ssa_name_node,
+                    subexpression_to_extract->block, &cse->cse_allocator.lox_allocator
     );
     define_ssa_name_extracted->value = subexpression_to_extract->data_node;
     define_ssa_name_extracted->ssa_name = extracted_ssa_name;

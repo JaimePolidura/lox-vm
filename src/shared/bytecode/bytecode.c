@@ -54,7 +54,7 @@ struct bytecode_instruction_data bytecode_instructions_data[] = {
         [OP_EXIT_MONITOR_EXPLICIT] = {.constant = false, .size = OP_EXIT_MONITOR_EXPLICIT_LENGTH, .n_pops = 0, .n_push = 0},
  };
 
-bool is_commutative_bytecode_instruction(bytecode_t instruction) {
+bool is_commutative_associative_bytecode_instruction(bytecode_t instruction) {
     return instruction == OP_ADD || instruction == OP_MUL || instruction == OP_EQUAL;
 }
 

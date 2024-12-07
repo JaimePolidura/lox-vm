@@ -45,13 +45,10 @@ void * allocate_ssa_data_node(ssa_data_node_type type, size_t struct_size_bytes,
 void free_ssa_data_node(struct ssa_data_node *);
 
 enum {
-    SSA_DATA_NODE_OPT_NONE = 1,
-    //Default options:
-    SSA_DATA_NODE_OPT_POST_ORDER = 1,
-    SSA_DATA_NODE_OPT_RECURSIVE = 1,
-
-    SSA_DATA_NODE_OPT_NOT_RECURSIVE = 1 << 1,
-    SSA_DATA_NODE_OPT_PRE_ORDER = 1 << 1,
+    SSA_DATA_NODE_OPT_POST_ORDER = 1 << 0,
+    SSA_DATA_NODE_OPT_RECURSIVE = 1 << 1,
+    SSA_DATA_NODE_OPT_NOT_RECURSIVE = 1 << 2,
+    SSA_DATA_NODE_OPT_PRE_ORDER = 1 << 3,
 };
 typedef void (*ssa_data_node_consumer_t)(
         struct ssa_data_node * parent,
@@ -63,6 +60,8 @@ void for_each_ssa_data_node(struct ssa_data_node *, void **, void *, long option
 
 struct ssa_data_constant_node * create_ssa_const_node(lox_value_t, struct bytecode_list *, struct lox_allocator *);
 struct u8_set get_used_locals_ssa_data_node(struct ssa_data_node *);
+//Returns hashcode for ssa_data_node. The hashcode calculation should be the same for commative & associative data nodes. Example:
+//Hash(a + b) == Hash(b + a) Or Hash((a + b) + c) == Hash(b + (a + c))
 uint64_t hash_ssa_data_node(struct ssa_data_node *);
 bool is_eq_ssa_data_node(struct ssa_data_node *, struct ssa_data_node *);
 

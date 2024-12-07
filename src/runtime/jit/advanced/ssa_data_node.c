@@ -38,7 +38,13 @@ struct u8_set get_used_locals_ssa_data_node(struct ssa_data_node * node) {
     struct u8_set used_locals_set;
     init_u8_set(&used_locals_set);
 
-    for_each_ssa_data_node(node, NULL, &used_locals_set, SSA_DATA_NODE_OPT_NONE, &get_used_locals_consumer);
+    for_each_ssa_data_node(
+            node,
+            NULL,
+            &used_locals_set,
+            SSA_DATA_NODE_OPT_POST_ORDER | SSA_DATA_NODE_OPT_RECURSIVE,
+            &get_used_locals_consumer
+    );
 
     return used_locals_set;
 }
@@ -145,7 +151,7 @@ bool is_eq_ssa_data_node(struct ssa_data_node * a, struct ssa_data_node * b) {
             if(a_binary->operand != b_binary->operand){
                 return false;
             }
-            bool is_commutative = is_commutative_bytecode_instruction(a_binary->operand);
+            bool is_commutative = is_commutative_associative_bytecode_instruction(a_binary->operand);
             if(is_commutative) {
                 return (is_eq_ssa_data_node(a_binary->left, b_binary->left) && is_eq_ssa_data_node(a_binary->right, b_binary->right)) ||
                         (is_eq_ssa_data_node(a_binary->left, b_binary->right) && is_eq_ssa_data_node(a_binary->left, b_binary->right));
@@ -316,15 +322,21 @@ static void free_ssa_data_node_consumer(
 }
 
 void free_ssa_data_node(struct ssa_data_node * node_to_free) {
-    for_each_ssa_data_node(node_to_free, NULL, NULL, SSA_DATA_NODE_OPT_NONE, free_ssa_data_node_consumer);
+    for_each_ssa_data_node(
+            node_to_free,
+            NULL,
+            NULL,
+            SSA_DATA_NODE_OPT_POST_ORDER | SSA_DATA_NODE_OPT_RECURSIVE,
+            free_ssa_data_node_consumer
+    );
 }
 
 uint64_t mix_hash_not_commutative(uint64_t a, uint64_t b) {
-    return a ^ b;
+    return a ^ (b * 0x9e3779b97f4a7c15);
 }
 
 uint64_t mix_hash_commutative(uint64_t a, uint64_t b) {
-    return a ^ (b * 0x9e3779b97f4a7c15);
+    return a ^ b;
 }
 
 uint64_t hash_ssa_data_node(struct ssa_data_node * node) {
@@ -365,12 +377,11 @@ uint64_t hash_ssa_data_node(struct ssa_data_node * node) {
             struct ssa_data_binary_node * binary = (struct ssa_data_binary_node *) node;
             uint64_t right_hash = hash_ssa_data_node(binary->right);
             uint64_t left_hash = hash_ssa_data_node(binary->left);
-
-            if (is_commutative_bytecode_instruction(binary->operand)) {
-                return mix_hash_commutative(left_hash, right_hash);
-            } else {
-                return mix_hash_not_commutative(left_hash, right_hash);
-            }
+            
+            uint64_t operand_hash = is_commutative_associative_bytecode_instruction(binary->operand) ?
+                    mix_hash_commutative(left_hash, right_hash) :
+                    mix_hash_not_commutative(left_hash, right_hash);
+            return mix_hash_not_commutative(operand_hash, binary->operand);
         }
         case SSA_DATA_NODE_TYPE_UNARY: {
             struct ssa_data_unary_node * unary = (struct ssa_data_unary_node *) node;

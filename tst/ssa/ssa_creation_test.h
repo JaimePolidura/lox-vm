@@ -9,17 +9,24 @@
 
 #include "shared/utils/collections/u8_set.h"
 #include "compiler/compiler.h"
-#include "test.h"
+#include "../test.h"
 
 static bool node_uses_version(struct ssa_data_node * start_node, int n_expected_version);
 static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expected_versions, ...);
 static bool node_defines_ssa_name(struct ssa_control_node *, int version);
 
-TEST(ssa_nested_loop){
+TEST(ssa_creation_cse){
     struct compilation_result compilation = compile_standalone(
             "fun function_ssa(a, b) {"
-            "   for(var i = 0; i < 10; i = i + 1) {"
-            "       for(var j = i; j < i; j = j + 1) {"
+            "   var c = a + b;"
+            "   var d = 2 * (b + a);"
+            "   if(a > 0) {"
+            "       print a - b;"
+            "       if (a > 0) {"
+            "           print a * b;"
+            "           return 2 / (a - b);"
+            "       } else {"
+            "           return a * b;"
             "       }"
             "   }"
             "}"
@@ -33,13 +40,30 @@ TEST(ssa_nested_loop){
     generate_ssa_graphviz_graph(
             package,
             function_ssa,
-            PHIS_INSERTED_PHASE_SSA_GRAPHVIZ,
+            COMMON_SUBEXPRESSION_ELIMINATION_PHASE_SSA_GRAPHVIZ,
             NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
     );
 }
 
-TEST(ssa_scp_optimizations){
+TEST(ssa_creation_nested_loop){
+    struct compilation_result compilation = compile_standalone(
+            "fun function_ssa(a, b) {"
+            "   for(var i = 0; i < 10; i = i + 1) {"
+            "       for(var j = i; j < i; j = j + 1) {"
+            "       }"
+            "   }"
+            "}"
+    );
+    struct package * package = compilation.compiled_package;
+    struct function_object * function_ssa = get_function_package(package, "function_ssa");
+    int n_instructions = function_ssa->chunk->in_use;
+    init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
+
+    //TODO Pending add test
+}
+
+TEST(ssa_creation_scp){
     struct compilation_result compilation = compile_standalone(
             "fun function_ssa(a, b) {"
             "   a = 1;"
@@ -82,7 +106,7 @@ TEST(ssa_scp_optimizations){
 //      -> True: [b3 = 12; i2 = i4; i3 = i2 + 1;]
 //      -> False: FINAL BLOCK
 //FINAL BLOCK: [a4 = phi(a1, a2, a3); print a4; b4 = phi(b0, b1, b2, b3); print b4]
-TEST(ssa_phis_inserter){
+TEST(ssa_creation_phis_inserter_and_optimizer){
     struct compilation_result compilation = compile_standalone(
             "fun function_ssa(a, b) {"
             "   a = 1;"
@@ -107,16 +131,6 @@ TEST(ssa_phis_inserter){
     struct function_object * function_ssa = get_function_package(package, "function_ssa");
     int n_instructions = function_ssa->chunk->in_use;
     init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
-
-    //Observe the generated graph IR
-    generate_ssa_graphviz_graph(
-            package,
-            function_ssa,
-            PHIS_OPTIMIZED_PHASE_SSA_GRAPHVIZ,
-            NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT,
-            "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
-    );
-    exit(1);
 
     struct ssa_ir ssa_ir = create_ssa_ir(package, function_ssa, create_bytecode_list(function_ssa->chunk, NATIVE_LOX_ALLOCATOR()));
     struct ssa_block * start_ssa_block = ssa_ir.first_block;
@@ -191,7 +205,7 @@ TEST(ssa_phis_inserter){
 //      -> True: [print 1; i = i + 1] -> [¿i < 10?]
 //      -> False: FINAL BLOCK
 //FINAL BLOCK: [print a; print b];
-TEST(ssa_ir_no_phis_creation) {
+TEST(ssa_creation_no_phis) {
     struct compilation_result compilation = compile_standalone(
             "fun function_ssa(a, b, c) {"
             "   c = 1;"

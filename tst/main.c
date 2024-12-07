@@ -8,7 +8,8 @@
 #include "stack_test.h"
 #include "utils_test.h"
 #include "trie_test.h"
-#include "ssa_test.h"
+#include "ssa/ssa_creation_test.h"
+#include "ssa/ssa_node_test.h"
 #include "vm_test.h"
 #include "u8_set_test.h"
 #include "u8_hash_table.h"
@@ -25,7 +26,8 @@
 //#define RUN_UTILS_TEST
 //#define RUN_STACK_TEST
 //#define RUN_TRIE_TEST
-#define RUN_SSA_TEST
+//#define RUN_SSA_CREATION_TEST
+#define RUN_SSA_NODES_TEST
 //#define RUN_VM_TEST
 
 extern struct trie_list * compiled_packages;
@@ -45,11 +47,15 @@ int main() {
     u8_set_test_remove_outer();
     u8_set_test_add_contains_outer();
 #endif
-#ifdef RUN_SSA_TEST
-    ssa_nested_loop_outer();
-//    ssa_scp_optimizations_outer();
-//    ssa_phis_inserter_outer();
-//    ssa_ir_no_phis_creation_outer();
+#ifdef RUN_SSA_NODES_TEST
+    ssa_data_node_hash_outer();
+#endif
+#ifdef RUN_SSA_CREATION_TEST
+    ssa_creation_cse_outer();
+    ssa_creation_nested_loop_outer();
+    ssa_creation_scp_outer();
+    ssa_creation_phis_inserter_and_optimizer_outer();
+    ssa_creation_no_phis_outer();
 #endif
 #ifdef RUN_MARK_BITMAP_TEST
     multiple_mark_bitmap_test_outer();

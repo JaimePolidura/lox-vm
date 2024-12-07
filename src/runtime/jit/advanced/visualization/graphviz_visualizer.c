@@ -113,10 +113,22 @@ void generate_ssa_graphviz_graph(
             generate_graph_and_write(&graphviz_visualizer, ssa_ir.first_block);
             break;
         }
+        case COMMON_SUBEXPRESSION_ELIMINATION_PHASE_SSA_GRAPHVIZ: {
+            struct ssa_ir ssa_ir = create_ssa_ir(package, function, create_bytecode_list(function->chunk,
+                    &ssa_node_allocator.lox_allocator));
+
+            perform_common_subexpression_elimination(&ssa_ir);
+            graphviz_visualizer.ssa_ir = ssa_ir;
+
+            generate_graph_and_write(&graphviz_visualizer, ssa_ir.first_block);
+            break;
+        }
         case ALL_PHASE_SSA_GRAPHVIZ: {
             struct ssa_ir ssa_ir = create_ssa_ir(package, function, create_bytecode_list(function->chunk,
                 &ssa_node_allocator.lox_allocator));
             perform_sparse_constant_propagation(&ssa_ir);
+            perform_common_subexpression_elimination(&ssa_ir);
+
             graphviz_visualizer.ssa_ir = ssa_ir;
 
             generate_graph_and_write(&graphviz_visualizer, ssa_ir.first_block);

@@ -1,5 +1,5 @@
 #pragma once
-
+#include "runtime/jit/advanced/optimizations/common_subexpression_elimination.h"
 #include "runtime/jit/advanced/optimizations/sparse_constant_propagation.h"
 #include "runtime/jit/advanced/creation/ssa_creator.h"
 #include "runtime/jit/advanced/creation/ssa_no_phis_creator.h"
@@ -16,6 +16,7 @@ typedef enum {
     PHIS_INSERTED_PHASE_SSA_GRAPHVIZ,
     PHIS_OPTIMIZED_PHASE_SSA_GRAPHVIZ,
     SPARSE_CONSTANT_PROPAGATION_PHASE_SSA_GRAPHVIZ,
+    COMMON_SUBEXPRESSION_ELIMINATION_PHASE_SSA_GRAPHVIZ,
     ALL_PHASE_SSA_GRAPHVIZ,
 } phase_ssa_graphviz_t;
 

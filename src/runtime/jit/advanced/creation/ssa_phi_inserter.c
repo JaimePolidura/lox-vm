@@ -120,7 +120,12 @@ static void insert_ssa_versions_in_control_node(
         .block = block,
     };
 
-    for_each_data_node_in_control_node(control_node, &consumer_struct, SSA_DATA_NODE_OPT_NONE, &insert_phis_in_data_node_consumer);
+    for_each_data_node_in_control_node(
+            control_node,
+            &consumer_struct,
+            SSA_DATA_NODE_OPT_POST_ORDER | SSA_DATA_NODE_OPT_RECURSIVE,
+            &insert_phis_in_data_node_consumer
+    );
 
     if (control_node->type == SSA_CONTORL_NODE_TYPE_SET_LOCAL) {
         //set_local control_node and define_ssa_name have the same memory outlay, we do this, so we can change the control_node easily in the graph
