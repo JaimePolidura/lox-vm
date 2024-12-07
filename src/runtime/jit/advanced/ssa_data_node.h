@@ -60,10 +60,12 @@ void for_each_ssa_data_node(struct ssa_data_node *, void **, void *, long option
 
 struct ssa_data_constant_node * create_ssa_const_node(lox_value_t, struct bytecode_list *, struct lox_allocator *);
 struct u8_set get_used_locals_ssa_data_node(struct ssa_data_node *);
-//Returns hashcode for ssa_data_node. The hashcode calculation should be the same for commative & associative data nodes. Example:
-//Hash(a + b) == Hash(b + a) Or Hash((a + b) + c) == Hash(b + (a + c))
+//Returns hashcode for ssa_data_node. The hashcode calculation should be the same for commative & associative data nodes.
+//Example: Hash(a + b) == Hash(b + a) Or Hash((a + b) + c) == Hash(b + (a + c))
 uint64_t hash_ssa_data_node(struct ssa_data_node *);
-bool is_eq_ssa_data_node(struct ssa_data_node *, struct ssa_data_node *);
+//Returns true if the two data nodes are equal. The calculation takes into account if nodes are commative & associative.
+//Example: (a + b) == (b + a) Or ((a + b) + c) == (b + (a + c))
+bool is_eq_ssa_data_node(struct ssa_data_node *, struct ssa_data_node *, struct lox_allocator *);
 
 //OP_GET_LOCAL
 struct ssa_data_get_local_node {

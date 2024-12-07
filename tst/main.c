@@ -48,6 +48,7 @@ int main() {
     u8_set_test_add_contains_outer();
 #endif
 #ifdef RUN_SSA_NODES_TEST
+    ssa_data_node_is_eq_outer();
     ssa_data_node_hash_outer();
 #endif
 #ifdef RUN_SSA_CREATION_TEST

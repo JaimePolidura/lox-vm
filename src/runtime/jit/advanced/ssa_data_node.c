@@ -1,6 +1,9 @@
 #include "ssa_data_node.h"
 
 extern void runtime_panic(char * format, ...);
+static bool uses_same_binary_operation(struct ssa_data_node *, bytecode_t);
+static struct u64_set flat_out_binary_operand_nodes(struct ssa_data_node *node, struct lox_allocator *);
+static bool check_equivalence_flatted_out(struct u64_set, struct u64_set, struct lox_allocator *);
 
 static void for_each_ssa_data_node_recursive(
         struct ssa_data_node * parent_current,
@@ -49,7 +52,7 @@ struct u8_set get_used_locals_ssa_data_node(struct ssa_data_node * node) {
     return used_locals_set;
 }
 
-bool is_eq_ssa_data_node(struct ssa_data_node * a, struct ssa_data_node * b) {
+bool is_eq_ssa_data_node(struct ssa_data_node * a, struct ssa_data_node * b, struct lox_allocator * allocator) {
     if(a->type != b->type){
         return false;
     }
@@ -70,7 +73,7 @@ bool is_eq_ssa_data_node(struct ssa_data_node * a, struct ssa_data_node * b) {
             struct ssa_data_unary_node * a_unary = (struct ssa_data_unary_node *) a;
             struct ssa_data_unary_node * b_unary = (struct ssa_data_unary_node *) b;
             return a_unary->operator_type == b_unary->operator_type &&
-                    is_eq_ssa_data_node(a_unary->operand, b_unary->operand);
+                    is_eq_ssa_data_node(a_unary->operand, b_unary->operand, allocator);
         }
         case SSA_DATA_NODE_TYPE_GET_SSA_NAME: {
             struct ssa_data_get_ssa_name_node * a_get_ssa_name = (struct ssa_data_get_ssa_name_node *) a;
@@ -93,11 +96,11 @@ bool is_eq_ssa_data_node(struct ssa_data_node * a, struct ssa_data_node * b) {
         case SSA_DATA_NODE_TYPE_CALL: {
             struct ssa_data_function_call_node * a_call = (struct ssa_data_function_call_node *) a;
             struct ssa_data_function_call_node * b_call = (struct ssa_data_function_call_node *) b;
-            if(a_call->is_parallel != b_call->is_parallel || is_eq_ssa_data_node(a_call->function, b_call->function)) {
+            if(a_call->is_parallel != b_call->is_parallel || is_eq_ssa_data_node(a_call->function, b_call->function, allocator)) {
                 return false;
             }
             for(int i = 0; i < a_call->n_arguments; i++){
-                if(!is_eq_ssa_data_node(a_call->arguments[i], b_call->arguments[i])){
+                if(!is_eq_ssa_data_node(a_call->arguments[i], b_call->arguments[i], allocator)){
                     return false;
                 }
             }
@@ -108,7 +111,7 @@ bool is_eq_ssa_data_node(struct ssa_data_node * a, struct ssa_data_node * b) {
             struct ssa_data_get_struct_field_node * b_get_field = (struct ssa_data_get_struct_field_node *) b;
             return a_get_field->field_name->length == b_get_field->field_name->length &&
                     string_equals_ignore_case(a_get_field->field_name->chars, b_get_field->field_name->chars, a_get_field->field_name->length) &&
-                    is_eq_ssa_data_node(a_get_field->instance_node, b_get_field->instance_node);
+                    is_eq_ssa_data_node(a_get_field->instance_node, b_get_field->instance_node, allocator);
         }
         case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT: {
             struct ssa_data_initialize_struct_node * a_init_struct = (struct ssa_data_initialize_struct_node *) a;
@@ -117,7 +120,7 @@ bool is_eq_ssa_data_node(struct ssa_data_node * a, struct ssa_data_node * b) {
                 return false;
             }
             for(int i = 0; i < a_init_struct->definition->n_fields; i++){
-                if(!is_eq_ssa_data_node(a_init_struct->fields_nodes[i], b_init_struct->fields_nodes[i])){
+                if(!is_eq_ssa_data_node(a_init_struct->fields_nodes[i], b_init_struct->fields_nodes[i], allocator)){
                     return false;
                 }
             }
@@ -127,7 +130,7 @@ bool is_eq_ssa_data_node(struct ssa_data_node * a, struct ssa_data_node * b) {
             struct ssa_data_get_array_element_node * a_get_array_ele = (struct ssa_data_get_array_element_node *) a;
             struct ssa_data_get_array_element_node * b_get_array_ele = (struct ssa_data_get_array_element_node *) b;
             return a_get_array_ele->index == b_get_array_ele->index &&
-                   is_eq_ssa_data_node(a_get_array_ele->instance, b_get_array_ele->instance);
+                   is_eq_ssa_data_node(a_get_array_ele->instance, b_get_array_ele->instance, allocator);
         }
         case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY: {
             struct ssa_data_initialize_array_node * a_init_array = (struct ssa_data_initialize_array_node *) a;
@@ -138,7 +141,7 @@ bool is_eq_ssa_data_node(struct ssa_data_node * a, struct ssa_data_node * b) {
             }
 
             for(int i = 0; i < a_init_array->n_elements && !a_init_array->empty_initialization; i++){
-                if(is_eq_ssa_data_node(a_init_array->elememnts_node[i], b_init_array->elememnts_node[i])){
+                if(is_eq_ssa_data_node(a_init_array->elememnts_node[i], b_init_array->elememnts_node[i], allocator)){
                     return false;
                 }
             }
@@ -148,16 +151,25 @@ bool is_eq_ssa_data_node(struct ssa_data_node * a, struct ssa_data_node * b) {
         case SSA_DATA_NODE_TYPE_BINARY: {
             struct ssa_data_binary_node * a_binary = (struct ssa_data_binary_node *) a;
             struct ssa_data_binary_node * b_binary = (struct ssa_data_binary_node *) b;
-            if(a_binary->operand != b_binary->operand){
+            if (a_binary->operand != b_binary->operand) {
                 return false;
             }
             bool is_commutative = is_commutative_associative_bytecode_instruction(a_binary->operand);
-            if(is_commutative) {
-                return (is_eq_ssa_data_node(a_binary->left, b_binary->left) && is_eq_ssa_data_node(a_binary->right, b_binary->right)) ||
-                        (is_eq_ssa_data_node(a_binary->left, b_binary->right) && is_eq_ssa_data_node(a_binary->left, b_binary->right));
-            } else {
-                return is_eq_ssa_data_node(a_binary->left, b_binary->left) && is_eq_ssa_data_node(a_binary->right, b_binary->right);
+            if (!is_commutative) {
+                return is_eq_ssa_data_node(a_binary->left, b_binary->left, allocator) && is_eq_ssa_data_node(a_binary->right, b_binary->right, allocator);
             }
+            //Check for commuativiy equivalence
+            if((is_eq_ssa_data_node(a_binary->left, b_binary->left, allocator) && is_eq_ssa_data_node(a_binary->right, b_binary->right, allocator)) ||
+               (is_eq_ssa_data_node(a_binary->left, b_binary->right, allocator) && is_eq_ssa_data_node(a_binary->left, b_binary->right, allocator))) {
+                return true;
+            }
+            if(!uses_same_binary_operation(a, a_binary->operand) || !uses_same_binary_operation(b, b_binary->operand)){
+                return false;
+            }
+            //Check for associative equivalence
+            struct u64_set rigth_operands_flatted_out = flat_out_binary_operand_nodes(b, allocator);
+            struct u64_set left_operands_flatted_out = flat_out_binary_operand_nodes(a, allocator);
+            return check_equivalence_flatted_out(left_operands_flatted_out, rigth_operands_flatted_out, allocator);
         }
     }
 }
@@ -377,7 +389,7 @@ uint64_t hash_ssa_data_node(struct ssa_data_node * node) {
             struct ssa_data_binary_node * binary = (struct ssa_data_binary_node *) node;
             uint64_t right_hash = hash_ssa_data_node(binary->right);
             uint64_t left_hash = hash_ssa_data_node(binary->left);
-            
+
             uint64_t operand_hash = is_commutative_associative_bytecode_instruction(binary->operand) ?
                     mix_hash_commutative(left_hash, right_hash) :
                     mix_hash_not_commutative(left_hash, right_hash);
@@ -418,4 +430,89 @@ uint64_t hash_ssa_data_node(struct ssa_data_node * node) {
         default:
             runtime_panic("Illegal code path in hash_expression(struct ssa_data_node *)");
     }
+}
+
+struct uses_same_binary_operation_consumer_struct {
+    bool uses_same_op;
+    bytecode_t expected_operation;
+};
+
+void uses_same_binary_operation_consumer(
+        struct ssa_data_node * _,
+        void ** __,
+        struct ssa_data_node * child,
+        void * extra
+) {
+    struct uses_same_binary_operation_consumer_struct * consumer_struct = extra;
+    if (child->type == SSA_DATA_NODE_TYPE_BINARY && consumer_struct->uses_same_op) {
+        struct ssa_data_binary_node * binary = (struct ssa_data_binary_node *) child;
+        if(binary->operand != consumer_struct->expected_operation){
+            consumer_struct->uses_same_op = false;
+        }
+    }
+}
+
+static bool uses_same_binary_operation(struct ssa_data_node * start_node, bytecode_t operation) {
+    struct uses_same_binary_operation_consumer_struct consumer_struct = (struct uses_same_binary_operation_consumer_struct) {
+        .expected_operation = operation,
+        .uses_same_op = true,
+    };
+
+    for_each_ssa_data_node(
+            start_node,
+            NULL,
+            &consumer_struct,
+            SSA_DATA_NODE_OPT_RECURSIVE | SSA_DATA_NODE_OPT_POST_ORDER,
+            uses_same_binary_operation_consumer
+    );
+
+    return consumer_struct.uses_same_op;
+}
+
+static void flat_out_binary_operand_nodes_consumer(
+        struct ssa_data_node * _,
+        void ** __,
+        struct ssa_data_node * child,
+        void * extra
+) {
+    struct u64_set * operands = extra;
+    if (child->type != SSA_DATA_NODE_TYPE_BINARY) {
+        add_u64_set(operands, (uint64_t) child);
+    }
+}
+
+static struct u64_set flat_out_binary_operand_nodes(struct ssa_data_node * node, struct lox_allocator * allocator) {
+    struct u64_set operands;
+    init_u64_set(&operands, allocator);
+
+    for_each_ssa_data_node(
+            node,
+            NULL,
+            &operands,
+            SSA_DATA_NODE_OPT_POST_ORDER | SSA_DATA_NODE_OPT_RECURSIVE,
+            &flat_out_binary_operand_nodes_consumer
+    );
+
+    return operands;
+}
+
+static bool check_equivalence_flatted_out(struct u64_set left, struct u64_set right, struct lox_allocator * allocator) {
+    FOR_EACH_U64_SET_VALUE(left, current_left_data_node_u64_ptr) {
+        struct ssa_data_node * current_left_data_node = (struct ssa_data_node *) current_left_data_node_u64_ptr;
+        bool some_match_in_right_found = false;
+
+        FOR_EACH_U64_SET_VALUE(right, current_right_data_node_u64_ptr) {
+            struct ssa_data_node * current_right_data_node = (struct ssa_data_node *) current_left_data_node_u64_ptr;
+            if(is_eq_ssa_data_node(current_left_data_node, current_right_data_node, allocator)){
+                some_match_in_right_found = true;
+                break;
+            }
+        }
+
+        if(some_match_in_right_found){
+            return true;
+        }
+    }
+
+    return false;
 }

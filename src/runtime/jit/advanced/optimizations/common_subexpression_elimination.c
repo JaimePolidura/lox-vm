@@ -115,7 +115,7 @@ void perform_cse_data_node_consumer(
         struct subexpression * subexpression_to_reuse = get_u64_hash_table(
                 &perform_cse_data_node->cse->expressions_by_hash, hash_current_node);
 
-        if(!is_eq_ssa_data_node(subexpression_to_reuse->data_node, current_data_node)){
+        if(!is_eq_ssa_data_node(subexpression_to_reuse->data_node, current_data_node, &cse->cse_allocator.lox_allocator)){
             return;
         }
         if(!dominates_ssa_block(subexpression_to_reuse->block, perform_cse_data_node->block, &cse->cse_allocator.lox_allocator)){
