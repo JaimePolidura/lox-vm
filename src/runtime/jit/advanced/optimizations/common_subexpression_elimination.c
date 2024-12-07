@@ -77,7 +77,11 @@ void perform_cse(struct cse * cse) {
 }
 
 void perform_cse_block(struct cse * cse, struct ssa_block * block) {
-    for(struct ssa_control_node * current_node = block->first;; current_node = current_node->next){
+    for (struct ssa_control_node * current_node = block->first;; current_node = current_node->next) {
+        if(current_node->type == SSA_CONTROL_NODE_TYPE_RETURN){
+            puts("a");
+        }
+
         perform_cse_control_node(cse, block, current_node);
 
         if(current_node == block->last){

@@ -268,7 +268,7 @@ struct add_ssa_name_uses_to_map_consumer_struct {
     struct ssa_control_node * control_node;
 };
 
-static void add_ssa_name_uses_to_map_consumer(
+static bool add_ssa_name_uses_to_map_consumer(
         struct ssa_data_node * __,
         void ** _,
         struct ssa_data_node * current_node,
@@ -284,6 +284,8 @@ static void add_ssa_name_uses_to_map_consumer(
         struct ssa_data_get_ssa_name_node * get_name = (struct ssa_data_get_ssa_name_node *) current_node;
         add_ssa_name_use(consumer_struct->uses_by_ssa_node, get_name->ssa_name, consumer_struct->control_node);
     }
+
+    return true;
 }
 
 static void add_ssa_name_uses_to_map(
