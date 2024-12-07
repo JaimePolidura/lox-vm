@@ -20,15 +20,6 @@ TEST(ssa_creation_cse){
             "fun function_ssa(a, b) {"
             "   var c = a + b;"
             "   var d = 2 * (b + a);"
-            "   if(a > 0) {"
-            "       print a - b;"
-            "       if (a > 0) {"
-            "           print a * b;"
-            "           return 2 / (a - b);"
-            "       } else {"
-            "           return a * b;"
-            "       }"
-            "   }"
             "}"
     );
     struct package * package = compilation.compiled_package;

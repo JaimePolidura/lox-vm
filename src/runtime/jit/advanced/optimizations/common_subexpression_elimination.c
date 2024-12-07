@@ -17,6 +17,7 @@ struct perform_cse_data_node {
 };
 
 struct subexpression {
+    //Expression
     struct ssa_data_node * data_node;
 
     //Set when state is NOT_REUSABLE_SUBEXPRESSION. To be able to extract a subexpression
@@ -98,6 +99,7 @@ void perform_cse_data_node_consumer(
     //These data node types won't be optimized
     if(current_data_node->type == SSA_DATA_NODE_TYPE_CALL ||
             current_data_node->type == SSA_DATA_NODE_TYPE_CONSTANT ||
+            current_data_node->type == SSA_DATA_NODE_TYPE_GET_SSA_NAME ||
             current_data_node->type == SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD ||
             current_data_node->type == SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT ||
             current_data_node->type == SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY) {
@@ -178,7 +180,7 @@ static void reuse_subexpression(
     struct ssa_name ssa_name_to_reuse = subexpression_to_reuse->reusable_ssa_name;
 
     struct ssa_data_get_ssa_name_node * get_ssa_name_to_reuse = ALLOC_SSA_DATA_NODE(
-            SSA_DATA_NODE_TYPE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL, &cse->cse_allocator.lox_allocator
+            SSA_DATA_NODE_TYPE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL, &cse->ssa_ir->ssa_nodes_allocator_arena.lox_allocator
     );
     get_ssa_name_to_reuse->ssa_name = ssa_name_to_reuse;
     *parent_data_node_ptr = &get_ssa_name_to_reuse->data;
@@ -188,26 +190,28 @@ static void reuse_subexpression(
 static void extract_to_ssa_name(struct cse * cse, struct subexpression * subexpression_to_extract) {
     struct ssa_block * block = subexpression_to_extract->block;
     struct ssa_control_node * ssa_control_node = subexpression_to_extract->control_node;
-    struct ssa_name extracted_ssa_name = alloc_ssa_name_ssa_ir(cse->ssa_ir, 1, "temp");
+    struct ssa_name reusable_ssa_name = alloc_ssa_name_ssa_ir(cse->ssa_ir, 1, "temp");
 
     struct ssa_control_define_ssa_name_node * define_ssa_name_extracted = ALLOC_SSA_CONTROL_NODE(
             SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME, struct ssa_control_define_ssa_name_node,
-                    subexpression_to_extract->block, &cse->cse_allocator.lox_allocator
+            subexpression_to_extract->block, &cse->ssa_ir->ssa_nodes_allocator_arena.lox_allocator
     );
     define_ssa_name_extracted->value = subexpression_to_extract->data_node;
-    define_ssa_name_extracted->ssa_name = extracted_ssa_name;
+    define_ssa_name_extracted->ssa_name = reusable_ssa_name;
     add_before_control_node_ssa_block(block, ssa_control_node, &define_ssa_name_extracted->control);
-    put_u64_hash_table(&cse->ssa_ir->ssa_definitions_by_ssa_name, extracted_ssa_name.u16, define_ssa_name_extracted);
+    put_u64_hash_table(&cse->ssa_ir->ssa_definitions_by_ssa_name, reusable_ssa_name.u16, define_ssa_name_extracted);
+
 
     struct ssa_data_get_ssa_name_node * get_extracted_ssa_name = ALLOC_SSA_DATA_NODE(
-            SSA_DATA_NODE_TYPE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL, &cse->cse_allocator.lox_allocator
+            SSA_DATA_NODE_TYPE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL,
+            &cse->ssa_ir->ssa_nodes_allocator_arena.lox_allocator
     );
-    get_extracted_ssa_name->ssa_name = extracted_ssa_name;
+    get_extracted_ssa_name->ssa_name = reusable_ssa_name;
     *subexpression_to_extract->parent_ptr = &get_extracted_ssa_name->data;
-    add_ssa_name_use_ssa_ir(cse->ssa_ir, extracted_ssa_name, ssa_control_node);
+    add_ssa_name_use_ssa_ir(cse->ssa_ir, reusable_ssa_name, ssa_control_node);
 
     subexpression_to_extract->state = REUSABLE_SUBEXPRESSION;
-    subexpression_to_extract->reusable_ssa_name = extracted_ssa_name;
+    subexpression_to_extract->reusable_ssa_name = reusable_ssa_name;
 }
 
 static struct subexpression * alloc_not_reusable_subsexpression(
@@ -218,13 +222,23 @@ static struct subexpression * alloc_not_reusable_subsexpression(
     struct subexpression * subexpression = LOX_MALLOC(
             &perform_cse_data_node->cse->cse_allocator.lox_allocator, sizeof(struct subexpression)
     );
+    struct ssa_control_node * control_node = perform_cse_data_node->control_node;
 
-    subexpression->control_node = perform_cse_data_node->control_node;
     subexpression->block = perform_cse_data_node->block;
-    subexpression->state = NOT_REUSABLE_SUBEXPRESSION;
-    subexpression->reusable_ssa_name = CREATE_SSA_NAME(0, 0);
+    subexpression->control_node = control_node;
     subexpression->data_node = ssa_data_node;
     subexpression->parent_ptr = parent_ptr;
+
+    if (control_node->type == SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME &&
+        ((struct ssa_control_define_ssa_name_node *) control_node)->value == ssa_data_node ){
+        struct ssa_control_define_ssa_name_node * define_ssa_anme = (struct ssa_control_define_ssa_name_node *) control_node;
+
+        subexpression->reusable_ssa_name = define_ssa_anme->ssa_name;
+        subexpression->state = REUSABLE_SUBEXPRESSION;
+    } else {
+        subexpression->reusable_ssa_name = CREATE_SSA_NAME(0, 0);
+        subexpression->state = NOT_REUSABLE_SUBEXPRESSION;
+    }
 
     return subexpression;
 }

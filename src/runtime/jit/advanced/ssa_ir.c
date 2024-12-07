@@ -24,7 +24,17 @@ struct ssa_name alloc_ssa_name_ssa_ir(struct ssa_ir * ssa_ir, int ssa_version, c
     return ssa_name;
 }
 
-void add_ssa_name_use_ssa_ir(struct ssa_ir * ssa_ir, struct ssa_name ssa_name, struct ssa_control_node * ssa_control_node) {
+void add_ssa_name_use_ssa_ir(
+        struct ssa_ir * ssa_ir,
+        struct ssa_name ssa_name,
+        struct ssa_control_node * ssa_control_node
+) {
+    if(!contains_u64_hash_table(&ssa_ir->node_uses_by_ssa_name, ssa_name.u16)){
+        struct u64_set * uses = LOX_MALLOC(&ssa_ir->ssa_nodes_allocator_arena.lox_allocator, sizeof(struct u64_set));
+        init_u64_set(uses, &ssa_ir->ssa_nodes_allocator_arena.lox_allocator);
+        put_u64_hash_table(&ssa_ir->node_uses_by_ssa_name, ssa_name.u16, uses);
+    }
+
     struct u64_set * uses = get_u64_hash_table(&ssa_ir->node_uses_by_ssa_name, ssa_name.u16);
     add_u64_set(uses, (uint64_t) ssa_control_node);
 }
