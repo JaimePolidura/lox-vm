@@ -14,6 +14,66 @@
 static struct ssa_data_node * create_add_data_node1();
 static struct ssa_data_node * create_add_data_node2();
 
+//A -> [B, C] B -> [D, E] C -> [F] D -> [G] E -> [G] G -> [H] F -> [H]
+//B dominates D, E, E, G
+//B doest not dominate H, G, C
+//C dominates F
+//A dominates H
+//G doest not dominate H
+TEST(ssa_block_dominates){
+    struct ssa_block * a = alloc_ssa_block(NATIVE_LOX_ALLOCATOR());
+    struct ssa_block * b = alloc_ssa_block(NATIVE_LOX_ALLOCATOR());
+    struct ssa_block * c = alloc_ssa_block(NATIVE_LOX_ALLOCATOR());
+    struct ssa_block * d = alloc_ssa_block(NATIVE_LOX_ALLOCATOR());
+    struct ssa_block * e = alloc_ssa_block(NATIVE_LOX_ALLOCATOR());
+    struct ssa_block * f = alloc_ssa_block(NATIVE_LOX_ALLOCATOR());
+    struct ssa_block * g = alloc_ssa_block(NATIVE_LOX_ALLOCATOR());
+    struct ssa_block * h = alloc_ssa_block(NATIVE_LOX_ALLOCATOR());
+    a->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_BRANCH;
+    a->next_as.branch.true_branch = b;
+    a->next_as.branch.false_branch = c;
+    b->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_BRANCH;
+    b->next_as.branch.true_branch = d;
+    b->next_as.branch.false_branch = e;
+    add_u64_set(&b->predecesors, (uint64_t) a);
+    d->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_SEQ;
+    d->next_as.next = g;
+    add_u64_set(&d->predecesors, (uint64_t) b);
+    e->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_SEQ;
+    e->next_as.next = g;
+    add_u64_set(&e->predecesors, (uint64_t) b);
+    g->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_SEQ;
+    g->next_as.next = h;
+    add_u64_set(&g->predecesors, (uint64_t) d);
+    add_u64_set(&g->predecesors, (uint64_t) e);
+    c->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_SEQ;
+    c->next_as.next = f;
+    add_u64_set(&c->predecesors, (uint64_t) a);
+    f->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_SEQ;
+    f->next_as.next = h;
+    add_u64_set(&f->predecesors, (uint64_t) c);
+    h->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_NONE;
+    add_u64_set(&h->predecesors, (uint64_t) g);
+    add_u64_set(&h->predecesors, (uint64_t) f);
+
+    ASSERT_TRUE(dominates_ssa_block(a, b, NATIVE_LOX_ALLOCATOR()));
+    ASSERT_TRUE(dominates_ssa_block(a, c, NATIVE_LOX_ALLOCATOR()));
+    ASSERT_TRUE(dominates_ssa_block(a, d, NATIVE_LOX_ALLOCATOR()));
+    ASSERT_TRUE(dominates_ssa_block(a, e, NATIVE_LOX_ALLOCATOR()));
+    ASSERT_TRUE(dominates_ssa_block(a, f, NATIVE_LOX_ALLOCATOR()));
+    ASSERT_TRUE(dominates_ssa_block(a, g, NATIVE_LOX_ALLOCATOR()));
+    ASSERT_TRUE(dominates_ssa_block(a, h, NATIVE_LOX_ALLOCATOR()));
+
+    ASSERT_TRUE(dominates_ssa_block(b, d, NATIVE_LOX_ALLOCATOR()));
+    ASSERT_TRUE(dominates_ssa_block(b, e, NATIVE_LOX_ALLOCATOR()));
+    ASSERT_TRUE(dominates_ssa_block(b, g, NATIVE_LOX_ALLOCATOR()));
+    ASSERT_TRUE(dominates_ssa_block(b, e, NATIVE_LOX_ALLOCATOR()));
+    ASSERT_FALSE(dominates_ssa_block(b, h, NATIVE_LOX_ALLOCATOR()));
+
+    ASSERT_TRUE(dominates_ssa_block(c, f, NATIVE_LOX_ALLOCATOR()))
+    ASSERT_FALSE(dominates_ssa_block(f, h, NATIVE_LOX_ALLOCATOR()))
+}
+
 //((a + b) + c) == (b + (a + c))
 TEST(ssa_data_node_is_eq) {
     ASSERT_TRUE(is_eq_ssa_data_node(create_add_data_node1(), create_add_data_node2(), NATIVE_LOX_ALLOCATOR()));

@@ -23,7 +23,7 @@ struct ssa_no_phis_inserter {
     struct stack_list data_nodes_stack;
     struct stack_list package_stack;
     struct arena_lox_allocator * ssa_node_allocator;
-
+    struct ssa_block * first_block;
     struct block_local_usage current_block_local_usage;
 };
 
@@ -76,6 +76,8 @@ struct ssa_block * create_ssa_ir_no_phis(
 
     struct ssa_block * first_block = get_block_by_first_bytecode(inserter, start_function_bytecode);
     push_pending_evaluate(inserter, start_function_bytecode, NULL, first_block);
+    inserter->first_block = first_block;
+    first_block->ssa_ir_head_block = first_block;
 
     while (!is_empty_stack_list(&inserter->pending_evaluation)) {
         struct pending_evaluate * to_evaluate = pop_stack_list(&inserter->pending_evaluation);
@@ -740,6 +742,7 @@ static struct ssa_block * get_block_by_first_bytecode(
     } else {
         struct ssa_block * new_block = alloc_ssa_block(&inserter->ssa_node_allocator->lox_allocator);
         put_u64_hash_table(&inserter->blocks_by_first_bytecode, (uint64_t) first_bytecode, new_block);
+        new_block->ssa_ir_head_block = inserter->first_block;
         return new_block;
     }
 }

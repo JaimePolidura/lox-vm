@@ -27,7 +27,7 @@
 //#define RUN_STACK_TEST
 //#define RUN_TRIE_TEST
 #define RUN_SSA_CREATION_TEST
-//#define RUN_SSA_NODES_TEST
+#define RUN_SSA_NODES_TEST
 //#define RUN_VM_TEST
 
 extern struct trie_list * compiled_packages;
@@ -48,6 +48,7 @@ int main() {
     u8_set_test_add_contains_outer();
 #endif
 #ifdef RUN_SSA_NODES_TEST
+    ssa_block_dominates_outer();
     ssa_data_node_is_eq_outer();
     ssa_data_node_hash_outer();
 #endif

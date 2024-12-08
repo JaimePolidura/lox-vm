@@ -35,6 +35,9 @@ struct ssa_block {
     //Set of pointers to ssa_block that points to this ssa_block
     struct u64_set predecesors;
 
+    //First block of ssa ir. This is the only block whose predecessors set is emtpy
+    struct ssa_block * ssa_ir_head_block;
+
     //Set of struct ssa_name, defined in the current block
     struct u64_set defined_ssa_names;
 

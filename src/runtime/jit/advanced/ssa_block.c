@@ -241,12 +241,26 @@ struct u64_set get_dominator_set_ssa_block(struct ssa_block * block, struct lox_
 
     if (size_u64_set(block->predecesors) == 0) {
         add_u64_set(&dominator_set, (uint64_t) block);
+    } else if(size_u64_set(block->predecesors) == 1) {
+        struct ssa_block * predecessor = (struct ssa_block *) get_first_value_u64_set(block->predecesors);
+        union_u64_set(&dominator_set, get_dominator_set_ssa_block(predecessor, allocator));
+        add_u64_set(&dominator_set, (uint64_t) block);
+    } else {
+        int current_index = 0;
+
+        FOR_EACH_U64_SET_VALUE(block->predecesors, predecesor_block_ptr) {
+            struct ssa_block * predecessor = (struct ssa_block *) predecesor_block_ptr;
+            struct u64_set dominator_set_predecessor = get_dominator_set_ssa_block(predecessor, allocator);
+
+            if ((current_index++) == 0) {
+                //Initialize
+                union_u64_set(&dominator_set, dominator_set_predecessor);
+            } else {
+                intersection_u64_set(&dominator_set, dominator_set_predecessor);
+            }
+        }
     }
 
-    FOR_EACH_U64_SET_VALUE(block->predecesors, predecesor_block_ptr) {
-        struct ssa_block * predecessor = (struct ssa_block *) predecesor_block_ptr;
-        intersection_u64_set(&dominator_set, get_dominator_set_ssa_block(predecessor, allocator));
-    }
 
     return dominator_set;
 }
