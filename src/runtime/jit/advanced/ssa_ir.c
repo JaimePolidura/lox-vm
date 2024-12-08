@@ -15,6 +15,7 @@ void remove_name_references_ssa_ir(struct ssa_ir * ssa_ir, struct ssa_name ssa_n
 struct ssa_name alloc_ssa_name_ssa_ir(struct ssa_ir * ssa_ir, int ssa_version, char * local_name) {
     int local_number = ++ssa_ir->function->n_locals;
     struct ssa_name ssa_name = CREATE_SSA_NAME(local_number, ssa_version);
+    local_name = dynamic_format_string("%s%i", local_name, local_number);
     put_u8_hash_table(&ssa_ir->function->local_numbers_to_names, local_number, local_name);
     put_u8_hash_table(&ssa_ir->max_version_allocated_per_local, local_number, (void *) ssa_version);
 

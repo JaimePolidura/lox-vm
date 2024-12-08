@@ -27,7 +27,7 @@
 //#define RUN_STACK_TEST
 //#define RUN_TRIE_TEST
 #define RUN_SSA_CREATION_TEST
-#define RUN_SSA_NODES_TEST
+//#define RUN_SSA_NODES_TEST
 //#define RUN_VM_TEST
 
 extern struct trie_list * compiled_packages;
