@@ -52,10 +52,14 @@ struct bytecode_instruction_data bytecode_instructions_data[] = {
         [OP_JUMP] = {.constant = false, .size = OP_JUMP_LENGTH, .n_pops = 0, .n_push = 0},
         [OP_ENTER_MONITOR_EXPLICIT] = {.constant = false, .size = OP_ENTER_MONITOR_EXPLICIT_LENGTH, .n_pops = 0, .n_push = 0},
         [OP_EXIT_MONITOR_EXPLICIT] = {.constant = false, .size = OP_EXIT_MONITOR_EXPLICIT_LENGTH, .n_pops = 0, .n_push = 0},
+        [OP_RIGHT_SHIFT] = {.constant = false, .size = OP_RIGHT_SHIFT_LENGTH, .n_pops = 2, .n_push = 1},
+        [OP_LEFT_SHIFT] = {.constant = false, .size = OP_LEFT_SHIFT_LENGTH, .n_pops = 2, .n_push = 1},
+        [OP_BINARY_OP_AND] = {.constant = false, .size = OP_BINARY_OP_AND_LENGTH, .n_pops = 2, .n_push = 1},
+        [OP_BINARY_OP_OR] = {.constant = false, .size = OP_BINARY_OP_OR_LENGTH, .n_pops = 2, .n_push = 1},
  };
 
 bool is_commutative_associative_bytecode_instruction(bytecode_t instruction) {
-    return instruction == OP_ADD || instruction == OP_MUL || instruction == OP_EQUAL;
+    return instruction == OP_ADD || instruction == OP_MUL || instruction == OP_EQUAL || instruction == OP_BINARY_OP_AND || instruction == OP_BINARY_OP_OR;
 }
 
 int get_size_bytecode_instruction(bytecode_t instruction) {

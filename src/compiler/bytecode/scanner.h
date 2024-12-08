@@ -34,8 +34,13 @@ typedef enum {
     TOKEN_OPEN_SQUARE,
     TOKEN_CLOSE_SQUARE,
     TOKEN_INLINE,
+    TOKEN_BINARY_OP_AND, // &
+    TOKEN_BINARY_OP_OR, // |
+    TOKEN_LEFT_SHIFT, // <<
+    TOKEN_RIGHT_SHIFT, // >>
 
     TOKEN_NO_TOKEN, //Used only for compiling internals
+
 } tokenType_t;
 
 struct token {

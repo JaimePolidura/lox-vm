@@ -73,6 +73,6 @@ struct branch_removed {
     struct u64_set ssa_name_definitions_removed;
     struct u64_set blocks_removed;
 };
-struct branch_removed remove_branch_ssa_ir(struct ssa_block *, bool true_branch, struct lox_allocator *);
+struct branch_removed remove_branch_ssa_block(struct ssa_block * branch_block, bool true_branch, struct lox_allocator *);
 
 type_next_ssa_block_t get_type_next_ssa_block(struct ssa_control_node *);

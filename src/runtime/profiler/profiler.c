@@ -29,6 +29,10 @@ void profile_instruction_profiler(uint8_t * pc, struct function_object * functio
         case OP_EQUAL:
         case OP_GREATER:
         case OP_LESS:
+        case OP_BINARY_OP_AND:
+        case OP_BINARY_OP_OR:
+        case OP_RIGHT_SHIFT:
+        case OP_LEFT_SHIFT:
         case OP_ADD:
         case OP_SUB:
         case OP_MUL:

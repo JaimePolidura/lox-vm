@@ -21,7 +21,7 @@ void call(lox_value_t callee_lox, int n_args, bool is_parallel);
 static void setup_package_execution(struct package * package);
 static void push_stack_vm(lox_value_t value);
 static lox_value_t pop_stack_vm();
-static double pop_and_check_number();
+static lox_value_t pop_and_check_number();
 static bool check_boolean();
 static interpret_result_t run();
 static void print_stack();
@@ -81,8 +81,8 @@ static inline void increase_n_function_calls(struct function_object *function);
 #define READ_CONSTANT(frame) (frame->function->chunk->constants.values[READ_BYTECODE(frame)])
 #define BINARY_OP(op) \
     do { \
-        double b = pop_and_check_number(); \
-        double a = pop_and_check_number(); \
+        lox_value_t b = pop_and_check_number(); \
+        lox_value_t a = pop_and_check_number(); \
         push_stack_vm(TO_LOX_VALUE_NUMBER(a op b)); \
     }while(false);
 
@@ -128,6 +128,8 @@ static interpret_result_t run() {
             case OP_SUB: BINARY_OP(-) break;
             case OP_MUL: BINARY_OP(*) break;
             case OP_DIV: BINARY_OP(/) break;
+            case OP_BINARY_OP_AND: BINARY_OP(&) break;
+            case OP_BINARY_OP_OR: BINARY_OP(|) break;
             case OP_GREATER: COMPARATION_OP(>) break;
             case OP_LESS: COMPARATION_OP(<) break;
             case OP_FALSE: push_stack_vm(TO_LOX_VALUE_BOOL(false)); break;
@@ -549,7 +551,7 @@ static inline lox_value_t peek(int index_from_top) {
     return *(self_thread->esp - 1 - index_from_top);
 }
 
-static double pop_and_check_number() {
+static lox_value_t pop_and_check_number() {
     lox_value_t value = pop_stack_vm();
 
     if(IS_NUMBER(value)) {

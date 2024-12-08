@@ -126,6 +126,10 @@ struct parse_rule rules[] = {
         [TOKEN_DOT] = {NULL, dot, PREC_CALL},
         [TOKEN_MINUS] = {unary, binary, PREC_TERM},
         [TOKEN_PLUS] = {NULL, binary, PREC_TERM},
+        [TOKEN_LEFT_SHIFT] = {NULL, binary, PREC_TERM},
+        [TOKEN_RIGHT_SHIFT] = {NULL, binary, PREC_TERM},
+        [TOKEN_BINARY_OP_AND] = {NULL, binary, PREC_TERM},
+        [TOKEN_BINARY_OP_OR] = {NULL, binary, PREC_TERM},
         [TOKEN_SEMICOLON] = {NULL, NULL, PREC_NONE},
         [TOKEN_SLASH] = {NULL, binary, PREC_FACTOR},
         [TOKEN_STAR] = {NULL, binary, PREC_FACTOR},
@@ -964,6 +968,10 @@ static void binary(struct bytecode_compiler * compiler, bool can_assign) {
     parse_precedence(compiler, rule->precedence + 1);
 
     switch (token_type) {
+        case TOKEN_BINARY_OP_AND: emit_bytecode(compiler, TOKEN_BINARY_OP_AND); break;
+        case TOKEN_BINARY_OP_OR: emit_bytecode(compiler, TOKEN_BINARY_OP_OR); break;
+        case TOKEN_RIGHT_SHIFT: emit_bytecode(compiler, OP_RIGHT_SHIFT); break;
+        case TOKEN_LEFT_SHIFT: emit_bytecode(compiler, OP_LEFT_SHIFT); break;
         case TOKEN_PLUS: emit_bytecode(compiler, OP_ADD); break;
         case TOKEN_MINUS: emit_bytecode(compiler, OP_SUB); break;
         case TOKEN_STAR: emit_bytecode(compiler, OP_MUL); break;

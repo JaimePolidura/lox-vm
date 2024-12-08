@@ -98,7 +98,8 @@ static void propagation(struct scp * scp) {
                 }
 
             } else if (node_uses_ssa_name->type == SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP &&
-                    GET_CONDITION_CONDITIONAL_JUMP_SSA_NODE(node_uses_ssa_name)->type == SSA_DATA_NODE_TYPE_CONSTANT) {
+                    GET_CONDITION_CONDITIONAL_JUMP_SSA_NODE(node_uses_ssa_name)->type == SSA_DATA_NODE_TYPE_CONSTANT &&
+                    !node_uses_ssa_name->block->loop_condition) {
                 remove_death_branch(scp, node_uses_ssa_name);
             }
         }
@@ -133,7 +134,8 @@ static void remove_death_branch(struct scp * scp, struct ssa_control_node * bran
     bool branch_condition_folded = AS_BOOL(GET_CONST_VALUE_SSA_NODE(cond_jump->condition));
     bool remove_true_branch = !branch_condition_folded;
 
-    struct branch_removed branch_removed = remove_branch_ssa_ir(branch_node->block, remove_true_branch, GET_SCP_ALLOCATOR(scp));
+    struct branch_removed branch_removed = remove_branch_ssa_block(branch_node->block, remove_true_branch,
+                                                                   GET_SCP_ALLOCATOR(scp));
 
     FOR_EACH_U64_SET_VALUE(branch_removed.ssa_name_definitions_removed, removed_ssa_definition_u64) {
         struct ssa_name removed_ssa_definition = CREATE_SSA_NAME_FROM_U64(removed_ssa_definition_u64);
@@ -412,7 +414,7 @@ static struct semilattice_value * get_semilattice_initialization_from_data(struc
     }
 }
 
-static void rewrite_constant_expressions_propagation_consumer(
+static bool rewrite_constant_expressions_propagation_consumer(
         struct ssa_data_node * _,
         void ** parent_child_ptr,
         struct ssa_data_node * current_node,
@@ -420,6 +422,7 @@ static void rewrite_constant_expressions_propagation_consumer(
 ) {
     struct scp * scp = extra;
     *parent_child_ptr = rewrite_constant_expressions_propagation_data_node(scp, current_node)->node;
+    return true;
 }
 
 static void rewrite_constant_expressions_propagation(
@@ -435,7 +438,7 @@ static void rewrite_constant_expressions_propagation(
     );
 }
 
-static void rewrite_constant_expressions_initialization_consumer(
+static bool rewrite_constant_expressions_initialization_consumer(
         struct ssa_data_node * _,
         void ** parent_child_ptr,
         struct ssa_data_node * current_node,
@@ -443,6 +446,7 @@ static void rewrite_constant_expressions_initialization_consumer(
 ) {
     struct scp * scp = extra;
     *parent_child_ptr = rewrite_constant_expressions_initialization_data_node(scp, current_node)->node;
+    return true;
 }
 
 static void rewrite_constant_expressions_initialization(

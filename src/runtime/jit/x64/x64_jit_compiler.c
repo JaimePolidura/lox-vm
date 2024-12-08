@@ -161,10 +161,17 @@ struct jit_compilation_result jit_compile_arch(struct function_object * function
             case OP_EXIT_MONITOR: exit_monitor_jit(&jit_compiler); break;
             case OP_RETURN: return_jit(&jit_compiler, &finish_compilation_flag); break;
             case OP_CALL: call_jit(&jit_compiler); break;
-            default: runtime_panic("Unhandled pending_bytecode to compile %u\n", *(--jit_compiler.pc));
+            case OP_BINARY_OP_AND:
+            case OP_BINARY_OP_OR:
+            case OP_RIGHT_SHIFT:
+            case OP_LEFT_SHIFT:
+                //Not supported
+                return (struct jit_compilation_result) {.success = false,.failed_beacause_of_concurrent_compilation = false };
+            default:
+                runtime_panic("Unhandled pending_bytecode to compile %u\n", *(--jit_compiler.pc));
         }
 
-        if(finish_compilation_flag){
+        if (finish_compilation_flag) {
             break;
         }
     }

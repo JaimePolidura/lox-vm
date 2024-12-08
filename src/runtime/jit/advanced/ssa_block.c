@@ -106,7 +106,7 @@ bool is_emtpy_ssa_block(struct ssa_block * block) {
     return block->first == NULL && block->last == NULL;
 }
 
-struct branch_removed remove_branch_ssa_ir(
+struct branch_removed remove_branch_ssa_block(
         struct ssa_block * branch_block,
         bool true_branch,
         struct lox_allocator * lox_allocator

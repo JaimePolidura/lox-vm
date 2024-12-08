@@ -92,6 +92,10 @@ void disassemble_function(struct function_object * function, long options) {
             case OP_SUB: SINGLE_INSTRUCTION("OP_SUB"); break;
             case OP_MUL: SINGLE_INSTRUCTION("OP_MUL"); break;
             case OP_DIV: SINGLE_INSTRUCTION("OP_DIV"); break;
+            case OP_BINARY_OP_AND: SINGLE_INSTRUCTION("OP_BINARY_OP_AND"); break;
+            case OP_BINARY_OP_OR: SINGLE_INSTRUCTION("OP_BINARY_OP_OR"); break;
+            case OP_LEFT_SHIFT: SINGLE_INSTRUCTION("OP_LEFT_SHIFT"); break;
+            case OP_RIGHT_SHIFT: SINGLE_INSTRUCTION("OP_RIGHT_SHIFT"); break;
             case OP_GREATER: SINGLE_INSTRUCTION("OP_GREATER"); break;
             case OP_LESS: SINGLE_INSTRUCTION("OP_LESS"); break;
             case OP_FALSE: SINGLE_INSTRUCTION("OP_FALSE"); break;
