@@ -47,10 +47,11 @@ typedef enum {
     OP_PACKAGE_CONST,            // Index: 40
     OP_ENTER_MONITOR_EXPLICIT,   // Index: 41
     OP_EXIT_MONITOR_EXPLICIT,    // Index: 42
-    OP_BINARY_OP_AND,
-    OP_BINARY_OP_OR,
-    OP_LEFT_SHIFT,
-    OP_RIGHT_SHIFT,
+    OP_BINARY_OP_AND,            // Index: 43
+    OP_BINARY_OP_OR,             // Index: 44
+    OP_LEFT_SHIFT,               // Index: 45
+    OP_RIGHT_SHIFT,              // Index: 46
+    OP_MODULO,                   // Index: 47
 } bytecode_t;
 
 #define OP_CONSTANT_LENGTH 2
@@ -101,6 +102,7 @@ typedef enum {
 #define OP_BINARY_OP_OR_LENGTH 1
 #define OP_LEFT_SHIFT_LENGTH 1
 #define OP_RIGHT_SHIFT_LENGTH 1
+#define OP_MODULO_LENGTH 1
 
 #define N_VARIABLE_INSTRUCTION_N_POPS 0xFFFF
 

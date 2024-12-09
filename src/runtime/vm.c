@@ -128,6 +128,7 @@ static interpret_result_t run() {
             case OP_SUB: BINARY_OP(-) break;
             case OP_MUL: BINARY_OP(*) break;
             case OP_DIV: BINARY_OP(/) break;
+            case OP_MODULO: BINARY_OP(%); break;
             case OP_BINARY_OP_AND: BINARY_OP(&) break;
             case OP_BINARY_OP_OR: BINARY_OP(|) break;
             case OP_LEFT_SHIFT: BINARY_OP(<<) break;

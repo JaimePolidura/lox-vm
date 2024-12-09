@@ -165,6 +165,7 @@ struct jit_compilation_result jit_compile_arch(struct function_object * function
             case OP_BINARY_OP_OR:
             case OP_RIGHT_SHIFT:
             case OP_LEFT_SHIFT:
+            case OP_MODULO:
                 //Not supported
                 return (struct jit_compilation_result) {.success = false,.failed_beacause_of_concurrent_compilation = false };
             default:

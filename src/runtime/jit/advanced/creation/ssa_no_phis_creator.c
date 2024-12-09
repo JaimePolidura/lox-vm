@@ -121,6 +121,7 @@ struct ssa_block * create_ssa_ir_no_phis(
             case OP_GET_ARRAY_ELEMENT: get_array_element(inserter, to_evaluate); break;
             case OP_NEGATE:
             case OP_NOT: unary(inserter, to_evaluate); break;
+            //Binary operations
             case OP_ADD:
             case OP_SUB:
             case OP_MUL:
@@ -131,7 +132,11 @@ struct ssa_block * create_ssa_ir_no_phis(
             case OP_LEFT_SHIFT:
             case OP_RIGHT_SHIFT:
             case OP_LESS:
-            case OP_EQUAL: binary(inserter, to_evaluate); break;
+            case OP_MODULO:
+            case OP_EQUAL:  {
+                binary(inserter, to_evaluate);
+                break;
+            }
             case OP_CONSTANT: {
                 lox_value_t constant = READ_CONSTANT(function, to_evaluate->pending_bytecode);
                 push_stack_list(&inserter->data_nodes_stack, create_ssa_const_node(constant, to_evaluate->pending_bytecode, &ssa_node_allocator->lox_allocator));

@@ -56,6 +56,7 @@ struct bytecode_instruction_data bytecode_instructions_data[] = {
         [OP_LEFT_SHIFT] = {.constant = false, .size = OP_LEFT_SHIFT_LENGTH, .n_pops = 2, .n_push = 1},
         [OP_BINARY_OP_AND] = {.constant = false, .size = OP_BINARY_OP_AND_LENGTH, .n_pops = 2, .n_push = 1},
         [OP_BINARY_OP_OR] = {.constant = false, .size = OP_BINARY_OP_OR_LENGTH, .n_pops = 2, .n_push = 1},
+        [OP_MODULO] = {.constant = false, .size = OP_MODULO_LENGTH, .n_pops = 2, .n_push = 1},
  };
 
 bool is_commutative_associative_bytecode_instruction(bytecode_t instruction) {

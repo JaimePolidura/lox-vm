@@ -107,6 +107,7 @@ void disassemble_function(struct function_object * function, long options) {
             case OP_POP: SINGLE_INSTRUCTION("OP_POP"); break;
             case OP_DEFINE_GLOBAL: BINARY_STRING_INSTRUCTION("OP_DEFINE_GLOBAL", chunk, iterator); break;
             case OP_GET_GLOBAL: BINARY_STRING_INSTRUCTION("OP_GET_GLOBAL", chunk, iterator); break;
+            case OP_MODULO: BINARY_STRING_INSTRUCTION("OP_MODULO", chunk, iterator); break;
             case OP_SET_GLOBAL: BINARY_STRING_INSTRUCTION("OP_SET_GLOBAL", chunk, iterator); break;
             case OP_GET_LOCAL: BINARY_U8_INSTRUCTION("OP_GET_LOCAL", iterator); break;
             case OP_JUMP_IF_FALSE: {
