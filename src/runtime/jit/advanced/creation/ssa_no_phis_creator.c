@@ -126,6 +126,10 @@ struct ssa_block * create_ssa_ir_no_phis(
             case OP_MUL:
             case OP_DIV:
             case OP_GREATER:
+            case OP_BINARY_OP_AND:
+            case OP_BINARY_OP_OR:
+            case OP_LEFT_SHIFT:
+            case OP_RIGHT_SHIFT:
             case OP_LESS:
             case OP_EQUAL: binary(inserter, to_evaluate); break;
             case OP_CONSTANT: {

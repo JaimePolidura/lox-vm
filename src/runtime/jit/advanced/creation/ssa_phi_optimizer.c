@@ -11,7 +11,7 @@ struct optimize_phi_functions_consumer_struct {
 
 #define GET_LOX_ALLOCATOR(inserter) (&(inserter)->ssa_nodes_allocator->lox_allocator)
 
-static void optimize_phi_functions_consumer (
+static bool optimize_phi_functions_consumer (
         struct ssa_data_node * __,
         void ** parent_child_ptr,
         struct ssa_data_node * current_node,
@@ -25,6 +25,13 @@ static void add_ssa_name_use(struct u64_hash_table * uses_by_ssa_node, struct ss
 static void propagate_extracted_phi(struct arena_lox_allocator*, struct ssa_block*, struct ssa_control_node*,
         struct ssa_data_phi_node*, uint8_t extracted_version);
 
+static void optimize_ssa_ir_phis_block(struct ssa_block *, void * extra);
+struct optimize_ssa_ir_phis_block_struct {
+    struct phi_insertion_result * phi_insertion_result;
+    struct arena_lox_allocator * ssa_nodes_allocator;
+    struct u64_hash_table uses_by_ssa_node;
+};
+
 struct phi_optimization_result optimize_ssa_ir_phis(
         struct ssa_block * start_block,
         struct phi_insertion_result * phi_insertion_result,
@@ -32,58 +39,51 @@ struct phi_optimization_result optimize_ssa_ir_phis(
 ) {
     struct u64_hash_table uses_by_ssa_node;
     init_u64_hash_table(&uses_by_ssa_node, &ssa_nodes_allocator->lox_allocator);
-    struct stack_list pending;
-    init_stack_list(&pending, NATIVE_LOX_ALLOCATOR());
-    push_stack_list(&pending, start_block);
 
-    while(!is_empty_stack_list(&pending)) {
-        struct ssa_block * current_block = pop_stack_list(&pending);
+    struct optimize_ssa_ir_phis_block_struct consumer_struct = (struct optimize_ssa_ir_phis_block_struct) {
+        .phi_insertion_result = phi_insertion_result,
+        .ssa_nodes_allocator = ssa_nodes_allocator,
+        .uses_by_ssa_node = uses_by_ssa_node,
+    };
 
-        for(struct ssa_control_node * current = current_block->first;; current = current->next) {
-            struct optimize_phi_functions_consumer_struct for_each_node_struct = (struct optimize_phi_functions_consumer_struct) {
-                .phi_insertion_result = phi_insertion_result,
-                .ssa_nodes_allocator = ssa_nodes_allocator,
-                .node_uses_by_ssa_name = &uses_by_ssa_node,
-                .control_node = current,
-                .block = current_block,
-            };
-
-            for_each_data_node_in_control_node(
-                    current,
-                    &for_each_node_struct,
-                    SSA_DATA_NODE_OPT_POST_ORDER | SSA_DATA_NODE_OPT_RECURSIVE,
-                    optimize_phi_functions_consumer
-            );
-
-            if(current == current_block->last){
-                break;
-            }
-        }
-
-        switch(current_block->type_next_ssa_block) {
-            case TYPE_NEXT_SSA_BLOCK_SEQ:
-                push_stack_list(&pending, current_block->next_as.next);
-                break;
-
-            case TYPE_NEXT_SSA_BLOCK_BRANCH:
-                push_stack_list(&pending, current_block->next_as.branch.false_branch);
-                push_stack_list(&pending, current_block->next_as.branch.true_branch);
-                break;
-
-            case TYPE_NEXT_SSA_BLOCK_LOOP:
-            case TYPE_NEXT_SSA_BLOCK_NONE:
-                break;
-        }
-    }
-
-    free_stack_list(&pending);
+    for_each_ssa_block(
+            start_block,
+            NATIVE_LOX_ALLOCATOR(),
+            &consumer_struct,
+            &optimize_ssa_ir_phis_block
+    );
 
     return (struct phi_optimization_result) {
         .node_uses_by_ssa_name = uses_by_ssa_node,
     };
 }
 
-static void optimize_phi_functions_consumer(
+static void optimize_ssa_ir_phis_block(struct ssa_block * current_block, void * extra) {
+    struct optimize_ssa_ir_phis_block_struct * consumer_struct = extra;
+
+    for(struct ssa_control_node * current = current_block->first;; current = current->next) {
+        struct optimize_phi_functions_consumer_struct for_each_node_struct = (struct optimize_phi_functions_consumer_struct) {
+                .phi_insertion_result = consumer_struct->phi_insertion_result,
+                .ssa_nodes_allocator = consumer_struct->ssa_nodes_allocator,
+                .node_uses_by_ssa_name = &consumer_struct->uses_by_ssa_node,
+                .control_node = current,
+                .block = current_block,
+        };
+
+        for_each_data_node_in_control_node(
+                current,
+                &for_each_node_struct,
+                SSA_DATA_NODE_OPT_POST_ORDER | SSA_DATA_NODE_OPT_RECURSIVE,
+                optimize_phi_functions_consumer
+        );
+
+        if(current == current_block->last){
+            break;
+        }
+    }
+}
+
+static bool optimize_phi_functions_consumer(
         struct ssa_data_node * __,
         void ** parent_child_ptr,
         struct ssa_data_node * current_node,
@@ -101,6 +101,8 @@ static void optimize_phi_functions_consumer(
     }
 
     add_ssa_name_uses_to_map(for_each_node_consumer_struct->node_uses_by_ssa_name, for_each_node_consumer_struct->control_node);
+
+    return true;
 }
 
 static void remove_innecesary_phi_function(
@@ -158,7 +160,7 @@ struct propagation_extracted_phi {
     uint8_t to_extracted_version;
 };
 
-static void propagate_extracted_phi_in_data_node(
+static bool propagate_extracted_phi_in_data_node(
         struct ssa_data_node * _,
         void ** __,
         struct ssa_data_node * current,
@@ -177,6 +179,8 @@ static void propagate_extracted_phi_in_data_node(
             add_u64_set(&current_phi_node->ssa_versions, propagation_extracted_phi->to_extracted_version);
         }
     }
+
+    return true;
 }
 
 static void propagate_extracted_phi_in_block(

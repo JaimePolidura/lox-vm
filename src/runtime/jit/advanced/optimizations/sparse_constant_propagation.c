@@ -490,13 +490,17 @@ struct scp * alloc_sparse_constant_propagation(struct ssa_ir * ssa_ir) {
 
 static lox_value_t calculate_binary_lox(lox_value_t left, lox_value_t right, bytecode_t operator) {
     switch (operator) {
-        case OP_ADD: return addition_lox(left, right);
+        case OP_BINARY_OP_AND: return TO_LOX_VALUE_NUMBER(((uint64_t) AS_NUMBER(left)) & ((uint64_t) AS_NUMBER(right)));
+        case OP_BINARY_OP_OR: return TO_LOX_VALUE_NUMBER(((uint64_t) AS_NUMBER(left)) | ((uint64_t) AS_NUMBER(right)));
+        case OP_LEFT_SHIFT:  return TO_LOX_VALUE_NUMBER(((uint64_t) AS_NUMBER(left)) << ((uint64_t) AS_NUMBER(right)));
+        case OP_RIGHT_SHIFT: return TO_LOX_VALUE_NUMBER(((uint64_t) AS_NUMBER(left)) >> ((uint64_t) AS_NUMBER(right)));
+        case OP_GREATER: return TO_LOX_VALUE_BOOL(AS_NUMBER(left) > AS_NUMBER(right));
         case OP_SUB: return TO_LOX_VALUE_NUMBER(AS_NUMBER(left) - AS_NUMBER(right));
         case OP_MUL: return TO_LOX_VALUE_NUMBER(AS_NUMBER(left) * AS_NUMBER(right));
         case OP_DIV: return TO_LOX_VALUE_NUMBER(AS_NUMBER(left) / AS_NUMBER(right));
-        case OP_GREATER: return TO_LOX_VALUE_BOOL(AS_NUMBER(left) > AS_NUMBER(right));
         case OP_LESS: return TO_LOX_VALUE_BOOL(AS_NUMBER(left) < AS_NUMBER(right));
         case OP_EQUAL: return TO_LOX_VALUE_BOOL(left == right);
+        case OP_ADD: return addition_lox(left, right);
         default: runtime_panic("Unhandled binary operator %i in calculate_binary_lox() in scp.c", operator);
     }
 }

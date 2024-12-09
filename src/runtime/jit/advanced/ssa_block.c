@@ -1,5 +1,46 @@
 #include "ssa_block.h"
 
+void for_each_ssa_block(
+        struct ssa_block * start_block,
+        struct lox_allocator * allocator,
+        void * extra,
+        ssa_block_consumer_t consumer
+) {
+    struct stack_list pending;
+    init_stack_list(&pending, allocator);
+    push_stack_list(&pending, start_block);
+
+    struct u64_set visited_blocks;
+    init_u64_set(&visited_blocks, allocator);
+
+    while(!is_empty_stack_list(&pending)){
+        struct ssa_block * current_block = pop_stack_list(&pending);
+
+        if(contains_u64_set(&visited_blocks, (uint64_t) current_block)){
+            continue;
+        }
+
+        add_u64_set(&visited_blocks, (uint64_t) current_block);
+
+        consumer(current_block, extra);
+
+        switch (current_block->type_next_ssa_block) {
+            case TYPE_NEXT_SSA_BLOCK_SEQ:
+                push_stack_list(&pending, current_block->next_as.next);
+                break;
+            case TYPE_NEXT_SSA_BLOCK_BRANCH:
+                push_stack_list(&pending, current_block->next_as.branch.false_branch);
+                push_stack_list(&pending, current_block->next_as.branch.true_branch);
+                break;
+            default:
+                break;
+        }
+    }
+
+    free_u64_set(&visited_blocks);
+    free_stack_list(&pending);
+}
+
 struct ssa_block * alloc_ssa_block(struct lox_allocator * allocator) {
     struct ssa_block * block = LOX_MALLOC(allocator, sizeof(struct ssa_block));
     init_ssa_block(block, allocator);

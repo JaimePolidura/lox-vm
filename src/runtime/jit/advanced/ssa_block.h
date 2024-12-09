@@ -1,5 +1,6 @@
 #pragma once
 
+#include "shared/utils/collections/stack_list.h"
 #include "shared/utils/collections/queue_list.h"
 #include "shared/utils/collections/u8_set.h"
 #include "ssa_control_node.h"
@@ -64,6 +65,9 @@ bool is_emtpy_ssa_block(struct ssa_block *);
 //a dominates b
 bool dominates_ssa_block(struct ssa_block * a, struct ssa_block * b, struct lox_allocator *);
 struct u64_set get_dominator_set_ssa_block(struct ssa_block *, struct lox_allocator *);
+
+typedef void (*ssa_block_consumer_t)(struct ssa_block *, void *);
+void for_each_ssa_block(struct ssa_block *, struct lox_allocator *, void * extra, ssa_block_consumer_t);
 
 //Replaces references to old_block of the predecessors of old_block to point to new_block
 //Example: A -> B -> C. replace_block_ssa_block(old_block = B, new_block = C), the result: A -> C

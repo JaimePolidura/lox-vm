@@ -628,6 +628,10 @@ static char * binary_operator_to_string(bytecode_t bytecode) {
         case OP_LESS: return "<";
         case OP_GREATER: return ">";
         case OP_EQUAL: return "==";
+        case OP_BINARY_OP_AND: return "&";
+        case OP_BINARY_OP_OR: return "|";
+        case OP_LEFT_SHIFT: return "<<";
+        case OP_RIGHT_SHIFT: return ">>";
         default: exit(-1);
     }
 }

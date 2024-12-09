@@ -130,6 +130,8 @@ static interpret_result_t run() {
             case OP_DIV: BINARY_OP(/) break;
             case OP_BINARY_OP_AND: BINARY_OP(&) break;
             case OP_BINARY_OP_OR: BINARY_OP(|) break;
+            case OP_LEFT_SHIFT: BINARY_OP(<<) break;
+            case OP_RIGHT_SHIFT: BINARY_OP(>>) break;
             case OP_GREATER: COMPARATION_OP(>) break;
             case OP_LESS: COMPARATION_OP(<) break;
             case OP_FALSE: push_stack_vm(TO_LOX_VALUE_BOOL(false)); break;

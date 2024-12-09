@@ -39,44 +39,28 @@ struct subexpression {
 
 static struct cse * alloc_common_subexpression_elimination(struct ssa_ir *);
 static void free_common_subexpression_elimination(struct cse *);
-void perform_cse(struct cse *);
-void perform_cse_block(struct cse * cse, struct ssa_block *);
 void perform_cse_control_node(struct cse * cse, struct ssa_block *, struct ssa_control_node *);
 static struct subexpression * alloc_not_reusable_subsexpression(struct perform_cse_data_node *, struct ssa_data_node *, void **);
 static void extract_to_ssa_name(struct cse *, struct subexpression *);
 static void reuse_subexpression(struct cse *, struct subexpression *, void **, struct ssa_control_node *);
+static void perform_cse_block(struct ssa_block *, void *);
 
 void perform_common_subexpression_elimination(struct ssa_ir * ssa_ir) {
     struct cse * cse = alloc_common_subexpression_elimination(ssa_ir);
-    perform_cse(cse);
+
+    for_each_ssa_block(
+            ssa_ir->first_block,
+            &cse->cse_allocator.lox_allocator,
+            cse,
+            &perform_cse_block
+    );
+
     free_common_subexpression_elimination(cse);
 }
 
-void perform_cse(struct cse * cse) {
-    struct stack_list pending;
-    init_stack_list(&pending, &cse->cse_allocator.lox_allocator);
-    push_stack_list(&pending, cse->ssa_ir->first_block);
+static void perform_cse_block(struct ssa_block * block, void * extra) {
+    struct cse * cse = extra;
 
-    while(!is_empty_stack_list(&pending)){
-        struct ssa_block * current_block = pop_stack_list(&pending);
-
-        perform_cse_block(cse, current_block);
-
-        switch (current_block->type_next_ssa_block) {
-            case TYPE_NEXT_SSA_BLOCK_SEQ:
-                push_stack_list(&pending, current_block->next_as.next);
-                break;
-            case TYPE_NEXT_SSA_BLOCK_BRANCH:
-                push_stack_list(&pending, current_block->next_as.branch.false_branch);
-                push_stack_list(&pending, current_block->next_as.branch.true_branch);
-                break;
-            default:
-                break;
-        }
-    }
-}
-
-void perform_cse_block(struct cse * cse, struct ssa_block * block) {
     for (struct ssa_control_node * current_node = block->first;; current_node = current_node->next) {
         perform_cse_control_node(cse, block, current_node);
 
