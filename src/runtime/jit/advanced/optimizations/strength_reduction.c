@@ -10,8 +10,9 @@ static void free_strength_reduction(struct sr *);
 static void perform_strength_reduction_block(struct ssa_block *, void *);
 static bool perform_strength_reduction_data_node(struct ssa_data_node *, void **, struct ssa_data_node *, void *);
 
-typedef void (*strength_reduction_transformer_t) (struct ssa_data_binary_node *, void **, struct sr *);
-static void modulo_strength_reduction_transformer(struct ssa_data_binary_node *, void **,struct sr *);
+typedef void (*strength_reduction_transformer_t) (struct ssa_data_binary_node *, struct sr *);
+static void modulo_strength_reduction_transformer(struct ssa_data_binary_node *, struct sr *);
+static void check_even_strength_reduction_transformer(struct ssa_data_binary_node *, struct sr *);
 
 #define SSA_NODES_ALLOCATOR(sr) (&(sr)->ssa_ir->ssa_nodes_allocator_arena.lox_allocator)
 
@@ -27,7 +28,7 @@ strength_reduction_transformer_t transformation_by_binary_op[] = {
         [OP_RIGHT_SHIFT] = NULL,
         [OP_LESS] = NULL,
         [OP_MODULO] = &modulo_strength_reduction_transformer,
-        [OP_EQUAL] = NULL,
+        [OP_EQUAL] = &check_even_strength_reduction_transformer,
 };
 
 void perform_strength_reduction(struct ssa_ir *ssa_ir) {
@@ -62,7 +63,7 @@ static void perform_strength_reduction_block(struct ssa_block * block, void * ex
 
 static bool perform_strength_reduction_data_node(
         struct ssa_data_node * _,
-        void ** parent_ptr,
+        void ** __,
         struct ssa_data_node * current_data_node,
         void * extra
 ) {
@@ -72,19 +73,38 @@ static bool perform_strength_reduction_data_node(
         struct ssa_data_binary_node * binary = (struct ssa_data_binary_node *) current_data_node;
         strength_reduction_transformer_t transformer = transformation_by_binary_op[binary->operand];
         if (transformer != NULL) {
-            transformer(binary, parent_ptr, sr);
+            transformer(binary, sr);
         }
     }
 
     return true;
 }
 
-static void modulo_strength_reduction_transformer(
+//  number % 2 -> number & 0x01 == 0
+static void check_even_strength_reduction_transformer(
         struct ssa_data_binary_node * binary_op,
-        void ** parent_ptr,
         struct sr * sr
 ) {
-    // number % k -> Where k is power of 2: (number - 1) & k
+    struct ssa_data_binary_node * left_binary = (struct ssa_data_binary_node *) binary_op->left;
+
+    if(binary_op->right->type == SSA_DATA_NODE_TYPE_CONSTANT &&
+        IS_BOOL(GET_CONST_VALUE_SSA_NODE(binary_op->right)) &&
+        binary_op->left->type == SSA_DATA_NODE_TYPE_BINARY &&
+        left_binary->operand == OP_MODULO &&
+        left_binary->right->type == SSA_DATA_NODE_TYPE_CONSTANT &&
+        AS_NUMBER(GET_CONST_VALUE_SSA_NODE(left_binary->right)) == 2)
+    {
+        binary_op->right = &create_ssa_const_node(TO_LOX_VALUE_NUMBER(0), NULL, SSA_NODES_ALLOCATOR(sr))->data;
+        left_binary->right = &create_ssa_const_node(TO_LOX_VALUE_NUMBER(0x01), NULL, SSA_NODES_ALLOCATOR(sr))->data;
+        left_binary->operand = OP_BINARY_OP_AND;
+    }
+}
+
+// number % k -> Where k is power of 2: (number - 1) & k
+static void modulo_strength_reduction_transformer(
+        struct ssa_data_binary_node * binary_op,
+        struct sr * sr
+) {
     if (binary_op->right == OP_CONSTANT) {
         double constant_right = AS_NUMBER(GET_CONST_VALUE_SSA_NODE(binary_op->right));
         if (is_double_power_of_2(constant_right)) {
