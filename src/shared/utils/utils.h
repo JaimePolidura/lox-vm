@@ -40,3 +40,4 @@ int round_up_8(int number);
 int align(int not_aligned, int value_to_align);
 bool has_decimals(double double_value);
 char * dynamic_format_string(const char * format, ...);
+bool is_double_power_of_2(double);

@@ -1,4 +1,4 @@
-#pragma once
+ #pragma once
 
 #include "shared.h"
 #include "shared/types/types.h"

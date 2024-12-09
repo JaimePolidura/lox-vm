@@ -73,3 +73,11 @@ int align(int not_aligned, int value_to_align) {
 bool has_decimals(double double_value) {
     return double_value != floor(double_value);
 }
+
+bool is_double_power_of_2(double doule_value) {
+    if (doule_value <= 0 || has_decimals(doule_value)) {
+        return false;
+    }
+    uint64_t u64_value = (uint64_t) doule_value;
+    return (u64_value & (u64_value - 1)) == 0;
+}
