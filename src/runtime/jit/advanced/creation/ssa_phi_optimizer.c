@@ -29,7 +29,7 @@ static void optimize_ssa_ir_phis_block(struct ssa_block *, void * extra);
 struct optimize_ssa_ir_phis_block_struct {
     struct phi_insertion_result * phi_insertion_result;
     struct arena_lox_allocator * ssa_nodes_allocator;
-    struct u64_hash_table uses_by_ssa_node;
+    struct u64_hash_table * uses_by_ssa_node;
 };
 
 struct phi_optimization_result optimize_ssa_ir_phis(
@@ -43,7 +43,7 @@ struct phi_optimization_result optimize_ssa_ir_phis(
     struct optimize_ssa_ir_phis_block_struct consumer_struct = (struct optimize_ssa_ir_phis_block_struct) {
         .phi_insertion_result = phi_insertion_result,
         .ssa_nodes_allocator = ssa_nodes_allocator,
-        .uses_by_ssa_node = uses_by_ssa_node,
+        .uses_by_ssa_node = &uses_by_ssa_node,
     };
 
     for_each_ssa_block(
@@ -65,7 +65,7 @@ static void optimize_ssa_ir_phis_block(struct ssa_block * current_block, void * 
         struct optimize_phi_functions_consumer_struct for_each_node_struct = (struct optimize_phi_functions_consumer_struct) {
                 .phi_insertion_result = consumer_struct->phi_insertion_result,
                 .ssa_nodes_allocator = consumer_struct->ssa_nodes_allocator,
-                .node_uses_by_ssa_name = &consumer_struct->uses_by_ssa_node,
+                .node_uses_by_ssa_name = consumer_struct->uses_by_ssa_node,
                 .control_node = current,
                 .block = current_block,
         };

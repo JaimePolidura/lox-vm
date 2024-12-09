@@ -111,7 +111,7 @@ struct ssa_block * create_ssa_ir_no_phis(
             case OP_PRINT: print(inserter, to_evaluate); break;
             case OP_SET_LOCAL: set_local(inserter, to_evaluate); break;
 
-            //Expressions -> control nodes
+                //Expressions -> control nodes
             case OP_GET_LOCAL: get_local(function, inserter, to_evaluate); break;
             case OP_CALL: call(inserter, to_evaluate); break;
             case OP_GET_GLOBAL: get_global(function, inserter, to_evaluate); break;
@@ -121,7 +121,7 @@ struct ssa_block * create_ssa_ir_no_phis(
             case OP_GET_ARRAY_ELEMENT: get_array_element(inserter, to_evaluate); break;
             case OP_NEGATE:
             case OP_NOT: unary(inserter, to_evaluate); break;
-            //Binary operations
+                //Binary operations
             case OP_ADD:
             case OP_SUB:
             case OP_MUL:
@@ -603,16 +603,14 @@ static void jump_if_false(struct ssa_no_phis_inserter * inserter, struct pending
     struct ssa_data_node * condition = pop_stack_list(&inserter->data_nodes_stack);
     cond_jump_node->condition = condition;
 
-    struct bytecode_list * false_branch_bytecode = to_evalute->pending_bytecode->as.jump;
-    struct bytecode_list * true_branch_bytecode = to_evalute->pending_bytecode->next;
+    struct bytecode_list * false_branch_bytecode = simplify_redundant_unconditional_jump_bytecodes(to_evalute->pending_bytecode->as.jump);
+    struct bytecode_list * true_branch_bytecode = simplify_redundant_unconditional_jump_bytecodes(to_evalute->pending_bytecode->next);
     struct ssa_block * parent_block = to_evalute->block;
     struct ssa_block * true_branch_block = get_block_by_first_bytecode(inserter, true_branch_bytecode);
     struct ssa_block * false_branch_block = get_block_by_first_bytecode(inserter, false_branch_bytecode);
 
     //Loop conditions, are creatd in the graph as a separated block
     if(to_evalute->pending_bytecode->loop_condition) {
-        false_branch_bytecode = simplify_redundant_unconditional_jump_bytecodes(false_branch_bytecode);
-        false_branch_block = get_block_by_first_bytecode(inserter, false_branch_bytecode);
         struct ssa_block * condition_block = get_block_by_first_bytecode(inserter, to_evalute->pending_bytecode);
         parent_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_SEQ;
         parent_block->next_as.next = condition_block;

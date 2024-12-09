@@ -15,6 +15,29 @@ static bool node_uses_version(struct ssa_data_node * start_node, int n_expected_
 static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expected_versions, ...);
 static bool node_defines_ssa_name(struct ssa_control_node *, int version);
 
+TEST(ssa_creation_sr){
+    struct compilation_result compilation = compile_standalone(
+            "fun function_ssa(a, b) {"
+            "   if(a % 2 == 0) {"
+            "   }"
+            "   return (a % 10) + (b % 8);"
+            "}"
+    );
+    struct package * package = compilation.compiled_package;
+    struct function_object * function_ssa = get_function_package(package, "function_ssa");
+    int n_instructions = function_ssa->chunk->in_use;
+    init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
+
+    //Observe the generated graph IR
+    generate_ssa_graphviz_graph(
+            package,
+            function_ssa,
+            STRENGTH_REDUCTION_PHASE_SSA_GRAPHVIZ,
+            NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT,
+            "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
+    );
+}
+
 TEST(ssa_creation_cse){
     struct compilation_result compilation = compile_standalone(
             "fun function_ssa(a, b) {"
@@ -60,7 +83,14 @@ TEST(ssa_creation_nested_loop){
     int n_instructions = function_ssa->chunk->in_use;
     init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
 
-    //TODO Pending add test
+    //Observe the generated graph IR
+    generate_ssa_graphviz_graph(
+            package,
+            function_ssa,
+            PHIS_INSERTED_PHASE_SSA_GRAPHVIZ,
+            NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT,
+            "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
+    );
 }
 
 TEST(ssa_creation_scp){
@@ -90,6 +120,8 @@ TEST(ssa_creation_scp){
     init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
     struct ssa_ir ssa_ir = create_ssa_ir(package, function_ssa, create_bytecode_list(function_ssa->chunk, NATIVE_LOX_ALLOCATOR()));
     perform_sparse_constant_propagation(&ssa_ir);
+
+    //Observe the generated graph IR
 
     ASSERT_EQ(ssa_ir.first_block->type_next_ssa_block, TYPE_NEXT_SSA_BLOCK_SEQ);
     struct ssa_block * final_block = ssa_ir.first_block->next_as.branch.true_branch->next_as.next->next_as.next;

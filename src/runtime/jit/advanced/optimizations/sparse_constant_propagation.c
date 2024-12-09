@@ -492,7 +492,7 @@ static lox_value_t calculate_binary_lox(lox_value_t left, lox_value_t right, byt
     switch (operator) {
         case OP_BINARY_OP_AND: return TO_LOX_VALUE_NUMBER(((uint64_t) AS_NUMBER(left)) & ((uint64_t) AS_NUMBER(right)));
         case OP_BINARY_OP_OR: return TO_LOX_VALUE_NUMBER(((uint64_t) AS_NUMBER(left)) | ((uint64_t) AS_NUMBER(right)));
-        case OP_LEFT_SHIFT:  return TO_LOX_VALUE_NUMBER(((uint64_t) AS_NUMBER(left)) << ((uint64_t) AS_NUMBER(right)));
+        case OP_LEFT_SHIFT: return TO_LOX_VALUE_NUMBER(((uint64_t) AS_NUMBER(left)) << ((uint64_t) AS_NUMBER(right)));
         case OP_RIGHT_SHIFT: return TO_LOX_VALUE_NUMBER(((uint64_t) AS_NUMBER(left)) >> ((uint64_t) AS_NUMBER(right)));
         case OP_MODULO: return TO_LOX_VALUE_BOOL(((uint64_t) AS_NUMBER(left)) % ((uint64_t) AS_NUMBER(right)));
         case OP_GREATER: return TO_LOX_VALUE_BOOL(AS_NUMBER(left) > AS_NUMBER(right));
