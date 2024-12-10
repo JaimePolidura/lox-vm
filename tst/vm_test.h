@@ -319,6 +319,24 @@ TEST(vm_file_global_variables_test) {
     reset_vm();
 }
 
+TEST(simple_vm_test_inline_array_length){
+    struct compilation_result compilation_result = compile_standalone(
+            "var array = [1, 2, 3, 4];"
+            "for(var i = 0; i < len(array); i = i + 1) {"
+            "   print array[i];"
+            "}"
+    );
+
+    start_vm();
+    interpret_result_t vm_result = interpret_vm(compilation_result);
+
+    ASSERT_TRUE(vm_result == INTERPRET_OK);
+    ASSERT_NEXT_VM_LOG(current_vm, "1.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "2.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "3.000000");
+    ASSERT_NEXT_VM_LOG(current_vm, "4.000000");
+}
+
 TEST (simple_vm_test_inline_array_initilization) {
     struct compilation_result compilation_result = compile_standalone(
             "var array = [1, 2, 3, 4];"

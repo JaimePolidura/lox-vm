@@ -704,6 +704,7 @@ static void print_statement(struct bytecode_compiler * compiler) {
 static void array_length(struct bytecode_compiler * compiler, bool can_assign) {
     consume(compiler, TOKEN_OPEN_PAREN, "Expect '(' after len");
     expression(compiler);
+    emit_bytecode(compiler, OP_GET_ARRAY_LENGTH);
     consume(compiler, TOKEN_CLOSE_PAREN, "Expect ')' after len");
 }
 
