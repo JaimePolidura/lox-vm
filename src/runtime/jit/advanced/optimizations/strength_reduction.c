@@ -88,7 +88,6 @@ static void check_even_strength_reduction_transformer(
     struct ssa_data_binary_node * left_binary = (struct ssa_data_binary_node *) binary_op->left;
 
     if(binary_op->right->type == SSA_DATA_NODE_TYPE_CONSTANT &&
-        IS_BOOL(GET_CONST_VALUE_SSA_NODE(binary_op->right)) &&
         binary_op->left->type == SSA_DATA_NODE_TYPE_BINARY &&
         left_binary->operand == OP_MODULO &&
         left_binary->right->type == SSA_DATA_NODE_TYPE_CONSTANT &&
@@ -105,7 +104,7 @@ static void modulo_strength_reduction_transformer(
         struct ssa_data_binary_node * binary_op,
         struct sr * sr
 ) {
-    if (binary_op->right == OP_CONSTANT) {
+    if (binary_op->right->type == SSA_DATA_NODE_TYPE_CONSTANT) {
         double constant_right = AS_NUMBER(GET_CONST_VALUE_SSA_NODE(binary_op->right));
         if (is_double_power_of_2(constant_right)) {
             binary_op->operand = OP_BINARY_OP_AND;
