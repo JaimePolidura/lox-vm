@@ -15,11 +15,12 @@ static bool node_uses_version(struct ssa_data_node * start_node, int n_expected_
 static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expected_versions, ...);
 static bool node_defines_ssa_name(struct ssa_control_node *, int version);
 
-TEST (ssa_creation_licm) {
+TEST(ssa_creation_licm) {
     struct compilation_result compilation = compile_standalone(
-            "fun acc_sum() {"
+            "fun acc_sum(a, b) {"
             "   var arr[10];"
             "   for(var i = 0; i < 10; i = i + 1) {"
+            "       var c = a + b;"
             "       arr[i] = i + i;"
             "   }"
             "   return arr;"
