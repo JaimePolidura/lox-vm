@@ -99,7 +99,7 @@ static void check_even_strength_reduction_transformer(
     }
 }
 
-// number % k -> Where k is power of 2: (number - 1) & k
+// number % k -> Where k is power of 2: number & (k - 1)
 static void modulo_strength_reduction_transformer(
         struct ssa_data_binary_node * binary_op,
         struct sr * sr
@@ -108,15 +108,8 @@ static void modulo_strength_reduction_transformer(
         double constant_right = AS_NUMBER(GET_CONST_VALUE_SSA_NODE(binary_op->right));
         if (is_double_power_of_2(constant_right)) {
             binary_op->operand = OP_BINARY_OP_AND;
-
-            struct ssa_data_binary_node * new_left = ALLOC_SSA_DATA_NODE(
-                    SSA_DATA_NODE_TYPE_BINARY, struct ssa_data_binary_node, NULL, SSA_NODES_ALLOCATOR(sr)
-            );
-            new_left->operand = OP_SUB;
-            new_left->left = binary_op->left;
-            new_left->right = &create_ssa_const_node(TO_LOX_VALUE_NUMBER(1), NULL, SSA_NODES_ALLOCATOR(sr))->data;
-
-            binary_op->left = &new_left->data;
+            binary_op->right = &create_ssa_const_node(TO_LOX_VALUE_NUMBER(constant_right - 1), NULL,
+                &sr->ssa_ir->ssa_nodes_allocator_arena.lox_allocator)->data;
         }
     }
 }

@@ -8,7 +8,7 @@
 //Optmizes math operations into cheaper ones. Operations that are being optimized:
 // Check for odd/even numbers:
 //  number % 2 -> number & 0x01 == 0
-//  number % k -> Where k is power of 2: (number - 1) & k
+//  number % k -> Where k is power of 2: number & (k - 1)
 //Additions. Where number is not floating point:
 //  k * 2 -> k << 1;
 //  k * 5 -> k << 2 + number;
