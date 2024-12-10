@@ -32,8 +32,7 @@ static void var_declaration(struct bytecode_compiler * compiler, bool is_public,
 static uint8_t add_string_constant(struct bytecode_compiler * compiler, struct token string_token);
 static void define_global_variable(struct bytecode_compiler * compiler, uint8_t global_constant_offset);
 static void variable(struct bytecode_compiler * compiler, bool can_assign);
-static void named_variable(struct bytecode_compiler * compiler, struct token variable_name, struct token array_index,
-                           bool can_assign, struct package * external_package);
+static void named_variable(struct bytecode_compiler * compiler, struct token variable_name, bool can_assign, struct package * external_package, bool is_array);
 static void begin_scope(struct bytecode_compiler * compiler);
 static void end_scope(struct bytecode_compiler * compiler);
 static void block(struct bytecode_compiler * compiler);
@@ -707,8 +706,6 @@ static void variable(struct bytecode_compiler * compiler, bool can_assign) {
     struct package * external_package = NULL;
     struct token package_name = compiler->parser->previous;
     struct token variable_name;
-    struct token array_index;
-    array_index.type = TOKEN_NO_TOKEN;
 
     if (is_from_package) {
         external_package = load_package(compiler);
@@ -720,8 +717,7 @@ static void variable(struct bytecode_compiler * compiler, bool can_assign) {
     } else if(is_from_array) {
         variable_name = compiler->parser->previous;
         advance(compiler); //Consume [
-        consume(compiler, TOKEN_NUMBER, "Expect immediate when accessing array");
-        array_index = compiler->parser->previous;
+        expression(compiler); //Array index
         consume(compiler, TOKEN_CLOSE_SQUARE, "Expect `]` when accessing array");
     } else {
         variable_name = compiler->parser->previous;
@@ -734,7 +730,7 @@ static void variable(struct bytecode_compiler * compiler, bool can_assign) {
     if (check(compiler, TOKEN_OPEN_BRACE)) {
         struct_initialization(compiler, external_package);
     } else {
-        named_variable(compiler, variable_name, array_index, can_assign, external_package);
+        named_variable(compiler, variable_name, can_assign, external_package, is_from_array);
     }
 
     if(is_from_function) {
@@ -818,9 +814,9 @@ static int struct_initialization_fields(struct bytecode_compiler * compiler) {
 static void named_variable(
         struct bytecode_compiler * compiler,
         struct token variable_name,
-        struct token array_index,
         bool can_assign,
-        struct package * external_package
+        struct package * external_package,
+        bool is_array
 ) {
     int variable_identifier = resolve_local_variable(compiler, &variable_name);
 
@@ -829,7 +825,6 @@ static void named_variable(
     bool is_local = variable_identifier != -1;
     bool is_global = !is_local;
     bool is_set_op = can_assign && match(compiler, TOKEN_EQUAL);
-    bool is_array = array_index.type != TOKEN_NO_TOKEN;
 
     //When setting values of an array we don't use OP_SET_LOCAL/OP_SET_GLOBAL we use OP_SET_ARRAY_ELEMENT
     uint8_t op = is_set_op && !is_array ?
@@ -880,10 +875,8 @@ static void named_variable(
     }
 
     if(is_array) {
+        //If it is an array, the index expression has been emitted before calling this function
         emit_bytecode(compiler,is_set_op ? OP_SET_ARRAY_ELEMENT : OP_GET_ARRAY_ELEMENT);
-        int index_as_int = atoi(array_index.start);
-        emit_bytecode(compiler, (index_as_int >> 8) & 0xFF);
-        emit_bytecode(compiler, index_as_int & 0xFF);
     }
 }
 

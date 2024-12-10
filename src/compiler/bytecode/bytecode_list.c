@@ -206,6 +206,8 @@ struct bytecode_list * create_bytecode_list(struct chunk * chunk, struct lox_all
             case OP_FAST_CONST_8:
             case OP_EXIT_MONITOR:
             case OP_CONSTANT:
+            case OP_GET_ARRAY_ELEMENT:
+            case OP_SET_ARRAY_ELEMENT:
             case OP_PACKAGE_CONST: {
                 current_node->as.u8 = read_u8_chunk_iterator(&chunk_iterator);
                 break;
@@ -234,8 +236,6 @@ struct bytecode_list * create_bytecode_list(struct chunk * chunk, struct lox_all
                 current_node->as.initialize_array.is_emtpy_initializaion = read_u8_chunk_iterator(&chunk_iterator);
                 break;
             }
-            case OP_GET_ARRAY_ELEMENT:
-            case OP_SET_ARRAY_ELEMENT:
             case OP_FAST_CONST_16: {
                 current_node->as.u16 = read_u16_chunk_iterator(&chunk_iterator);
                 break;

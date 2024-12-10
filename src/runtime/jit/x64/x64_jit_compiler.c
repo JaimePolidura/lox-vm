@@ -153,14 +153,15 @@ struct jit_compilation_result jit_compile_arch(struct function_object * function
             case OP_SET_STRUCT_FIELD: set_struct_field(&jit_compiler); break;
             case OP_NO_OP: nop(&jit_compiler); break;
             case OP_INITIALIZE_ARRAY: initialize_array(&jit_compiler); break;
-            case OP_GET_ARRAY_ELEMENT: get_array_element(&jit_compiler); break;
-            case OP_SET_ARRAY_ELEMENT: set_array_element(&jit_compiler); break;
+
             case OP_ENTER_MONITOR_EXPLICIT: enter_monitor_explicit_jit(&jit_compiler); break;
             case OP_EXIT_MONITOR_EXPLICIT: exit_monitor_explicit_jit(&jit_compiler); break;
             case OP_ENTER_MONITOR: enter_monitor_jit(&jit_compiler); break;
             case OP_EXIT_MONITOR: exit_monitor_jit(&jit_compiler); break;
             case OP_RETURN: return_jit(&jit_compiler, &finish_compilation_flag); break;
             case OP_CALL: call_jit(&jit_compiler); break;
+            case OP_GET_ARRAY_ELEMENT:
+            case OP_SET_ARRAY_ELEMENT:
             case OP_BINARY_OP_AND:
             case OP_BINARY_OP_OR:
             case OP_RIGHT_SHIFT:
@@ -364,6 +365,7 @@ static void exit_monitor_explicit_jit(struct jit_compiler * jit_compiler) {
     record_compiled_bytecode(jit_compiler, instruction_index, OP_EXIT_MONITOR_EXPLICIT_LENGTH);
 }
 
+//Unused
 static void set_array_element(struct jit_compiler * jit_compiler) {
     uint16_t array_index = READ_U16(jit_compiler);
 
@@ -407,13 +409,15 @@ static void set_array_element(struct jit_compiler * jit_compiler) {
     record_compiled_bytecode(jit_compiler, instruction_index, OP_SET_ARRAY_ELEMENT_LENGTH);
 }
 
+//Unused
 static void get_array_element(struct jit_compiler * jit_compiler) {
-    uint16_t array_index = READ_U16(jit_compiler);
-
     struct pop_stack_operand_result array_addr_pop_result = pop_stack_operand_jit_stack_as_register(jit_compiler);
-    register_t array_addr_reg = array_addr_pop_result.operand.as.reg;
+    struct pop_stack_operand_result array_index_pop_result = pop_stack_operand_jit_stack_as_register(jit_compiler);
+    register_t array_addr_reg = array_index_pop_result.operand.as.reg;
 
     uint16_t instruction_index = cast_lox_object_to_ptr(jit_compiler, array_addr_reg);
+
+    int array_index= 0;
 
     emit_add(&jit_compiler->native_compiled_code,
              REGISTER_TO_OPERAND(array_addr_reg),

@@ -146,8 +146,8 @@ void disassemble_function(struct function_object * function, long options) {
             case OP_ENTER_MONITOR: BINARY_U8_INSTRUCTION("OP_ENTER_MONITOR", iterator); break;
             case OP_EXIT_MONITOR: BINARY_U8_INSTRUCTION("OP_EXIT_MONITOR", iterator); break;
             case OP_INITIALIZE_ARRAY: INITIALIZE_ARRAY_INSTRUCTION(iterator); break;
-            case OP_GET_ARRAY_ELEMENT: BINARY_U16_INSTRUCTION("OP_GET_ARRAY_ELEMENT", iterator); break;
-            case OP_SET_ARRAY_ELEMENT: BINARY_U16_INSTRUCTION("OP_SET_ARRAY_ELEMENT", iterator); break;
+            case OP_GET_ARRAY_ELEMENT: SINGLE_INSTRUCTION("OP_GET_ARRAY_ELEMENT"); break;
+            case OP_SET_ARRAY_ELEMENT: SINGLE_INSTRUCTION("OP_SET_ARRAY_ELEMENT"); break;
             case OP_FAST_CONST_8: BINARY_U8_INSTRUCTION("OP_FAST_CONST_8", iterator); break;
             case OP_FAST_CONST_16: BINARY_U16_INSTRUCTION("OP_FAST_CONST_16", iterator); break;
             case OP_CONST_1: SINGLE_INSTRUCTION("OP_CONST_1"); break;

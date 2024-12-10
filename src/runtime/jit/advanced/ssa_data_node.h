@@ -148,7 +148,7 @@ struct ssa_data_initialize_struct_node {
 struct ssa_data_get_array_element_node {
     struct ssa_data_node data;
 
-    int index;
+    struct ssa_data_node * index;
     struct ssa_data_node * instance;
 };
 

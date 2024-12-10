@@ -81,9 +81,11 @@ void for_each_data_node_in_control_node(
             if(IS_FLAG_SET(options, SSA_DATA_NODE_OPT_RECURSIVE)) {
                 for_each_ssa_data_node(set_array_element->new_element_value, (void**) &set_array_element->new_element_value, extra, options, consumer);
                 for_each_ssa_data_node(set_array_element->array, (void**) &set_array_element->array, extra, options, consumer);
+                for_each_ssa_data_node(set_array_element->index, (void**) &set_array_element->index, extra, options, consumer);
             } else {
                 consumer(NULL, (void**) &set_array_element->new_element_value, set_array_element->new_element_value, extra);
                 consumer(NULL, (void**) &set_array_element->array, set_array_element->array, extra);
+                consumer(NULL, (void**) &set_array_element->index, set_array_element->index, extra);
             }
             break;
         }

@@ -239,8 +239,9 @@ static void get_array_element(struct ssa_no_phis_inserter * inserter, struct pen
             SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT, struct ssa_data_get_array_element_node, to_evaluate->pending_bytecode, GET_SSA_NODES_ALLOCATOR(inserter)
     );
     get_array_element_node->instance = pop_stack_list(&inserter->data_nodes_stack);
+    get_array_element_node->index = pop_stack_list(&inserter->data_nodes_stack);
+
     get_array_element_node->data.produced_type = PROFILE_DATA_TYPE_ANY;
-    get_array_element_node->index = to_evaluate->pending_bytecode->as.u16;
 
     push_stack_list(&inserter->data_nodes_stack, get_array_element_node);
     push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
@@ -530,8 +531,9 @@ static void set_array_element(struct ssa_no_phis_inserter * inserter, struct pen
     );
     struct ssa_data_node * instance = pop_stack_list(&inserter->data_nodes_stack);
     struct ssa_data_node * new_element = pop_stack_list(&inserter->data_nodes_stack);
+    struct ssa_data_node * index = pop_stack_list(&inserter->data_nodes_stack);
 
-    set_arrary_element_node->index = to_evalute->pending_bytecode->as.u16;
+    set_arrary_element_node->index = index;
     set_arrary_element_node->new_element_value = new_element;
     set_arrary_element_node->array = instance;
 

@@ -15,6 +15,31 @@ static bool node_uses_version(struct ssa_data_node * start_node, int n_expected_
 static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expected_versions, ...);
 static bool node_defines_ssa_name(struct ssa_control_node *, int version);
 
+TEST (ssa_creation_licm) {
+    struct compilation_result compilation = compile_standalone(
+            "fun acc_sum() {"
+            "   var arr[10];"
+            "   for(var i = 0; i < 10; i = i + 1) {"
+            "       arr[i] = i + i;"
+            "   }"
+            "   return arr;"
+            "}"
+    );
+    struct package * package = compilation.compiled_package;
+    struct function_object * function_ssa = get_function_package(package, "acc_sum");
+    int n_instructions = function_ssa->chunk->in_use;
+    init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
+
+    //Observe the generated graph IR
+    generate_ssa_graphviz_graph(
+            package,
+            function_ssa,
+            STRENGTH_REDUCTION_PHASE_SSA_GRAPHVIZ,
+            NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT,
+            "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
+    );
+}
+
 TEST(ssa_creation_sr){
     struct compilation_result compilation = compile_standalone(
             "fun function_ssa(a, b) {"

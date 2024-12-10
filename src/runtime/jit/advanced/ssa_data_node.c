@@ -131,7 +131,7 @@ bool is_eq_ssa_data_node(struct ssa_data_node * a, struct ssa_data_node * b, str
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
             struct ssa_data_get_array_element_node * a_get_array_ele = (struct ssa_data_get_array_element_node *) a;
             struct ssa_data_get_array_element_node * b_get_array_ele = (struct ssa_data_get_array_element_node *) b;
-            return a_get_array_ele->index == b_get_array_ele->index &&
+            return is_eq_ssa_data_node(a_get_array_ele->index, b_get_array_ele->index, allocator) &&
                    is_eq_ssa_data_node(a_get_array_ele->instance, b_get_array_ele->instance, allocator);
         }
         case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY: {
@@ -258,8 +258,10 @@ static bool for_each_ssa_data_node_recursive(
             struct ssa_data_get_array_element_node * get_array_element = (struct ssa_data_get_array_element_node *) current_node;
             if (IS_FLAG_SET(options, SSA_DATA_NODE_OPT_NOT_RECURSIVE)) {
                 continue_for_each = consumer(current_node, (void **) &get_array_element->instance, get_array_element->instance, extra);
+                continue_for_each = consumer(current_node, (void **) &get_array_element->index, get_array_element->index, extra);
             } else {
                 continue_for_each = for_each_ssa_data_node_recursive(current_node, (void **) &get_array_element->instance, get_array_element->instance, extra, options, consumer);
+                continue_for_each = for_each_ssa_data_node_recursive(current_node, (void **) &get_array_element->index, get_array_element->index, extra, options, consumer);
             }
             break;
         }
@@ -429,7 +431,8 @@ uint64_t hash_ssa_data_node(struct ssa_data_node * node) {
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
             struct ssa_data_get_array_element_node * get_arr_ele = (struct ssa_data_get_array_element_node *) node;
             uint64_t array_instance_hash = hash_ssa_data_node(get_arr_ele->instance);
-            return mix_hash_not_commutative(array_instance_hash, get_arr_ele->index);
+            uint64_t index_instance_hash = hash_ssa_data_node(get_arr_ele->index);
+            return mix_hash_not_commutative(array_instance_hash, index_instance_hash);
         }
         case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY: {
             struct ssa_data_initialize_array_node * init_array = (struct ssa_data_initialize_array_node *) node;

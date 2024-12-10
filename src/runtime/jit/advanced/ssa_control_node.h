@@ -98,7 +98,7 @@ struct ssa_control_set_struct_field_node {
 struct ssa_control_set_array_element_node {
     struct ssa_control_node control;
 
-    uint16_t index;
+    struct ssa_data_node * index;
     struct ssa_data_node * array;
     struct ssa_data_node * new_element_value;
 };

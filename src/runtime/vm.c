@@ -450,10 +450,10 @@ static void initialize_array(struct call_frame * call_frame) {
 }
 
 static void get_array_element(struct call_frame * call_frame) {
-    uint16_t array_index = READ_U16(call_frame);
     struct array_object * array = (struct array_object *) AS_OBJECT(pop_stack_vm());
+    uint64_t array_index = AS_NUMBER(pop_stack_vm());
 
-    if(array_index >= array->values.in_use) {
+    if (array_index >= array->values.in_use) {
         runtime_panic("Index out of bounds");
     }
 
@@ -461,9 +461,9 @@ static void get_array_element(struct call_frame * call_frame) {
 }
 
 static void set_array_element(struct call_frame * call_frame) {
-    uint16_t array_index = READ_U16(call_frame);
     struct array_object * array = (struct array_object *) AS_OBJECT(pop_stack_vm());
     lox_value_t new_value = pop_stack_vm();
+    uint64_t array_index = AS_NUMBER(pop_stack_vm());
 
     if (array_index >= array->values.in_use) {
         runtime_panic("Index out of bounds");

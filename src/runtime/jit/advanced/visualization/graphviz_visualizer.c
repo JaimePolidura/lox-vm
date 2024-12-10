@@ -59,6 +59,7 @@ void add_control_node_graphviz_file(struct graphviz_visualizer *, char *, int);
 void add_start_control_node_graphviz_file(struct graphviz_visualizer *);
 
 void link_data_data_node_graphviz_file(struct graphviz_visualizer *, int from, int to);
+void link_data_data_label_node_graphviz_file(struct graphviz_visualizer *, char *, int from, int to);
 void link_control_data_node_graphviz_file(struct graphviz_visualizer *, int from, int to);
 void link_control_data_node_label_graphviz_file(struct graphviz_visualizer *, char *, int from, int to);
 void link_control_control_node_graphviz_file(struct graphviz_visualizer *, int from, int to);
@@ -324,15 +325,17 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
         }
         case SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT: {
             struct ssa_control_set_array_element_node * set_array_element = (struct ssa_control_set_array_element_node *) node;
-            char * node_desc = dynamic_format_string("SetArrayElement %i", set_array_element->index);
+            char * node_desc = dynamic_format_string("SetArrayElement");
 
             add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
             free(node_desc);
             if(!IS_FLAG_SET(visualizer->options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
                 int array_element_data_node_id = generate_data_node_graph(visualizer, set_array_element->new_element_value);
                 int array_instance_data_node_id = generate_data_node_graph(visualizer, set_array_element->array);
-                link_control_data_node_graphviz_file(visualizer, self_control_node_id, array_element_data_node_id);
-                link_control_data_node_graphviz_file(visualizer, self_control_node_id, array_instance_data_node_id);
+                int array_index_data_node_id = generate_data_node_graph(visualizer, set_array_element->index);
+                link_control_data_node_label_graphviz_file(visualizer, "newValue", self_control_node_id, array_element_data_node_id);
+                link_control_data_node_label_graphviz_file(visualizer, "instance", self_control_node_id, array_instance_data_node_id);
+                link_control_data_node_label_graphviz_file(visualizer, "index", self_control_node_id, array_index_data_node_id);
             }
             break;
         }
@@ -433,11 +436,13 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
         }
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
             struct ssa_data_get_array_element_node * get_array_element = (struct ssa_data_get_array_element_node *) node;
-            char * node_desc = dynamic_format_string("GetArrayElement %i", get_array_element->index);
+            char * node_desc = dynamic_format_string("GetArrayElement");
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             int array_instance_node_id = generate_data_node_graph(visualizer, get_array_element->instance);
-            link_data_data_node_graphviz_file(visualizer, self_data_node_id, array_instance_node_id);
+            int array_index_node_id = generate_data_node_graph(visualizer, get_array_element->index);
+            link_data_data_label_node_graphviz_file(visualizer, "intance", self_data_node_id, array_instance_node_id);
+            link_data_data_label_node_graphviz_file(visualizer, "index", self_data_node_id, array_index_node_id);
             free(node_desc);
             break;
         }
@@ -530,6 +535,12 @@ void link_block_block_node_graphviz_file(
         struct block_graph_generated to
 ) {
     link_control_control_node_graphviz_file(visualizer, from.value.last_control_node_id, to.value.first_control_node_id);
+}
+
+void link_data_data_label_node_graphviz_file(struct graphviz_visualizer * visualizer, char * label, int from, int to) {
+    char * link_node_text = dynamic_format_string("\t\tdata_%i -> data_%i [label=\"%s\"];", from, to, label);
+    add_new_line_graphviz_file(visualizer, dynamic_format_string(link_node_text));
+    free(link_node_text);
 }
 
 void link_data_data_node_graphviz_file(struct graphviz_visualizer * visualizer, int from, int to) {
