@@ -4,12 +4,15 @@
 
 struct ssa_phi_inserter {
     struct u8_hash_table max_version_allocated_per_local;
-    struct u64_set loops_evaluted; //Stores ssa_block->next_as.loop address
+    struct u64_set loops_already_scanned; //Stores ssa_block->next_as.loop address
     struct stack_list pending_evaluate;
     struct arena_lox_allocator * ssa_nodes_lox_allocator;
 
     //Key struct ssa_name, Value: pointer to ssa_control_node
     struct u64_hash_table ssa_definitions_by_ssa_name;
+
+    bool rescanning_loop_body;
+    int rescanning_loop_body_nested_loops;
 };
 
 struct pending_evaluate {
@@ -59,18 +62,28 @@ struct phi_insertion_result insert_ssa_ir_phis(
                 break;
             case TYPE_NEXT_SSA_BLOCK_LOOP:
                 struct ssa_block * to_jump_loop_block = block_to_evaluate->next_as.loop;
-                if(!contains_u64_set(&inserter.loops_evaluted, (uint64_t) to_jump_loop_block)){
-                    push_pending_evaluate(&inserter, to_jump_loop_block, parent_versions);
-                    add_u64_set(&inserter.loops_evaluted, (uint64_t) to_jump_loop_block);
-                } else {
+                if(contains_u64_set(&inserter.loops_already_scanned, (uint64_t) to_jump_loop_block)){
                     //OP_LOOP always points to the loop condition
                     //If an assigment have ocurred inside the loop body, we will need to propagate outside the loop
                     push_pending_evaluate(&inserter, to_jump_loop_block->next_as.branch.false_branch, parent_versions);
+                    inserter.rescanning_loop_body = false;
+                } else if (!inserter.rescanning_loop_body && !contains_u64_set(&inserter.loops_already_scanned, (uint64_t) to_jump_loop_block)){
+                    push_pending_evaluate(&inserter, to_jump_loop_block, parent_versions);
+                    add_u64_set(&inserter.loops_already_scanned, (uint64_t) to_jump_loop_block);
+                    inserter.rescanning_loop_body_nested_loops = block_to_evaluate->nested_loop_body;
+                    inserter.rescanning_loop_body = true;
                 }
                 break;
             case TYPE_NEXT_SSA_BLOCK_BRANCH:
-                push_pending_evaluate(&inserter, block_to_evaluate->next_as.branch.false_branch, clone_u8_hash_table(parent_versions, NATIVE_LOX_ALLOCATOR()));
-                push_pending_evaluate(&inserter, block_to_evaluate->next_as.branch.true_branch, parent_versions);
+                if (inserter.rescanning_loop_body &&
+                    block_to_evaluate->loop_condition &&
+                    block_to_evaluate->next_as.branch.false_branch->nested_loop_body < inserter.rescanning_loop_body_nested_loops) {
+
+                    push_pending_evaluate(&inserter, block_to_evaluate->next_as.branch.true_branch, parent_versions);
+                } else {
+                    push_pending_evaluate(&inserter, block_to_evaluate->next_as.branch.false_branch, clone_u8_hash_table(parent_versions, NATIVE_LOX_ALLOCATOR()));
+                    push_pending_evaluate(&inserter, block_to_evaluate->next_as.branch.true_branch, parent_versions);
+                }
                 break;
             case TYPE_NEXT_SSA_BLOCK_NONE:
                 NATIVE_LOX_FREE(parent_versions);
@@ -142,6 +155,9 @@ static void insert_ssa_versions_in_control_node(
         put_u64_hash_table(&inserter->ssa_definitions_by_ssa_name, ssa_name.u16, define_ssa_name);
         put_version(parent_versions, local_number, new_version);
         add_u64_set(&block->defined_ssa_names, ssa_name.u16);
+    } else if(control_node->type == SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME) {
+        struct ssa_control_define_ssa_name_node * define = (struct ssa_control_define_ssa_name_node *) control_node;
+        put_version(parent_versions, define->ssa_name.value.local_number, define->ssa_name.value.version);
     }
 }
 
@@ -194,6 +210,7 @@ static bool insert_phis_in_data_node_consumer(
             return true;
         }
 
+
         add_u64_set(&phi_node->ssa_versions, last_version);
     }
 
@@ -242,14 +259,15 @@ static void push_pending_evaluate(
 static void init_ssa_phi_inserter(struct ssa_phi_inserter * ssa_phi_inserter, struct arena_lox_allocator * ssa_nodes_lox_allocator) {
     init_u64_hash_table(&ssa_phi_inserter->ssa_definitions_by_ssa_name, &ssa_nodes_lox_allocator->lox_allocator);
     init_stack_list(&ssa_phi_inserter->pending_evaluate, NATIVE_LOX_ALLOCATOR());
-    init_u64_set(&ssa_phi_inserter->loops_evaluted, NATIVE_LOX_ALLOCATOR());
+    init_u64_set(&ssa_phi_inserter->loops_already_scanned, NATIVE_LOX_ALLOCATOR());
     init_u8_hash_table(&ssa_phi_inserter->max_version_allocated_per_local);
     ssa_phi_inserter->ssa_nodes_lox_allocator = ssa_nodes_lox_allocator;
+    ssa_phi_inserter->rescanning_loop_body = false;
 }
 
 static void free_ssa_phi_inserter(struct ssa_phi_inserter * inserter) {
     free_stack_list(&inserter->pending_evaluate);
-    free_u64_set(&inserter->loops_evaluted);
+    free_u64_set(&inserter->loops_already_scanned);
 }
 
 //a = a + 1; will be replaced: a1 = phi(a0); a2 = phi(a1) + 1;
