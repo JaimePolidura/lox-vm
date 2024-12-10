@@ -162,6 +162,7 @@ struct jit_compilation_result jit_compile_arch(struct function_object * function
             case OP_CALL: call_jit(&jit_compiler); break;
             case OP_GET_ARRAY_ELEMENT:
             case OP_SET_ARRAY_ELEMENT:
+            case OP_GET_ARRAY_LENGTH:
             case OP_BINARY_OP_AND:
             case OP_BINARY_OP_OR:
             case OP_RIGHT_SHIFT:

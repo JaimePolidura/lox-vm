@@ -434,6 +434,14 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             free(node_desc);
             break;
         }
+        case SSA_DATA_NODE_TYPE_GET_ARRAY_LENGTH: {
+            struct ssa_data_get_array_length * get_array_length = (struct ssa_data_get_array_length *) node;
+
+            add_data_node_graphviz_file(visualizer, "GetArrayLength", self_data_node_id);
+            int array_instance_node_id = generate_data_node_graph(visualizer, get_array_length->instance);
+            link_data_data_node_graphviz_file(visualizer, self_data_node_id, array_instance_node_id);
+            break;
+        }
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
             struct ssa_data_get_array_element_node * get_array_element = (struct ssa_data_get_array_element_node *) node;
             char * node_desc = dynamic_format_string("GetArrayElement");

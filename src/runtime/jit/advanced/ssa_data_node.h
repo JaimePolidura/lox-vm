@@ -24,6 +24,7 @@ typedef enum {
     SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT,
     SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT,
     SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY,
+    SSA_DATA_NODE_TYPE_GET_ARRAY_LENGTH,
     //Only used when inserting phi functions in the graph ir creation process.
     //It will replace all the nodes with type SSA_DATA_NODE_TYPE_GET_LOCAL in the phi insertion proceess
     SSA_DATA_NODE_TYPE_PHI,
@@ -98,6 +99,11 @@ struct ssa_data_binary_node {
     bytecode_t operand;
     struct ssa_data_node * left;
     struct ssa_data_node * right;
+};
+
+struct ssa_data_get_array_length {
+    struct ssa_data_node data;
+    struct ssa_data_node * instance;
 };
 
 //OP_CONST, OP_FAST_CONST_8, OP_FAST_CONST_16, OP_CONST_1, OP_CONST_2

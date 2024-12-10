@@ -71,6 +71,7 @@ static void enter_monitor_vm_explicit(struct call_frame * call_frame);
 static void exit_monitor_vm_explicit(struct call_frame * call_frame);
 static void jit_compile(struct function_object *);
 static inline void increase_n_function_calls(struct function_object *function);
+static void get_array_length();
 
 #define READ_BYTECODE(frame) (*frame->pc++)
 #define READ_U16(frame) \
@@ -168,6 +169,7 @@ static interpret_result_t run() {
             case OP_CONST_1: push_stack_vm(TO_LOX_VALUE_NUMBER(1)); break;
             case OP_CONST_2: push_stack_vm(TO_LOX_VALUE_NUMBER(2)); break;
             case OP_PACKAGE_CONST: push_stack_vm(READ_CONSTANT(current_frame)); break;
+            case OP_GET_ARRAY_LENGTH: get_array_length(); break;
             case OP_EOF: return INTERPRET_OK;
             case OP_NO_OP: break;
             default:
@@ -449,9 +451,14 @@ static void initialize_array(struct call_frame * call_frame) {
     push_stack_vm(TO_LOX_VALUE_OBJECT(array));
 }
 
+static void get_array_length() {
+    struct array_object *array = (struct array_object *) AS_OBJECT(pop_stack_vm());
+    push_stack_vm(TO_LOX_VALUE_NUMBER(array->values.capacity));
+}
+
 static void get_array_element(struct call_frame * call_frame) {
     struct array_object * array = (struct array_object *) AS_OBJECT(pop_stack_vm());
-    uint64_t array_index = AS_NUMBER(pop_stack_vm());
+    uint64_t array_index = pop_and_check_number();
 
     if (array_index >= array->values.in_use) {
         runtime_panic("Index out of bounds");

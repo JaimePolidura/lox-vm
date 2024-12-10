@@ -39,6 +39,7 @@ typedef enum {
     TOKEN_LEFT_SHIFT, // <<
     TOKEN_RIGHT_SHIFT, // >>
     TOKEN_PERCENTAGE, //%
+    TOKEN_LEN, //len
 
     TOKEN_NO_TOKEN, //Used only for compiling internals
 

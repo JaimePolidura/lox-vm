@@ -52,6 +52,7 @@ typedef enum {
     OP_LEFT_SHIFT,               // Index: 45
     OP_RIGHT_SHIFT,              // Index: 46
     OP_MODULO,                   // Index: 47
+    OP_GET_ARRAY_LENGTH,             // Index: 48
 } bytecode_t;
 
 #define OP_CONSTANT_LENGTH 2
@@ -103,6 +104,7 @@ typedef enum {
 #define OP_LEFT_SHIFT_LENGTH 1
 #define OP_RIGHT_SHIFT_LENGTH 1
 #define OP_MODULO_LENGTH 1
+#define OP_GET_ARRAY_LENGTH_LENGTH 1
 
 #define N_VARIABLE_INSTRUCTION_N_POPS 0xFFFF
 

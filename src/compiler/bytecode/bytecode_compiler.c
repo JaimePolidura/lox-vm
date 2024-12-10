@@ -88,6 +88,7 @@ static void add_function_call(struct bytecode_compiler *, struct function_call *
 static void set_compiling_function_name(struct bytecode_compiler *, char *);
 static void inline_expression(struct bytecode_compiler *, bool can_assign);
 static bool is_const_variable(struct bytecode_compiler *, struct token name, struct package * external_package);
+static void array_length(struct bytecode_compiler * compiler, bool can_assign);
 
 typedef void(* parse_fn_t)(struct bytecode_compiler *, bool);
 
@@ -141,6 +142,7 @@ struct parse_rule rules[] = {
         [TOKEN_GREATER_EQUAL] = {NULL, binary, PREC_COMPARISON},
         [TOKEN_LESS] = {NULL, binary, PREC_COMPARISON},
         [TOKEN_LESS_EQUAL] = {NULL, binary, PREC_COMPARISON},
+        [TOKEN_LEN] = {array_length, NULL, PREC_NONE},
         [TOKEN_IDENTIFIER] = {variable, NULL, PREC_NONE},
         [TOKEN_STRING] = {string, NULL, PREC_NONE},
         [TOKEN_NUMBER] = {number, NULL, PREC_NONE},
@@ -697,6 +699,12 @@ static void print_statement(struct bytecode_compiler * compiler) {
     expression(compiler);
     consume(compiler, TOKEN_SEMICOLON, "Expected ';' after print.");
     emit_bytecode(compiler, OP_PRINT);
+}
+
+static void array_length(struct bytecode_compiler * compiler, bool can_assign) {
+    consume(compiler, TOKEN_OPEN_PAREN, "Expect '(' after len");
+    expression(compiler);
+    consume(compiler, TOKEN_CLOSE_PAREN, "Expect ')' after len");
 }
 
 static void variable(struct bytecode_compiler * compiler, bool can_assign) {

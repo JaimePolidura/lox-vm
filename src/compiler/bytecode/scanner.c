@@ -135,6 +135,7 @@ static tokenType_t identifier_type(struct scanner * scanner) {
                 }
             }
         }
+        case 'l': return check_keyword(scanner, 1, 2, "en", TOKEN_LEN);
         case 'r': return check_keyword(scanner, 1, 5, "eturn", TOKEN_RETURN);
         case 's':
             if(scanner->current - scanner->start > 1){

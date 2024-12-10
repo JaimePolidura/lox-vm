@@ -156,6 +156,7 @@ void disassemble_function(struct function_object * function, long options) {
             case OP_NO_OP: SINGLE_INSTRUCTION("OP_NO_OP"); break;
             case OP_ENTER_MONITOR_EXPLICIT: BINARY_U64_INSTRUCTION("OP_ENTER_MONITOR_EXPLICIT", iterator); break;
             case OP_EXIT_MONITOR_EXPLICIT: BINARY_U64_INSTRUCTION("OP_EXIT_MONITOR_EXPLICIT", iterator); break;
+            case OP_GET_ARRAY_LENGTH: SINGLE_INSTRUCTION("OP_GET_ARRAY_LENGTH"); break;
             default:
                 runtime_panic("Unhandled bytecode %i in disassemble_function() in chunk_disassembler.c", current_bytecode);
         }

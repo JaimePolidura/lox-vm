@@ -88,6 +88,11 @@ bool is_eq_ssa_data_node(struct ssa_data_node * a, struct ssa_data_node * b, str
             struct ssa_data_get_local_node * b_get_local = (struct ssa_data_get_local_node *) b;
             return a_get_local->local_number == b_get_local->local_number;
         }
+        case SSA_DATA_NODE_TYPE_GET_ARRAY_LENGTH: {
+            struct ssa_data_get_array_length * a_get_array_length = (struct ssa_data_get_array_length *) a;
+            struct ssa_data_get_array_length * b_get_array_length = (struct ssa_data_get_array_length *) b;
+            return is_eq_ssa_data_node(a_get_array_length->instance, b_get_array_length->instance, allocator);
+        }
         case SSA_DATA_NODE_TYPE_GET_GLOBAL: {
             struct ssa_data_get_global_node * a_get_glocal = (struct ssa_data_get_global_node *) a;
             struct ssa_data_get_global_node * b_get_glocal = (struct ssa_data_get_global_node *) b;
@@ -254,6 +259,15 @@ static bool for_each_ssa_data_node_recursive(
             }
             break;
         }
+        case SSA_DATA_NODE_TYPE_GET_ARRAY_LENGTH: {
+            struct ssa_data_get_array_length * get_array_element = (struct ssa_data_get_array_length *) current_node;
+            if (IS_FLAG_SET(options, SSA_DATA_NODE_OPT_NOT_RECURSIVE)) {
+                continue_for_each = consumer(current_node, (void **) &get_array_element->instance, get_array_element->instance, extra);
+            } else {
+                continue_for_each = for_each_ssa_data_node_recursive(current_node, (void **) &get_array_element->instance, get_array_element->instance, extra, options, consumer);
+            }
+            break;
+        }
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
             struct ssa_data_get_array_element_node * get_array_element = (struct ssa_data_get_array_element_node *) current_node;
             if (IS_FLAG_SET(options, SSA_DATA_NODE_OPT_NOT_RECURSIVE)) {
@@ -370,9 +384,13 @@ uint64_t hash_ssa_data_node(struct ssa_data_node * node) {
         case SSA_DATA_NODE_TYPE_CONSTANT: {
             return GET_CONST_VALUE_SSA_NODE(node);
         }
+        case SSA_DATA_NODE_TYPE_GET_ARRAY_LENGTH: {
+            struct ssa_data_get_array_length * get_array_length = (struct ssa_data_get_array_length *) node;
+            return mix_hash_commutative(SSA_DATA_NODE_TYPE_GET_ARRAY_LENGTH, hash_ssa_data_node(get_array_length->instance));
+        }
         case SSA_DATA_NODE_TYPE_GET_LOCAL: {
             struct ssa_data_get_local_node * get_local = (struct ssa_data_get_local_node *) node;
-            return get_local->local_number;
+            return mix_hash_commutative(SSA_DATA_NODE_TYPE_GET_LOCAL, get_local->local_number);
         }
         case SSA_DATA_NODE_TYPE_GET_GLOBAL: {
             struct ssa_data_get_global_node * get_global = (struct ssa_data_get_global_node *) node;

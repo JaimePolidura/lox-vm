@@ -198,6 +198,7 @@ static struct semilattice_value * get_semilattice_propagation_from_data(
         }
         //Multiple values:
         case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT:
+        case SSA_DATA_NODE_TYPE_GET_ARRAY_LENGTH:
         case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD:
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT:
         case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY:
@@ -285,6 +286,7 @@ struct constant_rewrite * rewrite_constant_expressions_propagation_data_node(
         case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD:
         case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT:
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT:
+        case SSA_DATA_NODE_TYPE_GET_ARRAY_LENGTH:
         case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY: {
             return alloc_constant_rewrite(scp, current_node, alloc_bottom_semilatttice(scp));
         }
@@ -363,7 +365,8 @@ struct constant_rewrite * rewrite_constant_expressions_initialization_data_node(
         case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD:
         case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT:
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT:
-        case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY: {
+        case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY:
+        case SSA_DATA_NODE_TYPE_GET_ARRAY_LENGTH: {
             return alloc_constant_rewrite(scp, current_node, alloc_bottom_semilatttice(scp));
         }
         case SSA_DATA_NODE_TYPE_GET_LOCAL: {
@@ -405,7 +408,8 @@ static struct semilattice_value * get_semilattice_initialization_from_data(struc
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT:
         case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY:
         case SSA_DATA_NODE_TYPE_GET_GLOBAL:
-        case SSA_DATA_NODE_TYPE_CALL: {
+        case SSA_DATA_NODE_TYPE_CALL:
+        case SSA_DATA_NODE_TYPE_GET_ARRAY_LENGTH: {
             return alloc_bottom_semilatttice(scp);
         }
         case SSA_DATA_NODE_TYPE_GET_LOCAL:
