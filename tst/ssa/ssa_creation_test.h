@@ -17,17 +17,17 @@ static bool node_defines_ssa_name(struct ssa_control_node *, int version);
 
 TEST(ssa_creation_licm) {
     struct compilation_result compilation = compile_standalone(
-            "fun acc_sum(a, b) {"
-            "   var arr[10];"
-            "   for(var i = 0; i < 10; i = i + 1) {"
-            "       var c = a + b;"
-            "       arr[i] = i + i;"
+            "fun function(a, b) {"
+            "   for (var i = 0; i < 10; i = i + 1) {"
+            "       for (var j = 0; j < 10; j = 1 + 1) {"
+            "           print i + 2;"
+            "           i = 2;"
+            "       }"
             "   }"
-            "   return arr;"
             "}"
     );
     struct package * package = compilation.compiled_package;
-    struct function_object * function_ssa = get_function_package(package, "acc_sum");
+    struct function_object * function_ssa = get_function_package(package, "function");
     int n_instructions = function_ssa->chunk->in_use;
     init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
 
@@ -35,7 +35,7 @@ TEST(ssa_creation_licm) {
     generate_ssa_graphviz_graph(
             package,
             function_ssa,
-            STRENGTH_REDUCTION_PHASE_SSA_GRAPHVIZ,
+            PHIS_OPTIMIZED_PHASE_SSA_GRAPHVIZ,
             NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
     );

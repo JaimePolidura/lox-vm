@@ -25,7 +25,7 @@ static void add_ssa_name_use(struct u64_hash_table * uses_by_ssa_node, struct ss
 static void propagate_extracted_phi(struct arena_lox_allocator*, struct ssa_block*, struct ssa_control_node*,
         struct ssa_data_phi_node*, uint8_t extracted_version);
 
-static void optimize_ssa_ir_phis_block(struct ssa_block *, void * extra);
+static bool optimize_ssa_ir_phis_block(struct ssa_block *, void * extra);
 struct optimize_ssa_ir_phis_block_struct {
     struct phi_insertion_result * phi_insertion_result;
     struct arena_lox_allocator * ssa_nodes_allocator;
@@ -58,7 +58,7 @@ struct phi_optimization_result optimize_ssa_ir_phis(
     };
 }
 
-static void optimize_ssa_ir_phis_block(struct ssa_block * current_block, void * extra) {
+static bool optimize_ssa_ir_phis_block(struct ssa_block * current_block, void * extra) {
     struct optimize_ssa_ir_phis_block_struct * consumer_struct = extra;
 
     for(struct ssa_control_node * current = current_block->first;; current = current->next) {
@@ -81,6 +81,8 @@ static void optimize_ssa_ir_phis_block(struct ssa_block * current_block, void * 
             break;
         }
     }
+
+    return true;
 }
 
 static bool optimize_phi_functions_consumer(

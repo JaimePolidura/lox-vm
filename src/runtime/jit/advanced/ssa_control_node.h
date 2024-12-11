@@ -38,6 +38,7 @@ struct ssa_control_node {
     struct ssa_control_node * prev;
     struct ssa_control_node * next;
 };
+
 void for_each_data_node_in_control_node(struct ssa_control_node *, void *, long options, ssa_data_node_consumer_t);
 
 //OP_SET_LOCAL

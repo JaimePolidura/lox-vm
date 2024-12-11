@@ -620,10 +620,14 @@ static void jump_if_false(struct ssa_no_phis_inserter * inserter, struct pending
         condition_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_BRANCH;
         condition_block->next_as.branch.true_branch = true_branch_block;
         condition_block->next_as.branch.false_branch = false_branch_block;
-        condition_block->loop_condition = true;
+        condition_block->is_loop_condition = true;
         condition_block->nested_loop_body = parent_block->nested_loop_body + 1;
+        condition_block->loop_condition_block = parent_block->loop_condition_block;
+
         true_branch_block->nested_loop_body = parent_block->nested_loop_body + 1;
         false_branch_block->nested_loop_body = parent_block->nested_loop_body;
+        true_branch_block->loop_condition_block = condition_block;
+        false_branch_block->loop_condition_block = NULL;
 
         add_u64_set(&condition_block->predecesors, (uint64_t) parent_block);
         add_u64_set(&false_branch_block->predecesors, (uint64_t) condition_block);
@@ -637,6 +641,8 @@ static void jump_if_false(struct ssa_no_phis_inserter * inserter, struct pending
 
         false_branch_block->nested_loop_body = parent_block->nested_loop_body;
         true_branch_block->nested_loop_body = parent_block->nested_loop_body;
+        false_branch_block->loop_condition_block = parent_block->loop_condition_block;
+        true_branch_block->loop_condition_block = parent_block->loop_condition_block;
 
         add_u64_set(&false_branch_block->predecesors, (uint64_t) parent_block);
         add_u64_set(&true_branch_block->predecesors, (uint64_t) parent_block);

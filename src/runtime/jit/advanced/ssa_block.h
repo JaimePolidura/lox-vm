@@ -14,6 +14,12 @@ typedef enum {
 
 #define BELONGS_TO_LOOP_BODY_BLOCK(block) ((block)->nested_loop_body > 0)
 
+
+struct ssa_block_loop_info {
+    struct ssa_block * condition_block;
+    struct u64_set modified_ssa_names;
+};
+
 //A block represents a list of instructions that run sequentially, there are no branches inside it
 //If there is a branch instruction, this block will point to a different block which will contain the branched code
 struct ssa_block {
@@ -26,12 +32,19 @@ struct ssa_block {
     //know what variables to copy
     struct u8_set use_before_assigment;
 
-    //Number of nested loops of which the block belongs to the loop body.
+    //Number of nested loops of which the block belongs.
     //If it is 0, it means that the block doest not belong to a loop body
     int nested_loop_body;
     //Indicates if the current block belongs to the condition of a loop
     //If this is true, it means that another OP_LOOP control_node will point to this control_node
-    bool loop_condition;
+    bool is_loop_condition;
+    //Every block in a loop body will contain a pointer to the block condition.
+    //If a node is a loop condtiion (has is_loop_condition set to true), loop_condition_block will point to the outer loop block condition.
+    struct ssa_block * loop_condition_block;
+    //Contains global information of all the blocks that belongs to a loop body.
+    //Maintained per each loop condition block (is_loop_condition is set to true)
+    //Initialized lazily, Reseted (Set to null, when a block is modified using ssa_block methods)
+    struct ssa_block_loop_info * loop_info;
 
     //Set of pointers to ssa_block that points to this ssa_block
     struct u64_set predecesors;
@@ -65,8 +78,10 @@ bool is_emtpy_ssa_block(struct ssa_block *);
 //a dominates b
 bool dominates_ssa_block(struct ssa_block * a, struct ssa_block * b, struct lox_allocator *);
 struct u64_set get_dominator_set_ssa_block(struct ssa_block *, struct lox_allocator *);
+struct ssa_block_loop_info * get_loop_info_ssa_block(struct ssa_block *, struct lox_allocator *);
 
-typedef void (*ssa_block_consumer_t)(struct ssa_block *, void *);
+typedef bool (*ssa_block_consumer_t)(struct ssa_block *, void *);
+//The callback will false, if current block, next blocks, wont be scanned
 void for_each_ssa_block(struct ssa_block *, struct lox_allocator *, void * extra, ssa_block_consumer_t);
 
 //Replaces references to old_block of the predecessors of old_block to point to new_block

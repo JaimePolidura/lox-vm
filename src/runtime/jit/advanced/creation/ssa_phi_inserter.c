@@ -76,7 +76,7 @@ struct phi_insertion_result insert_ssa_ir_phis(
                 break;
             case TYPE_NEXT_SSA_BLOCK_BRANCH:
                 if (inserter.rescanning_loop_body &&
-                    block_to_evaluate->loop_condition &&
+                    block_to_evaluate->is_loop_condition &&
                     block_to_evaluate->next_as.branch.false_branch->nested_loop_body < inserter.rescanning_loop_body_nested_loops) {
 
                     push_pending_evaluate(&inserter, block_to_evaluate->next_as.branch.true_branch, parent_versions);
@@ -181,8 +181,8 @@ static bool insert_phis_in_data_node_consumer(
         uint8_t local_number = get_local->local_number;
 
         if(BELONGS_TO_LOOP_BODY_BLOCK(block) &&
-            !block->loop_condition &&
-            inside_expression &&
+           !block->is_loop_condition &&
+           inside_expression &&
             contains_u8_set(&block->use_before_assigment, local_number)
         ){
             extract_get_local(inserter, parent_versions, control_node, block, local_number, parent_current_ptr);

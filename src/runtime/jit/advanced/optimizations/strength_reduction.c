@@ -7,7 +7,7 @@ struct sr {
 
 static struct sr alloc_strength_reduction(struct ssa_ir *);
 static void free_strength_reduction(struct sr *);
-static void perform_strength_reduction_block(struct ssa_block *, void *);
+static bool perform_strength_reduction_block(struct ssa_block *, void *);
 static bool perform_strength_reduction_data_node(struct ssa_data_node *, void **, struct ssa_data_node *, void *);
 
 typedef void (*strength_reduction_transformer_t) (struct ssa_data_binary_node *, struct sr *);
@@ -44,7 +44,7 @@ void perform_strength_reduction(struct ssa_ir *ssa_ir) {
     free_strength_reduction(&strength_reduction);
 }
 
-static void perform_strength_reduction_block(struct ssa_block * block, void * extra) {
+static bool perform_strength_reduction_block(struct ssa_block * block, void * extra) {
     struct sr * sr = extra;
 
     for (struct ssa_control_node * current_control_node = block->first;; current_control_node = current_control_node->next) {
@@ -59,6 +59,8 @@ static void perform_strength_reduction_block(struct ssa_block * block, void * ex
             break;
         }
     }
+
+    return true;
 }
 
 static bool perform_strength_reduction_data_node(

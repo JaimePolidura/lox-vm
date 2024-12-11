@@ -50,6 +50,7 @@ enum {
     SSA_DATA_NODE_OPT_RECURSIVE = 1 << 1,
     SSA_DATA_NODE_OPT_NOT_RECURSIVE = 1 << 2,
     SSA_DATA_NODE_OPT_PRE_ORDER = 1 << 3,
+    SSA_DATA_NODE_OPT_NOT_TERMINATORS = 1 << 4, //AKA Don't scan leafs. Disabled by default
 };
 typedef bool (*ssa_data_node_consumer_t)(
         struct ssa_data_node * parent,
@@ -67,6 +68,9 @@ uint64_t hash_ssa_data_node(struct ssa_data_node *);
 //Returns true if the two data nodes are equal. The calculation takes into account if nodes are commative & associative.
 //Example: (a + b) == (b + a) Or ((a + b) + c) == (b + (a + c))
 bool is_eq_ssa_data_node(struct ssa_data_node *, struct ssa_data_node *, struct lox_allocator *);
+struct u64_set get_used_ssa_names_ssa_data_node(struct ssa_data_node *, struct lox_allocator *);
+//A terminator node is a node that has no children
+bool is_terminator_ssa_data_node(struct ssa_data_node *);
 
 //OP_GET_LOCAL
 struct ssa_data_get_local_node {

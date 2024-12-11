@@ -43,7 +43,7 @@ void perform_cse_control_node(struct cse * cse, struct ssa_block *, struct ssa_c
 static struct subexpression * alloc_not_reusable_subsexpression(struct perform_cse_data_node *, struct ssa_data_node *, void **);
 static void extract_to_ssa_name(struct cse *, struct subexpression *);
 static void reuse_subexpression(struct cse *, struct subexpression *, void **, struct ssa_control_node *);
-static void perform_cse_block(struct ssa_block *, void *);
+static bool perform_cse_block(struct ssa_block *, void *);
 
 void perform_common_subexpression_elimination(struct ssa_ir * ssa_ir) {
     struct cse * cse = alloc_common_subexpression_elimination(ssa_ir);
@@ -58,7 +58,7 @@ void perform_common_subexpression_elimination(struct ssa_ir * ssa_ir) {
     free_common_subexpression_elimination(cse);
 }
 
-static void perform_cse_block(struct ssa_block * block, void * extra) {
+static bool perform_cse_block(struct ssa_block * block, void * extra) {
     struct cse * cse = extra;
 
     for (struct ssa_control_node * current_node = block->first;; current_node = current_node->next) {
@@ -68,6 +68,8 @@ static void perform_cse_block(struct ssa_block * block, void * extra) {
             break;
         }
     }
+
+    return true;
 }
 
 bool perform_cse_data_node_consumer(
@@ -91,7 +93,7 @@ bool perform_cse_data_node_consumer(
     }
     //We don't want to replace the main expression that is used in a loop condition
     if (current_control_node->type == SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP &&
-        perform_cse_data_node->block->loop_condition &&
+        perform_cse_data_node->block->is_loop_condition &&
         current_data_node == GET_CONDITION_CONDITIONAL_JUMP_SSA_NODE(current_control_node)) {
         return true;
     }

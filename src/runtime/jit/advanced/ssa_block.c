@@ -1,5 +1,8 @@
 #include "ssa_block.h"
 
+static void reset_loop_info(struct ssa_block *);
+static bool create_loop_info_ssa_block_consumer(struct ssa_block *, void *);
+
 void for_each_ssa_block(
         struct ssa_block * start_block,
         struct lox_allocator * allocator,
@@ -13,7 +16,10 @@ void for_each_ssa_block(
     while(!is_empty_stack_list(&pending)){
         struct ssa_block * current_block = pop_stack_list(&pending);
 
-        consumer(current_block, extra);
+        //Dont continue iterating
+        if(!consumer(current_block, extra)){
+            continue;
+        }
 
         switch (current_block->type_next_ssa_block) {
             case TYPE_NEXT_SSA_BLOCK_SEQ:
@@ -72,6 +78,8 @@ void remove_control_node_ssa_block(
         struct ssa_block * ssa_block,
         struct ssa_control_node * node_to_remove
 ) {
+    reset_loop_info(ssa_block);
+
     //The block has only 1 control control_node
     if(ssa_block->first == ssa_block->last){
         ssa_block->first = ssa_block->last = NULL;
@@ -101,6 +109,8 @@ void remove_control_node_ssa_block(
 }
 
 void add_last_control_node_ssa_block(struct ssa_block * block, struct ssa_control_node * node) {
+    reset_loop_info(block);
+
     if(block->first == NULL){
         block->first = node;
     }
@@ -118,6 +128,8 @@ void add_before_control_node_ssa_block(
         struct ssa_control_node * before,
         struct ssa_control_node * new
 ) {
+    reset_loop_info(block);
+
     if(block->first == before){
         block->first = new;
     }
@@ -142,6 +154,8 @@ struct branch_removed remove_branch_ssa_block(
         bool true_branch,
         struct lox_allocator * lox_allocator
 ) {
+    reset_loop_info(branch_block);
+
     struct ssa_block * branch_to_be_removed = true_branch ? branch_block->next_as.branch.true_branch : branch_block->next_as.branch.false_branch;
     struct ssa_block * branch_remains = true_branch ? branch_block->next_as.branch.false_branch : branch_block->next_as.branch.true_branch;
     if (branch_to_be_removed == NULL) {
@@ -231,6 +245,9 @@ static struct u64_set get_blocks_to_remove(struct ssa_block * start_block) {
 }
 
 void replace_block_ssa_block(struct ssa_block * old_block, struct ssa_block * new_block) {
+    reset_loop_info(old_block);
+    reset_loop_info(new_block);
+
     FOR_EACH_U64_SET_VALUE(old_block->predecesors, predecesor_u64_ptr) {
         struct ssa_block * predecesor_node = (void *) predecesor_u64_ptr;
         switch (predecesor_node->type_next_ssa_block) {
@@ -292,6 +309,75 @@ struct u64_set get_dominator_set_ssa_block(struct ssa_block * block, struct lox_
         }
     }
 
-
     return dominator_set;
+}
+
+static struct ssa_block_loop_info * create_loop_info_ssa_block(struct ssa_block * block, struct lox_allocator *);
+
+struct ssa_block_loop_info * get_loop_info_ssa_block(struct ssa_block * block, struct lox_allocator * allocator) {
+    if(!BELONGS_TO_LOOP_BODY_BLOCK(block)){
+        return NULL;
+    }
+    if(block->is_loop_condition && block->loop_info != NULL){
+        return block->loop_info;
+    }
+    if(!block->is_loop_condition && block->loop_condition_block->loop_info != NULL){
+        return block->loop_condition_block->loop_info;
+    }
+
+    struct ssa_block * loop_condition_block = block->is_loop_condition ? block : block->loop_condition_block;
+    struct ssa_block_loop_info * loop_info = create_loop_info_ssa_block(loop_condition_block, allocator);
+
+    loop_condition_block->loop_info = loop_info;
+
+    return loop_info;
+}
+
+static struct ssa_block_loop_info * create_loop_info_ssa_block(struct ssa_block * loop_condition_block, struct lox_allocator * allocator) {
+    struct ssa_block_loop_info * ssa_block_loop_info = LOX_MALLOC(allocator, sizeof(struct ssa_block_loop_info));
+    loop_condition_block->loop_info = ssa_block_loop_info;
+    init_u64_set(&ssa_block_loop_info->modified_ssa_names, allocator);
+    ssa_block_loop_info->condition_block = loop_condition_block;
+
+    for_each_ssa_block(
+            loop_condition_block,
+            allocator,
+            ssa_block_loop_info,
+            create_loop_info_ssa_block_consumer
+    );
+
+    return ssa_block_loop_info;
+}
+
+static bool create_loop_info_ssa_block_consumer(struct ssa_block * current_block, void * extra) {
+    struct ssa_block_loop_info * ssa_block_loop_info = extra;
+
+    if (current_block == ssa_block_loop_info->condition_block ||
+        current_block->loop_condition_block != ssa_block_loop_info->condition_block) {
+        //Dont keep scanning from current_block
+        return false;
+    }
+
+    for(struct ssa_control_node * current_control_node = current_block->first;; current_control_node = current_control_node->next) {
+        if(current_control_node->type == SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME) {
+            struct ssa_control_define_ssa_name_node * define_node = (struct ssa_control_define_ssa_name_node *) current_control_node;
+            add_u64_set(&ssa_block_loop_info->modified_ssa_names, define_node->ssa_name.u16);
+        }
+
+        if(current_control_node == current_block->last){
+            break;
+        }
+    }
+
+    return true;
+}
+
+static void reset_loop_info(struct ssa_block * block) {
+    block->loop_info = NULL;
+    if(!block->is_loop_condition && block->loop_condition_block != NULL){
+        block->loop_condition_block->loop_info = NULL;
+    }
+    if(block->is_loop_condition){
+        block->loop_info = NULL;
+    }
 }

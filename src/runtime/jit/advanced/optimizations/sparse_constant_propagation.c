@@ -99,7 +99,7 @@ static void propagation(struct scp * scp) {
 
             } else if (node_uses_ssa_name->type == SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP &&
                     GET_CONDITION_CONDITIONAL_JUMP_SSA_NODE(node_uses_ssa_name)->type == SSA_DATA_NODE_TYPE_CONSTANT &&
-                    !node_uses_ssa_name->block->loop_condition) {
+                    !node_uses_ssa_name->block->is_loop_condition) {
                 remove_death_branch(scp, node_uses_ssa_name);
             }
         }

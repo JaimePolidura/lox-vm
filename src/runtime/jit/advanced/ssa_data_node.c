@@ -28,12 +28,67 @@ void * allocate_ssa_data_node(
     return ssa_control_node;
 }
 
+bool is_terminator_ssa_data_node(struct ssa_data_node * node) {
+    switch (node->type) {
+        case SSA_DATA_NODE_TYPE_GET_LOCAL:
+        case SSA_DATA_NODE_TYPE_PHI:
+        case SSA_DATA_NODE_TYPE_GET_GLOBAL:
+        case SSA_DATA_NODE_TYPE_CONSTANT:
+        case SSA_DATA_NODE_TYPE_GET_SSA_NAME:
+            return true;
+        case SSA_DATA_NODE_TYPE_CALL:
+        case SSA_DATA_NODE_TYPE_BINARY:
+        case SSA_DATA_NODE_TYPE_UNARY:
+        case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD:
+        case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT:
+        case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT:
+        case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY:
+        case SSA_DATA_NODE_TYPE_GET_ARRAY_LENGTH:
+            return false;
+    }
+}
+
+bool get_used_ssa_names_ssa_data_node_consumer(
+        struct ssa_data_node * _,
+        void ** __,
+        struct ssa_data_node * data_node,
+        void * extra
+) {
+    if (data_node->type == SSA_DATA_NODE_TYPE_GET_SSA_NAME) {
+        struct ssa_data_get_ssa_name_node * get_ssa_name = (struct ssa_data_get_ssa_name_node *) data_node;
+        struct u64_set * used_ssa_names = extra;
+        add_u64_set(used_ssa_names, get_ssa_name->ssa_name.u16);
+    }
+
+    return true;
+}
+
+struct u64_set get_used_ssa_names_ssa_data_node(struct ssa_data_node * data_node, struct lox_allocator * allocator) {
+    struct u64_set used_ssa_names;
+    init_u64_set(&used_ssa_names, allocator);
+
+    for_each_ssa_data_node(
+            data_node,
+            NULL,
+            &used_ssa_names,
+            SSA_DATA_NODE_OPT_POST_ORDER | SSA_DATA_NODE_OPT_RECURSIVE,
+            get_used_ssa_names_ssa_data_node_consumer
+    );
+
+    return used_ssa_names;
+}
+
 bool get_used_locals_consumer(struct ssa_data_node * _, void ** __, struct ssa_data_node * current_node, void * extra) {
     struct u8_set * used_locals_set = (struct u8_set *) extra;
 
     if(current_node->type == SSA_DATA_NODE_TYPE_GET_LOCAL){
         struct ssa_data_get_local_node * get_local = (struct ssa_data_get_local_node *) current_node;
         add_u8_set(used_locals_set, get_local->local_number);
+    } else if(current_node->type == SSA_DATA_NODE_TYPE_PHI){
+        struct ssa_data_phi_node * phi = (struct ssa_data_phi_node *) current_node;
+        FOR_EACH_U64_SET_VALUE(phi->ssa_versions, phi_version) {
+            add_u8_set(used_locals_set, phi_version);
+        }
     }
 
     return true;
@@ -181,7 +236,13 @@ bool is_eq_ssa_data_node(struct ssa_data_node * a, struct ssa_data_node * b, str
     }
 }
 
-void for_each_ssa_data_node(struct ssa_data_node * node, void ** parent_ptr, void * extra, long options, ssa_data_node_consumer_t consumer) {
+void for_each_ssa_data_node(
+        struct ssa_data_node * node,
+        void ** parent_ptr,
+        void * extra,
+        long options,
+        ssa_data_node_consumer_t consumer
+) {
     for_each_ssa_data_node_recursive(NULL, parent_ptr, node, extra, options, consumer);
 }
 
@@ -197,6 +258,9 @@ static bool for_each_ssa_data_node_recursive(
 
     if(IS_FLAG_SET(options, SSA_DATA_NODE_OPT_PRE_ORDER)){
         continue_for_each = consumer(parent_current, parent_current_ptr, current_node, extra);
+    }
+    if(IS_FLAG_SET(options, SSA_DATA_NODE_OPT_NOT_TERMINATORS) && is_terminator_ssa_data_node(current_node)){
+        return true;
     }
 
     switch (current_node->type) {
