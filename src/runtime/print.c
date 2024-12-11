@@ -7,7 +7,7 @@ extern struct vm current_vm;
 
 void print_lox_value(lox_value_t value) {
 #ifdef VM_TEST
-    current_vm.log[current_vm.log_entries_in_use++] = to_string(value);
+    current_vm.log[current_vm.log_entries_in_use++] = lox_value_to_string(value);
 #else
     #ifdef NAN_BOXING
         if(IS_NIL(value_node)) {

@@ -492,7 +492,7 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
         }
         case SSA_DATA_NODE_TYPE_CONSTANT: {
             lox_value_t const_value = GET_CONST_VALUE_SSA_NODE(node);
-            add_data_node_graphviz_file(visualizer, to_string(const_value), self_data_node_id);
+            add_data_node_graphviz_file(visualizer, lox_value_to_string(const_value), self_data_node_id);
             break;
         }
         case SSA_DATA_NODE_TYPE_GET_LOCAL: {

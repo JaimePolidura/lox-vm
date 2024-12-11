@@ -22,6 +22,7 @@ static void setup_package_execution(struct package * package);
 static void push_stack_vm(lox_value_t value);
 static lox_value_t pop_stack_vm();
 static lox_value_t pop_and_check_number();
+static struct object * pop_and_check_object(object_type_t);
 static bool check_boolean();
 static interpret_result_t run();
 static void print_stack();
@@ -353,7 +354,7 @@ void call(lox_value_t callee_lox, int n_args, bool is_parallel) {
             break;
         }
         default:
-            runtime_panic("Cannot call");
+            runtime_panic("Cannot call. Expected Function or NativeFunction");
     }
 
     thread_on_safe_point();
@@ -418,7 +419,7 @@ static void print() {
     lox_value_t value = pop_stack_vm();
 
 #ifdef VM_TEST
-    current_vm.log[current_vm.log_entries_in_use++] = to_string(value);
+    current_vm.log[current_vm.log_entries_in_use++] = lox_value_to_string(value);
 #else
     print_lox_value(value_node);
 #endif
@@ -452,12 +453,12 @@ static void initialize_array(struct call_frame * call_frame) {
 }
 
 static void get_array_length() {
-    struct array_object *array = (struct array_object *) AS_OBJECT(pop_stack_vm());
+    struct array_object *array = (struct array_object *) pop_and_check_object(OBJ_ARRAY);
     push_stack_vm(TO_LOX_VALUE_NUMBER(array->values.capacity));
 }
 
 static void get_array_element(struct call_frame * call_frame) {
-    struct array_object * array = (struct array_object *) AS_OBJECT(pop_stack_vm());
+    struct array_object * array = (struct array_object *) pop_and_check_object(OBJ_ARRAY);
     uint64_t array_index = pop_and_check_number();
 
     if (array_index >= array->values.in_use) {
@@ -468,7 +469,7 @@ static void get_array_element(struct call_frame * call_frame) {
 }
 
 static void set_array_element(struct call_frame * call_frame) {
-    struct array_object * array = (struct array_object *) AS_OBJECT(pop_stack_vm());
+    struct array_object * array = (struct array_object *) pop_and_check_object(OBJ_ARRAY);
     lox_value_t new_value = pop_stack_vm();
     uint64_t array_index = AS_NUMBER(pop_stack_vm());
 
@@ -498,7 +499,7 @@ static void initialize_struct(struct call_frame * call_frame) {
 }
 
 static void get_struct_field(struct call_frame * call_frame) {
-    struct struct_instance_object * instance = (struct struct_instance_object *) AS_OBJECT(pop_stack_vm());
+    struct struct_instance_object * instance = (struct struct_instance_object *) pop_and_check_object(OBJ_STRUCT_INSTANCE);
     struct string_object * field_name = (struct string_object *) AS_OBJECT(READ_CONSTANT(call_frame));
 
     lox_value_t field_value;
@@ -511,7 +512,7 @@ static void get_struct_field(struct call_frame * call_frame) {
 
 static void set_struct_field(struct call_frame * call_frame) {
     lox_value_t new_value = pop_stack_vm();
-    struct struct_instance_object * instance = (struct struct_instance_object *) AS_OBJECT(pop_stack_vm());
+    struct struct_instance_object * instance = (struct struct_instance_object *) pop_and_check_object(OBJ_STRUCT_INSTANCE);
     struct string_object * field_name = (struct string_object *) AS_OBJECT(READ_CONSTANT(call_frame));
 
     if (!put_if_present_hash_table(&instance->fields, field_name, new_value)) {
@@ -559,6 +560,16 @@ static void loop(struct call_frame * call_frame) {
 
 static inline lox_value_t peek(int index_from_top) {
     return *(self_thread->esp - 1 - index_from_top);
+}
+
+static struct object * pop_and_check_object(object_type_t expected_type) {
+    lox_value_t value = pop_stack_vm();
+
+    if(!IS_OBJECT(value) || OBJECT_TYPE(value) != expected_type) {
+        runtime_panic("Expected object type %s", lox_object_type_to_string(expected_type));
+    }
+
+    return AS_OBJECT(value);
 }
 
 static lox_value_t pop_and_check_number() {

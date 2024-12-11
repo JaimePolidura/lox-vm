@@ -10,8 +10,8 @@ lox_value_t addition_lox(lox_value_t a, lox_value_t b) {
         return TO_LOX_VALUE_NUMBER(a + b);
     }
 
-    char * a_chars = to_string(a);
-    char * b_chars = to_string(b);
+    char * a_chars = lox_value_to_string(a);
+    char * b_chars = lox_value_to_string(b);
     size_t a_length = strlen(a_chars);
     size_t b_length = strlen(b_chars);
 

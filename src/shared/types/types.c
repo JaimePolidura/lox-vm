@@ -25,7 +25,7 @@ struct object * allocate_object(size_t size, object_type_t type) {
 }
 
 //This current_function should be only used for testing since it may leak memory when value_node is a immediate
-char * to_string(lox_value_t value) {
+char * lox_value_to_string(lox_value_t value) {
 #ifdef NAN_BOXING
     if(IS_NIL(value)) {
         return "nil";
@@ -61,6 +61,18 @@ char * to_string(lox_value_t value) {
 #endif
     runtime_panic("Cannot parse to chars");
     return NULL;
+}
+
+char * lox_object_type_to_string(object_type_t object_type) {
+    switch (object_type) {
+        case OBJ_STRUCT_DEFINITION: return "StructDefinition";
+        case OBJ_NATIVE_FUNCTION: return "NativeFunction";
+        case OBJ_STRUCT_INSTANCE: return "StructInstance";
+        case OBJ_FUNCTION: return "Function";
+        case OBJ_PACKAGE: return "Package";
+        case OBJ_STRING: return "String";
+        case OBJ_ARRAY: return "Array";
+    }
 }
 
 lox_value_type get_lox_type(lox_value_t lox_value) {
