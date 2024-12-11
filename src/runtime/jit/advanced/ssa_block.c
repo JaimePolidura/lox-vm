@@ -2,6 +2,9 @@
 
 static void reset_loop_info(struct ssa_block *);
 static bool create_loop_info_ssa_block_consumer(struct ssa_block *, void *);
+static void record_new_node_information_of_block(struct ssa_block *, struct ssa_control_node *);
+static void record_removed_node_information_of_block(struct ssa_block *, struct ssa_control_node *);
+static struct u64_set get_blocks_to_remove(struct ssa_block *);
 
 void for_each_ssa_block(
         struct ssa_block * start_block,
@@ -78,6 +81,7 @@ void remove_control_node_ssa_block(
         struct ssa_block * ssa_block,
         struct ssa_control_node * node_to_remove
 ) {
+    record_removed_node_information_of_block(ssa_block, node_to_remove);
     reset_loop_info(ssa_block);
 
     //The block has only 1 control control_node
@@ -109,6 +113,7 @@ void remove_control_node_ssa_block(
 }
 
 void add_last_control_node_ssa_block(struct ssa_block * block, struct ssa_control_node * node) {
+    record_new_node_information_of_block(block, node);
     reset_loop_info(block);
 
     if(block->first == NULL){
@@ -122,12 +127,12 @@ void add_last_control_node_ssa_block(struct ssa_block * block, struct ssa_contro
     block->last = node;
 }
 
-
 void add_before_control_node_ssa_block(
         struct ssa_block * block,
         struct ssa_control_node * before,
         struct ssa_control_node * new
 ) {
+    record_new_node_information_of_block(block, new);
     reset_loop_info(block);
 
     if(block->first == before){
@@ -142,8 +147,6 @@ void add_before_control_node_ssa_block(
     new->next = before;
     before->prev = new;
 }
-
-static struct u64_set get_blocks_to_remove(struct ssa_block *);
 
 bool is_emtpy_ssa_block(struct ssa_block * block) {
     return block->first == NULL && block->last == NULL;
@@ -379,5 +382,25 @@ static void reset_loop_info(struct ssa_block * block) {
     }
     if(block->is_loop_condition){
         block->loop_info = NULL;
+    }
+}
+
+static void record_new_node_information_of_block(
+        struct ssa_block * block,
+        struct ssa_control_node * new_block_node
+) {
+    if(new_block_node->type == SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME){
+        struct ssa_control_define_ssa_name_node * define = (struct ssa_control_define_ssa_name_node *) new_block_node;
+        add_u64_set(&block->defined_ssa_names, define->ssa_name.u16);
+    }
+}
+
+static void record_removed_node_information_of_block(
+        struct ssa_block * block,
+        struct ssa_control_node * new_block_node
+) {
+    if(new_block_node->type == SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME){
+        struct ssa_control_define_ssa_name_node * define = (struct ssa_control_define_ssa_name_node *) new_block_node;
+        remove_u64_set(&block->defined_ssa_names, define->ssa_name.u16);
     }
 }

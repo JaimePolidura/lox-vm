@@ -14,10 +14,11 @@ static void initialization(struct licm *);
 static bool initialization_block(struct ssa_block *, void *);
 static void move_loop_invariants(struct licm *);
 static bool can_control_node_be_checked_for_loop_invariant(struct ssa_control_node *node);
-static void try_move_up_loop_invariant(struct licm *licm, struct ssa_control_node *node);
+static bool try_move_up_loop_invariant(struct licm *licm, struct ssa_control_node *node);
 static bool is_data_node_loop_invariant(struct licm *, struct ssa_control_node *, struct ssa_data_node *);
 static bool try_move_up_loop_invariant_data_node(struct ssa_data_node*, void**,struct ssa_data_node*, void*);
-static void move_up_loop_invariant(struct licm *, struct ssa_control_node *, struct ssa_data_node *);
+static void move_up_loop_invariant(struct licm *, void **, struct ssa_control_node *, struct ssa_data_node *);
+static struct ssa_block * get_block_to_move_invariant(struct licm *, struct ssa_block * loop_condition_block);
 
 void perform_loop_invariant_code_motion(struct ssa_ir * ssa_ir) {
     struct licm * licm = alloc_loop_invariant_code_motion(ssa_ir);
@@ -33,8 +34,10 @@ static void move_loop_invariants(struct licm * licm) {
         struct ssa_control_node * pending_control_node = pop_stack_list(&licm->pending);
 
         if (can_control_node_be_checked_for_loop_invariant(pending_control_node)) {
-            try_move_up_loop_invariant(licm, pending_control_node);
-            push_stack_list(&licm->pending, pending_control_node);
+            bool some_invariant_moved = try_move_up_loop_invariant(licm, pending_control_node);
+            if(some_invariant_moved){
+                push_stack_list(&licm->pending, pending_control_node);
+            }
         }
     }
 }
@@ -51,10 +54,12 @@ static void initialization(struct licm * licm) {
 struct try_move_up_loop_invariant_data_node_struct {
     struct ssa_control_node * control_node;
     struct licm * licm;
+    bool some_loop_invariant_moved;
 };
 
-static void try_move_up_loop_invariant(struct licm * licm, struct ssa_control_node * node) {
+static bool try_move_up_loop_invariant(struct licm * licm, struct ssa_control_node * node) {
     struct try_move_up_loop_invariant_data_node_struct consumer_struct = (struct try_move_up_loop_invariant_data_node_struct) {
+        .some_loop_invariant_moved = false,
         .control_node = node,
         .licm = licm,
     };
@@ -65,20 +70,23 @@ static void try_move_up_loop_invariant(struct licm * licm, struct ssa_control_no
             SSA_DATA_NODE_OPT_PRE_ORDER | SSA_DATA_NODE_OPT_RECURSIVE | SSA_DATA_NODE_OPT_NOT_TERMINATORS,
             &try_move_up_loop_invariant_data_node
     );
+
+    return consumer_struct.some_loop_invariant_moved;
 }
 
-static bool try_move_up_loop_invariant2_data_node(
+static bool try_move_up_loop_invariant_data_node(
         struct ssa_data_node * _,
-        void ** __,
+        void ** parent_ptr,
         struct ssa_data_node * current_data_node,
         void * extra
 ) {
     struct try_move_up_loop_invariant_data_node_struct * consumer_struct = extra;
 
     if(is_data_node_loop_invariant(consumer_struct->licm, consumer_struct->control_node, current_data_node)) {
-        move_up_loop_invariant(consumer_struct->licm, consumer_struct->control_node);
+        move_up_loop_invariant(consumer_struct->licm, parent_ptr, consumer_struct->control_node, current_data_node);
         push_stack_list(&consumer_struct->licm->pending, consumer_struct->control_node);
-        //Dont keep scanning
+        consumer_struct->some_loop_invariant_moved = true;
+        //Dont keep scanning this node
         return false;
     }
 
@@ -109,12 +117,55 @@ static bool is_data_node_loop_invariant(
     return all_loop_invariant;
 }
 
+//Moves invariant_data_node out of the loop. It will move the invariant in the previous block of the loop
 static void move_up_loop_invariant(
         struct licm * licm,
-        struct ssa_control_node * control_node,
-        struct ssa_data_node * data_node
+        void ** parent_ptr,
+        struct ssa_control_node * invariant_control_node, //Node that holds the loop invariant
+        struct ssa_data_node * invariant_data_node
 ) {
     struct ssa_name invariant_name = alloc_ssa_name_ssa_ir(licm->ssa_ir, 1, "loopInvariant");
+    struct ssa_block * loop_condition = invariant_control_node->block->loop_condition_block;
+    struct ssa_block * block_to_move_invariant = get_block_to_move_invariant(licm, loop_condition);
+
+    struct ssa_control_define_ssa_name_node * define_loop_invariant = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME,
+            struct ssa_control_define_ssa_name_node, block_to_move_invariant, SSA_IR_NODE_LOX_ALLOCATOR(licm->ssa_ir));
+    define_loop_invariant->ssa_name = invariant_name;
+    define_loop_invariant->value = invariant_data_node;
+    add_last_control_node_ssa_block(block_to_move_invariant, &define_loop_invariant->control);
+    put_u64_hash_table(&licm->ssa_ir->ssa_definitions_by_ssa_name, invariant_name.u16, define_loop_invariant);
+
+    struct ssa_data_get_ssa_name_node * get_loop_invariant = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_GET_SSA_NAME,
+            struct ssa_data_get_ssa_name_node, NULL, SSA_IR_NODE_LOX_ALLOCATOR(licm->ssa_ir));
+    get_loop_invariant->ssa_name = invariant_name;
+    add_ssa_name_use_ssa_ir(licm->ssa_ir, invariant_name, invariant_control_node);
+    *parent_ptr = &get_loop_invariant->data;
+}
+
+static struct ssa_block * get_block_to_move_invariant(struct licm * licm, struct ssa_block * loop_condition_block) {
+    struct ssa_block * first_predecessor_of_loop_condition = (struct ssa_block *) get_first_value_u64_set(loop_condition_block->predecesors);
+    bool create_new_block = size_u64_set(loop_condition_block->predecesors) > 1 || first_predecessor_of_loop_condition->is_loop_condition;
+    if (!create_new_block) {
+        return first_predecessor_of_loop_condition;
+    }
+
+    struct ssa_block * new_block = alloc_ssa_block(SSA_IR_NODE_LOX_ALLOCATOR(licm->ssa_ir));
+    new_block->predecesors = clone_u64_set(&loop_condition_block->predecesors, SSA_IR_NODE_LOX_ALLOCATOR(licm->ssa_ir));
+    new_block->ssa_ir_head_block = loop_condition_block->ssa_ir_head_block;
+    new_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_SEQ;
+    new_block->next_as.next = loop_condition_block;
+    new_block->nested_loop_body = MAX(first_predecessor_of_loop_condition->nested_loop_body - 1, 0);
+
+    clear_u64_set(&loop_condition_block->predecesors);
+    add_u64_set(&loop_condition_block->predecesors, (uint64_t) new_block);
+
+    FOR_EACH_U64_SET_VALUE(new_block->predecesors, predecessor_new_block_u64_ptr) {
+        struct ssa_block * predecessor_new_block = (struct ssa_block *) predecessor_new_block_u64_ptr;
+        predecessor_new_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_SEQ;
+        predecessor_new_block->next_as.next = new_block;
+    }
+
+    return new_block;
 }
 
 static bool initialization_block(struct ssa_block * current_block, void * extra) {

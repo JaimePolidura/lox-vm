@@ -36,6 +36,13 @@ uint8_t size_u64_set(struct u64_set set) {
     return set.inner_hash_table.size;
 }
 
+struct u64_set clone_u64_set(struct u64_set * to_clone, struct lox_allocator * allocator) {
+    struct u64_set cloned;
+    init_u64_set(&cloned, allocator);
+    union_u64_set(&cloned, *to_clone);
+    return cloned;
+}
+
 void difference_u64_set(struct u64_set * a, struct u64_set b) {
     FOR_EACH_U64_SET_VALUE(b, curent_b_value) {
         remove_u64_set(a, curent_b_value);

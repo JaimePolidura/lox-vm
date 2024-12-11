@@ -190,7 +190,6 @@ static void extract_to_ssa_name(struct cse * cse, struct subexpression * subexpr
     add_before_control_node_ssa_block(block, ssa_control_node, &define_ssa_name_extracted->control);
     put_u64_hash_table(&cse->ssa_ir->ssa_definitions_by_ssa_name, reusable_ssa_name.u16, define_ssa_name_extracted);
 
-
     struct ssa_data_get_ssa_name_node * get_extracted_ssa_name = ALLOC_SSA_DATA_NODE(
             SSA_DATA_NODE_TYPE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL,
             &cse->ssa_ir->ssa_nodes_allocator_arena.lox_allocator

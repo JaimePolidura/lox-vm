@@ -36,6 +36,7 @@ bool is_subset_u64_set(struct u64_set a, struct u64_set b);
 //Example: a: {1, 2} b: {2, 3}, a - b = {1}
 void difference_u64_set(struct u64_set * a, struct u64_set b);
 void intersection_u64_set(struct u64_set * a, struct u64_set b);
+struct u64_set clone_u64_set(struct u64_set *, struct lox_allocator *);
 
 void init_u64_set_iterator(struct u64_set_iterator *, struct u64_set);
 bool has_next_u64_set_iterator(struct u64_set_iterator);

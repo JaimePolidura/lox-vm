@@ -28,8 +28,8 @@ struct ssa_block {
 
     //Set of local variable numbers that this block will use before assigning
     //Example: i = i + 1; print a; a = 12; b = 1; print b. use_before_assigment: {i, a}
-    //This facilitates the insertion of phi functions in loop bodies. So before using a variable, we
-    //know what variables to copy
+    //This facilitates the insertion of phi functions in loop bodies. So before using a variable, we know what variables to copy.
+    //This is used only at ssa ir construction time.
     struct u8_set use_before_assigment;
 
     //Number of nested loops of which the block belongs.
