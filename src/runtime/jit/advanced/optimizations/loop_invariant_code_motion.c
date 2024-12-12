@@ -58,10 +58,6 @@ static bool initialization_block(struct ssa_block * current_block, void * extra)
         for (struct ssa_control_node * current = current_block->first;;current = current->next) {
             push_stack_list(&licm->pending, current);
 
-            if (!BELONGS_TO_LOOP_BODY_BLOCK(current->block)) {
-                puts("HOla");
-            }
-
             if(current == current_block->last) {
                 break;
             }

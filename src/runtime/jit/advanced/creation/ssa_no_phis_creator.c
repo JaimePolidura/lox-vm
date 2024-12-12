@@ -624,6 +624,7 @@ static void jump_if_false(struct ssa_no_phis_inserter * inserter, struct pending
         condition_block->is_loop_condition = true;
         condition_block->nested_loop_body = parent_block->nested_loop_body + 1;
         condition_block->loop_condition_block = parent_block->loop_condition_block;
+        cond_jump_node->control.block = condition_block;
 
         true_branch_block->nested_loop_body = parent_block->nested_loop_body + 1;
         false_branch_block->nested_loop_body = parent_block->nested_loop_body;
