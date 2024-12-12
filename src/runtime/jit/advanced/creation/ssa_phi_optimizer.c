@@ -50,6 +50,7 @@ struct phi_optimization_result optimize_ssa_ir_phis(
             start_block,
             NATIVE_LOX_ALLOCATOR(),
             &consumer_struct,
+            SSA_BLOCK_OPT_REPEATED,
             &optimize_ssa_ir_phis_block
     );
 

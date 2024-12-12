@@ -52,6 +52,7 @@ void perform_common_subexpression_elimination(struct ssa_ir * ssa_ir) {
             ssa_ir->first_block,
             &cse->cse_allocator.lox_allocator,
             cse,
+            SSA_BLOCK_OPT_REPEATED,
             &perform_cse_block
     );
 

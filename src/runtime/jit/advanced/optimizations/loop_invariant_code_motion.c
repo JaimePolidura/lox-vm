@@ -47,6 +47,7 @@ static void initialization(struct licm * licm) {
             licm->ssa_ir->first_block,
             &licm->allocator.lox_allocator,
             licm,
+            SSA_BLOCK_OPT_NOT_REPEATED,
             initialization_block
     );
 }
@@ -119,12 +120,12 @@ static bool is_data_node_loop_invariant(
     struct u64_set used_ssa_names = get_used_ssa_names_ssa_data_node(data_node, &licm->allocator.lox_allocator);
     struct ssa_block_loop_info * loop_info = get_loop_info_ssa_block(control_node->block, &licm->allocator.lox_allocator);
 
-    bool all_loop_invariant = false;
-    
+    bool all_loop_invariant = true;
+
     FOR_EACH_U64_SET_VALUE(used_ssa_names, used_ssa_name_u64) {
         struct ssa_name used_ssa_name = CREATE_SSA_NAME_FROM_U64(used_ssa_name_u64);
 
-        if(contains_u64_set(&loop_info->modified_ssa_names, used_ssa_name.u16)) {
+        if(contains_u8_set(&loop_info->modified_local_numbers, used_ssa_name.value.local_number)){
             all_loop_invariant = false;
             break;
         }

@@ -17,12 +17,21 @@ static bool node_defines_ssa_name(struct ssa_control_node *, int version);
 
 TEST(ssa_creation_licm) {
     struct compilation_result compilation = compile_standalone(
-            "fun function(a, b) {"
+            "fun function(a, b, c) {"
             "   for (var i = 0; i < 10; i = i + 1) {"
-            "       for (var j = 0; j < 10; j = 1 + 1) {"
-            "           print i + 2;"
-            "           i = 2;"
+            "      if(i == 0){"
+            "          var d = a + b;"
+            "          var e = e + i;"
+            "      }else{"
+            "          for(var j = 0; j < 10; j = j + 1){"
+            "              print i + 1;"
+            "              i = 2;"
+            "              c = 2;"
+            "              var d = i * 2;"
+            "              print d;"
+            "           }"
             "       }"
+            "       print c + 3;"
             "   }"
             "}"
     );

@@ -10,17 +10,30 @@ void for_each_ssa_block(
         struct ssa_block * start_block,
         struct lox_allocator * allocator,
         void * extra,
+        long options,
         ssa_block_consumer_t consumer
 ) {
     struct stack_list pending;
     init_stack_list(&pending, allocator);
     push_stack_list(&pending, start_block);
 
+    struct u64_set visited_blocks;
+    if(IS_FLAG_SET(options, SSA_BLOCK_OPT_NOT_REPEATED)){
+        init_u64_set(&visited_blocks, allocator);
+    }
+
     while(!is_empty_stack_list(&pending)){
         struct ssa_block * current_block = pop_stack_list(&pending);
 
+        if(IS_FLAG_SET(options, SSA_BLOCK_OPT_NOT_REPEATED) && contains_u64_set(&visited_blocks, (uint64_t) current_block)){
+            continue;
+        }
         //Dont continue iterating
-        if(!consumer(current_block, extra)){
+        bool continue_scanning_from_this_block = consumer(current_block, extra);
+        if(IS_FLAG_SET(options, SSA_BLOCK_OPT_NOT_REPEATED)){
+            add_u64_set(&visited_blocks, (uint64_t) current_block);
+        }
+        if(!continue_scanning_from_this_block){
             continue;
         }
 
@@ -38,6 +51,9 @@ void for_each_ssa_block(
     }
 
     free_stack_list(&pending);
+    if(IS_FLAG_SET(options, SSA_BLOCK_OPT_NOT_REPEATED)){
+        free_u64_set(&visited_blocks);
+    }
 }
 
 struct ssa_block * alloc_ssa_block(struct lox_allocator * allocator) {
@@ -339,13 +355,14 @@ struct ssa_block_loop_info * get_loop_info_ssa_block(struct ssa_block * block, s
 static struct ssa_block_loop_info * create_loop_info_ssa_block(struct ssa_block * loop_condition_block, struct lox_allocator * allocator) {
     struct ssa_block_loop_info * ssa_block_loop_info = LOX_MALLOC(allocator, sizeof(struct ssa_block_loop_info));
     loop_condition_block->loop_info = ssa_block_loop_info;
-    init_u64_set(&ssa_block_loop_info->modified_ssa_names, allocator);
+    init_u8_set(&ssa_block_loop_info->modified_local_numbers);
     ssa_block_loop_info->condition_block = loop_condition_block;
 
     for_each_ssa_block(
             loop_condition_block,
             allocator,
             ssa_block_loop_info,
+            SSA_BLOCK_OPT_REPEATED,
             create_loop_info_ssa_block_consumer
     );
 
@@ -355,8 +372,12 @@ static struct ssa_block_loop_info * create_loop_info_ssa_block(struct ssa_block 
 static bool create_loop_info_ssa_block_consumer(struct ssa_block * current_block, void * extra) {
     struct ssa_block_loop_info * ssa_block_loop_info = extra;
 
-    if (current_block == ssa_block_loop_info->condition_block ||
-        current_block->loop_condition_block != ssa_block_loop_info->condition_block) {
+    if(current_block->is_loop_condition){
+        //Current block is the loop condtiion block that we want to scan. We want to keep scanning from it
+        return true;
+    }
+
+    if (current_block->loop_condition_block != ssa_block_loop_info->condition_block) {
         //Dont keep scanning from current_block
         return false;
     }
@@ -364,7 +385,7 @@ static bool create_loop_info_ssa_block_consumer(struct ssa_block * current_block
     for(struct ssa_control_node * current_control_node = current_block->first;; current_control_node = current_control_node->next) {
         if(current_control_node->type == SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME) {
             struct ssa_control_define_ssa_name_node * define_node = (struct ssa_control_define_ssa_name_node *) current_control_node;
-            add_u64_set(&ssa_block_loop_info->modified_ssa_names, define_node->ssa_name.u16);
+            add_u8_set(&ssa_block_loop_info->modified_local_numbers, define_node->ssa_name.value.local_number);
         }
 
         if(current_control_node == current_block->last){

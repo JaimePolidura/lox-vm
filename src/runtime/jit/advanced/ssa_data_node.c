@@ -254,14 +254,14 @@ static bool for_each_ssa_data_node_recursive(
         long options,
         ssa_data_node_consumer_t consumer
 ) {
+    if(IS_FLAG_SET(options, SSA_DATA_NODE_OPT_NOT_TERMINATORS) && is_terminator_ssa_data_node(current_node)){
+        return true;
+    }
     if(IS_FLAG_SET(options, SSA_DATA_NODE_OPT_PRE_ORDER)){
         //Dont keep scanning this node
         if(!consumer(parent_current, parent_current_ptr, current_node, extra)) {
             return true;
         }
-    }
-    if(IS_FLAG_SET(options, SSA_DATA_NODE_OPT_NOT_TERMINATORS) && is_terminator_ssa_data_node(current_node)){
-        return true;
     }
 
     switch (current_node->type) {

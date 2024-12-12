@@ -38,6 +38,7 @@ void perform_strength_reduction(struct ssa_ir *ssa_ir) {
             ssa_ir->first_block,
             &strength_reduction.sr_allocator.lox_allocator,
             &strength_reduction,
+            SSA_BLOCK_OPT_REPEATED,
             perform_strength_reduction_block
     );
 

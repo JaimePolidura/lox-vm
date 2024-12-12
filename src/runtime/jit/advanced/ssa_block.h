@@ -17,7 +17,7 @@ typedef enum {
 
 struct ssa_block_loop_info {
     struct ssa_block * condition_block;
-    struct u64_set modified_ssa_names;
+    struct u8_set modified_local_numbers;
 };
 
 //A block represents a list of instructions that run sequentially, there are no branches inside it
@@ -81,8 +81,12 @@ struct u64_set get_dominator_set_ssa_block(struct ssa_block *, struct lox_alloca
 struct ssa_block_loop_info * get_loop_info_ssa_block(struct ssa_block *, struct lox_allocator *);
 
 typedef bool (*ssa_block_consumer_t)(struct ssa_block *, void *);
-//The callback will false, if current block, next blocks, wont be scanned
-void for_each_ssa_block(struct ssa_block *, struct lox_allocator *, void * extra, ssa_block_consumer_t);
+enum {
+    SSA_BLOCK_OPT_NOT_REPEATED = 1 << 0, //A block can be iterated multiple ways, if many paths leads to that block
+    SSA_BLOCK_OPT_REPEATED = 1 << 1, //A block can be called only once
+};
+//If the callback returns false, the next blocks from the current block won't be scanned.
+void for_each_ssa_block(struct ssa_block *, struct lox_allocator *, void * extra, long options, ssa_block_consumer_t);
 
 //Replaces references to old_block of the predecessors of old_block to point to new_block
 //Example: A -> B -> C. replace_block_ssa_block(old_block = B, new_block = C), the result: A -> C
