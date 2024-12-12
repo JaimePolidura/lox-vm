@@ -132,7 +132,14 @@ void generate_ssa_graphviz_graph(
 
             generate_graph_and_write(&graphviz_visualizer, ssa_ir.first_block);
             break;
+        }
+        case LOOP_INVARIANT_CODE_MOTION_PHASE_SSA_GRAPHVIZ: {
+            struct ssa_ir ssa_ir = create_ssa_ir(package, function, create_bytecode_list(function->chunk,
+                    &ssa_node_allocator.lox_allocator));
+            perform_loop_invariant_code_motion(&ssa_ir);
+            graphviz_visualizer.ssa_ir = ssa_ir;
 
+            generate_graph_and_write(&graphviz_visualizer, ssa_ir.first_block);
             break;
         }
         case ALL_PHASE_SSA_GRAPHVIZ: {
@@ -141,6 +148,7 @@ void generate_ssa_graphviz_graph(
             perform_sparse_constant_propagation(&ssa_ir);
             perform_common_subexpression_elimination(&ssa_ir);
             perform_strength_reduction(&ssa_ir);
+            perform_loop_invariant_code_motion(&ssa_ir);
 
             graphviz_visualizer.ssa_ir = ssa_ir;
 
@@ -455,11 +463,11 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             break;
         }
         case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY: {
-            struct ssa_data_initialize_array_node * initialize_array = (struct ssa_data_initialize_array_node *) node;
-            char * node_desc = dynamic_format_string("InitializeArray %i", initialize_array->n_elements);
+            struct ssa_data_initialize_array_node *initialize_array = (struct ssa_data_initialize_array_node *) node;
+            char *node_desc = dynamic_format_string("InitializeArray %i", initialize_array->n_elements);
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
-            for(int i = 0; i < initialize_array->n_elements && !initialize_array->empty_initialization; i++){
+            for (int i = 0; i < initialize_array->n_elements && !initialize_array->empty_initialization; i++) {
                 int array_element_node_id = generate_data_node_graph(visualizer, initialize_array->elememnts_node[i]);
                 link_data_data_node_graphviz_file(visualizer, self_data_node_id, array_element_node_id);
             }

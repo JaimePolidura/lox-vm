@@ -35,7 +35,7 @@ TEST(ssa_creation_licm) {
     generate_ssa_graphviz_graph(
             package,
             function_ssa,
-            PHIS_OPTIMIZED_PHASE_SSA_GRAPHVIZ,
+            LOOP_INVARIANT_CODE_MOTION_PHASE_SSA_GRAPHVIZ,
             NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
     );

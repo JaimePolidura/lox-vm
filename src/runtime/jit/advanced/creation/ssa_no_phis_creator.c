@@ -584,6 +584,7 @@ static void jump(struct ssa_no_phis_inserter * insterter, struct pending_evaluat
     struct bytecode_list * to_jump_bytecode = simplify_redundant_unconditional_jump_bytecodes(to_evalute->pending_bytecode->as.jump);
     struct ssa_block * new_block = get_block_by_first_bytecode(insterter, to_jump_bytecode);
 
+    new_block->loop_condition_block = to_evalute->block->loop_condition_block;
     new_block->nested_loop_body = to_evalute->block->nested_loop_body;
 
     //FIXME Bug here, to_evalute->prev_control_node is NULL
@@ -627,7 +628,7 @@ static void jump_if_false(struct ssa_no_phis_inserter * inserter, struct pending
         true_branch_block->nested_loop_body = parent_block->nested_loop_body + 1;
         false_branch_block->nested_loop_body = parent_block->nested_loop_body;
         true_branch_block->loop_condition_block = condition_block;
-        false_branch_block->loop_condition_block = NULL;
+        false_branch_block->loop_condition_block = parent_block->loop_condition_block;
 
         add_u64_set(&condition_block->predecesors, (uint64_t) parent_block);
         add_u64_set(&false_branch_block->predecesors, (uint64_t) condition_block);

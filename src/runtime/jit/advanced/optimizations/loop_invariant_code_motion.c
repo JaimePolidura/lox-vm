@@ -35,7 +35,7 @@ static void move_loop_invariants(struct licm * licm) {
 
         if (can_control_node_be_checked_for_loop_invariant(pending_control_node)) {
             bool some_invariant_moved = try_move_up_loop_invariant(licm, pending_control_node);
-            if(some_invariant_moved){
+            if(some_invariant_moved && BELONGS_TO_LOOP_BODY_BLOCK(pending_control_node->block)){
                 push_stack_list(&licm->pending, pending_control_node);
             }
         }
@@ -49,6 +49,26 @@ static void initialization(struct licm * licm) {
             licm,
             initialization_block
     );
+}
+
+static bool initialization_block(struct ssa_block * current_block, void * extra) {
+    if(BELONGS_TO_LOOP_BODY_BLOCK(current_block)) {
+        struct licm * licm = extra;
+
+        for (struct ssa_control_node * current = current_block->first;;current = current->next) {
+            push_stack_list(&licm->pending, current);
+
+            if (!BELONGS_TO_LOOP_BODY_BLOCK(current->block)) {
+                puts("HOla");
+            }
+
+            if(current == current_block->last) {
+                break;
+            }
+        }
+    }
+
+    return true;
 }
 
 struct try_move_up_loop_invariant_data_node_struct {
@@ -155,6 +175,7 @@ static struct ssa_block * get_block_to_move_invariant(struct licm * licm, struct
     new_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_SEQ;
     new_block->next_as.next = loop_condition_block;
     new_block->nested_loop_body = MAX(first_predecessor_of_loop_condition->nested_loop_body - 1, 0);
+    new_block->loop_condition_block = loop_condition_block;
 
     clear_u64_set(&loop_condition_block->predecesors);
     add_u64_set(&loop_condition_block->predecesors, (uint64_t) new_block);
@@ -166,22 +187,6 @@ static struct ssa_block * get_block_to_move_invariant(struct licm * licm, struct
     }
 
     return new_block;
-}
-
-static bool initialization_block(struct ssa_block * current_block, void * extra) {
-    if(BELONGS_TO_LOOP_BODY_BLOCK(current_block)) {
-        struct licm * licm = extra;
-
-        for(struct ssa_control_node * current = current_block->first;;current = current->next) {
-            push_stack_list(&licm->pending, current);
-
-            if(current == current_block->last) {
-                break;
-            }
-        }
-    }
-
-    return true;
 }
 
 static bool can_control_node_be_checked_for_loop_invariant(struct ssa_control_node * node) {
