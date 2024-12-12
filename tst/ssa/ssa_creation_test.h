@@ -25,7 +25,6 @@ TEST(ssa_creation_licm) {
             "      }else{"
             "          for(var j = 0; j < 10; j = j + 1){"
             "              print i + 1;"
-            "              i = 2;"
             "              c = 2;"
             "              var d = i * 2;"
             "              print d;"

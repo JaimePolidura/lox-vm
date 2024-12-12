@@ -60,12 +60,21 @@ void fixed_arena_lox_free(struct lox_allocator * allocator, void * ptr) {
     //We don't do anything. The memory will get free when the user manually frees the arena with: "free_arena()"
 }
 
+struct arena_lox_allocator * alloc_lox_allocator_arena(struct arena arena, struct lox_allocator * allocator) {
+    struct arena_lox_allocator * arena_lox_allocator = LOX_MALLOC(allocator, sizeof(struct arena_lox_allocator));
+    arena_lox_allocator->arena = arena;
+    arena_lox_allocator->lox_allocator.lox_malloc = fixed_arena_lox_malloc;
+    arena_lox_allocator->lox_allocator.lox_free = fixed_arena_lox_free;
+
+    return arena_lox_allocator;
+}
+
 struct arena_lox_allocator to_lox_allocator_arena(struct arena arena) {
     return (struct arena_lox_allocator) {
         .arena = arena,
         .lox_allocator = (struct lox_allocator) {
-            .lox_malloc = fixed_arena_lox_malloc,
-            .lox_free = fixed_arena_lox_free
+            .lox_malloc = &fixed_arena_lox_malloc,
+            .lox_free = &fixed_arena_lox_free
         }
     };
 }

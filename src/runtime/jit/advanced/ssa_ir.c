@@ -31,8 +31,8 @@ void add_ssa_name_use_ssa_ir(
         struct ssa_control_node * ssa_control_node
 ) {
     if(!contains_u64_hash_table(&ssa_ir->node_uses_by_ssa_name, ssa_name.u16)){
-        struct u64_set * uses = LOX_MALLOC(&ssa_ir->ssa_nodes_allocator_arena.lox_allocator, sizeof(struct u64_set));
-        init_u64_set(uses, &ssa_ir->ssa_nodes_allocator_arena.lox_allocator);
+        struct u64_set * uses = LOX_MALLOC(SSA_IR_NODE_LOX_ALLOCATOR(ssa_ir), sizeof(struct u64_set));
+        init_u64_set(uses, SSA_IR_NODE_LOX_ALLOCATOR(ssa_ir));
         put_u64_hash_table(&ssa_ir->node_uses_by_ssa_name, ssa_name.u16, uses);
     }
 

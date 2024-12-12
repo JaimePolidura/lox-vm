@@ -170,7 +170,7 @@ static void reuse_subexpression(
     struct ssa_name ssa_name_to_reuse = subexpression_to_reuse->reusable_ssa_name;
 
     struct ssa_data_get_ssa_name_node * get_ssa_name_to_reuse = ALLOC_SSA_DATA_NODE(
-            SSA_DATA_NODE_TYPE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL, &cse->ssa_ir->ssa_nodes_allocator_arena.lox_allocator
+            SSA_DATA_NODE_TYPE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL, SSA_IR_NODE_LOX_ALLOCATOR(cse->ssa_ir)
     );
     get_ssa_name_to_reuse->ssa_name = ssa_name_to_reuse;
     *parent_data_node_ptr = &get_ssa_name_to_reuse->data;
@@ -184,7 +184,7 @@ static void extract_to_ssa_name(struct cse * cse, struct subexpression * subexpr
 
     struct ssa_control_define_ssa_name_node * define_ssa_name_extracted = ALLOC_SSA_CONTROL_NODE(
             SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME, struct ssa_control_define_ssa_name_node,
-            subexpression_to_extract->block, &cse->ssa_ir->ssa_nodes_allocator_arena.lox_allocator
+                    subexpression_to_extract->block, SSA_IR_NODE_LOX_ALLOCATOR(cse->ssa_ir)
     );
     define_ssa_name_extracted->value = subexpression_to_extract->data_node;
     define_ssa_name_extracted->ssa_name = reusable_ssa_name;
@@ -192,8 +192,7 @@ static void extract_to_ssa_name(struct cse * cse, struct subexpression * subexpr
     put_u64_hash_table(&cse->ssa_ir->ssa_definitions_by_ssa_name, reusable_ssa_name.u16, define_ssa_name_extracted);
 
     struct ssa_data_get_ssa_name_node * get_extracted_ssa_name = ALLOC_SSA_DATA_NODE(
-            SSA_DATA_NODE_TYPE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL,
-            &cse->ssa_ir->ssa_nodes_allocator_arena.lox_allocator
+            SSA_DATA_NODE_TYPE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL, SSA_IR_NODE_LOX_ALLOCATOR(cse->ssa_ir)
     );
     get_extracted_ssa_name->ssa_name = reusable_ssa_name;
     *subexpression_to_extract->parent_ptr = &get_extracted_ssa_name->data;

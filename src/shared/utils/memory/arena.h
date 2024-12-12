@@ -26,3 +26,4 @@ void free_arena(struct arena *);
 
 void * malloc_arena(struct arena *, size_t to_alloc_size);
 struct arena_lox_allocator to_lox_allocator_arena(struct arena);
+struct arena_lox_allocator * alloc_lox_allocator_arena(struct arena, struct lox_allocator *);

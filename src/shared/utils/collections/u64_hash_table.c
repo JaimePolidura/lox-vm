@@ -87,6 +87,7 @@ static struct u64_hash_table_entry * find_u64_hash_table_entry(struct u64_hash_t
 
 static void grow_u64_hash_table(struct u64_hash_table * table) {
     uint64_t new_capacity = MAX(U64_HASH_TABLE_INITIAL_CAPACITY, table->capacity << 1);
+
     struct u64_hash_table_entry * new_entries = LOX_MALLOC(table->allocator, sizeof(struct u64_hash_table_entry) * new_capacity);
     struct u64_hash_table_entry * old_entries = table->entries;
     memset(new_entries, 0, new_capacity * sizeof(struct u64_hash_table_entry));

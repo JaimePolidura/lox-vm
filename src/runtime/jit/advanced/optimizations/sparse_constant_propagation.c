@@ -31,7 +31,6 @@ struct constant_rewrite {
 extern lox_value_t addition_lox(lox_value_t a, lox_value_t b);
 extern void runtime_panic(char * format, ...);
 
-#define GET_SSA_NODES_ALLOCATOR(scp) (&(scp)->ssa_ir->ssa_nodes_allocator_arena.lox_allocator)
 #define GET_SCP_ALLOCATOR(scp) &(scp)->scp_allocator.lox_allocator
 
 static void initialization(struct scp *);
@@ -152,7 +151,7 @@ static void remove_death_branch(struct scp * scp, struct ssa_control_node * bran
                 //If there is only 1 usage of a ssa name in a phi control_node, replace it with ssa_data_get_ssa_name_node control_node
                 if (size_u64_set(phi_node->ssa_versions) == 1) {
                     node_uses_ssa_name->value = (struct ssa_data_node *) ALLOC_SSA_DATA_NODE(
-                            SSA_DATA_NODE_TYPE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL, &scp->ssa_ir->ssa_nodes_allocator_arena.lox_allocator
+                            SSA_DATA_NODE_TYPE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL, SSA_IR_NODE_LOX_ALLOCATOR(scp->ssa_ir)
                     );
                 }
                 //Remove semilattice of the removed ssa name
@@ -272,7 +271,7 @@ struct constant_rewrite * rewrite_constant_expressions_propagation_data_node(
 
             if (semilattice_ssa_name->type == SEMILATTICE_CONSTANT && size_u64_set(semilattice_ssa_name->values) == 1) {
                 lox_value_t ssa_value = get_first_value_u64_set(semilattice_ssa_name->values);
-                struct ssa_data_constant_node * constant_node = create_ssa_const_node(ssa_value, NULL, GET_SSA_NODES_ALLOCATOR(scp));
+                struct ssa_data_constant_node * constant_node = create_ssa_const_node(ssa_value, NULL, SSA_IR_NODE_LOX_ALLOCATOR(scp->ssa_ir));
                 return alloc_constant_rewrite(scp, &constant_node->data, alloc_single_const_value_semilattice(scp, ssa_value));
             } else {
                 return alloc_constant_rewrite(scp, current_node, semilattice_ssa_name);
@@ -516,7 +515,7 @@ static void rewrite_graph_as_constant(
         struct ssa_data_node ** parent_ptr,
         lox_value_t constant
 ) {
-    struct ssa_data_constant_node * constant_node = create_ssa_const_node(constant, NULL, GET_SSA_NODES_ALLOCATOR(scp));
+    struct ssa_data_constant_node * constant_node = create_ssa_const_node(constant, NULL, SSA_IR_NODE_LOX_ALLOCATOR(scp->ssa_ir));
     *parent_ptr = &constant_node->data;
     free_ssa_data_node(old_node);
 }

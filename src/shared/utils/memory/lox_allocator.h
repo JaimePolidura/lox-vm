@@ -3,7 +3,7 @@
 #include "shared.h"
 
 struct lox_allocator {
-    void *(*lox_malloc)(struct lox_allocator*, size_t);
+    void* (*lox_malloc)(struct lox_allocator*, size_t);
     void (*lox_free)(struct lox_allocator*, void *);
 };
 

@@ -14,7 +14,7 @@
 #include "shared/utils/memory/arena.h"
 #include "shared/package.h"
 
-#define SSA_IR_NODE_LOX_ALLOCATOR(ssa_ir) (&(ssa_ir)->ssa_nodes_allocator_arena.lox_allocator)
+#define SSA_IR_NODE_LOX_ALLOCATOR(ssa_ir) (&(ssa_ir)->ssa_nodes_allocator_arena->lox_allocator)
 
 struct ssa_ir {
     struct ssa_block * first_block;
@@ -25,7 +25,7 @@ struct ssa_ir {
     //key: ssa_name, value: u64_set of pointers ssa_control_nodes
     struct u64_hash_table node_uses_by_ssa_name;
     //All control, data & blocks will be allocated in the arena
-    struct arena_lox_allocator ssa_nodes_allocator_arena;
+    struct arena_lox_allocator * ssa_nodes_allocator_arena;
     //Function of the ssa_ir
     struct function_object * function;
 };
