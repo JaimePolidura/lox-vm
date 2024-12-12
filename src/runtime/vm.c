@@ -17,7 +17,7 @@ __thread struct vm_thread * self_thread;
 const uint8_t eof = OP_EOF;
 struct vm current_vm;
 
-void call(lox_value_t callee_lox, int n_args, bool is_parallel);
+void call(struct call_frame *, lox_value_t callee_lox, int n_args, bool is_parallel);
 static void setup_package_execution(struct package * package);
 static void push_stack_vm(lox_value_t value);
 static lox_value_t pop_stack_vm();
@@ -40,7 +40,7 @@ static void jump(struct call_frame * call_frame);
 static void loop(struct call_frame * current_frame);
 static void call_vm(struct call_frame * current_frame);
 static void return_function(struct call_frame * function_to_return_frame);
-static void call_function(struct function_object * function, int n_args, bool is_parallel);
+static void call_function(struct call_frame *, struct function_object * function, int n_args, bool is_parallel);
 static void print_frame_stack_trace();
 static void initialize_struct(struct call_frame * call_frame);
 static void get_struct_field(struct call_frame * current_frame);
@@ -330,13 +330,13 @@ static void call_vm(struct call_frame * current_frame) {
         runtime_panic("Cannot call");
     }
 
-    call(callee, n_args, is_parallel);
+    call(current_frame, callee, n_args, is_parallel);
 }
 
-void call(lox_value_t callee_lox, int n_args, bool is_parallel) {
+void call(struct call_frame * current_frame, lox_value_t callee_lox, int n_args, bool is_parallel) {
     switch (AS_OBJECT(callee_lox)->type) {
         case OBJ_FUNCTION: {
-            call_function(AS_FUNCTION(callee_lox), n_args, is_parallel);
+            call_function(current_frame, AS_FUNCTION(callee_lox), n_args, is_parallel);
             break;
         }
         case OBJ_NATIVE_FUNCTION: {
@@ -360,37 +360,44 @@ void call(lox_value_t callee_lox, int n_args, bool is_parallel) {
     thread_on_safe_point();
 }
 
-static void call_function(struct function_object * function, int n_args, bool is_parallel) {
-    if (n_args != function->n_arguments) {
-        runtime_panic("Cannot call %s with %i args. Required %i nº args", function->name->chars, n_args,
-                      function->n_arguments);
+static void call_function(struct call_frame * caller_callframe, struct function_object * callee, int n_args, bool is_parallel) {
+    struct function_object * caller = caller_callframe->function;
+
+    if (n_args != callee->n_arguments) {
+        runtime_panic("Cannot call %s with %i args. Required %i nº args", callee->name->chars, n_args,
+                      callee->n_arguments);
     }
     if (self_thread->frames_in_use >= FRAME_MAX) {
         runtime_panic("Stack overflow. Max allowed frames: %i", FRAME_MAX);
     }
 
     if (is_parallel) {
-        start_child_thread(function);
+        start_child_thread(callee);
         return;
     }
 
-    setup_call_frame_function(self_thread, function);
+    setup_call_frame_function(self_thread, callee);
+
+    if(caller->state == FUNC_STATE_PROFILING) {
+        profile_function_call_argumnts((caller_callframe->pc - 3), caller, callee);
+
+    }
 
 #ifdef NAN_BOXING
-    switch (function->state) {
+    switch (callee->state) {
         case FUNC_STATE_NOT_PROFILING:
-            increase_n_function_calls(function);
+            increase_n_function_calls(callee);
             break;
         case FUNC_STATE_PROFILING:
-            if(can_jit_compile_profiler(function)) {
-                jit_compile(function);
+            if(can_jit_compile_profiler(callee)) {
+                jit_compile(callee);
             }
             break;
         case FUNC_STATE_JIT_COMPILING:
         case FUNC_STATE_JIT_UNCOMPILABLE:
             break;
         case FUNC_STATE_JIT_COMPILED:
-            run_jit_compiled(function);
+            run_jit_compiled(callee);
             break;
     }
 #endif
@@ -432,6 +439,11 @@ static void return_function(struct call_frame * function_to_return_frame) {
 
     if(!last_frame) {
         self_thread->esp = function_to_return_frame->slots;
+    }
+
+    struct call_frame * caller_frame = get_current_frame_vm_thread(self_thread);
+    if(caller_frame->function->state == FUNC_STATE_NOT_PROFILING) {
+        profile_returned_value(caller_frame->pc - 3, caller_frame->function, returned_value);
     }
 
     push_stack_vm(returned_value);

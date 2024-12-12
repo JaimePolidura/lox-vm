@@ -366,7 +366,6 @@ static void get_local(
     //Pending initialize
     int local_number = to_evaluate->pending_bytecode->as.u8;
     get_local_node->local_number = local_number;
-    get_local_node->data.produced_type = get_type_by_local_function_profile_data(&function->state_as.profiling.profile_data, local_number);
 
     add_u8_set(&inserter->current_block_local_usage.used, local_number);
 

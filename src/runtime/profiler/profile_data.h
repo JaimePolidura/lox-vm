@@ -15,8 +15,7 @@ typedef enum {
 } profile_data_type_t;
 
 struct function_profile_data {
-    struct instruction_profile_data * data_by_instruction_index;
-    struct type_profile_data * local_profile_data;
+    struct instruction_profile_data * profile_by_instruction_index;
 };
 
 struct type_profile_data {
@@ -28,6 +27,12 @@ struct type_profile_data {
     int object;
 };
 
+struct function_call_profile {
+    struct type_profile_data returned_type_profile;
+    int n_arguments;
+    struct type_profile_data * arguments_type_profile;
+};
+
 struct instruction_profile_data {
     union {
         struct {
@@ -36,28 +41,24 @@ struct instruction_profile_data {
         } branch;
 
         struct {
-            struct type_profile_data left;
-            struct type_profile_data right;
-        } binary_op; //Arithmetic & comparation
-
-        struct { //OP_SET_LOCAL
-            struct type_profile_data data;
-        } set_local_op;
-
-        struct {
-            struct type_profile_data type;
+            //Records in definition the struct definition of the operation.
+            //If initialized is true and definition is NULL, it means that the struct definition could be any type
+            struct struct_definition_object * definition;
+            bool initialized;
         } struct_field;
 
+        //A callee will profile the type of the returned value, and the arguments type passed by the caller
+        //A pointer of the caller struct function_call_profile_data is passed to the callee
+        //Parallel calls won't be profiled
+        struct function_call_profile function_call;
     } as;
 };
 
-profile_data_type_t lox_value_to_profile_type(lox_value_t value);
 
-profile_data_type_t get_type_by_local_function_profile_data(struct function_profile_data *, int local_number);
+profile_data_type_t lox_value_to_profile_type(lox_value_t value);
 
 void init_function_profile_data(struct function_profile_data *, int n_instructions, int n_locals);
 
 struct instruction_profile_data * alloc_instruction_profile_data();
 void init_instruction_profile_data(struct instruction_profile_data *);
-
 void init_type_profile_data(struct type_profile_data *);

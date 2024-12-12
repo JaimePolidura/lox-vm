@@ -21,19 +21,10 @@ profile_data_type_t lox_value_to_profile_type(lox_value_t lox_value) {
     }
 }
 
-profile_data_type_t get_type_by_local_function_profile_data(struct function_profile_data * profile_data, int local_number) {
-    struct type_profile_data type_profile = profile_data->local_profile_data[local_number];
-    return get_type_by_type_profile(type_profile);
-}
-
 void init_function_profile_data(struct function_profile_data * function_profile_data, int n_instructions, int n_locals) {
-    function_profile_data->data_by_instruction_index = NATIVE_LOX_MALLOC(sizeof(struct instruction_profile_data) * n_instructions);
+    function_profile_data->profile_by_instruction_index = NATIVE_LOX_MALLOC(sizeof(struct instruction_profile_data) * n_instructions);
     for(int i = 0; i < n_instructions; i++) {
-        init_instruction_profile_data(&function_profile_data->data_by_instruction_index[i]);
-    }
-    function_profile_data->local_profile_data = NATIVE_LOX_MALLOC(sizeof(struct type_profile_data) * n_locals);
-    for(int i = 0; i < n_locals; i++) {
-        init_type_profile_data(&function_profile_data->local_profile_data[i]);
+        init_instruction_profile_data(&function_profile_data->profile_by_instruction_index[i]);
     }
 }
 

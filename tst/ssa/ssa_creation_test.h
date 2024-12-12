@@ -34,6 +34,7 @@ TEST(ssa_creation_licm) {
             "   }"
             "}"
     );
+
     struct package * package = compilation.compiled_package;
     struct function_object * function_ssa = get_function_package(package, "function");
     int n_instructions = function_ssa->chunk->in_use;
@@ -43,7 +44,7 @@ TEST(ssa_creation_licm) {
     generate_ssa_graphviz_graph(
             package,
             function_ssa,
-            LOOP_INVARIANT_CODE_MOTION_PHASE_SSA_GRAPHVIZ,
+            NO_PHIS_PHASE_SSA_GRAPHVIZ,
             NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
     );
