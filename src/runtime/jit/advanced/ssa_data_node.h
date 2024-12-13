@@ -10,6 +10,7 @@
 #include "shared/package.h"
 #include "shared.h"
 
+#include "runtime/jit/advanced/ssa_guard.h"
 #include "runtime/profiler/profile_data.h"
 
 //Data flow nodes used in SSA IR
@@ -25,6 +26,7 @@ typedef enum {
     SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT,
     SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY,
     SSA_DATA_NODE_TYPE_GET_ARRAY_LENGTH,
+    SSA_DATA_NODE_TYPE_GUARD,
     //Only used when inserting phi functions in the graph ir creation process.
     //It will replace all the nodes with type SSA_DATA_NODE_TYPE_GET_LOCAL in the phi insertion proceess
     SSA_DATA_NODE_TYPE_PHI,
@@ -208,4 +210,9 @@ struct ssa_data_phi_node {
 struct ssa_data_get_ssa_name_node {
     struct ssa_data_node data;
     struct ssa_name ssa_name;
+};
+
+struct ssa_data_guard_node {
+    struct ssa_data_node data;
+    struct ssa_guard guard;
 };

@@ -23,9 +23,9 @@ void for_each_data_node_in_control_node(
         case SSA_CONTROL_NODE_GUARD: {
             struct ssa_control_guard_node * guard = (struct ssa_control_guard_node *) control_node;
             if (IS_FLAG_SET(options, SSA_DATA_NODE_OPT_RECURSIVE)) {
-                for_each_ssa_data_node(guard->guard_value, (void**) &guard->guard_value, extra, options, consumer);
+                for_each_ssa_data_node(guard->guard.value, (void**) &guard->guard.value, extra, options, consumer);
             } else {
-                consumer(NULL, (void**) &guard->guard_value, guard->guard_value, extra);
+                consumer(NULL, (void**) &guard->guard.value, guard->guard.value, extra);
             }
             break;
         }

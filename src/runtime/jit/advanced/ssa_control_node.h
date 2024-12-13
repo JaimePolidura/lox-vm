@@ -1,4 +1,7 @@
+#pragma once
+
 #include "ssa_data_node.h"
+#include "ssa_guard.h"
 #include "runtime/threads/monitor.h"
 
 //Control flow nodes used in SSA IR
@@ -128,16 +131,7 @@ struct ssa_control_define_ssa_name_node {
     struct ssa_data_node * value;
 };
 
-typedef enum {
-    SSA_GUARD_TYPE_CHECK,
-    SSA_GUARD_STRUCT_DEFINITION_TYPE_CHECK,
-    SSA_GUARD_VALUE_CHECK
-} ssa_guard_type_t;
-
 struct ssa_control_guard_node {
     struct ssa_control_node control;
-
-    struct ssa_data_node * guard_value;
-    ssa_guard_type_t guard_type;
-    uint64_t guard_value_to_compare;
+    struct ssa_guard guard;
 };

@@ -68,6 +68,7 @@ static void binary(struct ssa_no_phis_inserter *, struct pending_evaluate *);
 static void add_argument_guards(struct ssa_no_phis_inserter *, struct ssa_block *, struct function_object *);
 static bool can_optimize_branch(struct ssa_no_phis_inserter *, struct bytecode_list *);
 static bool can_discard_true_branch(struct ssa_no_phis_inserter *, struct bytecode_list *);
+static struct instruction_profile_data get_instruction_profile_data(struct ssa_no_phis_inserter *, struct bytecode_list *);
 
 struct ssa_block * create_ssa_ir_no_phis(
         struct package * package,
@@ -355,9 +356,25 @@ static void call(struct ssa_no_phis_inserter * inserter, struct pending_evaluate
     for(int i = n_args; i > 0; i--){
         call_node->arguments[i - 1] = pop_stack_list(&inserter->data_nodes_stack);
     }
+
     //Remove function object in the stack
     pop_stack_list(&inserter->data_nodes_stack);
-    push_stack_list(&inserter->data_nodes_stack, call_node);
+
+    //Add guard, if the returned value type has a profiled data
+    struct function_call_profile function_call_profile = get_instruction_profile_data(inserter, to_evaluate->pending_bytecode).as.function_call;
+    profile_data_type_t returned_value_type_profile = get_type_by_type_profile_data(function_call_profile.returned_type_profile);
+    if (returned_value_type_profile != PROFILE_DATA_TYPE_ANY && returned_value_type_profile != PROFILE_DATA_TYPE_NIL) {
+        struct ssa_data_guard_node * guard_node = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_GUARD, struct ssa_data_guard_node, NULL,
+                                                                      GET_SSA_NODES_ALLOCATOR(inserter));
+        guard_node->guard.value_to_compare = returned_value_type_profile;
+        guard_node->guard.type = SSA_GUARD_TYPE_CHECK;
+        guard_node->guard.value = &call_node->data;
+
+        push_stack_list(&inserter->data_nodes_stack, guard_node);
+    } else {
+        push_stack_list(&inserter->data_nodes_stack, call_node);
+    }
+
     push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
 }
 
@@ -654,16 +671,16 @@ static void jump_if_false(struct ssa_no_phis_inserter * inserter, struct pending
     } else if(IS_FLAG_SET(inserter->ssa_options, SSA_CREATION_OPT_USE_BRANCH_PROFILE) &&
             can_optimize_branch(inserter, to_evalute->pending_bytecode)) {
 
-        struct ssa_control_guard_node * guard = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_GUARD, struct ssa_control_guard_node,
+        struct ssa_control_guard_node * guard_node = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_GUARD, struct ssa_control_guard_node,
                 to_evalute->block, GET_SSA_NODES_ALLOCATOR(inserter));
-        guard->guard_value_to_compare = can_discard_true_branch(inserter, to_evalute->pending_bytecode) ? TRUE_VALUE : FALSE_VALUE;
-        guard->guard_type = SSA_GUARD_VALUE_CHECK;
-        guard->guard_value = condition;
+        guard_node->guard.value_to_compare = can_discard_true_branch(inserter, to_evalute->pending_bytecode) ? TRUE_VALUE : FALSE_VALUE;
+        guard_node->guard.type = SSA_GUARD_VALUE_CHECK;
+        guard_node->guard.value = condition;
 
         struct bytecode_list * remaining_bytecode = can_discard_true_branch(inserter, to_evalute->pending_bytecode) ?
                 false_branch_bytecode : true_branch_bytecode;
 
-        add_last_control_node_ssa_block(parent_block, &guard->control);
+        add_last_control_node_ssa_block(parent_block, &guard_node->control);
         push_pending_evaluate(inserter, remaining_bytecode, NULL, parent_block);
 
     } else {
@@ -819,12 +836,12 @@ static void add_argument_guards(struct ssa_no_phis_inserter * inserter, struct s
         if (argument_profiled_type != PROFILE_DATA_TYPE_ANY) {
            struct ssa_control_guard_node * guard_node = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_GUARD, struct ssa_control_guard_node,
                    block, &inserter->ssa_node_allocator->lox_allocator);
-            guard_node->guard_value_to_compare = argument_profiled_type;
-            guard_node->guard_type = SSA_GUARD_TYPE_CHECK;
+            guard_node->guard.value_to_compare = argument_profiled_type;
+            guard_node->guard.type = SSA_GUARD_TYPE_CHECK;
             struct ssa_data_get_local_node * get_argument = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_GET_LOCAL, struct ssa_data_get_local_node,
                     NULL, &inserter->ssa_node_allocator->lox_allocator);
             get_argument->local_number = i;
-            guard_node->guard_value = &get_argument->data;
+            guard_node->guard.value = &get_argument->data;
 
             add_last_control_node_ssa_block(block, &guard_node->control);
          }
@@ -832,18 +849,21 @@ static void add_argument_guards(struct ssa_no_phis_inserter * inserter, struct s
 }
 
 static bool can_optimize_branch(struct ssa_no_phis_inserter * inserter, struct bytecode_list * condition_bytecode) {
-    struct function_profile_data function_profile = inserter->function->state_as.profiling.profile_data;
-    int instruction_index = condition_bytecode->original_chunk_index;
-    struct instruction_profile_data instruction_profile = function_profile.profile_by_instruction_index[instruction_index];
-
+    struct instruction_profile_data instruction_profile = get_instruction_profile_data(inserter, condition_bytecode);
     return can_false_branch_be_discarded_instruction_profile_data(instruction_profile) ||
         can_true_branch_be_discarded_instruction_profile_data(instruction_profile);
 }
 
 static bool can_discard_true_branch(struct ssa_no_phis_inserter * inserter, struct bytecode_list * condition_bytecode) {
-    struct function_profile_data function_profile = inserter->function->state_as.profiling.profile_data;
-    int instruction_index = condition_bytecode->original_chunk_index;
-    struct instruction_profile_data instruction_profile = function_profile.profile_by_instruction_index[instruction_index];
-
+    struct instruction_profile_data instruction_profile = get_instruction_profile_data(inserter, condition_bytecode);
     return can_true_branch_be_discarded_instruction_profile_data(instruction_profile);
+}
+
+static struct instruction_profile_data get_instruction_profile_data(
+        struct ssa_no_phis_inserter * inserter,
+        struct bytecode_list * bytecode
+) {
+    struct function_profile_data function_profile = inserter->function->state_as.profiling.profile_data;
+    int instruction_index = bytecode->original_chunk_index;
+    return function_profile.profile_by_instruction_index[instruction_index];
 }

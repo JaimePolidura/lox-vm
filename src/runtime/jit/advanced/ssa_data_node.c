@@ -36,6 +36,7 @@ bool is_terminator_ssa_data_node(struct ssa_data_node * node) {
         case SSA_DATA_NODE_TYPE_CONSTANT:
         case SSA_DATA_NODE_TYPE_GET_SSA_NAME:
             return true;
+        case SSA_DATA_NODE_TYPE_GUARD:
         case SSA_DATA_NODE_TYPE_CALL:
         case SSA_DATA_NODE_TYPE_BINARY:
         case SSA_DATA_NODE_TYPE_UNARY:
@@ -116,6 +117,11 @@ bool is_eq_ssa_data_node(struct ssa_data_node * a, struct ssa_data_node * b, str
 
     //At this point a & b have the same type.
     switch (a->type) {
+        case SSA_DATA_NODE_TYPE_GUARD: {
+            struct ssa_data_guard_node * a_guard = (struct ssa_data_guard_node *) a;
+            struct ssa_data_guard_node * b_guard = (struct ssa_data_guard_node *) b;
+            return is_eq_ssa_data_node(a_guard->guard.value, b_guard->guard.value, allocator);
+        }
         case SSA_DATA_NODE_TYPE_CONSTANT: {
             return GET_CONST_VALUE_SSA_NODE(a) == GET_CONST_VALUE_SSA_NODE(b);
         }
@@ -265,6 +271,14 @@ static bool for_each_ssa_data_node_recursive(
     }
 
     switch (current_node->type) {
+        case SSA_DATA_NODE_TYPE_GUARD: {
+            struct ssa_data_guard_node * guard_node = (struct ssa_data_guard_node * ) current_node;
+            if (IS_FLAG_SET(options, SSA_DATA_NODE_OPT_NOT_RECURSIVE)) {
+                consumer(current_node, (void **) &guard_node->guard.value, guard_node->guard.value, extra);
+            } else {
+                for_each_ssa_data_node_recursive(current_node, (void **) &guard_node->guard.value, guard_node->guard.value, extra, options, consumer);
+            }
+        }
         case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT: {
             struct ssa_data_initialize_struct_node * init_struct = (struct ssa_data_initialize_struct_node *) current_node;
             for(int i = 0; i < init_struct->definition->n_fields; i++) {
@@ -439,6 +453,10 @@ uint64_t mix_hash_commutative(uint64_t a, uint64_t b) {
 
 uint64_t hash_ssa_data_node(struct ssa_data_node * node) {
     switch (node->type) {
+        case SSA_DATA_NODE_TYPE_GUARD: {
+            struct ssa_data_guard_node * guard = (struct ssa_data_guard_node *) node;
+            return hash_ssa_data_node(guard->guard.value);
+        }
         case SSA_DATA_NODE_TYPE_CONSTANT: {
             return GET_CONST_VALUE_SSA_NODE(node);
         }

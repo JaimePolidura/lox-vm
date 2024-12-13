@@ -202,6 +202,7 @@ static struct semilattice_value * get_semilattice_propagation_from_data(
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT:
         case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY:
         case SSA_DATA_NODE_TYPE_GET_GLOBAL:
+        case SSA_DATA_NODE_TYPE_GUARD:
         case SSA_DATA_NODE_TYPE_CALL: {
             return alloc_bottom_semilatttice(scp);
         }
@@ -286,7 +287,8 @@ struct constant_rewrite * rewrite_constant_expressions_propagation_data_node(
         case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT:
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT:
         case SSA_DATA_NODE_TYPE_GET_ARRAY_LENGTH:
-        case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY: {
+        case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY:
+        case SSA_DATA_NODE_TYPE_GUARD: {
             return alloc_constant_rewrite(scp, current_node, alloc_bottom_semilatttice(scp));
         }
         case SSA_DATA_NODE_TYPE_PHI: {
@@ -365,7 +367,8 @@ struct constant_rewrite * rewrite_constant_expressions_initialization_data_node(
         case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT:
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT:
         case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY:
-        case SSA_DATA_NODE_TYPE_GET_ARRAY_LENGTH: {
+        case SSA_DATA_NODE_TYPE_GET_ARRAY_LENGTH:
+        case SSA_DATA_NODE_TYPE_GUARD: {
             return alloc_constant_rewrite(scp, current_node, alloc_bottom_semilatttice(scp));
         }
         case SSA_DATA_NODE_TYPE_GET_LOCAL: {
@@ -378,6 +381,9 @@ struct constant_rewrite * rewrite_constant_expressions_initialization_data_node(
 
 static struct semilattice_value * get_semilattice_initialization_from_data(struct scp * scp, struct ssa_data_node *current_data_node) {
     switch (current_data_node->type) {
+        case SSA_DATA_NODE_TYPE_GUARD: {
+            return get_semilattice_initialization_from_data(scp, ((struct ssa_data_guard_node *) current_data_node)->guard.value);
+        }
         case SSA_DATA_NODE_TYPE_BINARY: {
             return alloc_top_semilatttice(scp);
         }
