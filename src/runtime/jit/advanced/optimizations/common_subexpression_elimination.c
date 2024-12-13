@@ -139,6 +139,7 @@ void perform_cse_control_node(
         case SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD:
         case SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP:
         case SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT:
+        case SSA_CONTROL_NODE_GUARD:
         case SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME: {
             struct perform_cse_data_node perform_cse_data_node = (struct perform_cse_data_node) {
                 .control_node = control_node,

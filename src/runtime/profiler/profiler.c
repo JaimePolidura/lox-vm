@@ -86,8 +86,14 @@ static void profile_type(struct type_profile_data * profile_node_data, lox_value
         case PROFILE_DATA_TYPE_NIL:
             atomic_fetch_add(&profile_node_data->nil, 1);
             break;
-        case PROFILE_DATA_TYPE_OBJECT:
-            atomic_fetch_add(&profile_node_data->object, 1);
+        case PROFILE_DATA_TYPE_STRUCT_INSTANCE:
+            atomic_fetch_add(&profile_node_data->struct_instance, 1);
+            break;
+        case PROFILE_DATA_TYPE_ARRAY:
+            atomic_fetch_add(&profile_node_data->array, 1);
+            break;
+        case PROFILE_DATA_TYPE_ANY:
+            atomic_fetch_add(&profile_node_data->any, 1);
             break;
     }
 }

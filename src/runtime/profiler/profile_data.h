@@ -10,7 +10,8 @@ typedef enum {
     PROFILE_DATA_TYPE_STRING,
     PROFILE_DATA_TYPE_BOOLEAN,
     PROFILE_DATA_TYPE_NIL,
-    PROFILE_DATA_TYPE_OBJECT,
+    PROFILE_DATA_TYPE_ARRAY,
+    PROFILE_DATA_TYPE_STRUCT_INSTANCE,
     PROFILE_DATA_TYPE_ANY
 } profile_data_type_t;
 
@@ -21,10 +22,12 @@ struct function_profile_data {
 struct type_profile_data {
     int i64;
     int f64;
-    int string;
     int boolean;
     int nil;
-    int object;
+    int string;
+    int array;
+    int struct_instance;
+    int any; //Any other type
 };
 
 struct function_call_profile {
@@ -56,6 +59,7 @@ struct instruction_profile_data {
 
 
 profile_data_type_t lox_value_to_profile_type(lox_value_t value);
+char * profile_data_type_to_string(profile_data_type_t);
 
 void init_function_profile_data(struct function_profile_data *, int n_instructions, int n_locals);
 

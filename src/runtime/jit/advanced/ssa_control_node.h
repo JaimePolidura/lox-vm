@@ -15,6 +15,7 @@ typedef enum {
     SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT,
     SSA_CONTROL_NODE_TYPE_LOOP_JUMP,
     SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP,
+    SSA_CONTROL_NODE_GUARD,
     //Only used when inserting phi functions in the graph ir creation process
     //It will replace all the nodes with type SSA_CONTORL_NODE_TYPE_SET_LOCAL in the phi insertion proceess
     SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME,
@@ -125,4 +126,17 @@ struct ssa_control_define_ssa_name_node {
 
     struct ssa_name ssa_name;
     struct ssa_data_node * value;
+};
+
+typedef enum {
+    SSA_GUARD_TYPE_CHECK,
+    SSA_GUARD_STRUCT_DEFINITION_TYPE_CHECK,
+} ssa_guard_type_t;
+
+struct ssa_control_guard_node {
+    struct ssa_control_node control;
+
+    struct ssa_data_node * guard_value;
+    ssa_guard_type_t type;
+    uint64_t guard_value_to_compare;
 };

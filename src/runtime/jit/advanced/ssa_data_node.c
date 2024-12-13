@@ -401,7 +401,6 @@ struct ssa_data_constant_node * create_ssa_const_node(
                 constant_node->data.produced_type = PROFILE_DATA_TYPE_STRING;
             } else {
                 constant_node->value_as.object = AS_OBJECT(constant_value);
-                constant_node->data.produced_type = PROFILE_DATA_TYPE_OBJECT;
             }
             break;
         }

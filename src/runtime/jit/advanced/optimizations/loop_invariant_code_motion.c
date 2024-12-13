@@ -200,6 +200,7 @@ static bool can_control_node_be_checked_for_loop_invariant(struct ssa_control_no
         case SSA_CONTROL_NODE_TYPE_PRINT:
         case SSA_CONTORL_NODE_TYPE_SET_GLOBAL:
         case SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME:
+        case SSA_CONTROL_NODE_GUARD:
             return true;
         case SSA_CONTROL_NODE_TYPE_ENTER_MONITOR:
         case SSA_CONTROL_NODE_TYPE_EXIT_MONITOR:

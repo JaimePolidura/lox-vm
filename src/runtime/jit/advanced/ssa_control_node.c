@@ -20,6 +20,15 @@ void for_each_data_node_in_control_node(
         ssa_data_node_consumer_t consumer
 ) {
     switch(control_node->type){
+        case SSA_CONTROL_NODE_GUARD: {
+            struct ssa_control_guard_node * guard = (struct ssa_control_guard_node *) control_node;
+            if (IS_FLAG_SET(options, SSA_DATA_NODE_OPT_RECURSIVE)) {
+                for_each_ssa_data_node(guard->guard_value, (void**) &guard->guard_value, extra, options, consumer);
+            } else {
+                consumer(NULL, (void**) &guard->guard_value, guard->guard_value, extra);
+            }
+            break;
+        }
         case SSA_CONTORL_NODE_TYPE_SET_LOCAL: {
             struct ssa_control_set_local_node * set_local = (struct ssa_control_set_local_node *) control_node;
             if (IS_FLAG_SET(options, SSA_DATA_NODE_OPT_RECURSIVE)) {

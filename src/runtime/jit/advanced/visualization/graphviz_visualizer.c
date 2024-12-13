@@ -50,12 +50,14 @@ static struct block_graph_generated generate_blocks_graph(struct graphviz_visual
 
 static char * unary_operator_to_string(ssa_unary_operator_type_t);
 static char * binary_operator_to_string(bytecode_t);
+static char * guard_node_to_string(struct ssa_control_guard_node *);
 
 struct graphviz_visualizer create_graphviz_visualizer(char *, struct arena_lox_allocator *, struct function_object *);
 void add_new_line_graphviz_file(struct graphviz_visualizer *, char * to_append);
 void add_block_graphviz_file(struct graphviz_visualizer *, int);
 void add_data_node_graphviz_file(struct graphviz_visualizer *, char *, int);
 void add_control_node_graphviz_file(struct graphviz_visualizer *, char *, int);
+void add_guard_node_graphviz_file(struct graphviz_visualizer *, struct ssa_control_guard_node *, int);
 void add_start_control_node_graphviz_file(struct graphviz_visualizer *);
 
 void link_data_data_node_graphviz_file(struct graphviz_visualizer *, int from, int to);
@@ -244,6 +246,12 @@ static struct block_graph_generated generate_block_graph(struct graphviz_visuali
 static int generate_control_node_graph(struct graphviz_visualizer * visualizer, struct ssa_control_node * node) {
     int self_control_node_id = visualizer->next_control_node_id++;
     switch (node->type) {
+        case SSA_CONTROL_NODE_GUARD: {
+            struct ssa_control_guard_node * guard = (struct ssa_control_guard_node *) node;
+            add_guard_node_graphviz_file(visualizer, guard, self_control_node_id);
+
+            break;
+        }
         case SSA_CONTROL_NODE_TYPE_DATA: {
             struct ssa_data_node * data = (struct ssa_data_node *) node;
 
@@ -604,6 +612,12 @@ void add_start_control_node_graphviz_file(struct graphviz_visualizer * visualize
     fprintf(visualizer->file, "\t\tcontrol_%i [label=\"START\", style=filled, fillcolor=blue, shape=rectangle];\n", start_control_node_id);
 }
 
+void add_guard_node_graphviz_file(struct graphviz_visualizer * visualizer, struct ssa_control_guard_node * guard, int control_node_id) {
+    char * node_desc = dynamic_format_string("Guard %s\n");
+    fprintf(visualizer->file, "\t\tcontrol_%i [label=\"%s\", style=filled, fillcolor=red, shape=rectangle];\n", control_node_id, node_desc);
+    free(node_desc);
+}
+
 void add_control_node_graphviz_file(struct graphviz_visualizer * visualizer, char * name, int control_node_id) {
     fprintf(visualizer->file, "\t\tcontrol_%i [label=\"%s\", style=filled, fillcolor=yellow, shape=rectangle];\n", control_node_id, name);
 }
@@ -680,5 +694,18 @@ static char * unary_operator_to_string(ssa_unary_operator_type_t operator) {
     switch (operator) {
         case UNARY_OPERATION_TYPE_NOT: return "not";
         case UNARY_OPERATION_TYPE_NEGATION: return "-";
+    }
+}
+
+static char * guard_node_to_string(struct ssa_control_guard_node * node) {
+    switch (node->type) {
+        case SSA_GUARD_TYPE_CHECK: {
+            char * type_name = profile_data_type_to_string((profile_data_type_t) node->guard_value_to_compare);
+            return dynamic_format_string("TypeScheck %s", type_name);
+        }
+        case SSA_GUARD_STRUCT_DEFINITION_TYPE_CHECK: {
+            struct struct_definition_object * definition = (struct struct_definition_object *) AS_OBJECT(node->guard_value_to_compare);
+            return dynamic_format_string("StructDefinitionCheck %s", definition->name->chars);
+        }
     }
 }

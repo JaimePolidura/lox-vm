@@ -270,7 +270,6 @@ static void initialize_array(struct ssa_no_phis_inserter * inserter, struct pend
     bool empty_initialization = to_evaluate->pending_bytecode->as.initialize_array.is_emtpy_initializaion;
     uint16_t n_elements = to_evaluate->pending_bytecode->as.initialize_array.n_elements;
 
-    initialize_array_node->data.produced_type = PROFILE_DATA_TYPE_OBJECT;
     initialize_array_node->empty_initialization = empty_initialization;
     initialize_array_node->n_elements = n_elements;
     if(!empty_initialization){
@@ -293,7 +292,6 @@ static void initialize_struct(
             SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT, struct ssa_data_initialize_struct_node, to_evaluate->pending_bytecode, GET_SSA_NODES_ALLOCATOR(inserter)
     );
     struct struct_definition_object * definition = (struct struct_definition_object *) AS_OBJECT(READ_CONSTANT(function, to_evaluate->pending_bytecode));
-    initialize_struct_node->data.produced_type = PROFILE_DATA_TYPE_OBJECT;
     initialize_struct_node->fields_nodes = LOX_MALLOC(GET_SSA_NODES_ALLOCATOR(inserter), sizeof(struct struct_definition_object *) * definition->n_fields);
     initialize_struct_node->definition = definition;
     for (int i = definition->n_fields - 1; i >= 0; i--) {
