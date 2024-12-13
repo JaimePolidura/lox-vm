@@ -37,8 +37,7 @@ TEST(ssa_creation_licm) {
 
     struct package * package = compilation.compiled_package;
     struct function_object * function_ssa = get_function_package(package, "function");
-    int n_instructions = function_ssa->chunk->in_use;
-    init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
+    init_function_profile_data(function_ssa);
 
     //Observe the generated graph IR
     generate_ssa_graphviz_graph(
@@ -61,8 +60,7 @@ TEST(ssa_creation_sr){
     );
     struct package * package = compilation.compiled_package;
     struct function_object * function_ssa = get_function_package(package, "function_ssa");
-    int n_instructions = function_ssa->chunk->in_use;
-    init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
+    init_function_profile_data(function_ssa);
 
     //Observe the generated graph IR
     generate_ssa_graphviz_graph(
@@ -93,8 +91,7 @@ TEST(ssa_creation_cse){
     );
     struct package * package = compilation.compiled_package;
     struct function_object * function_ssa = get_function_package(package, "function_ssa");
-    int n_instructions = function_ssa->chunk->in_use;
-    init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
+    init_function_profile_data(function_ssa);
 
     //Observe the generated graph IR
     generate_ssa_graphviz_graph(
@@ -118,8 +115,7 @@ TEST(ssa_creation_nested_loop){
     );
     struct package * package = compilation.compiled_package;
     struct function_object * function_ssa = get_function_package(package, "function_ssa");
-    int n_instructions = function_ssa->chunk->in_use;
-    init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
+    init_function_profile_data(function_ssa);
 
     //Observe the generated graph IR
     generate_ssa_graphviz_graph(
@@ -132,7 +128,7 @@ TEST(ssa_creation_nested_loop){
     );
 }
 
-TEST(ssa_creation_scp){
+TEST(ssa_creation_scp) {
     struct compilation_result compilation = compile_standalone(
             "fun function_ssa(a, b) {"
             "   a = 1;"
@@ -154,9 +150,7 @@ TEST(ssa_creation_scp){
 
     struct package * package = compilation.compiled_package;
     struct function_object * function_ssa = get_function_package(package, "function_ssa");
-
-    int n_instructions = function_ssa->chunk->in_use;
-    init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
+    init_function_profile_data(function_ssa);
     struct ssa_ir ssa_ir = create_ssa_ir(package, function_ssa, create_bytecode_list(function_ssa->chunk, NATIVE_LOX_ALLOCATOR()),
             SSA_CREATION_OPT_DONT_USE_BRANCH_PROFILE);
     perform_sparse_constant_propagation(&ssa_ir);
@@ -201,8 +195,7 @@ TEST(ssa_creation_phis_inserter_and_optimizer){
     );
     struct package * package = compilation.compiled_package;
     struct function_object * function_ssa = get_function_package(package, "function_ssa");
-    int n_instructions = function_ssa->chunk->in_use;
-    init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
+    init_function_profile_data(function_ssa);
 
     struct ssa_ir ssa_ir = create_ssa_ir(package, function_ssa, create_bytecode_list(function_ssa->chunk, NATIVE_LOX_ALLOCATOR()),
             SSA_CREATION_OPT_DONT_USE_BRANCH_PROFILE);
@@ -302,8 +295,7 @@ TEST(ssa_creation_no_phis) {
 
     struct package * package = compilation.compiled_package;
     struct function_object * function_ssa = get_function_package(package, "function_ssa");
-    int n_instructions = function_ssa->chunk->in_use;
-    init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
+    init_function_profile_data(function_ssa);
     struct arena arena;
     init_arena(&arena);
     struct arena_lox_allocator arena_lox_allocator = to_lox_allocator_arena(arena);

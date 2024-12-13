@@ -1,5 +1,7 @@
 #include "profile_data.h"
 
+#include "shared/types/function_object.h"
+
 profile_data_type_t lox_value_to_profile_type(lox_value_t lox_value) {
     if (IS_NUMBER(lox_value)) {
         double double_value = AS_NUMBER(lox_value);
@@ -24,11 +26,17 @@ profile_data_type_t lox_value_to_profile_type(lox_value_t lox_value) {
     }
 }
 
-void init_function_profile_data(struct function_profile_data * function_profile_data, int n_instructions, int n_locals) {
-    function_profile_data->profile_by_instruction_index = NATIVE_LOX_MALLOC(sizeof(struct instruction_profile_data) * n_instructions);
+void init_function_profile_data(struct function_object * function) {
+    struct function_profile_data * function_profile = &function->state_as.profiling.profile_data;
+    int n_instructions = function->chunk->in_use;
+
+    function_profile->profile_by_instruction_index = NATIVE_LOX_MALLOC(sizeof(struct instruction_profile_data) * n_instructions);
     for(int i = 0; i < n_instructions; i++) {
-        init_instruction_profile_data(&function_profile_data->profile_by_instruction_index[i]);
+        init_instruction_profile_data(&function_profile->profile_by_instruction_index[i]);
     }
+    function_profile->n_arguments = function->n_arguments;
+    function_profile->arguments_type_profile = NATIVE_LOX_MALLOC(sizeof(struct type_profile_data) * function->n_arguments);
+    memset(function_profile->arguments_type_profile, 0, sizeof(struct type_profile_data) * function->n_arguments);
 }
 
 void init_type_profile_data(struct type_profile_data * type_profile_data) {

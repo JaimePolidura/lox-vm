@@ -620,7 +620,7 @@ static void jump_if_false(struct ssa_no_phis_inserter * inserter, struct pending
                 SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP, struct ssa_control_conditional_jump_node, to_evalute->block, GET_SSA_NODES_ALLOCATOR(inserter)
         );
 
-        struct ssa_block *condition_block = get_block_by_first_bytecode(inserter, to_evalute->pending_bytecode);
+        struct ssa_block  *condition_block = get_block_by_first_bytecode(inserter, to_evalute->pending_bytecode);
         parent_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_SEQ;
         parent_block->next_as.next = condition_block;
 
@@ -670,6 +670,7 @@ static void jump_if_false(struct ssa_no_phis_inserter * inserter, struct pending
         struct ssa_control_conditional_jump_node * cond_jump_node = ALLOC_SSA_CONTROL_NODE(
                 SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP, struct ssa_control_conditional_jump_node, to_evalute->block, GET_SSA_NODES_ALLOCATOR(inserter)
         );
+        cond_jump_node->condition = condition;
 
         parent_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_BRANCH;
         parent_block->next_as.branch.false_branch = false_branch_block;

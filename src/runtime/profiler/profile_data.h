@@ -1,4 +1,4 @@
- #pragma once
+#pragma once
 
 #include "shared.h"
 #include "shared/types/types.h"
@@ -58,7 +58,9 @@ struct instruction_profile_data {
     } as;
 };
 
-void init_function_profile_data(struct function_profile_data *, int n_instructions, int n_locals);
+extern struct function_object;
+void init_function_profile_data(struct function_object *);
+
 struct instruction_profile_data * alloc_instruction_profile_data();
 void init_instruction_profile_data(struct instruction_profile_data *);
 void init_type_profile_data(struct type_profile_data *);
