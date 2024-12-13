@@ -46,6 +46,7 @@ TEST(ssa_creation_licm) {
             function_ssa,
             NO_PHIS_PHASE_SSA_GRAPHVIZ,
             NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT,
+            SSA_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
     );
 }
@@ -69,6 +70,7 @@ TEST(ssa_creation_sr){
             function_ssa,
             STRENGTH_REDUCTION_PHASE_SSA_GRAPHVIZ,
             NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT,
+            SSA_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
     );
 }
@@ -100,6 +102,7 @@ TEST(ssa_creation_cse){
             function_ssa,
             COMMON_SUBEXPRESSION_ELIMINATION_PHASE_SSA_GRAPHVIZ,
             NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT,
+            SSA_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
     );
 }
@@ -124,6 +127,7 @@ TEST(ssa_creation_nested_loop){
             function_ssa,
             PHIS_INSERTED_PHASE_SSA_GRAPHVIZ,
             NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT,
+            SSA_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
     );
 }
@@ -153,7 +157,8 @@ TEST(ssa_creation_scp){
 
     int n_instructions = function_ssa->chunk->in_use;
     init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
-    struct ssa_ir ssa_ir = create_ssa_ir(package, function_ssa, create_bytecode_list(function_ssa->chunk, NATIVE_LOX_ALLOCATOR()));
+    struct ssa_ir ssa_ir = create_ssa_ir(package, function_ssa, create_bytecode_list(function_ssa->chunk, NATIVE_LOX_ALLOCATOR()),
+            SSA_CREATION_OPT_DONT_USE_BRANCH_PROFILE);
     perform_sparse_constant_propagation(&ssa_ir);
 
     //Observe the generated graph IR
@@ -199,7 +204,8 @@ TEST(ssa_creation_phis_inserter_and_optimizer){
     int n_instructions = function_ssa->chunk->in_use;
     init_function_profile_data(&function_ssa->state_as.profiling.profile_data, n_instructions, function_ssa->n_locals);
 
-    struct ssa_ir ssa_ir = create_ssa_ir(package, function_ssa, create_bytecode_list(function_ssa->chunk, NATIVE_LOX_ALLOCATOR()));
+    struct ssa_ir ssa_ir = create_ssa_ir(package, function_ssa, create_bytecode_list(function_ssa->chunk, NATIVE_LOX_ALLOCATOR()),
+            SSA_CREATION_OPT_DONT_USE_BRANCH_PROFILE);
     struct ssa_block * start_ssa_block = ssa_ir.first_block;
 
     ASSERT_EQ(size_u64_set(start_ssa_block->predecesors), 0);
@@ -303,7 +309,8 @@ TEST(ssa_creation_no_phis) {
     struct arena_lox_allocator arena_lox_allocator = to_lox_allocator_arena(arena);
 
     struct ssa_block * ssa_block = create_ssa_ir_no_phis(
-            package, function_ssa, create_bytecode_list(function_ssa->chunk, NATIVE_LOX_ALLOCATOR()), &arena_lox_allocator
+            package, function_ssa, create_bytecode_list(function_ssa->chunk, NATIVE_LOX_ALLOCATOR()),
+            &arena_lox_allocator, SSA_CREATION_OPT_DONT_USE_BRANCH_PROFILE
     );
 
     // [c = 1, ¿a < 0?]

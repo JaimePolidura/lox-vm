@@ -37,6 +37,7 @@ void generate_ssa_graphviz_graph(
         struct package * package,
         struct function_object * function,
         phase_ssa_graphviz_t phase,
-        long options,
+        long graphviz_options,
+        long ssa_options,
         char * path
 );

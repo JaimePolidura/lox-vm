@@ -1,7 +1,5 @@
 #include "profile_data.h"
 
-static profile_data_type_t get_type_by_type_profile(struct type_profile_data);
-
 profile_data_type_t lox_value_to_profile_type(lox_value_t lox_value) {
     if (IS_NUMBER(lox_value)) {
         double double_value = AS_NUMBER(lox_value);
@@ -47,8 +45,7 @@ void init_instruction_profile_data(struct instruction_profile_data * instruction
     memset(instruction_profile_data, 0, sizeof(struct instruction_profile_data));
 }
 
-//TODO Improve code
-static profile_data_type_t get_type_by_type_profile(struct type_profile_data type_profile) {
+profile_data_type_t get_type_by_type_profile_data(struct type_profile_data type_profile) {
     if(type_profile.struct_instance > 0 && type_profile.array == 0 && type_profile.any == 0 && type_profile.f64 == 0 &&
         type_profile.boolean == 0 && type_profile.nil == 0 && type_profile.string == 0 && type_profile.i64 == 0){
         return PROFILE_DATA_TYPE_STRUCT_INSTANCE;
@@ -89,4 +86,14 @@ char * profile_data_type_to_string(profile_data_type_t type) {
         case PROFILE_DATA_TYPE_ARRAY: return "array";
         case PROFILE_DATA_TYPE_ANY: return "any";
     }
+}
+
+bool can_true_branch_be_discarded_instruction_profile_data(struct instruction_profile_data profile) {
+    int n_total_times_branch_evaluted = profile.as.branch.taken + profile.as.branch.not_taken;
+    return (profile.as.branch.not_taken / n_total_times_branch_evaluted) >= 0.99;
+}
+
+bool can_false_branch_be_discarded_instruction_profile_data(struct instruction_profile_data profile) {
+    int n_total_times_branch_evaluted = profile.as.branch.taken + profile.as.branch.not_taken;
+    return (profile.as.branch.taken / n_total_times_branch_evaluted) >= 0.99;
 }

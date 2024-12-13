@@ -131,12 +131,13 @@ struct ssa_control_define_ssa_name_node {
 typedef enum {
     SSA_GUARD_TYPE_CHECK,
     SSA_GUARD_STRUCT_DEFINITION_TYPE_CHECK,
+    SSA_GUARD_VALUE_CHECK
 } ssa_guard_type_t;
 
 struct ssa_control_guard_node {
     struct ssa_control_node control;
 
     struct ssa_data_node * guard_value;
-    ssa_guard_type_t type;
+    ssa_guard_type_t guard_type;
     uint64_t guard_value_to_compare;
 };

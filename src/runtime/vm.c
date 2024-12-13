@@ -379,8 +379,7 @@ static void call_function(struct call_frame * caller_callframe, struct function_
     setup_call_frame_function(self_thread, callee);
 
     if(caller->state == FUNC_STATE_PROFILING) {
-        profile_function_call_argumnts((caller_callframe->pc - 3), caller, callee);
-
+        profile_function_call_argumnts(callee);
     }
 
 #ifdef NAN_BOXING

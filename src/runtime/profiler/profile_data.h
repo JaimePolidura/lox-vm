@@ -17,6 +17,9 @@ typedef enum {
 
 struct function_profile_data {
     struct instruction_profile_data * profile_by_instruction_index;
+
+    int n_arguments;
+    struct type_profile_data * arguments_type_profile;
 };
 
 struct type_profile_data {
@@ -32,8 +35,6 @@ struct type_profile_data {
 
 struct function_call_profile {
     struct type_profile_data returned_type_profile;
-    int n_arguments;
-    struct type_profile_data * arguments_type_profile;
 };
 
 struct instruction_profile_data {
@@ -57,12 +58,13 @@ struct instruction_profile_data {
     } as;
 };
 
-
-profile_data_type_t lox_value_to_profile_type(lox_value_t value);
-char * profile_data_type_to_string(profile_data_type_t);
-
 void init_function_profile_data(struct function_profile_data *, int n_instructions, int n_locals);
-
 struct instruction_profile_data * alloc_instruction_profile_data();
 void init_instruction_profile_data(struct instruction_profile_data *);
 void init_type_profile_data(struct type_profile_data *);
+
+profile_data_type_t lox_value_to_profile_type(lox_value_t value);
+char * profile_data_type_to_string(profile_data_type_t);
+profile_data_type_t get_type_by_type_profile_data(struct type_profile_data type_profile);
+bool can_true_branch_be_discarded_instruction_profile_data(struct instruction_profile_data);
+bool can_false_branch_be_discarded_instruction_profile_data(struct instruction_profile_data);

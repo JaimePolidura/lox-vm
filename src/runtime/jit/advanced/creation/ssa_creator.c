@@ -12,7 +12,8 @@ static struct arena_lox_allocator * create_arena_lox_allocator();
 struct ssa_ir create_ssa_ir(
         struct package * package,
         struct function_object * function,
-        struct bytecode_list * start_function_bytecode
+        struct bytecode_list * start_function_bytecode,
+        long ssa_options
 ) {
     struct arena_lox_allocator * ssa_nodes_allocator = create_arena_lox_allocator();
 

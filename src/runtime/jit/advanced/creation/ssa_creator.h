@@ -25,5 +25,6 @@
 struct ssa_ir create_ssa_ir(
         struct package * package,
         struct function_object * function,
-        struct bytecode_list * start_function_bytecode
+        struct bytecode_list * start_function_bytecode,
+        long options
 );

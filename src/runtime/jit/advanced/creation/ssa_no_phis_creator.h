@@ -1,7 +1,8 @@
 #pragma once
 
-#include "runtime/jit/advanced/ssa_block.h"
 #include "runtime/jit/advanced/utils/types.h"
+#include "runtime/jit/advanced/ssa_options.h"
+#include "runtime/jit/advanced/ssa_block.h"
 
 #include "compiler/bytecode/bytecode_list.h"
 
@@ -19,5 +20,6 @@ struct ssa_block * create_ssa_ir_no_phis(
         struct package * package,
         struct function_object * function,
         struct bytecode_list * start_function_bytecode,
-        struct arena_lox_allocator * ssa_node_allocator
+        struct arena_lox_allocator * ssa_node_allocator,
+        long ssa_options
 );

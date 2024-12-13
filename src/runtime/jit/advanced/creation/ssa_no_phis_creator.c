@@ -25,6 +25,8 @@ struct ssa_no_phis_inserter {
     struct arena_lox_allocator * ssa_node_allocator;
     struct ssa_block * first_block;
     struct block_local_usage current_block_local_usage;
+    long ssa_options;
+    struct function_object * function;
 };
 
 static void push_pending_evaluate(
@@ -38,7 +40,7 @@ static void map_data_nodes_bytecodes_to_control(
 );
 static void calculate_and_put_use_before_assigment(struct ssa_block *, struct ssa_no_phis_inserter *);
 static struct ssa_block * get_block_by_first_bytecode(struct ssa_no_phis_inserter *, struct bytecode_list *);
-static struct ssa_no_phis_inserter * alloc_ssa_no_phis_inserter(struct arena_lox_allocator *);
+static struct ssa_no_phis_inserter * alloc_ssa_no_phis_inserter(struct arena_lox_allocator *, long ssa_options);
 static void free_ssa_no_phis_inserter(struct ssa_no_phis_inserter *);
 static void jump_if_false(struct ssa_no_phis_inserter *, struct pending_evaluate *);
 static void jump(struct ssa_no_phis_inserter *, struct pending_evaluate *);
@@ -63,14 +65,19 @@ static void get_struct_field(struct function_object *, struct ssa_no_phis_insert
 static void get_array_element(struct ssa_no_phis_inserter *, struct pending_evaluate *);
 static void unary(struct ssa_no_phis_inserter *, struct pending_evaluate *);
 static void binary(struct ssa_no_phis_inserter *, struct pending_evaluate *);
+static void add_argument_guards(struct ssa_no_phis_inserter *, struct ssa_block *, struct function_object *);
+static bool can_optimize_branch(struct ssa_no_phis_inserter *, struct bytecode_list *);
+static bool can_discard_true_branch(struct ssa_no_phis_inserter *, struct bytecode_list *);
 
 struct ssa_block * create_ssa_ir_no_phis(
         struct package * package,
         struct function_object * function,
         struct bytecode_list * start_function_bytecode,
-        struct arena_lox_allocator * ssa_node_allocator
+        struct arena_lox_allocator * ssa_node_allocator,
+        long ssa_options
 ) {
-    struct ssa_no_phis_inserter * inserter = alloc_ssa_no_phis_inserter(ssa_node_allocator);
+    struct ssa_no_phis_inserter * inserter = alloc_ssa_no_phis_inserter(ssa_node_allocator, ssa_options);
+    inserter->function = function;
 
     push_stack_list(&inserter->package_stack, package);
 
@@ -78,6 +85,8 @@ struct ssa_block * create_ssa_ir_no_phis(
     push_pending_evaluate(inserter, start_function_bytecode, NULL, first_block);
     inserter->first_block = first_block;
     first_block->ssa_ir_head_block = first_block;
+
+    add_argument_guards(inserter, first_block, function);
 
     while (!is_empty_stack_list(&inserter->pending_evaluation)) {
         struct pending_evaluate * to_evaluate = pop_stack_list(&inserter->pending_evaluation);
@@ -597,11 +606,7 @@ static void jump(struct ssa_no_phis_inserter * insterter, struct pending_evaluat
 }
 
 static void jump_if_false(struct ssa_no_phis_inserter * inserter, struct pending_evaluate * to_evalute) {
-    struct ssa_control_conditional_jump_node * cond_jump_node = ALLOC_SSA_CONTROL_NODE(
-            SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP, struct ssa_control_conditional_jump_node, to_evalute->block, GET_SSA_NODES_ALLOCATOR(inserter)
-    );
     struct ssa_data_node * condition = pop_stack_list(&inserter->data_nodes_stack);
-    cond_jump_node->condition = condition;
 
     struct bytecode_list * false_branch_bytecode = simplify_redundant_unconditional_jump_bytecodes(to_evalute->pending_bytecode->as.jump);
     struct bytecode_list * true_branch_bytecode = simplify_redundant_unconditional_jump_bytecodes(to_evalute->pending_bytecode->next);
@@ -611,7 +616,11 @@ static void jump_if_false(struct ssa_no_phis_inserter * inserter, struct pending
 
     //Loop conditions, are creatd in the graph as a separated block
     if(to_evalute->pending_bytecode->loop_condition) {
-        struct ssa_block * condition_block = get_block_by_first_bytecode(inserter, to_evalute->pending_bytecode);
+        struct ssa_control_conditional_jump_node * cond_jump_node = ALLOC_SSA_CONTROL_NODE(
+                SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP, struct ssa_control_conditional_jump_node, to_evalute->block, GET_SSA_NODES_ALLOCATOR(inserter)
+        );
+
+        struct ssa_block *condition_block = get_block_by_first_bytecode(inserter, to_evalute->pending_bytecode);
         parent_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_SEQ;
         parent_block->next_as.next = condition_block;
 
@@ -622,6 +631,7 @@ static void jump_if_false(struct ssa_no_phis_inserter * inserter, struct pending
         condition_block->nested_loop_body = parent_block->nested_loop_body + 1;
         condition_block->loop_condition_block = parent_block->loop_condition_block;
         cond_jump_node->control.block = condition_block;
+        cond_jump_node->condition = condition;
 
         true_branch_block->nested_loop_body = parent_block->nested_loop_body + 1;
         false_branch_block->nested_loop_body = parent_block->nested_loop_body;
@@ -633,7 +643,34 @@ static void jump_if_false(struct ssa_no_phis_inserter * inserter, struct pending
         add_u64_set(&true_branch_block->predecesors, (uint64_t) condition_block);
 
         add_last_control_node_ssa_block(condition_block, &cond_jump_node->control);
+
+        push_pending_evaluate(inserter, false_branch_bytecode, NULL, false_branch_block);
+        push_pending_evaluate(inserter, true_branch_bytecode, NULL, true_branch_block);
+        clear_u8_set(&inserter->current_block_local_usage.assigned);
+        clear_u8_set(&inserter->current_block_local_usage.used);
+        put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, cond_jump_node);
+        map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, condition, &cond_jump_node->control);
+
+    } else if(IS_FLAG_SET(inserter->ssa_options, SSA_CREATION_OPT_USE_BRANCH_PROFILE) &&
+            can_optimize_branch(inserter, to_evalute->pending_bytecode)) {
+
+        struct ssa_control_guard_node * guard = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_GUARD, struct ssa_control_guard_node,
+                to_evalute->block, GET_SSA_NODES_ALLOCATOR(inserter));
+        guard->guard_value_to_compare = can_discard_true_branch(inserter, to_evalute->pending_bytecode) ? TRUE_VALUE : FALSE_VALUE;
+        guard->guard_type = SSA_GUARD_VALUE_CHECK;
+        guard->guard_value = condition;
+
+        struct bytecode_list * remaining_bytecode = can_discard_true_branch(inserter, to_evalute->pending_bytecode) ?
+                false_branch_bytecode : true_branch_bytecode;
+
+        add_last_control_node_ssa_block(parent_block, &guard->control);
+        push_pending_evaluate(inserter, remaining_bytecode, NULL, parent_block);
+
     } else {
+        struct ssa_control_conditional_jump_node * cond_jump_node = ALLOC_SSA_CONTROL_NODE(
+                SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP, struct ssa_control_conditional_jump_node, to_evalute->block, GET_SSA_NODES_ALLOCATOR(inserter)
+        );
+
         parent_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_BRANCH;
         parent_block->next_as.branch.false_branch = false_branch_block;
         parent_block->next_as.branch.true_branch = true_branch_block;
@@ -647,14 +684,14 @@ static void jump_if_false(struct ssa_no_phis_inserter * inserter, struct pending
         add_u64_set(&true_branch_block->predecesors, (uint64_t) parent_block);
 
         add_last_control_node_ssa_block(parent_block, &cond_jump_node->control);
-    }
 
-    clear_u8_set(&inserter->current_block_local_usage.assigned);
-    clear_u8_set(&inserter->current_block_local_usage.used);
-    put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, cond_jump_node);
-    map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, condition, &cond_jump_node->control);
-    push_pending_evaluate(inserter, false_branch_bytecode, NULL, false_branch_block);
-    push_pending_evaluate(inserter, true_branch_bytecode, NULL, true_branch_block);
+        push_pending_evaluate(inserter, false_branch_bytecode, NULL, false_branch_block);
+        push_pending_evaluate(inserter, true_branch_bytecode, NULL, true_branch_block);
+        clear_u8_set(&inserter->current_block_local_usage.assigned);
+        clear_u8_set(&inserter->current_block_local_usage.used);
+        put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, cond_jump_node);
+        map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, condition, &cond_jump_node->control);
+    }
 }
 
 static void push_pending_evaluate(
@@ -726,7 +763,7 @@ static void map_data_nodes_bytecodes_to_control(
     );
 }
 
-static struct ssa_no_phis_inserter * alloc_ssa_no_phis_inserter(struct arena_lox_allocator * ssa_node_allocator) {
+static struct ssa_no_phis_inserter * alloc_ssa_no_phis_inserter(struct arena_lox_allocator * ssa_node_allocator, long ssa_options) {
     struct ssa_no_phis_inserter * ssa_no_phis_inserter = NATIVE_LOX_MALLOC(sizeof(struct ssa_no_phis_inserter));
     init_u8_set(&ssa_no_phis_inserter->current_block_local_usage.assigned);
     ssa_no_phis_inserter->ssa_node_allocator = ssa_node_allocator;
@@ -736,6 +773,7 @@ static struct ssa_no_phis_inserter * alloc_ssa_no_phis_inserter(struct arena_lox
     init_stack_list(&ssa_no_phis_inserter->pending_evaluation, NATIVE_LOX_ALLOCATOR());
     init_stack_list(&ssa_no_phis_inserter->data_nodes_stack, NATIVE_LOX_ALLOCATOR());
     init_stack_list(&ssa_no_phis_inserter->package_stack, NATIVE_LOX_ALLOCATOR());
+    ssa_no_phis_inserter->ssa_options = ssa_options;
     return ssa_no_phis_inserter;
 }
 
@@ -768,4 +806,43 @@ static void calculate_and_put_use_before_assigment(struct ssa_block * block, str
     intersection_u8_set(&use_before_assigment, local_usage.used);
     clear_u8_set(&local_usage.assigned);
     union_u8_set(&block->use_before_assigment, use_before_assigment);
+}
+
+static void add_argument_guards(struct ssa_no_phis_inserter * inserter, struct ssa_block * block, struct function_object * function) {
+    struct function_profile_data function_profile = function->state_as.profiling.profile_data;
+
+    for (int i = 0; i < function->n_arguments; i++) {
+        struct type_profile_data argument_type_profile_data = function_profile.arguments_type_profile[i];
+        profile_data_type_t argument_profiled_type = get_type_by_type_profile_data(argument_type_profile_data);
+
+        if (argument_profiled_type != PROFILE_DATA_TYPE_ANY) {
+           struct ssa_control_guard_node * guard_node = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_GUARD, struct ssa_control_guard_node,
+                   block, &inserter->ssa_node_allocator->lox_allocator);
+            guard_node->guard_value_to_compare = argument_profiled_type;
+            guard_node->guard_type = SSA_GUARD_TYPE_CHECK;
+            struct ssa_data_get_local_node * get_argument = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_GET_LOCAL, struct ssa_data_get_local_node,
+                    NULL, &inserter->ssa_node_allocator->lox_allocator);
+            get_argument->local_number = i;
+            guard_node->guard_value = &get_argument->data;
+
+            add_last_control_node_ssa_block(block, &guard_node->control);
+         }
+    }
+}
+
+static bool can_optimize_branch(struct ssa_no_phis_inserter * inserter, struct bytecode_list * condition_bytecode) {
+    struct function_profile_data function_profile = inserter->function->state_as.profiling.profile_data;
+    int instruction_index = condition_bytecode->original_chunk_index;
+    struct instruction_profile_data instruction_profile = function_profile.profile_by_instruction_index[instruction_index];
+
+    return can_false_branch_be_discarded_instruction_profile_data(instruction_profile) ||
+        can_true_branch_be_discarded_instruction_profile_data(instruction_profile);
+}
+
+static bool can_discard_true_branch(struct ssa_no_phis_inserter * inserter, struct bytecode_list * condition_bytecode) {
+    struct function_profile_data function_profile = inserter->function->state_as.profiling.profile_data;
+    int instruction_index = condition_bytecode->original_chunk_index;
+    struct instruction_profile_data instruction_profile = function_profile.profile_by_instruction_index[instruction_index];
+
+    return can_true_branch_be_discarded_instruction_profile_data(instruction_profile);
 }

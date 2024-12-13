@@ -25,21 +25,19 @@ void profile_instruction_profiler(uint8_t * pc, struct function_object * functio
     }
 }
 
-void profile_function_call_argumnts(uint8_t * pc, struct function_object * caller, struct function_object * callee) {
-    int instruction_index = pc - caller->chunk->code;
-    struct instruction_profile_data * profile_data = get_profile_data(caller, instruction_index);
-    struct function_call_profile * function_call_profile = &profile_data->as.function_call;
+void profile_function_call_argumnts(struct function_object * callee) {
+    struct function_profile_data * callee_profile_data = &callee->state_as.profiling.profile_data;
     struct call_frame * callee_frame = get_current_frame_vm_thread(self_thread);
 
-    if (profile_data->as.function_call.arguments_type_profile == NULL) {
-        profile_data->as.function_call.n_arguments = caller->n_arguments;
-        struct type_profile_data * arguments_type_profile = NATIVE_LOX_MALLOC(sizeof(struct type_profile_data) * caller->n_arguments);
-        function_call_profile->arguments_type_profile = arguments_type_profile;
+    if (callee_profile_data->arguments_type_profile == NULL && callee->n_arguments > 0) {
+        struct type_profile_data * arguments_type_profile = NATIVE_LOX_MALLOC(sizeof(struct type_profile_data) * callee->n_arguments);
+        callee_profile_data->arguments_type_profile = arguments_type_profile;
+        callee_profile_data->n_arguments = callee->n_arguments;
     }
 
     for (int i = 0; i < callee->n_arguments; i++) {
         lox_value_t current_argument = callee_frame->slots[i + 1];
-        profile_type(&function_call_profile->arguments_type_profile[i], current_argument);
+        profile_type(&callee_profile_data->arguments_type_profile[i], current_argument);
     }
 }
 

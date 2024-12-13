@@ -5,7 +5,8 @@ extern void runtime_panic(char * format, ...);
 struct graphviz_visualizer {
     FILE * file;
 
-    long options;
+    long graphviz_options;
+    long ssa_options;
     struct ssa_ir ssa_ir;
     struct function_object * function;
     //Set of pointers of struct ssa_block visited
@@ -73,26 +74,28 @@ void generate_ssa_graphviz_graph(
         struct package * package,
         struct function_object * function,
         phase_ssa_graphviz_t phase,
-        long options,
+        long graphviz_options,
+        long ssa_options,
         char * path
 ) {
     struct arena arena;
     init_arena(&arena);
     struct arena_lox_allocator ssa_node_allocator = to_lox_allocator_arena(arena);
     struct graphviz_visualizer graphviz_visualizer = create_graphviz_visualizer(path, &ssa_node_allocator, function);
-    graphviz_visualizer.options = options;
+    graphviz_visualizer.graphviz_options = graphviz_options;
+    graphviz_visualizer.ssa_options = ssa_options;
 
     switch (phase) {
         case NO_PHIS_PHASE_SSA_GRAPHVIZ: {
             struct ssa_block * ssa_block = create_ssa_ir_no_phis(package, function,
-                create_bytecode_list(function->chunk, &ssa_node_allocator.lox_allocator), &ssa_node_allocator);
+                create_bytecode_list(function->chunk, &ssa_node_allocator.lox_allocator), &ssa_node_allocator, ssa_options);
 
             generate_graph_and_write(&graphviz_visualizer, ssa_block);
             break;
         }
         case PHIS_INSERTED_PHASE_SSA_GRAPHVIZ: {
             struct ssa_block * ssa_block = create_ssa_ir_no_phis(package, function,
-                create_bytecode_list(function->chunk, &ssa_node_allocator.lox_allocator), &ssa_node_allocator);
+                create_bytecode_list(function->chunk, &ssa_node_allocator.lox_allocator), &ssa_node_allocator, ssa_options);
             insert_ssa_ir_phis(ssa_block, &ssa_node_allocator);
 
             generate_graph_and_write(&graphviz_visualizer, ssa_block);
@@ -100,7 +103,7 @@ void generate_ssa_graphviz_graph(
         }
         case PHIS_OPTIMIZED_PHASE_SSA_GRAPHVIZ: {
             struct ssa_block * ssa_block = create_ssa_ir_no_phis(package, function,
-                create_bytecode_list(function->chunk, &ssa_node_allocator.lox_allocator), &ssa_node_allocator);
+                create_bytecode_list(function->chunk, &ssa_node_allocator.lox_allocator), &ssa_node_allocator, ssa_options);
             struct phi_insertion_result phi_insertion_result = insert_ssa_ir_phis(ssa_block, &ssa_node_allocator);
             optimize_ssa_ir_phis(ssa_block, &phi_insertion_result, &ssa_node_allocator);
 
@@ -109,7 +112,7 @@ void generate_ssa_graphviz_graph(
         }
         case SPARSE_CONSTANT_PROPAGATION_PHASE_SSA_GRAPHVIZ: {
             struct ssa_ir ssa_ir = create_ssa_ir(package, function, create_bytecode_list(function->chunk,
-                &ssa_node_allocator.lox_allocator));
+                &ssa_node_allocator.lox_allocator), graphviz_visualizer.ssa_options);
             perform_sparse_constant_propagation(&ssa_ir);
             graphviz_visualizer.ssa_ir = ssa_ir;
 
@@ -118,7 +121,7 @@ void generate_ssa_graphviz_graph(
         }
         case COMMON_SUBEXPRESSION_ELIMINATION_PHASE_SSA_GRAPHVIZ: {
             struct ssa_ir ssa_ir = create_ssa_ir(package, function, create_bytecode_list(function->chunk,
-                    &ssa_node_allocator.lox_allocator));
+                    &ssa_node_allocator.lox_allocator), graphviz_visualizer.ssa_options);
 
             perform_common_subexpression_elimination(&ssa_ir);
             graphviz_visualizer.ssa_ir = ssa_ir;
@@ -128,7 +131,7 @@ void generate_ssa_graphviz_graph(
         }
         case STRENGTH_REDUCTION_PHASE_SSA_GRAPHVIZ: {
             struct ssa_ir ssa_ir = create_ssa_ir(package, function, create_bytecode_list(function->chunk,
-                    &ssa_node_allocator.lox_allocator));
+                    &ssa_node_allocator.lox_allocator), graphviz_visualizer.ssa_options);
             perform_strength_reduction(&ssa_ir);
             graphviz_visualizer.ssa_ir = ssa_ir;
 
@@ -137,7 +140,7 @@ void generate_ssa_graphviz_graph(
         }
         case LOOP_INVARIANT_CODE_MOTION_PHASE_SSA_GRAPHVIZ: {
             struct ssa_ir ssa_ir = create_ssa_ir(package, function, create_bytecode_list(function->chunk,
-                    &ssa_node_allocator.lox_allocator));
+                    &ssa_node_allocator.lox_allocator), graphviz_visualizer.ssa_options);
             perform_loop_invariant_code_motion(&ssa_ir);
             graphviz_visualizer.ssa_ir = ssa_ir;
 
@@ -146,7 +149,7 @@ void generate_ssa_graphviz_graph(
         }
         case ALL_PHASE_SSA_GRAPHVIZ: {
             struct ssa_ir ssa_ir = create_ssa_ir(package, function, create_bytecode_list(function->chunk,
-                &ssa_node_allocator.lox_allocator));
+                &ssa_node_allocator.lox_allocator), graphviz_visualizer.ssa_options);
             perform_sparse_constant_propagation(&ssa_ir);
             perform_common_subexpression_elimination(&ssa_ir);
             perform_strength_reduction(&ssa_ir);
@@ -256,7 +259,7 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
             struct ssa_data_node * data = (struct ssa_data_node *) node;
 
             add_control_node_graphviz_file(visualizer, "Data", self_control_node_id);
-            if(!IS_FLAG_SET(visualizer->options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
+            if(!IS_FLAG_SET(visualizer->graphviz_options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
                 int data_node_id = generate_data_node_graph(visualizer, data);
                 link_control_data_node_graphviz_file(visualizer, self_control_node_id, data_node_id);
             }
@@ -266,7 +269,7 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
             struct ssa_control_return_node * return_node = (struct ssa_control_return_node *) node;
 
             add_control_node_graphviz_file(visualizer, "Return", self_control_node_id);
-            if(!IS_FLAG_SET(visualizer->options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
+            if(!IS_FLAG_SET(visualizer->graphviz_options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
                 int data_node_id = generate_data_node_graph(visualizer, return_node->data);
                 link_control_data_node_graphviz_file(visualizer, self_control_node_id, data_node_id);
             }
@@ -276,7 +279,7 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
             struct ssa_control_print_node * print_node = (struct ssa_control_print_node *) node;
 
             add_control_node_graphviz_file(visualizer, "Print", self_control_node_id);
-            if(!IS_FLAG_SET(visualizer->options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
+            if(!IS_FLAG_SET(visualizer->graphviz_options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
                 int data_node_id = generate_data_node_graph(visualizer, print_node->data);
                 link_control_data_node_graphviz_file(visualizer, self_control_node_id, data_node_id);
             }
@@ -306,7 +309,7 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
 
             add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
             free(node_desc);
-            if(!IS_FLAG_SET(visualizer->options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
+            if(!IS_FLAG_SET(visualizer->graphviz_options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
                 int global_value_data_node_id = generate_data_node_graph(visualizer, set_global->value_node);
                 link_control_data_node_graphviz_file(visualizer, self_control_node_id, global_value_data_node_id);
             }
@@ -319,7 +322,7 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
 
             add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
             free(node_desc);
-            if(!IS_FLAG_SET(visualizer->options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
+            if(!IS_FLAG_SET(visualizer->graphviz_options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
                 int local_value_data_node_id = generate_data_node_graph(visualizer, set_local->new_local_value);
                 link_control_data_node_graphviz_file(visualizer, self_control_node_id, local_value_data_node_id);
             }
@@ -331,7 +334,7 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
 
             add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
             free(node_desc);
-            if(!IS_FLAG_SET(visualizer->options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
+            if(!IS_FLAG_SET(visualizer->graphviz_options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
                 int field_value_data_node_id = generate_data_node_graph(visualizer, set_struct_field->new_field_value);
                 int struct_instance_data_node_id = generate_data_node_graph(visualizer, set_struct_field->instance);
                 link_control_data_node_graphviz_file(visualizer, self_control_node_id, field_value_data_node_id);
@@ -345,7 +348,7 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
 
             add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
             free(node_desc);
-            if(!IS_FLAG_SET(visualizer->options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
+            if(!IS_FLAG_SET(visualizer->graphviz_options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
                 int array_element_data_node_id = generate_data_node_graph(visualizer, set_array_element->new_element_value);
                 int array_instance_data_node_id = generate_data_node_graph(visualizer, set_array_element->array);
                 int array_index_data_node_id = generate_data_node_graph(visualizer, set_array_element->index);
@@ -361,7 +364,7 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
             
             add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
             free(node_desc);
-            if(!IS_FLAG_SET(visualizer->options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
+            if(!IS_FLAG_SET(visualizer->graphviz_options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
                 int condition_data_node_id = generate_data_node_graph(visualizer, cond_jump->condition);
                 link_control_data_node_graphviz_file(visualizer, self_control_node_id, condition_data_node_id);
             }
@@ -375,7 +378,7 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
             add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
             free(node_desc);
             long b = NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT;
-            if(!IS_FLAG_SET(visualizer->options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
+            if(!IS_FLAG_SET(visualizer->graphviz_options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
                 int ssa_name_value_data_node_id = generate_data_node_graph(visualizer, define_ssa_name->value);
                 link_control_data_node_graphviz_file(visualizer, self_control_node_id, ssa_name_value_data_node_id);
             }
@@ -627,7 +630,7 @@ void add_data_node_graphviz_file(struct graphviz_visualizer * visualizer, char *
 }
 
 void add_block_graphviz_file(struct graphviz_visualizer * visualizer, int block_id) {
-    if((visualizer->options & NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT) != 0){
+    if((visualizer->graphviz_options & NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT) != 0){
         fprintf(visualizer->file, "\tsubgraph block_%i{\n", block_id);
     } else {
         fprintf(visualizer->file, "\tsubgraph cluster_block_%i{\n", block_id);
@@ -698,10 +701,14 @@ static char * unary_operator_to_string(ssa_unary_operator_type_t operator) {
 }
 
 static char * guard_node_to_string(struct ssa_control_guard_node * node) {
-    switch (node->type) {
+    switch (node->guard_type) {
         case SSA_GUARD_TYPE_CHECK: {
             char * type_name = profile_data_type_to_string((profile_data_type_t) node->guard_value_to_compare);
             return dynamic_format_string("TypeScheck %s", type_name);
+        }
+        case SSA_GUARD_VALUE_CHECK: {
+            char * value_name = lox_value_to_string((lox_value_t) node->guard_value_to_compare);
+            return dynamic_format_string("ValueCheck %s", value_name);
         }
         case SSA_GUARD_STRUCT_DEFINITION_TYPE_CHECK: {
             struct struct_definition_object * definition = (struct struct_definition_object *) AS_OBJECT(node->guard_value_to_compare);
