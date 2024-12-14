@@ -6,14 +6,22 @@ static struct instruction_profile_data * get_profile_data(struct function_object
 static void profile_conditional_branch(struct function_object *, int instruction_index);
 static void profile_type(struct type_profile_data *profile_node_data, lox_value_t lox_value);
 static void profile_struct_field(struct function_object *, int instruction_index);
+static void profile_get_struct_field(struct function_object *, int instruction_index);
 static void profile_function_call(struct function_object *, int instruction_index);
+static void profile_get_array_elemet(struct function_object *, int instruction_index);
 
 void profile_instruction_profiler(uint8_t * pc, struct function_object * function) {
     bytecode_t instruction = (bytecode_t) *pc;
     int instruction_index = pc - function->chunk->code;
 
     switch (instruction) {
+        case OP_GET_ARRAY_ELEMENT:
+            profile_get_array_elemet(function, instruction_index);
+            break;
         case OP_GET_STRUCT_FIELD:
+            profile_get_struct_field(function, instruction_index);
+            profile_struct_field(function, instruction_index);
+            break;
         case OP_SET_STRUCT_FIELD:
             profile_struct_field(function, instruction_index);
             break;
@@ -23,6 +31,47 @@ void profile_instruction_profiler(uint8_t * pc, struct function_object * functio
         default:
             break;
     }
+}
+
+static void profile_get_struct_field(struct function_object * function, int instruction_index) {
+    struct instruction_profile_data * instruction_profile = get_profile_data(function, instruction_index);
+    lox_value_t field_name_lox_value = *(self_thread->esp - 2);
+    lox_value_t struct_lox_value = *(self_thread->esp - 1);
+    if(!IS_STRING(field_name_lox_value)){
+        return;
+    }
+    if(!IS_OBJECT(struct_lox_value) || AS_OBJECT(struct_lox_value)->type != OBJ_STRUCT_INSTANCE){
+        return;
+    }
+    struct struct_instance_object * instance = (struct struct_instance_object *) AS_OBJECT(struct_lox_value);
+    struct string_object * field_name = AS_STRING_OBJECT(field_name_lox_value);
+    if(!contains_hash_table(&instance->fields, field_name)){
+        return;
+    }
+
+    lox_value_t field_value;
+    get_hash_table(&instance->fields, field_name, &field_value);
+    
+    profile_type(&instruction_profile->as.struct_field.get_struct_field_profile, field_value);
+}
+
+static void profile_get_array_elemet(struct function_object * function, int instruction_index) {
+    struct instruction_profile_data * instruction_profile = get_profile_data(function, instruction_index);
+    lox_value_t array_lox_value = *(self_thread->esp - 1);
+    lox_value_t index_lox_value = *(self_thread->esp - 2);
+    if(!IS_NUMBER(index_lox_value)){
+        return;
+    }
+    if(!IS_OBJECT(array_lox_value) || AS_OBJECT(array_lox_value)->type != OBJ_ARRAY){
+        return;
+    }
+    struct array_object * array = (struct array_object *) AS_OBJECT(array_lox_value);
+    uint64_t index = AS_NUMBER(index_lox_value);
+    if(array->values.capacity <= index){
+        return;
+    }
+
+    profile_type(&instruction_profile->as.get_array_element_profile, array->values.values[index]);
 }
 
 void profile_function_call_argumnts(struct function_object * callee) {

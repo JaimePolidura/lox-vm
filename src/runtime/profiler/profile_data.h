@@ -49,7 +49,10 @@ struct instruction_profile_data {
             //If initialized is true and definition is NULL, it means that the struct definition could be any type
             struct struct_definition_object * definition;
             bool initialized;
+            struct type_profile_data get_struct_field_profile;
         } struct_field;
+
+        struct type_profile_data get_array_element_profile;
 
         //A callee will profile the type of the returned value, and the arguments type passed by the caller
         //A pointer of the caller struct function_call_profile_data is passed to the callee

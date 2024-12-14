@@ -4,6 +4,7 @@
 
 #include "shared/utils/collections/u64_set.h"
 #include "shared/utils/collections/u8_arraylist.h"
+#include "shared/types/native_function_object.h"
 #include "shared/types/struct_definition_object.h"
 #include "shared/utils/collections/u8_set.h"
 #include "shared/bytecode/bytecode.h"
@@ -85,10 +86,20 @@ struct ssa_data_get_local_node {
 struct ssa_data_function_call_node {
     struct ssa_data_node data;
 
-    struct ssa_data_node * function;
     int n_arguments;
-    bool is_parallel;
     struct ssa_data_node ** arguments;
+
+    bool is_native;
+
+    union {
+        struct native_function_object * native_function;
+
+        struct {
+            struct function_object * function;
+            bool is_parallel;
+        } lox_function;
+    };
+
 };
 
 //OP_GET_GLOBAL

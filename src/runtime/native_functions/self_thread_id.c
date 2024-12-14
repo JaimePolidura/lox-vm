@@ -9,6 +9,7 @@ static lox_value_t self_thread_id_native(int n_args, lox_value_t * args) {
 
 struct native_function_object self_thread_id_native_function = (struct native_function_object) {
         .object = LOX_OBJECT(OBJ_NATIVE_FUNCTION),
+        .returned_type = PROFILE_DATA_TYPE_I64,
         .native_fn = self_thread_id_native,
         .name = "selfThreadId"
 };

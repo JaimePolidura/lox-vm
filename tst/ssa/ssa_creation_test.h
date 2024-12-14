@@ -19,8 +19,6 @@ TEST(ssa_creation_pg) {
     struct compilation_result compilation = compile_standalone(
             "fun function(arr) {"
             "   for (var i = 0; i < 10; i = i + 1) {"
-            "       arr[i] = 3;"
-            "       print arr[0];"
             "   }"
             "}"
     );

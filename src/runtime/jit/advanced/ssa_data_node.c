@@ -164,7 +164,8 @@ bool is_eq_ssa_data_node(struct ssa_data_node * a, struct ssa_data_node * b, str
         case SSA_DATA_NODE_TYPE_CALL: {
             struct ssa_data_function_call_node * a_call = (struct ssa_data_function_call_node *) a;
             struct ssa_data_function_call_node * b_call = (struct ssa_data_function_call_node *) b;
-            if(a_call->is_parallel != b_call->is_parallel || is_eq_ssa_data_node(a_call->function, b_call->function, allocator)) {
+            if(a_call->is_native != b_call->is_native || (a_call->lox_function.function != b_call->lox_function.function &&
+                a_call->native_function != b_call->native_function)) {
                 return false;
             }
             for(int i = 0; i < a_call->n_arguments; i++){
@@ -320,12 +321,10 @@ static bool for_each_ssa_data_node_recursive(
         case SSA_DATA_NODE_TYPE_CALL: {
             struct ssa_data_function_call_node * call_node = (struct ssa_data_function_call_node *) current_node;
             if (IS_FLAG_SET(options, SSA_DATA_NODE_OPT_NOT_RECURSIVE)) {
-                consumer(current_node, (void **) &call_node->function, call_node->function, extra);
                 for (int i = 0; i < call_node->n_arguments; i++) {
                     consumer(current_node, (void **) &call_node->arguments[i], call_node->arguments[i], extra);
                 }
             } else {
-                for_each_ssa_data_node_recursive(current_node, (void **) &call_node->function, call_node->function, extra, options, consumer);
                 for (int i = 0; i < call_node->n_arguments; i++) {
                     for_each_ssa_data_node_recursive(current_node, (void **) &call_node->arguments[i], call_node->arguments[i], extra, options, consumer);
                 }
@@ -487,7 +486,7 @@ uint64_t hash_ssa_data_node(struct ssa_data_node * node) {
         }
         case SSA_DATA_NODE_TYPE_CALL: {
             struct ssa_data_function_call_node * call_node = (struct ssa_data_function_call_node *) node;
-            uint64_t hash = hash_ssa_data_node(call_node->function);
+            uint64_t hash = call_node->is_native ? (uint64_t) call_node->lox_function.function : (uint64_t) call_node->native_function;
             for(int i = 0; i < call_node->n_arguments; i++){
                 hash = mix_hash_not_commutative(hash, hash_ssa_data_node(call_node->arguments[i]));
             }

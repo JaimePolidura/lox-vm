@@ -8,6 +8,7 @@ static lox_value_t clock_native(int n_args, lox_value_t * args) {
 
 struct native_function_object clock_native_function = (struct native_function_object) {
     .object = LOX_OBJECT(OBJ_NATIVE_FUNCTION),
+    .returned_type = PROFILE_DATA_TYPE_I64,
     .native_fn = clock_native,
     .name = "clock"
 };

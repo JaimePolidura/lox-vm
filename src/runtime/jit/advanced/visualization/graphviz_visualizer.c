@@ -432,14 +432,15 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
         }
         case SSA_DATA_NODE_TYPE_CALL: {
             struct ssa_data_function_call_node * call = (struct ssa_data_function_call_node *) node;
-            int function_node_id = generate_data_node_graph(visualizer, call->function);
+            char * function_name = call->is_native ? call->native_function->name : call->lox_function.function->name->chars;
+            char * node_desc = dynamic_format_string("%s()", function_name);
 
-            add_data_node_graphviz_file(visualizer, "FunctionCall", self_data_node_id);
-            link_data_data_node_graphviz_file(visualizer, self_data_node_id, function_node_id);
+            add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             for (int i = 0; i < call->n_arguments; i++){
                 int function_arg_node_id = generate_data_node_graph(visualizer, call->arguments[i]);
                 link_data_data_node_graphviz_file(visualizer, self_data_node_id, function_arg_node_id);
             }
+            free(node_desc);
             break;
         }
         case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD: {

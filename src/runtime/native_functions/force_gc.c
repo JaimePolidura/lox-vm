@@ -12,6 +12,7 @@ static lox_value_t force_gc_native(int n_args, lox_value_t * args) {
 
 struct native_function_object force_gc_native_function = (struct native_function_object) {
     .object = LOX_OBJECT(OBJ_NATIVE_FUNCTION),
+    .returned_type = PROFILE_DATA_TYPE_NIL,
     .native_fn = force_gc_native,
     .name = "forceGC"
 };

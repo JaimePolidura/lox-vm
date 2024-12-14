@@ -12,6 +12,7 @@ static lox_value_t sleep_native(int n_args, lox_value_t * args) {
 
 struct native_function_object sleep_native_function = (struct native_function_object) {
         .object = LOX_OBJECT(OBJ_NATIVE_FUNCTION),
+        .returned_type = PROFILE_DATA_TYPE_NIL,
         .native_fn = sleep_native,
         .name = "sleep"
 };

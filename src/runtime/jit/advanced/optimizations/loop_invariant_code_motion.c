@@ -130,7 +130,7 @@ static bool is_data_node_loop_invariant(
             break;
         }
     }
-    
+
     return all_loop_invariant;
 }
 

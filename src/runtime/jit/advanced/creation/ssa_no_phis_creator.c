@@ -69,6 +69,7 @@ static void add_argument_guards(struct ssa_no_phis_inserter *, struct ssa_block 
 static bool can_optimize_branch(struct ssa_no_phis_inserter *, struct bytecode_list *);
 static bool can_discard_true_branch(struct ssa_no_phis_inserter *, struct bytecode_list *);
 static struct instruction_profile_data get_instruction_profile_data(struct ssa_no_phis_inserter *, struct bytecode_list *);
+static struct object * get_function(struct ssa_no_phis_inserter *, struct ssa_data_node * function_data_node);
 
 struct ssa_block * create_ssa_ir_no_phis(
         struct package * package,
@@ -346,18 +347,25 @@ static void call(struct ssa_no_phis_inserter * inserter, struct pending_evaluate
     );
     bool is_paralell = to_evaluate->pending_bytecode->as.pair.u8_2;
     uint8_t n_args = to_evaluate->pending_bytecode->as.pair.u8_1;
-    struct ssa_data_node * function_to_call = peek_n_stack_list(&inserter->data_nodes_stack, n_args);
+    struct ssa_data_node * function_to_call_data_node = peek_n_stack_list(&inserter->data_nodes_stack, n_args);
+    struct object * function_to_call_object = get_function(inserter, function_to_call_data_node);
 
-    call_node->data.produced_type = PROFILE_DATA_TYPE_ANY;
-    call_node->function = function_to_call;
-    call_node->is_parallel = is_paralell;
+    if(function_to_call_object->type == OBJ_NATIVE_FUNCTION){
+        call_node->native_function = (struct native_function_object *) function_to_call_data_node;
+        call_node->is_native = true;
+    } else {
+        call_node->lox_function.function = (struct function_object *) function_to_call_data_node;
+        call_node->lox_function.is_parallel = is_paralell;
+        call_node->is_native = false;
+    }
+
     call_node->n_arguments = n_args;
     call_node->arguments = LOX_MALLOC(GET_SSA_NODES_ALLOCATOR(inserter), sizeof(struct ssa_data_node *) * n_args);
     for(int i = n_args; i > 0; i--){
         call_node->arguments[i - 1] = pop_stack_list(&inserter->data_nodes_stack);
     }
 
-    //Remove function object in the stack
+    //Remove function_to_call_object object in the stack
     pop_stack_list(&inserter->data_nodes_stack);
 
     //Add guard, if the returned value type has a profiled data
@@ -868,4 +876,20 @@ static struct instruction_profile_data get_instruction_profile_data(
     struct function_profile_data function_profile = inserter->function->state_as.profiling.profile_data;
     int instruction_index = bytecode->original_chunk_index;
     return function_profile.profile_by_instruction_index[instruction_index];
+}
+
+static struct object * get_function(struct ssa_no_phis_inserter * inserter, struct ssa_data_node * function_data_node) {
+    if(function_data_node->type != SSA_DATA_NODE_TYPE_GET_GLOBAL){
+        return NULL; //TODO Error
+    }
+
+    struct ssa_data_get_global_node * get_global = (struct ssa_data_get_global_node *) function_data_node;
+    lox_value_t function_lox_value;
+    get_hash_table(&get_global->package->global_variables, get_global->name, &function_lox_value);
+
+    if(IS_OBJECT(function_lox_value)){
+        return NULL;
+    }
+
+    return AS_OBJECT(function_lox_value);
 }
