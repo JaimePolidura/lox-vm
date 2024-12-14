@@ -387,6 +387,14 @@ static bool create_loop_info_ssa_block_consumer(struct ssa_block * current_block
         if(current_control_node->type == SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME) {
             struct ssa_control_define_ssa_name_node * define_node = (struct ssa_control_define_ssa_name_node *) current_control_node;
             add_u8_set(&ssa_block_loop_info->modified_local_numbers, define_node->ssa_name.value.local_number);
+        } else if(current_control_node->type == SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT){
+            struct ssa_control_set_array_element_node * set_array_element = (struct ssa_control_set_array_element_node *) current_control_node;
+            struct ssa_data_node * array_instance = set_array_element->array;
+
+            if (array_instance->type == SSA_DATA_NODE_TYPE_GET_SSA_NAME) {
+                struct ssa_data_get_ssa_name_node * get_array_instance = (struct ssa_data_get_ssa_name_node *) array_instance;
+                add_u8_set(&ssa_block_loop_info->modified_local_numbers, get_array_instance->ssa_name.value.local_number);
+            }
         }
 
         if(current_control_node == current_block->last){
