@@ -609,7 +609,8 @@ static void expression_statement(struct bytecode_compiler * compiler) {
     expression(compiler);
     consume(compiler, TOKEN_SEMICOLON, "Expected ';'.");
 
-    if(compiler->compiling_set_operation){
+    if(compiler->compiling_set_operation || compiler->compiling_set_array_element_operation){
+        compiler->compiling_set_array_element_operation = false;
         compiler->compiling_set_operation = false;
     } else {
         emit_bytecode(compiler, OP_POP);
@@ -851,6 +852,9 @@ static void named_variable(
     }
     if (is_set_op && !is_array && !compiler->compiling_set_operation){
         compiler->compiling_set_operation = true;
+    }
+    if(is_set_op && is_array && !compiler->compiling_set_array_element_operation){
+        compiler->compiling_set_array_element_operation = true;
     }
 
     if (is_global && is_from_external_package) {

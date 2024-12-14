@@ -581,6 +581,8 @@ static void pop(struct ssa_no_phis_inserter * inserter, struct pending_evaluate 
         add_last_control_node_ssa_block(to_evalute->block, &control_data_node->control);
         push_pending_evaluate(inserter, to_evalute->pending_bytecode->next, &control_data_node->control, to_evalute->block);
         put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, control_data_node);
+    } else {
+        push_pending_evaluate(inserter, to_evalute->pending_bytecode->next, to_evalute->prev_control_node, to_evalute->block);
     }
 }
 

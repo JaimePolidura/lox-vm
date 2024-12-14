@@ -73,6 +73,7 @@ struct bytecode_compiler {
 
     //Indicates if the current expression we are parsing is of type OP_SET_LOCAL or OP_SET_GLOBAL
     bool compiling_set_operation;
+    bool compiling_set_array_element_operation;
 
     //Keeps information of every function call even if it is repeated.
     struct function_call * function_calls;

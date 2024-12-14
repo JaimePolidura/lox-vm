@@ -629,7 +629,7 @@ void add_start_control_node_graphviz_file(struct graphviz_visualizer * visualize
 void add_guard_control_node_graphviz_file(struct graphviz_visualizer * visualizer, struct ssa_control_guard_node * guard_node, int control_node_id) {
     char * guard_desc = guard_node_to_string(guard_node->guard);
     char * node_desc = dynamic_format_string("Guard %s\n", guard_desc);
-    fprintf(visualizer->file, "\t\tcontrol_%i [label=\"%s\", style=filled, fillcolor=red, shape=rectangle];\n", control_node_id, node_desc);
+    fprintf(visualizer->file, "\t\tcontrol_%i [label=\"%s\", style=filled, fillcolor=orange, shape=rectangle];\n", control_node_id, node_desc);
     free(node_desc);
     free(guard_desc);
 }
@@ -637,7 +637,7 @@ void add_guard_control_node_graphviz_file(struct graphviz_visualizer * visualize
 void add_guard_data_node_graphviz_file(struct graphviz_visualizer * visualizer, struct ssa_data_guard_node * guard_node, int data_node_id) {
     char * guard_desc = guard_node_to_string(guard_node->guard);
     char * node_desc = dynamic_format_string("Guard %s\n", guard_desc);
-    fprintf(visualizer->file, "\t\tdata_%i [label=\"%s\", style=filled, fillcolor=red];\n", data_node_id, node_desc);
+    fprintf(visualizer->file, "\t\tdata_%i [label=\"%s\", style=filled, fillcolor=orange];\n", data_node_id, node_desc);
     free(node_desc);
     free(guard_desc);
 }

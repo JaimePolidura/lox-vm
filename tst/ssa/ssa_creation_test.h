@@ -15,6 +15,30 @@ static bool node_uses_version(struct ssa_data_node * start_node, int n_expected_
 static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expected_versions, ...);
 static bool node_defines_ssa_name(struct ssa_control_node *, int version);
 
+TEST(ssa_creation_pg) {
+    struct compilation_result compilation = compile_standalone(
+            "fun function(arr) {"
+            "   for (var i = 0; i < 10; i = i + 1) {"
+            "       arr[0] = 3;"
+            "       print arr[0];"
+            "   }"
+            "}"
+    );
+    struct package * package = compilation.compiled_package;
+    struct function_object * function_ssa = get_function_package(package, "function");
+    init_function_profile_data(function_ssa);
+
+    //Observe the generated graph IR
+    generate_ssa_graphviz_graph(
+            package,
+            function_ssa,
+            ALL_PHASE_SSA_GRAPHVIZ,
+            NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT,
+            SSA_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
+            "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
+    );
+}
+
 TEST(ssa_creation_licm) {
     struct compilation_result compilation = compile_standalone(
             "fun function(a, b, c) {"
