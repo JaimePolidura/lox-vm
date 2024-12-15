@@ -74,7 +74,7 @@ static bool optimize_ssa_ir_phis_block(struct ssa_block * current_block, void * 
         for_each_data_node_in_control_node(
                 current,
                 &for_each_node_struct,
-                SSA_DATA_NODE_OPT_POST_ORDER | SSA_DATA_NODE_OPT_RECURSIVE,
+                SSA_DATA_NODE_OPT_POST_ORDER,
                 optimize_phi_functions_consumer
         );
 
@@ -195,7 +195,7 @@ static void propagate_extracted_phi_in_block(
         for_each_data_node_in_control_node(
                 current_node,
                 &propagation_extracted_phi,
-                SSA_DATA_NODE_OPT_POST_ORDER | SSA_DATA_NODE_OPT_RECURSIVE,
+                SSA_DATA_NODE_OPT_POST_ORDER,
                 propagate_extracted_phi_in_data_node
         );
 
@@ -307,7 +307,7 @@ static void add_ssa_name_uses_to_map(
     for_each_data_node_in_control_node(
             control_node,
             &consumer_struct,
-            SSA_DATA_NODE_OPT_POST_ORDER | SSA_DATA_NODE_OPT_RECURSIVE,
+            SSA_DATA_NODE_OPT_POST_ORDER,
             add_ssa_name_uses_to_map_consumer
     );
 }

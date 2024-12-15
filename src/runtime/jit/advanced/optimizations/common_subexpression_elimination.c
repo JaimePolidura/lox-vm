@@ -149,7 +149,7 @@ void perform_cse_control_node(
             for_each_data_node_in_control_node(
                     control_node,
                     &perform_cse_data_node,
-                    SSA_DATA_NODE_OPT_RECURSIVE | SSA_DATA_NODE_OPT_PRE_ORDER,
+                    SSA_DATA_NODE_OPT_PRE_ORDER,
                     perform_cse_data_node_consumer
             );
             break;

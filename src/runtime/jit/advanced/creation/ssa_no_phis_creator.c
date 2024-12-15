@@ -786,7 +786,7 @@ static void map_data_nodes_bytecodes_to_control(
             data_node,
             NULL,
             &consumer_struct,
-            SSA_DATA_NODE_OPT_POST_ORDER | SSA_DATA_NODE_OPT_RECURSIVE,
+            SSA_DATA_NODE_OPT_POST_ORDER,
             map_data_nodes_bytecodes_to_control_consumer
     );
 }

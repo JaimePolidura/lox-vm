@@ -84,7 +84,7 @@ static bool try_move_up_loop_invariant(struct licm * licm, struct ssa_control_no
     for_each_data_node_in_control_node(
             node,
             &consumer_struct,
-            SSA_DATA_NODE_OPT_PRE_ORDER | SSA_DATA_NODE_OPT_RECURSIVE | SSA_DATA_NODE_OPT_NOT_TERMINATORS,
+            SSA_DATA_NODE_OPT_PRE_ORDER | SSA_DATA_NODE_OPT_NOT_TERMINATORS,
             &try_move_up_loop_invariant_data_node
     );
 

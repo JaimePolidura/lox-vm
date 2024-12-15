@@ -50,7 +50,7 @@ static bool perform_strength_reduction_block(struct ssa_block * block, void * ex
         for_each_data_node_in_control_node(
                 current_control_node,
                 sr,
-                SSA_DATA_NODE_OPT_PRE_ORDER | SSA_DATA_NODE_OPT_RECURSIVE,
+                SSA_DATA_NODE_OPT_PRE_ORDER,
                 perform_strength_reduction_data_node
         );
 

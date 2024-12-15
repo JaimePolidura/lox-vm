@@ -32,10 +32,14 @@ typedef enum {
     //It will replace all the nodes with type SSA_DATA_NODE_TYPE_GET_LOCAL in the phi insertion proceess
     SSA_DATA_NODE_TYPE_PHI,
     SSA_DATA_NODE_TYPE_GET_SSA_NAME,
+
+    SSA_DATA_NODE_UNBOX,
+    SSA_DATA_NODE_BOX,
 } ssa_data_node_type;
 
 #define ALLOC_SSA_DATA_NODE(type, struct_type, bytecode, allocator) (struct_type *) allocate_ssa_data_node(type, sizeof(struct_type), bytecode, allocator)
 #define GET_CONST_VALUE_SSA_NODE(node) (((struct ssa_data_constant_node *) (node))->constant_lox_value)
+#define GET_USED_SSA_NAME(node) (((struct ssa_data_get_ssa_name_node *) (node))->ssa_name)
 
 //Represents expressions in CFG
 struct ssa_data_node {
@@ -50,10 +54,9 @@ void free_ssa_data_node(struct ssa_data_node *);
 
 enum {
     SSA_DATA_NODE_OPT_POST_ORDER = 1 << 0,
-    SSA_DATA_NODE_OPT_RECURSIVE = 1 << 1,
-    SSA_DATA_NODE_OPT_NOT_RECURSIVE = 1 << 2,
     SSA_DATA_NODE_OPT_PRE_ORDER = 1 << 3,
     SSA_DATA_NODE_OPT_NOT_TERMINATORS = 1 << 4, //AKA Don't scan leafs. Disabled by default
+    SSA_DATA_NODE_OPT_ONLY_TERMINATORS = 1 << 5, //AKA scan leafs. Disabled by default
 };
 typedef bool (*ssa_data_node_consumer_t)(
         struct ssa_data_node * parent,
@@ -226,4 +229,14 @@ struct ssa_data_get_ssa_name_node {
 struct ssa_data_guard_node {
     struct ssa_data_node data;
     struct ssa_guard guard;
+};
+
+struct ssa_data_node_box {
+    struct ssa_data_node data;
+    struct ssa_data_node * to_box;
+};
+
+struct ssa_data_node_unbox {
+    struct ssa_data_node data;
+    struct ssa_data_node * to_unbox;
 };

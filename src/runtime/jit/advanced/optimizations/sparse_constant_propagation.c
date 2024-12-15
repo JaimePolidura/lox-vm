@@ -442,7 +442,7 @@ static void rewrite_constant_expressions_propagation(
     for_each_data_node_in_control_node(
             current_node,
             scp,
-            SSA_DATA_NODE_OPT_POST_ORDER | SSA_DATA_NODE_OPT_RECURSIVE,
+            SSA_DATA_NODE_OPT_POST_ORDER,
             rewrite_constant_expressions_propagation_consumer
     );
 }
@@ -465,7 +465,7 @@ static void rewrite_constant_expressions_initialization(
     for_each_data_node_in_control_node(
             current_node,
             scp,
-            SSA_DATA_NODE_OPT_POST_ORDER | SSA_DATA_NODE_OPT_RECURSIVE,
+            SSA_DATA_NODE_OPT_POST_ORDER,
             rewrite_constant_expressions_initialization_consumer
     );
 }

@@ -136,7 +136,7 @@ static void insert_ssa_versions_in_control_node(
     for_each_data_node_in_control_node(
             control_node,
             &consumer_struct,
-            SSA_DATA_NODE_OPT_POST_ORDER | SSA_DATA_NODE_OPT_RECURSIVE,
+            SSA_DATA_NODE_OPT_POST_ORDER,
             &insert_phis_in_data_node_consumer
     );
 
