@@ -1,24 +1,56 @@
 #include "copy_propagation.h"
 
+struct cp {
+    struct ssa_ir * ssa_ir;
+    struct stack_list pending;
+};
+
 static void replace_redudant_copy(struct ssa_ir *, struct ssa_control_define_ssa_name_node *, struct ssa_control_node *);
 static bool replace_redudant_copy_data_node(struct ssa_data_node *, void **, struct ssa_data_node *, void *);
+static struct cp * alloc_copy_propagation(struct ssa_ir *);
+static void free_copy_propagation(struct cp *);
+static void initialization(struct cp *);
+static void propagation(struct cp *);
 
 void perform_copy_propagation(struct ssa_ir * ssa_ir) {
-    struct u64_hash_table_iterator ssa_names_iterator;
-    init_u64_hash_table_iterator(&ssa_names_iterator, ssa_ir->ssa_definitions_by_ssa_name);
+    struct cp * copy_propagation = alloc_copy_propagation(ssa_ir);
 
-    while (has_next_u64_hash_table_iterator(ssa_names_iterator)) {
-        struct u64_hash_table_entry ssa_name_entry = next_u64_hash_table_iterator(&ssa_names_iterator);
-        struct ssa_control_define_ssa_name_node * ssa_name_definition = ssa_name_entry.value;
-        struct ssa_name ssa_name = CREATE_SSA_NAME_FROM_U64(ssa_name_entry.key);
+    initialization(copy_propagation);
+    propagation(copy_propagation);
 
-        struct u64_set * control_nodes_that_uses_ssa_name = get_u64_hash_table(&ssa_ir->node_uses_by_ssa_name, ssa_name.u16);
+    free_copy_propagation(copy_propagation);
+}
+
+static void propagation(struct cp * cp) {
+    while(!is_empty_stack_list(&cp->pending)) {
+        struct ssa_name current_ssa_name = CREATE_SSA_NAME_FROM_U64(pop_stack_list(&cp->pending));
+        struct ssa_control_define_ssa_name_node * current_ssa_name_definition = get_u64_hash_table(
+                &cp->ssa_ir->ssa_definitions_by_ssa_name, current_ssa_name.u16);
+
+        struct u64_set * control_nodes_that_uses_ssa_name = get_u64_hash_table(&cp->ssa_ir->node_uses_by_ssa_name, current_ssa_name.u16);
         if (size_u64_set((*control_nodes_that_uses_ssa_name)) == 1) {
             uint64_t control_node_that_uses_ssa_name_u64 = get_first_value_u64_set((*control_nodes_that_uses_ssa_name));
             struct ssa_control_node * control_node_that_uses_ssa_name = (struct ssa_control_node *) control_node_that_uses_ssa_name_u64;
 
-            replace_redudant_copy(ssa_ir, ssa_name_definition, control_node_that_uses_ssa_name);
+            replace_redudant_copy(cp->ssa_ir, current_ssa_name_definition, control_node_that_uses_ssa_name);
+            
+            if(control_node_that_uses_ssa_name->type == SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME){
+                push_stack_list(&cp->pending, (void *) GET_DEFINED_SSA_NAME(control_node_that_uses_ssa_name).u16);
+            }
         }
+    }
+}
+
+static void initialization(struct cp * cp) {
+    struct u64_hash_table_iterator ssa_names_iterator;
+    init_u64_hash_table_iterator(&ssa_names_iterator, cp->ssa_ir->ssa_definitions_by_ssa_name);
+
+    while (has_next_u64_hash_table_iterator(ssa_names_iterator)) {
+        struct u64_hash_table_entry ssa_name_entry = next_u64_hash_table_iterator(&ssa_names_iterator);
+        struct ssa_control_define_ssa_name_node *ssa_name_definition = ssa_name_entry.value;
+        struct ssa_name ssa_name = CREATE_SSA_NAME_FROM_U64(ssa_name_entry.key);
+
+        push_stack_list(&cp->pending, (void *) ssa_name.u16);
     }
 }
 
@@ -73,4 +105,16 @@ static bool replace_redudant_copy_data_node(
     }
 
     return true;
+}
+
+static struct cp * alloc_copy_propagation(struct ssa_ir * ssa_ir) {
+    struct cp * cp =  NATIVE_LOX_MALLOC(sizeof(struct ssa_ir));
+    cp->ssa_ir = ssa_ir;
+    init_stack_list(&cp->pending, NATIVE_LOX_ALLOCATOR());
+    return cp;
+}
+
+static void free_copy_propagation(struct cp * cp) {
+    free_stack_list(&cp->pending);
+    free(cp);
 }
