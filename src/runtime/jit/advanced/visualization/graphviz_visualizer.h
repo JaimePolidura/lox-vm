@@ -4,6 +4,7 @@
 #include "runtime/jit/advanced/optimizations/common_subexpression_elimination.h"
 #include "runtime/jit/advanced/optimizations/sparse_constant_propagation.h"
 #include "runtime/jit/advanced/optimizations/strength_reduction.h"
+#include "runtime/jit/advanced/optimizations/copy_propagation.h"
 
 #include "runtime/jit/advanced/creation/ssa_no_phis_creator.h"
 #include "runtime/jit/advanced/creation/ssa_phi_inserter.h"
@@ -23,6 +24,7 @@ typedef enum {
     COMMON_SUBEXPRESSION_ELIMINATION_PHASE_SSA_GRAPHVIZ,
     STRENGTH_REDUCTION_PHASE_SSA_GRAPHVIZ,
     LOOP_INVARIANT_CODE_MOTION_PHASE_SSA_GRAPHVIZ,
+    COPY_PROPAGATION_SSA_GRAPHVIZ,
     ALL_PHASE_SSA_GRAPHVIZ,
 } phase_ssa_graphviz_t;
 
