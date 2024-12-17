@@ -11,6 +11,7 @@ static struct cp * alloc_copy_propagation(struct ssa_ir *);
 static void free_copy_propagation(struct cp *);
 static void initialization(struct cp *);
 static void propagation(struct cp *);
+static bool can_be_replaced(struct ssa_control_define_ssa_name_node *, struct ssa_control_node *);
 
 void perform_copy_propagation(struct ssa_ir * ssa_ir) {
     struct cp * copy_propagation = alloc_copy_propagation(ssa_ir);
@@ -32,10 +33,12 @@ static void propagation(struct cp * cp) {
             uint64_t control_node_that_uses_ssa_name_u64 = get_first_value_u64_set((*control_nodes_that_uses_ssa_name));
             struct ssa_control_node * control_node_that_uses_ssa_name = (struct ssa_control_node *) control_node_that_uses_ssa_name_u64;
 
-            replace_redudant_copy(cp->ssa_ir, current_ssa_name_definition, control_node_that_uses_ssa_name);
-            
-            if(control_node_that_uses_ssa_name->type == SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME){
-                push_stack_list(&cp->pending, (void *) GET_DEFINED_SSA_NAME(control_node_that_uses_ssa_name).u16);
+            if(can_be_replaced(current_ssa_name_definition, control_node_that_uses_ssa_name)){
+                replace_redudant_copy(cp->ssa_ir, current_ssa_name_definition, control_node_that_uses_ssa_name);
+
+                if(control_node_that_uses_ssa_name->type == SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME){
+                    push_stack_list(&cp->pending, (void *) GET_DEFINED_SSA_NAME(control_node_that_uses_ssa_name).u16);
+                }
             }
         }
     }
@@ -52,6 +55,15 @@ static void initialization(struct cp * cp) {
 
         push_stack_list(&cp->pending, (void *) ssa_name.u16);
     }
+}
+
+//We wont replace names introdcued by loop invariant code motion optimization phase
+static bool can_be_replaced(
+        struct ssa_control_define_ssa_name_node * definition,
+        struct ssa_control_node * use
+) {
+    bool belongs_to_code_motion = definition->control.block->nested_loop_body > use->block->nested_loop_body;
+    return !belongs_to_code_motion;
 }
 
 struct replace_redudant_copy_struct {
