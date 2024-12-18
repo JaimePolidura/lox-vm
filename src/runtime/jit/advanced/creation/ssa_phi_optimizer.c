@@ -20,10 +20,12 @@ static bool optimize_phi_functions_consumer (
 static void remove_innecesary_phi_function(struct optimize_phi_functions_consumer_struct *, struct ssa_data_phi_node *, void ** parent_child_ptr);
 static void extract_phi_to_ssa_name(struct optimize_phi_functions_consumer_struct *, struct ssa_data_phi_node *, void ** parent_child_ptr);
 static uint8_t allocate_new_ssa_version(int local_number, struct phi_insertion_result *);
-static void add_ssa_name_uses_to_map(struct u64_hash_table * uses_by_ssa_node, struct ssa_control_node *);
 static void add_ssa_name_use(struct u64_hash_table * uses_by_ssa_node, struct ssa_name, struct ssa_control_node *);
 static void propagate_extracted_phi(struct arena_lox_allocator*, struct ssa_block*, struct ssa_control_node*,
         struct ssa_data_phi_node*, uint8_t extracted_version);
+static void fill_uses_by_ssa_node_hashtable(struct u64_hash_table *, struct ssa_block * start_block);
+static bool fill_uses_by_ssa_node_hashtable_block(struct ssa_block *, void *);
+static bool fill_uses_by_ssa_node_hashtable_data_node(struct ssa_data_node*, void**, struct ssa_data_node*, void*);
 
 static bool optimize_ssa_ir_phis_block(struct ssa_block *, void * extra);
 struct optimize_ssa_ir_phis_block_struct {
@@ -53,6 +55,8 @@ struct phi_optimization_result optimize_ssa_ir_phis(
             SSA_BLOCK_OPT_REPEATED,
             &optimize_ssa_ir_phis_block
     );
+
+    fill_uses_by_ssa_node_hashtable(&uses_by_ssa_node, start_block);
 
     return (struct phi_optimization_result) {
         .node_uses_by_ssa_name = uses_by_ssa_node,
@@ -102,8 +106,6 @@ static bool optimize_phi_functions_consumer(
             extract_phi_to_ssa_name(for_each_node_consumer_struct, (struct ssa_data_phi_node *) current_node, parent_child_ptr);
         }
     }
-
-    add_ssa_name_uses_to_map(for_each_node_consumer_struct->node_uses_by_ssa_name, for_each_node_consumer_struct->control_node);
 
     return true;
 }
@@ -270,46 +272,36 @@ static uint8_t allocate_new_ssa_version(int local_number, struct phi_insertion_r
     return new_version;
 }
 
-struct add_ssa_name_uses_to_map_consumer_struct {
-    struct u64_hash_table * uses_by_ssa_node;
-    struct ssa_control_node * control_node;
-};
-
-static bool add_ssa_name_uses_to_map_consumer(
-        struct ssa_data_node * __,
-        void ** _,
-        struct ssa_data_node * current_node,
-        void * extra
+static void fill_uses_by_ssa_node_hashtable(
+        struct u64_hash_table * uses_by_ssa_node,
+        struct ssa_block * start_block
 ) {
-    struct add_ssa_name_uses_to_map_consumer_struct * consumer_struct = extra;
+    for_each_ssa_block(
+            start_block,
+            NATIVE_LOX_ALLOCATOR(),
+            uses_by_ssa_node,
+            SSA_BLOCK_OPT_NOT_REPEATED,
+            fill_uses_by_ssa_node_hashtable_block
+    );
+}
 
-    if (current_node->type == SSA_DATA_NODE_TYPE_PHI) {
-        FOR_EACH_VERSION_IN_PHI_NODE((struct ssa_data_phi_node *) current_node, ssa_name) {
-            add_ssa_name_use(consumer_struct->uses_by_ssa_node, ssa_name, consumer_struct->control_node);
+static bool fill_uses_by_ssa_node_hashtable_block(struct ssa_block * block, void * extra) {
+    struct u64_hash_table * uses_by_ssa_node = extra;
+    for(struct ssa_control_node * current = block->first;;current = current->next){
+        struct u64_set used_ssa_names = get_used_ssa_names_ssa_control_node(current, NATIVE_LOX_ALLOCATOR());
+
+        FOR_EACH_U64_SET_VALUE(used_ssa_names, current_used_ssa_name_in_control_node_u64) {
+            struct ssa_name current_used_ssa_name_in_control_node = CREATE_SSA_NAME_FROM_U64(current_used_ssa_name_in_control_node_u64);
+
+            add_ssa_name_use(uses_by_ssa_node, current_used_ssa_name_in_control_node, current);
         }
-    } else if(current_node->type == SSA_DATA_NODE_TYPE_GET_SSA_NAME) {
-        struct ssa_data_get_ssa_name_node * get_name = (struct ssa_data_get_ssa_name_node *) current_node;
-        add_ssa_name_use(consumer_struct->uses_by_ssa_node, get_name->ssa_name, consumer_struct->control_node);
+
+        if(current == block->last){
+            break;
+        }
     }
 
     return true;
-}
-
-static void add_ssa_name_uses_to_map(
-        struct u64_hash_table * uses_by_ssa_node,
-        struct ssa_control_node * control_node
-) {
-    struct add_ssa_name_uses_to_map_consumer_struct consumer_struct = (struct add_ssa_name_uses_to_map_consumer_struct) {
-        .uses_by_ssa_node = uses_by_ssa_node,
-        .control_node = control_node,
-    };
-
-    for_each_data_node_in_control_node(
-            control_node,
-            &consumer_struct,
-            SSA_DATA_NODE_OPT_POST_ORDER,
-            add_ssa_name_uses_to_map_consumer
-    );
 }
 
 static void add_ssa_name_use(

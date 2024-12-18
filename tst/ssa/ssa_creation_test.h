@@ -32,7 +32,7 @@ TEST(ssa_creation_cp) {
     generate_ssa_graphviz_graph(
             package,
             function_ssa,
-            COPY_PROPAGATION_SSA_GRAPHVIZ,
+            COPY_PROPAGATION_PHASE_SSA_GRAPHVIZ,
             DEFAULT_GRAPHVIZ_OPT,
             SSA_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"

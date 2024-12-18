@@ -12,7 +12,7 @@ static void free_copy_propagation(struct cp *);
 static void initialization(struct cp *);
 static void propagation(struct cp *);
 static bool can_be_replaced(struct ssa_control_define_ssa_name_node *, struct ssa_control_node *);
-static void remove_unused_ssa_name_definitino(struct cp *cp, struct ssa_control_define_ssa_name_node *definitino_to_remove);
+static void remove_unused_ssa_name_definition(struct cp *cp, struct ssa_control_define_ssa_name_node *definition_to_remove);
 
 void perform_copy_propagation(struct ssa_ir * ssa_ir) {
     struct cp * copy_propagation = alloc_copy_propagation(ssa_ir);
@@ -31,7 +31,7 @@ static void propagation(struct cp * cp) {
         struct u64_set * control_nodes_that_uses_ssa_name = get_u64_hash_table(&cp->ssa_ir->node_uses_by_ssa_name, current_ssa_name.u16);
 
         if (control_nodes_that_uses_ssa_name == NULL || size_u64_set((*control_nodes_that_uses_ssa_name)) == 0) {
-            remove_unused_ssa_name_definitino(cp, current_ssa_name_definition);
+            remove_unused_ssa_name_definition(cp, current_ssa_name_definition);
 
         } else if (size_u64_set((*control_nodes_that_uses_ssa_name)) == 1) {
             uint64_t control_node_that_uses_ssa_name_u64 = get_first_value_u64_set((*control_nodes_that_uses_ssa_name));
@@ -65,12 +65,14 @@ static void initialization(struct cp * cp) {
     }
 }
 
-static void remove_unused_ssa_name_definitino(struct cp * cp, struct ssa_control_define_ssa_name_node * definition_to_remove) {
+static void remove_unused_ssa_name_definition(struct cp * cp, struct ssa_control_define_ssa_name_node * definition_to_remove) {
     remove_u64_hash_table(&cp->ssa_ir->ssa_definitions_by_ssa_name, definition_to_remove->ssa_name.u16);
     remove_control_node_ssa_block(definition_to_remove->control.block, &definition_to_remove->control);
 
     struct u64_set used_ssa_names_in_definition = get_used_ssa_names_ssa_data_node(definition_to_remove->value, NATIVE_LOX_ALLOCATOR());
     FOR_EACH_U64_SET_VALUE(used_ssa_names_in_definition, used_ssa_name_in_definition_u64) {
+        struct ssa_name name = CREATE_SSA_NAME_FROM_U64(used_ssa_name_in_definition_u64);
+
         remove_u64_set(
                 get_u64_hash_table(&cp->ssa_ir->node_uses_by_ssa_name, used_ssa_name_in_definition_u64),
                 (uint64_t) &definition_to_remove->control

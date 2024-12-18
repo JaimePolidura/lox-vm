@@ -53,6 +53,7 @@ void * allocate_ssa_data_node(ssa_data_node_type type, size_t struct_size_bytes,
 void free_ssa_data_node(struct ssa_data_node *);
 
 enum {
+    SSA_DATA_NODE_OPT_ANY_ORDER = 1 << 0,
     SSA_DATA_NODE_OPT_POST_ORDER = 1 << 0,
     SSA_DATA_NODE_OPT_PRE_ORDER = 1 << 3,
     SSA_DATA_NODE_OPT_NOT_TERMINATORS = 1 << 4, //AKA Don't scan leafs. Disabled by default
@@ -201,7 +202,7 @@ struct ssa_name {
     };
 };
 
-#define FOR_EACH_VERSION_IN_PHI_NODE(phi_node, current_name) \
+#define FOR_EACH_SSA_NAME_IN_PHI_NODE(phi_node, current_name) \
     struct u64_set_iterator iterator##current_name; \
     init_u64_set_iterator(&iterator##current_name, (phi_node)->ssa_versions); \
     struct ssa_name current_name = has_next_u64_set_iterator(iterator##current_name) ? \

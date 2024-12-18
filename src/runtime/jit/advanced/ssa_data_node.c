@@ -57,10 +57,16 @@ bool get_used_ssa_names_ssa_data_node_consumer(
         struct ssa_data_node * data_node,
         void * extra
 ) {
+    struct u64_set * used_ssa_names = extra;
+
     if (data_node->type == SSA_DATA_NODE_TYPE_GET_SSA_NAME) {
         struct ssa_data_get_ssa_name_node * get_ssa_name = (struct ssa_data_get_ssa_name_node *) data_node;
-        struct u64_set * used_ssa_names = extra;
         add_u64_set(used_ssa_names, get_ssa_name->ssa_name.u16);
+    }
+    if(data_node->type == SSA_DATA_NODE_TYPE_PHI){
+        FOR_EACH_SSA_NAME_IN_PHI_NODE((struct ssa_data_phi_node *) data_node, current_phi_ssa_name) {
+            add_u64_set(used_ssa_names, current_phi_ssa_name.u16);
+        }
     }
 
     return true;
@@ -77,8 +83,6 @@ struct u64_set get_used_ssa_names_ssa_data_node(struct ssa_data_node * data_node
             SSA_DATA_NODE_OPT_POST_ORDER,
             get_used_ssa_names_ssa_data_node_consumer
     );
-
-    free_u64_set(&used_ssa_names);
 
     return used_ssa_names;
 }
@@ -443,7 +447,7 @@ uint64_t hash_ssa_data_node(struct ssa_data_node * node) {
         }
         case SSA_DATA_NODE_TYPE_PHI: {
             uint64_t hash = 0;
-            FOR_EACH_VERSION_IN_PHI_NODE((struct ssa_data_phi_node *) node, current_ssa_name) {
+            FOR_EACH_SSA_NAME_IN_PHI_NODE((struct ssa_data_phi_node *) node, current_ssa_name) {
                 hash = mix_hash_commutative(hash, current_ssa_name.u16);
             }
             return hash;

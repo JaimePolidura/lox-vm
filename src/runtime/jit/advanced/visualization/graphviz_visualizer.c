@@ -148,7 +148,7 @@ void generate_ssa_graphviz_graph(
             generate_graph_and_write(&graphviz_visualizer, ssa_ir.first_block);
             break;
         }
-        case COPY_PROPAGATION_SSA_GRAPHVIZ: {
+        case COPY_PROPAGATION_PHASE_SSA_GRAPHVIZ: {
             struct ssa_ir ssa_ir = create_ssa_ir(package, function, create_bytecode_list(function->chunk,
                     &ssa_node_allocator.lox_allocator), graphviz_visualizer.ssa_options);
             perform_copy_propagation(&ssa_ir);
@@ -515,7 +515,7 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             append_string_builder(&node_desc_string_builder, "Phi ");
             append_string_builder(&node_desc_string_builder, local_name);
             append_string_builder(&node_desc_string_builder, "(");
-            FOR_EACH_VERSION_IN_PHI_NODE(phi, current_version) {
+            FOR_EACH_SSA_NAME_IN_PHI_NODE(phi, current_version) {
                 char * to_append = dynamic_format_string("%i", current_version.value.version);
                 append_string_builder(&node_desc_string_builder, to_append);
                 append_string_builder(&node_desc_string_builder, ", ");

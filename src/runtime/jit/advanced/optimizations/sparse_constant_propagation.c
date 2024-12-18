@@ -599,7 +599,7 @@ static struct semilattice_value * get_semilattice_phi(
     struct u64_set final_values;
     init_u64_set(&final_values, GET_SCP_ALLOCATOR(scp));
 
-    FOR_EACH_VERSION_IN_PHI_NODE(phi_node, current_name) {
+    FOR_EACH_SSA_NAME_IN_PHI_NODE(phi_node, current_name) {
         struct semilattice_value * current_semilatice = get_semillatice_by_ssa_name(scp, current_name);
 
         union_u64_set(&final_values, current_semilatice->values);

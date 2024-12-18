@@ -79,3 +79,35 @@ void for_each_data_node_in_control_node(
             break;
     }
 }
+
+static bool get_used_ssa_names_ssa_control_node_consumer(
+        struct ssa_data_node * __,
+        void ** _,
+        struct ssa_data_node * current_data_node,
+        void * extra
+) {
+    struct u64_set * used_ssa_names = extra;
+    struct u64_set used_ssa_names_in_current_data_node = get_used_ssa_names_ssa_data_node(
+            current_data_node, NATIVE_LOX_ALLOCATOR()
+    );
+    union_u64_set(used_ssa_names, used_ssa_names_in_current_data_node);
+    free_u64_set(&used_ssa_names_in_current_data_node);
+
+    //Don't keep scanning from this node, because we have already scanned al sub datanodes
+    //in get_used_ssa_names_ssa_data_node()
+    return false;
+}
+
+struct u64_set get_used_ssa_names_ssa_control_node(struct ssa_control_node * control_node, struct lox_allocator * allocator) {
+    struct u64_set used_ssa_names;
+    init_u64_set(&used_ssa_names, allocator);
+
+    for_each_data_node_in_control_node(
+            control_node,
+            &used_ssa_names,
+            SSA_DATA_NODE_OPT_PRE_ORDER,
+            &get_used_ssa_names_ssa_control_node_consumer
+    );
+
+    return used_ssa_names;
+}
