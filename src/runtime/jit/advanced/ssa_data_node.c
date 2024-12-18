@@ -22,7 +22,6 @@ void * allocate_ssa_data_node(
 ) {
     struct ssa_data_node * ssa_control_node = LOX_MALLOC(allocator, struct_size_bytes);
     memset(ssa_control_node, 0, struct_size_bytes);
-    ssa_control_node->produced_type = PROFILE_DATA_TYPE_ANY;
     ssa_control_node->original_bytecode = bytecode;
     ssa_control_node->type = type;
     return ssa_control_node;
@@ -45,8 +44,6 @@ bool is_terminator_ssa_data_node(struct ssa_data_node * node) {
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT:
         case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY:
         case SSA_DATA_NODE_TYPE_GET_ARRAY_LENGTH:
-        case SSA_DATA_NODE_UNBOX:
-        case SSA_DATA_NODE_BOX:
             return false;
     }
 }
@@ -362,28 +359,23 @@ struct ssa_data_constant_node * create_ssa_const_node(
     switch (get_lox_type(constant_value)) {
         case VAL_BOOL: {
             constant_node->value_as.boolean = AS_BOOL(constant_value);
-            constant_node->data.produced_type = PROFILE_DATA_TYPE_BOOLEAN;
             break;
         }
         case VAL_NIL: {
             constant_node->value_as.nil = NULL;
-            constant_node->data.produced_type = PROFILE_DATA_TYPE_NIL;
             break;
         }
         case VAL_NUMBER: {
             if(has_decimals(AS_NUMBER(constant_value))){
                 constant_node->value_as.f64 = AS_NUMBER(constant_value);
-                constant_node->data.produced_type = PROFILE_DATA_TYPE_F64;
             } else {
                 constant_node->value_as.i64 = (int64_t) constant_value;
-                constant_node->data.produced_type = PROFILE_DATA_TYPE_I64;
             }
             break;
         }
         case VAL_OBJ: {
             if(IS_STRING(constant_value)){
                 constant_node->value_as.string = AS_STRING_OBJECT(constant_value);
-                constant_node->data.produced_type = PROFILE_DATA_TYPE_STRING;
             } else {
                 constant_node->value_as.object = AS_OBJECT(constant_value);
             }

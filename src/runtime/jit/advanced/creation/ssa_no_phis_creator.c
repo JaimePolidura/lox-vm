@@ -224,7 +224,6 @@ static void binary(struct ssa_no_phis_inserter * inserter, struct pending_evalua
     );
     struct ssa_data_node * right = pop_stack_list(&inserter->data_nodes_stack);
     struct ssa_data_node * left = pop_stack_list(&inserter->data_nodes_stack);
-    binaryt_node->data.produced_type = PROFILE_DATA_TYPE_BOOLEAN;
     binaryt_node->operand = to_evaluate->pending_bytecode->bytecode;
     binaryt_node->right = right;
     binaryt_node->left = left;
@@ -239,7 +238,6 @@ static void unary(struct ssa_no_phis_inserter * inserter, struct pending_evaluat
     );
     unary_node->operator_type = to_evaluate->pending_bytecode->bytecode == OP_NEGATE ? UNARY_OPERATION_TYPE_NEGATION : UNARY_OPERATION_TYPE_NOT;
     unary_node->operand = pop_stack_list(&inserter->data_nodes_stack);
-    unary_node->data.produced_type = unary_node->operand->produced_type;
 
     push_stack_list(&inserter->data_nodes_stack, unary_node);
     push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
@@ -251,8 +249,6 @@ static void get_array_element(struct ssa_no_phis_inserter * inserter, struct pen
     );
     get_array_element_node->instance = pop_stack_list(&inserter->data_nodes_stack);
     get_array_element_node->index = pop_stack_list(&inserter->data_nodes_stack);
-
-    get_array_element_node->data.produced_type = PROFILE_DATA_TYPE_ANY;
 
     push_stack_list(&inserter->data_nodes_stack, get_array_element_node);
     push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
@@ -266,7 +262,6 @@ static void get_struct_field(
     struct ssa_data_get_struct_field_node * get_struct_field_node = ALLOC_SSA_DATA_NODE(
             SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD, struct ssa_data_get_struct_field_node, to_evaluate->pending_bytecode, GET_SSA_NODES_ALLOCATOR(inserter)
     );
-    get_struct_field_node->data.produced_type = PROFILE_DATA_TYPE_ANY;
     get_struct_field_node->instance_node = pop_stack_list(&inserter->data_nodes_stack);
     get_struct_field_node->field_name = AS_STRING_OBJECT(READ_CONSTANT(function, to_evaluate->pending_bytecode));
 
@@ -330,7 +325,6 @@ static void get_global(
         struct ssa_data_get_global_node * get_global_node = ALLOC_SSA_DATA_NODE(
                 SSA_DATA_NODE_TYPE_GET_GLOBAL, struct ssa_data_get_global_node, to_evaluate->pending_bytecode, GET_SSA_NODES_ALLOCATOR(inserter)
         );
-        get_global_node->data.produced_type = PROFILE_DATA_TYPE_ANY;
         get_global_node->package = global_variable_package;
         get_global_node->name = global_variable_name;
 
@@ -371,7 +365,8 @@ static void call(struct ssa_no_phis_inserter * inserter, struct pending_evaluate
     //Add guard, if the returned value type has a profiled data
     struct function_call_profile function_call_profile = get_instruction_profile_data(inserter, to_evaluate->pending_bytecode).as.function_call;
     profile_data_type_t returned_value_type_profile = get_type_by_type_profile_data(function_call_profile.returned_type_profile);
-    if (returned_value_type_profile != PROFILE_DATA_TYPE_ANY && returned_value_type_profile != PROFILE_DATA_TYPE_NIL) {
+    if (returned_value_type_profile != PROFILE_DATA_TYPE_ANY &&
+        returned_value_type_profile != PROFILE_DATA_TYPE_NIL) {
         struct ssa_data_guard_node * guard_node = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_GUARD, struct ssa_data_guard_node, NULL,
                                                                       GET_SSA_NODES_ALLOCATOR(inserter));
         guard_node->guard.value_to_compare = returned_value_type_profile;
@@ -683,7 +678,7 @@ static void jump_if_false(struct ssa_no_phis_inserter * inserter, struct pending
 
         struct ssa_control_guard_node * guard_node = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_GUARD, struct ssa_control_guard_node,
                 to_evalute->block, GET_SSA_NODES_ALLOCATOR(inserter));
-        guard_node->guard.value_to_compare = can_discard_true_branch(inserter, to_evalute->pending_bytecode) ? TRUE_VALUE : FALSE_VALUE;
+        guard_node->guard.value_to_compare = can_discard_true_branch(inserter, to_evalute->pending_bytecode);
         guard_node->guard.type = SSA_GUARD_VALUE_CHECK;
         guard_node->guard.value = condition;
 
@@ -873,9 +868,7 @@ static struct instruction_profile_data get_instruction_profile_data(
         struct ssa_no_phis_inserter * inserter,
         struct bytecode_list * bytecode
 ) {
-    struct function_profile_data function_profile = inserter->function->state_as.profiling.profile_data;
-    int instruction_index = bytecode->original_chunk_index;
-    return function_profile.profile_by_instruction_index[instruction_index];
+    return get_instruction_profile_data_function(inserter->function, bytecode);
 }
 
 static struct object * get_function(struct ssa_no_phis_inserter * inserter, struct ssa_data_node * function_data_node) {

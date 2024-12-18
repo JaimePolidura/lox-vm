@@ -10,6 +10,7 @@
 #include "runtime/profiler/profile_data.h"
 #include "runtime/threads/monitor.h"
 
+#include "compiler/bytecode/bytecode_list.h"
 #include "compiler/bytecode/chunk/chunk.h"
 
 #define MAX_MONITORS_PER_FUNCTION 8
@@ -59,3 +60,4 @@ struct function_object {
 };
 
 struct function_object * alloc_function();
+struct instruction_profile_data get_instruction_profile_data_function(struct function_object*, struct bytecode_list*);

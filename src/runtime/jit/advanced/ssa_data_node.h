@@ -12,6 +12,7 @@
 #include "shared.h"
 
 #include "runtime/jit/advanced/ssa_guard.h"
+#include "runtime/jit/advanced/ssa_type.h"
 #include "runtime/profiler/profile_data.h"
 
 //Data flow nodes used in SSA IR
@@ -32,9 +33,6 @@ typedef enum {
     //It will replace all the nodes with type SSA_DATA_NODE_TYPE_GET_LOCAL in the phi insertion proceess
     SSA_DATA_NODE_TYPE_PHI,
     SSA_DATA_NODE_TYPE_GET_SSA_NAME,
-
-    SSA_DATA_NODE_UNBOX,
-    SSA_DATA_NODE_BOX,
 } ssa_data_node_type;
 
 #define ALLOC_SSA_DATA_NODE(type, struct_type, bytecode, allocator) (struct_type *) allocate_ssa_data_node(type, sizeof(struct_type), bytecode, allocator)
@@ -44,7 +42,7 @@ typedef enum {
 //Represents expressions in CFG
 struct ssa_data_node {
     struct bytecode_list * original_bytecode;
-    profile_data_type_t produced_type;
+    struct ssa_type produced_type; //Added in type_annalysis optimization process
     ssa_data_node_type type;
 };
 

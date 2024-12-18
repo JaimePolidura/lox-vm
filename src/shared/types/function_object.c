@@ -17,3 +17,10 @@ struct function_object * alloc_function() {
 
     return function_object;
 }
+
+struct instruction_profile_data get_instruction_profile_data_function(
+        struct function_object * function,
+        struct bytecode_list * bytecode
+) {
+    return function->state_as.profiling.profile_data.profile_by_instruction_index[bytecode->original_chunk_index];
+}
