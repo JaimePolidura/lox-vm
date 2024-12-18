@@ -155,7 +155,6 @@ void generate_ssa_graphviz_graph(
             graphviz_visualizer.ssa_ir = ssa_ir;
 
             generate_graph_and_write(&graphviz_visualizer, ssa_ir.first_block);
-
             break;
         }
         case ALL_PHASE_SSA_GRAPHVIZ: {

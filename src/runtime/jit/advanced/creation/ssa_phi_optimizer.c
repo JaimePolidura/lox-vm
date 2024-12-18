@@ -62,7 +62,7 @@ struct phi_optimization_result optimize_ssa_ir_phis(
 static bool optimize_ssa_ir_phis_block(struct ssa_block * current_block, void * extra) {
     struct optimize_ssa_ir_phis_block_struct * consumer_struct = extra;
 
-    for(struct ssa_control_node * current = current_block->first;; current = current->next) {
+    for (struct ssa_control_node * current = current_block->first;; current = current->next) {
         struct optimize_phi_functions_consumer_struct for_each_node_struct = (struct optimize_phi_functions_consumer_struct) {
                 .phi_insertion_result = consumer_struct->phi_insertion_result,
                 .ssa_nodes_allocator = consumer_struct->ssa_nodes_allocator,
