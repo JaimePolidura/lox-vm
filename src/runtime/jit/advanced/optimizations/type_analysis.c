@@ -11,12 +11,20 @@ static void free_type_analysis(struct ta *);
 static void perform_type_analysis_block(struct ta *, struct ssa_block *);
 static void perform_type_analysis_control(struct ta * ta, struct ssa_control_node *);
 static bool perform_type_analysis_data(struct ssa_data_node*, void**, struct ssa_data_node*, void*);
-static struct ssa_type perform_type_analysis_data_recursive(struct ta *, struct ssa_data_node *);
+static struct ssa_type * get_type_data_node_recursive(struct ta *ta, struct ssa_data_node *node);
+static void add_argument_types(struct ta *);
+static struct ssa_data_node * create_unbox_node(struct ta *ta, struct ssa_data_node *to_unbox);
+static struct ssa_data_node * create_box_node(struct ta *ta, struct ssa_data_node *to_box);
+static ssa_type_t binary_to_ssa_type(bytecode_t, ssa_type_t, ssa_type_t);
+static struct ssa_type * union_type(struct ta *, struct ssa_type *, struct ssa_type *);
+static struct ssa_type * union_struct_types(struct ta *, struct ssa_type *, struct ssa_type *);
 
 extern void runtime_panic(char * format, ...);
 
 void perform_type_analysis(struct ssa_ir * ssa_ir) {
     struct ta * ta = alloc_type_analysis(ssa_ir);
+
+    add_argument_types(ta);
 
     struct stack_list pending_blocks;
     init_stack_list(&pending_blocks, &ta->ta_allocator.lox_allocator);
@@ -61,58 +69,149 @@ static bool perform_type_analysis_data(
         void * extra
 ) {
     struct ta * ta = extra;
-    data_node->produced_type = perform_type_analysis_data_recursive(ta, data_node);
+    data_node->produced_type = get_type_data_node_recursive(ta, data_node);
     return false;
 }
 
-static struct ssa_type perform_type_analysis_data_recursive(struct ta * ta, struct ssa_data_node * data_node) {
-    switch (data_node->type) {
+static struct ssa_type * get_type_data_node_recursive(struct ta * ta, struct ssa_data_node * node) {
+    switch (node->type) {
+        case SSA_DATA_NODE_TYPE_CONSTANT: {
+            struct ssa_data_constant_node * constant = (struct ssa_data_constant_node *) node;
+            profile_data_type_t type = lox_value_to_profile_type(constant->constant_lox_value);
+            return CREATE_SSA_TYPE(profiled_type_to_ssa_type(type), SSA_IR_ALLOCATOR(ta->ssa_ir));
+        }
+        case SSA_DATA_NODE_TYPE_GET_GLOBAL: {
+            return CREATE_SSA_TYPE(SSA_TYPE_LOX_ANY, SSA_IR_ALLOCATOR(ta->ssa_ir));
+        }
+        case SSA_DATA_NODE_TYPE_GET_ARRAY_LENGTH: {
+            return CREATE_SSA_TYPE(SSA_TYPE_LOX_I64, SSA_IR_ALLOCATOR(ta->ssa_ir));
+        }
+        case SSA_DATA_NODE_TYPE_UNARY: {
+            struct ssa_data_unary_node * unary = (struct ssa_data_unary_node *) node;
+            struct ssa_type * unary_operand_type = get_type_data_node_recursive(ta, unary->operand);
+            unary->operand->produced_type = unary_operand_type;
+            return unary_operand_type;
+        }
+        case SSA_DATA_NODE_TYPE_GET_SSA_NAME: {
+            struct ssa_data_get_ssa_name_node * get_ssa_name = (struct ssa_data_get_ssa_name_node *) node;
+            return get_u64_hash_table(&ta->ssa_type_by_ssa_name, get_ssa_name->ssa_name.u16);
+        }
         case SSA_DATA_NODE_TYPE_CALL: {
-            struct ssa_data_function_call_node * call = (struct ssa_data_function_call_node *) data_node;
+            struct ssa_data_function_call_node * call = (struct ssa_data_function_call_node *) node;
             for(int i = 0; i < call->n_arguments; i++){
-                call->arguments[i]->produced_type = perform_type_analysis_data_recursive(ta, call->arguments[i]);
+                call->arguments[i]->produced_type = get_type_data_node_recursive(ta, call->arguments[i]);
             }
+            profile_data_type_t returned_type;
             if(!call->is_native) {
                 struct instruction_profile_data instruction_profile_data = get_instruction_profile_data_function(
-                        ta->ssa_ir->function, data_node->original_bytecode);
+                        ta->ssa_ir->function, node->original_bytecode);
                 struct function_call_profile function_call_profile = instruction_profile_data.as.function_call;
-                profile_data_type_t returned_type_profile = get_type_by_type_profile_data(function_call_profile.returned_type_profile);
-                return CREATE_SSA_TYPE(returned_type_profile);
+                returned_type = get_type_by_type_profile_data(function_call_profile.returned_type_profile);
             } else {
-                return CREATE_SSA_TYPE(call->native_function->returned_type);
+                returned_type = call->native_function->returned_type;
             }
-        }
-            break;
-        case SSA_DATA_NODE_TYPE_GET_GLOBAL: {
-            return CREATE_SSA_TYPE(PROFILE_DATA_TYPE_ANY);
+
+            return CREATE_SSA_TYPE(profiled_type_to_ssa_type(returned_type), SSA_IR_ALLOCATOR(ta->ssa_ir));
         }
         case SSA_DATA_NODE_TYPE_BINARY: {
+            struct ssa_data_binary_node * binary = (struct ssa_data_binary_node *) node;
+            struct ssa_type * right_type = get_type_data_node_recursive(ta, binary->right);
+            struct ssa_type * left_type = get_type_data_node_recursive(ta, binary->left);
+            bool some_any = right_type->type == SSA_TYPE_LOX_ANY || left_type->type == SSA_TYPE_LOX_ANY;
+
+            if (!some_any && IS_LOX_SSA_TYPE(right_type->type)) {
+                right_type = CREATE_SSA_TYPE(lox_type_to_native_ssa_type(right_type->type), SSA_IR_ALLOCATOR(ta->ssa_ir));
+                binary->right = create_unbox_node(ta, binary->right);
+            }
+            if (!some_any && IS_LOX_SSA_TYPE(left_type->type)) {
+                left_type = CREATE_SSA_TYPE(lox_type_to_native_ssa_type(left_type->type), SSA_IR_ALLOCATOR(ta->ssa_ir));
+                binary->left = create_unbox_node(ta, binary->left);
+            }
+            if (some_any && IS_NATIVE_SSA_TYPE(left_type->type)) {
+                left_type = CREATE_SSA_TYPE(native_type_to_lox_ssa_type(left_type->type), SSA_IR_ALLOCATOR(ta->ssa_ir));
+                binary->left = create_box_node(ta, binary->left);
+            }
+            if (some_any && IS_NATIVE_SSA_TYPE(right_type->type)) {
+                right_type = CREATE_SSA_TYPE(native_type_to_lox_ssa_type(right_type->type), SSA_IR_ALLOCATOR(ta->ssa_ir));
+                binary->right = create_box_node(ta, binary->right);
+            }
+
+            binary->right->produced_type = right_type;
+            binary->left->produced_type = left_type;
+            ssa_type_t produced_type = binary_to_ssa_type(binary->operator, left_type->type, right_type->type);
+
+            return CREATE_SSA_TYPE(produced_type, SSA_IR_ALLOCATOR(ta->ssa_ir));
+        }
+        case SSA_DATA_NODE_TYPE_GUARD: {
+            struct ssa_data_guard_node * guard = (struct ssa_data_guard_node *) node;
+            switch (guard->guard.type) {
+                case SSA_GUARD_TYPE_CHECK: {
+                    profile_data_type_t guard_type = guard->guard.value_to_compare.type;
+                    return CREATE_SSA_TYPE(profiled_type_to_ssa_type(guard_type), SSA_IR_ALLOCATOR(ta->ssa_ir));
+                }
+                case SSA_GUARD_STRUCT_DEFINITION_TYPE_CHECK: {
+                    return get_type_data_node_recursive(ta, guard->guard.value);
+                }
+                case SSA_GUARD_BOOLEAN_CHECK: {
+                    return CREATE_SSA_TYPE(SSA_TYPE_NATIVE_BOOLEAN, SSA_IR_ALLOCATOR(ta->ssa_ir));
+                }
+            }
             break;
         }
-        case SSA_DATA_NODE_TYPE_CONSTANT: {
-            break;
+        case SSA_DATA_NODE_TYPE_PHI: {
+            struct ssa_data_phi_node * phi = (struct ssa_data_phi_node *) node;
+            struct ssa_type * phi_type_result = NULL;
+
+            FOR_EACH_SSA_NAME_IN_PHI_NODE(phi, current_ssa_name) {
+                struct ssa_type * type_current_ssa_name = get_u64_hash_table(&ta->ssa_type_by_ssa_name, current_ssa_name.u16);
+
+                if (phi_type_result == NULL) {
+                    phi_type_result = type_current_ssa_name;
+                } else {
+                    phi_type_result = union_type(ta, phi_type_result, type_current_ssa_name);
+                }
+            }
         }
-        case SSA_DATA_NODE_TYPE_UNARY:
-            break;
+        case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT: {
+            struct ssa_data_initialize_struct_node * init_struct = (struct ssa_data_initialize_struct_node *) node;
+            struct ssa_type * ssa_type = CREATE_INITIALIZE_STRUCT_SSA_TYPE(init_struct->definition,
+                    SSA_IR_ALLOCATOR(ta->ssa_ir));
+
+            for(int i = 0; i < init_struct->definition->n_fields; i++) {
+                struct ssa_data_node * field_node_arg = init_struct->fields_nodes[i];
+                struct ssa_type * field_node_type = get_type_data_node_recursive(ta, field_node_arg);
+                field_node_arg->produced_type = field_node_type;
+                struct string_object * field_name = init_struct->definition->field_names[i];
+
+                put_u64_hash_table(&ssa_type->value.struct_instance->type_by_field_name, (uint64_t) field_name->chars,
+                                   field_node_type);
+            }
+
+            return ssa_type;
+        }
         case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD:
-            break;
-        case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT:
             break;
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT:
             break;
         case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY:
             break;
-        case SSA_DATA_NODE_TYPE_GET_ARRAY_LENGTH:
-            break;
-        case SSA_DATA_NODE_TYPE_GUARD:
-            break;
-        case SSA_DATA_NODE_TYPE_PHI:
-            break;
-        case SSA_DATA_NODE_TYPE_GET_SSA_NAME:
-            break;
 
         case SSA_DATA_NODE_TYPE_GET_LOCAL:
             runtime_panic("Illegal code path");
+    }
+}
+
+//This function will insert box/unbox nodes in the definitinos of the ssa node
+static struct ssa_type * union_type(struct ta * ta, struct ssa_type * a, struct ssa_type * b) {
+    if(a->type == b->type){
+        //Different struct instances
+        if(IS_STRUCT_INSTANCE_SSA_TYPE(a->type) &&
+            a->value.struct_instance->definition == b->value.struct_instance->definition &&
+            a->value.struct_instance != b->value.struct_instance) {
+            return union_struct_types(ta, a, b);
+        }
+
+        return a;
     }
 }
 
@@ -129,4 +228,96 @@ static struct ta * alloc_type_analysis(struct ssa_ir * ssa_ir) {
 static void free_type_analysis(struct ta * ta) {
     free_arena(&ta->ta_allocator.arena);
     NATIVE_LOX_FREE(ta);
+}
+
+static void add_argument_types(struct ta * ta) {
+    struct function_object * function = ta->ssa_ir->function;
+
+    for(int i = 1; i < ta->ssa_ir->function->n_arguments + 1; i++){
+        profile_data_type_t profiled_type = get_function_argument_profiled_type(function, i);
+        struct ssa_name function_arg_ssa_name = CREATE_SSA_NAME(i, 0);
+        struct ssa_type * function_arg_type = CREATE_SSA_TYPE(profiled_type_to_ssa_type(profiled_type),
+                SSA_IR_ALLOCATOR(ta->ssa_ir));
+
+        put_u64_hash_table(&ta->ssa_type_by_ssa_name, function_arg_ssa_name.u16, function_arg_type);
+    }
+}
+
+static struct ssa_data_node * create_unbox_node(struct ta * ta, struct ssa_data_node * to_unbox) {
+    struct ssa_data_node_unbox * unbox_node = ALLOC_SSA_DATA_NODE(
+            SSA_DATA_NODE_TYPE_UNBOX, struct ssa_data_node_unbox, NULL, SSA_IR_ALLOCATOR(ta->ssa_ir)
+    );
+    unbox_node->to_unbox = to_unbox;
+    return &unbox_node->data;
+}
+
+static struct ssa_data_node * create_box_node(struct ta * ta, struct ssa_data_node * to_box) {
+    struct ssa_data_node_box * box_node = ALLOC_SSA_DATA_NODE(
+            SSA_DATA_NODE_TYPE_BOX, struct ssa_data_node_box, NULL, SSA_IR_ALLOCATOR(ta->ssa_ir)
+    );
+    box_node->to_box = to_box;
+    return &box_node->data;
+}
+
+//Expect left & right to be both of them lox or native
+ssa_type_t binary_to_ssa_type(bytecode_t operator, ssa_type_t left, ssa_type_t right) {
+    if(left == right){
+        return left;
+    }
+
+    bool is_native = IS_NATIVE_SSA_TYPE(left);
+
+    switch (operator) {
+        case OP_GREATER:
+        case OP_EQUAL:
+        case OP_LESS: {
+            return is_native ? SSA_TYPE_NATIVE_BOOLEAN : SSA_TYPE_LOX_BOOLEAN;
+        }
+        case OP_BINARY_OP_AND:
+        case OP_BINARY_OP_OR:
+        case OP_LEFT_SHIFT:
+        case OP_RIGHT_SHIFT:
+        case OP_MODULO: {
+            return is_native ? SSA_TYPE_NATIVE_I64 : SSA_TYPE_LOX_I64;
+        }
+        case OP_ADD: {
+            if(IS_STRING_SSA_TYPE(left) || IS_STRING_SSA_TYPE(right)){
+                return is_native ? SSA_TYPE_NATIVE_STRING : SSA_TYPE_LOX_STRING;
+            }
+        }
+        case OP_SUB:
+        case OP_MUL: {
+            if(IS_F64_SSA_TYPE(left) || IS_F64_SSA_TYPE(right)){
+                return SSA_TYPE_F64;
+            } else {
+                return is_native ? SSA_TYPE_NATIVE_I64 : SSA_TYPE_LOX_I64;
+            }
+        }
+        case OP_DIV: {
+            return SSA_TYPE_F64;
+        }
+    }
+}
+
+//Expect same definition
+static struct ssa_type * union_struct_types(
+        struct ta * ta,
+        struct ssa_type * a,
+        struct ssa_type * b
+) {
+    struct struct_definition_object * definition = a->value.struct_instance->definition;
+    struct ssa_type * union_struct = CREATE_INITIALIZE_STRUCT_SSA_TYPE(definition, SSA_IR_ALLOCATOR(ta->ssa_ir));
+    struct struct_instance_ssa_type * struct_instance_ssa_type = union_struct->value.struct_instance;
+
+    for(int i = 0; i < definition->n_fields; i++){
+        char * field_name = definition->field_names[i]->chars;
+        struct ssa_type * field_a_type = get_u64_hash_table(&a->value.struct_instance->type_by_field_name, (uint64_t) field_name);
+        struct ssa_type * field_b_type = get_u64_hash_table(&b->value.struct_instance->type_by_field_name, (uint64_t) field_name);
+
+        if (field_a_type->type != field_b_type->type) {
+            put_u64_hash_table(&struct_instance_ssa_type->type_by_field_name, field_name, );
+        }
+    }
+
+    return union_struct;
 }

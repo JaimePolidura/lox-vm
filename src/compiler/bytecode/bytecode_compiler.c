@@ -803,7 +803,7 @@ static void struct_initialization(struct bytecode_compiler * compiler, struct pa
     consume(compiler, TOKEN_CLOSE_BRACE, "Expect '}' after struct initialization");
 
     if(n_fields != struct_definition->n_fields){
-        report_error(compiler, struct_name, "Struct initialization immediate of args doest match with definition");
+        report_error(compiler, struct_name, "Struct initialization immediate of args doest match with struct_definition");
     }
 
     int struct_definition_constant = add_constant_to_chunk(current_chunk(compiler), TO_LOX_VALUE_OBJECT(struct_definition));

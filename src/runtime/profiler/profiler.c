@@ -111,7 +111,7 @@ static void profile_struct_field(struct function_object * function, int instruct
             profile_data->as.struct_field.definition = struct_instance->definition;
             profile_data->as.struct_field.initialized = true;
         } else if (profile_data->as.struct_field.initialized && profile_data->as.struct_field.definition != struct_instance->definition) {
-            profile_data->as.struct_field.definition = NULL; //Mark that the struct definition could be any type
+            profile_data->as.struct_field.definition = NULL; //Mark that the struct struct_definition could be any type
         }
     }
 }

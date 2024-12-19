@@ -33,6 +33,9 @@ typedef enum {
     //It will replace all the nodes with type SSA_DATA_NODE_TYPE_GET_LOCAL in the phi insertion proceess
     SSA_DATA_NODE_TYPE_PHI,
     SSA_DATA_NODE_TYPE_GET_SSA_NAME,
+
+    SSA_DATA_NODE_TYPE_UNBOX,
+    SSA_DATA_NODE_TYPE_BOX,
 } ssa_data_node_type;
 
 #define ALLOC_SSA_DATA_NODE(type, struct_type, bytecode, allocator) (struct_type *) allocate_ssa_data_node(type, sizeof(struct_type), bytecode, allocator)
@@ -42,7 +45,7 @@ typedef enum {
 //Represents expressions in CFG
 struct ssa_data_node {
     struct bytecode_list * original_bytecode;
-    struct ssa_type produced_type; //Added in type_annalysis optimization process
+    struct ssa_type * produced_type; //Added in type_annalysis optimization process
     ssa_data_node_type type;
 };
 
@@ -116,7 +119,7 @@ struct ssa_data_get_global_node {
 struct ssa_data_binary_node {
     struct ssa_data_node data;
 
-    bytecode_t operand;
+    bytecode_t operator;
     struct ssa_data_node * left;
     struct ssa_data_node * right;
 };
@@ -154,7 +157,7 @@ struct ssa_data_unary_node {
     struct ssa_data_node data;
 
     struct ssa_data_node * operand;
-    ssa_unary_operator_type_t operator_type;
+    ssa_unary_operator_type_t operator;
 };
 
 struct ssa_data_get_struct_field_node {

@@ -394,9 +394,9 @@ static void finish_gc() {
     gc_mark_sweep->state = GC_NONE;
 }
 
-struct struct_instance_object * alloc_struct_instance_gc_alg(struct struct_definition_object * definition) {
+struct struct_instance_object * alloc_struct_instance_gc_alg(struct struct_definition_object * struct_definition) {
     struct struct_instance_object * instance_node = NATIVE_LOX_MALLOC(sizeof(struct struct_instance_object));
-    init_struct_instance_object(instance_node, definition);
+    init_struct_instance_object(instance_node, struct_definition);
     add_object_to_heap_gc_alg(&instance_node->object);
     return instance_node;
 }

@@ -146,14 +146,14 @@ static void move_up_loop_invariant(
     struct ssa_block * block_to_move_invariant = get_block_to_move_invariant(licm, loop_condition);
 
     struct ssa_control_define_ssa_name_node * define_loop_invariant = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME,
-            struct ssa_control_define_ssa_name_node, block_to_move_invariant, SSA_IR_NODE_LOX_ALLOCATOR(licm->ssa_ir));
+                                                                                             struct ssa_control_define_ssa_name_node, block_to_move_invariant, SSA_IR_ALLOCATOR(licm->ssa_ir));
     define_loop_invariant->ssa_name = invariant_name;
     define_loop_invariant->value = invariant_data_node;
     add_last_control_node_ssa_block(block_to_move_invariant, &define_loop_invariant->control);
     put_u64_hash_table(&licm->ssa_ir->ssa_definitions_by_ssa_name, invariant_name.u16, define_loop_invariant);
 
     struct ssa_data_get_ssa_name_node * get_loop_invariant = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_GET_SSA_NAME,
-            struct ssa_data_get_ssa_name_node, NULL, SSA_IR_NODE_LOX_ALLOCATOR(licm->ssa_ir));
+                                                                                 struct ssa_data_get_ssa_name_node, NULL, SSA_IR_ALLOCATOR(licm->ssa_ir));
     get_loop_invariant->ssa_name = invariant_name;
     add_ssa_name_use_ssa_ir(licm->ssa_ir, invariant_name, invariant_control_node);
     *parent_ptr = &get_loop_invariant->data;
@@ -166,8 +166,8 @@ static struct ssa_block * get_block_to_move_invariant(struct licm * licm, struct
         return first_predecessor_of_loop_condition;
     }
 
-    struct ssa_block * new_block = alloc_ssa_block(SSA_IR_NODE_LOX_ALLOCATOR(licm->ssa_ir));
-    new_block->predecesors = clone_u64_set(&loop_condition_block->predecesors, SSA_IR_NODE_LOX_ALLOCATOR(licm->ssa_ir));
+    struct ssa_block * new_block = alloc_ssa_block(SSA_IR_ALLOCATOR(licm->ssa_ir));
+    new_block->predecesors = clone_u64_set(&loop_condition_block->predecesors, SSA_IR_ALLOCATOR(licm->ssa_ir));
     new_block->ssa_ir_head_block = loop_condition_block->ssa_ir_head_block;
     new_block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_SEQ;
     new_block->next_as.next = loop_condition_block;

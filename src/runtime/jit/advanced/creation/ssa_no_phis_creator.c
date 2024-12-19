@@ -224,7 +224,7 @@ static void binary(struct ssa_no_phis_inserter * inserter, struct pending_evalua
     );
     struct ssa_data_node * right = pop_stack_list(&inserter->data_nodes_stack);
     struct ssa_data_node * left = pop_stack_list(&inserter->data_nodes_stack);
-    binaryt_node->operand = to_evaluate->pending_bytecode->bytecode;
+    binaryt_node->operator = to_evaluate->pending_bytecode->bytecode;
     binaryt_node->right = right;
     binaryt_node->left = left;
 
@@ -236,7 +236,7 @@ static void unary(struct ssa_no_phis_inserter * inserter, struct pending_evaluat
     struct ssa_data_unary_node * unary_node = ALLOC_SSA_DATA_NODE(
             SSA_DATA_NODE_TYPE_UNARY, struct ssa_data_unary_node, to_evaluate->pending_bytecode, GET_SSA_NODES_ALLOCATOR(inserter)
     );
-    unary_node->operator_type = to_evaluate->pending_bytecode->bytecode == OP_NEGATE ? UNARY_OPERATION_TYPE_NEGATION : UNARY_OPERATION_TYPE_NOT;
+    unary_node->operator = to_evaluate->pending_bytecode->bytecode == OP_NEGATE ? UNARY_OPERATION_TYPE_NEGATION : UNARY_OPERATION_TYPE_NOT;
     unary_node->operand = pop_stack_list(&inserter->data_nodes_stack);
 
     push_stack_list(&inserter->data_nodes_stack, unary_node);
@@ -369,7 +369,7 @@ static void call(struct ssa_no_phis_inserter * inserter, struct pending_evaluate
         returned_value_type_profile != PROFILE_DATA_TYPE_NIL) {
         struct ssa_data_guard_node * guard_node = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_GUARD, struct ssa_data_guard_node, NULL,
                                                                       GET_SSA_NODES_ALLOCATOR(inserter));
-        guard_node->guard.value_to_compare = returned_value_type_profile;
+        guard_node->guard.value_to_compare.type = returned_value_type_profile;
         guard_node->guard.type = SSA_GUARD_TYPE_CHECK;
         guard_node->guard.value = &call_node->data;
 
@@ -678,8 +678,8 @@ static void jump_if_false(struct ssa_no_phis_inserter * inserter, struct pending
 
         struct ssa_control_guard_node * guard_node = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_GUARD, struct ssa_control_guard_node,
                 to_evalute->block, GET_SSA_NODES_ALLOCATOR(inserter));
-        guard_node->guard.value_to_compare = can_discard_true_branch(inserter, to_evalute->pending_bytecode);
-        guard_node->guard.type = SSA_GUARD_VALUE_CHECK;
+        guard_node->guard.value_to_compare.check_true = !can_discard_true_branch(inserter, to_evalute->pending_bytecode);
+        guard_node->guard.type = SSA_GUARD_BOOLEAN_CHECK;
         guard_node->guard.value = condition;
 
         struct bytecode_list * remaining_bytecode = can_discard_true_branch(inserter, to_evalute->pending_bytecode) ?
@@ -841,7 +841,7 @@ static void add_argument_guards(struct ssa_no_phis_inserter * inserter, struct s
         if (argument_profiled_type != PROFILE_DATA_TYPE_ANY) {
            struct ssa_control_guard_node * guard_node = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_GUARD, struct ssa_control_guard_node,
                    block, &inserter->ssa_node_allocator->lox_allocator);
-            guard_node->guard.value_to_compare = argument_profiled_type;
+            guard_node->guard.value_to_compare.type = argument_profiled_type;
             guard_node->guard.type = SSA_GUARD_TYPE_CHECK;
             struct ssa_data_get_local_node * get_argument = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_GET_LOCAL, struct ssa_data_get_local_node,
                     NULL, &inserter->ssa_node_allocator->lox_allocator);

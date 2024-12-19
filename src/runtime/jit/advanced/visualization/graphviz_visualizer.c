@@ -421,7 +421,7 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
         case SSA_DATA_NODE_TYPE_UNARY: {
             struct ssa_data_unary_node * unary = (struct ssa_data_unary_node *) node;
             int unary_value_node_id = generate_data_node_graph(visualizer, unary->operand);
-            char * node_desc = dynamic_format_string("%s", unary_operator_to_string(unary->operator_type));
+            char * node_desc = dynamic_format_string("%s", unary_operator_to_string(unary->operator));
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             link_data_data_node_graphviz_file(visualizer, self_data_node_id, unary_value_node_id);
@@ -432,7 +432,7 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             struct ssa_data_binary_node * binary = (struct ssa_data_binary_node *) node;
             int left_node_id = generate_data_node_graph(visualizer, binary->left);
             int right_node_id = generate_data_node_graph(visualizer, binary->right);
-            char * node_desc = dynamic_format_string("%s", binary_operator_to_string(binary->operand));
+            char * node_desc = dynamic_format_string("%s", binary_operator_to_string(binary->operator));
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
 
             link_data_data_node_graphviz_file(visualizer, self_data_node_id, left_node_id);
@@ -735,15 +735,16 @@ static char * unary_operator_to_string(ssa_unary_operator_type_t operator) {
 static char * guard_node_to_string(struct ssa_guard guard) {
     switch (guard.type) {
         case SSA_GUARD_TYPE_CHECK: {
-            char * type_name = profile_data_type_to_string((profile_data_type_t) guard.value_to_compare);
+            char * type_name = profile_data_type_to_string(guard.value_to_compare.type);
             return dynamic_format_string("TypeScheck %s", type_name);
         }
-        case SSA_GUARD_VALUE_CHECK: {
-            char * value_name = lox_value_to_string((lox_value_t) guard.value_to_compare);
-            return dynamic_format_string("ValueCheck %s", value_name);
+        case SSA_GUARD_BOOLEAN_CHECK: {
+            char * value_name = lox_value_to_string(AS_BOOL(guard.value_to_compare.check_true));
+            return dynamic_format_string("BooleanValueCheck %s", value_name);
         }
         case SSA_GUARD_STRUCT_DEFINITION_TYPE_CHECK: {
-            struct struct_definition_object * definition = (struct struct_definition_object *) AS_OBJECT(guard.value_to_compare);
+            struct struct_definition_object * definition = (struct struct_definition_object *)
+                    guard.value_to_compare.struct_definition;
             return dynamic_format_string("StructDefinitionCheck %s", definition->name->chars);
         }
     }

@@ -105,13 +105,13 @@ static struct ssa_data_node * create_add_data_node1() {
     );
     first_tree_add_a_b->right = &get_b->data;
     first_tree_add_a_b->left = &get_a->data;
-    first_tree_add_a_b->operand = OP_ADD;
+    first_tree_add_a_b->operator = OP_ADD;
     struct ssa_data_binary_node * first_tree_head_node_add_c = ALLOC_SSA_DATA_NODE(
             SSA_DATA_NODE_TYPE_BINARY, struct ssa_data_binary_node, NULL, NATIVE_LOX_ALLOCATOR()
     );
     first_tree_head_node_add_c->right = &get_c->data;
     first_tree_head_node_add_c->left = &first_tree_add_a_b->data;
-    first_tree_head_node_add_c->operand = OP_ADD;
+    first_tree_head_node_add_c->operator = OP_ADD;
 
     return &first_tree_head_node_add_c->data;
 }
@@ -136,13 +136,13 @@ static struct ssa_data_node * create_add_data_node2() {
     );
     second_tree_add_a_c->right = &get_c->data;
     second_tree_add_a_c->left = &get_a->data;
-    second_tree_add_a_c->operand = OP_ADD;
+    second_tree_add_a_c->operator = OP_ADD;
     struct ssa_data_binary_node * second_tree_head_node_add_b = ALLOC_SSA_DATA_NODE(
             SSA_DATA_NODE_TYPE_BINARY, struct ssa_data_binary_node, NULL, NATIVE_LOX_ALLOCATOR()
     );
     second_tree_head_node_add_b->right = &second_tree_add_a_c->data;
     second_tree_head_node_add_b->left = &get_b->data;
-    second_tree_head_node_add_b->operand = OP_ADD;
+    second_tree_head_node_add_b->operator = OP_ADD;
 
     return &second_tree_head_node_add_b->data;
 }

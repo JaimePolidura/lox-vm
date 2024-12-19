@@ -3,6 +3,7 @@
 #include "shared.h"
 #include "shared/types/types.h"
 #include "shared/types/string_object.h"
+#include "shared/bytecode/bytecode.h"
 
 typedef enum {
     PROFILE_DATA_TYPE_I64,
@@ -45,8 +46,8 @@ struct instruction_profile_data {
         } branch;
 
         struct {
-            //Records in definition the struct definition of the operation.
-            //If initialized is true and definition is NULL, it means that the struct definition could be any type
+            //Records in struct_definition the struct struct_definition of the operation.
+            //If initialized is true and struct_definition is NULL, it means that the struct struct_definition could be any type
             struct struct_definition_object * definition;
             bool initialized;
             struct type_profile_data get_struct_field_profile;

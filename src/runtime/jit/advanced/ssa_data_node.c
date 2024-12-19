@@ -140,8 +140,8 @@ bool is_eq_ssa_data_node(struct ssa_data_node * a, struct ssa_data_node * b, str
         case SSA_DATA_NODE_TYPE_UNARY: {
             struct ssa_data_unary_node * a_unary = (struct ssa_data_unary_node *) a;
             struct ssa_data_unary_node * b_unary = (struct ssa_data_unary_node *) b;
-            return a_unary->operator_type == b_unary->operator_type &&
-                    is_eq_ssa_data_node(a_unary->operand, b_unary->operand, allocator);
+            return a_unary->operator == b_unary->operator &&
+                   is_eq_ssa_data_node(a_unary->operand, b_unary->operand, allocator);
         }
         case SSA_DATA_NODE_TYPE_GET_SSA_NAME: {
             struct ssa_data_get_ssa_name_node * a_get_ssa_name = (struct ssa_data_get_ssa_name_node *) a;
@@ -225,10 +225,10 @@ bool is_eq_ssa_data_node(struct ssa_data_node * a, struct ssa_data_node * b, str
         case SSA_DATA_NODE_TYPE_BINARY: {
             struct ssa_data_binary_node * a_binary = (struct ssa_data_binary_node *) a;
             struct ssa_data_binary_node * b_binary = (struct ssa_data_binary_node *) b;
-            if (a_binary->operand != b_binary->operand) {
+            if (a_binary->operator != b_binary->operator) {
                 return false;
             }
-            bool is_commutative = is_commutative_associative_bytecode_instruction(a_binary->operand);
+            bool is_commutative = is_commutative_associative_bytecode_instruction(a_binary->operator);
             if (!is_commutative) {
                 return is_eq_ssa_data_node(a_binary->left, b_binary->left, allocator) && is_eq_ssa_data_node(a_binary->right, b_binary->right, allocator);
             }
@@ -237,7 +237,7 @@ bool is_eq_ssa_data_node(struct ssa_data_node * a, struct ssa_data_node * b, str
                (is_eq_ssa_data_node(a_binary->left, b_binary->right, allocator) && is_eq_ssa_data_node(a_binary->left, b_binary->right, allocator))) {
                 return true;
             }
-            if(!uses_same_binary_operation(a, a_binary->operand) || !uses_same_binary_operation(b, b_binary->operand)){
+            if(!uses_same_binary_operation(a, a_binary->operator) || !uses_same_binary_operation(b, b_binary->operator)){
                 return false;
             }
             //Check for associative equivalence
@@ -461,15 +461,15 @@ uint64_t hash_ssa_data_node(struct ssa_data_node * node) {
             uint64_t right_hash = hash_ssa_data_node(binary->right);
             uint64_t left_hash = hash_ssa_data_node(binary->left);
 
-            uint64_t operand_hash = is_commutative_associative_bytecode_instruction(binary->operand) ?
+            uint64_t operand_hash = is_commutative_associative_bytecode_instruction(binary->operator) ?
                     mix_hash_commutative(left_hash, right_hash) :
                     mix_hash_not_commutative(left_hash, right_hash);
-            return mix_hash_not_commutative(operand_hash, binary->operand);
+            return mix_hash_not_commutative(operand_hash, binary->operator);
         }
         case SSA_DATA_NODE_TYPE_UNARY: {
             struct ssa_data_unary_node * unary = (struct ssa_data_unary_node *) node;
             uint64_t unary_operand_hash = hash_ssa_data_node(unary->operand);
-            return mix_hash_not_commutative(unary_operand_hash, unary->operator_type);
+            return mix_hash_not_commutative(unary_operand_hash, unary->operator);
         }
         case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD: {
             struct ssa_data_get_struct_field_node * get_struct_field = (struct ssa_data_get_struct_field_node *) node;
@@ -518,7 +518,7 @@ bool uses_same_binary_operation_consumer(
     struct uses_same_binary_operation_consumer_struct * consumer_struct = extra;
     if (child->type == SSA_DATA_NODE_TYPE_BINARY && consumer_struct->uses_same_op) {
         struct ssa_data_binary_node * binary = (struct ssa_data_binary_node *) child;
-        if(binary->operand != consumer_struct->expected_operation){
+        if(binary->operator != consumer_struct->expected_operation){
             consumer_struct->uses_same_op = false;
         }
     }

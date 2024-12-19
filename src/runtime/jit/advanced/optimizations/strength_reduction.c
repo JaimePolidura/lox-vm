@@ -72,7 +72,7 @@ static bool perform_strength_reduction_data_node(
 
     if (current_data_node->type == SSA_DATA_NODE_TYPE_BINARY) {
         struct ssa_data_binary_node * binary = (struct ssa_data_binary_node *) current_data_node;
-        strength_reduction_transformer_t transformer = transformation_by_binary_op[binary->operand];
+        strength_reduction_transformer_t transformer = transformation_by_binary_op[binary->operator];
         if (transformer != NULL) {
             transformer(binary, sr);
         }
@@ -90,13 +90,13 @@ static void check_even_strength_reduction_transformer(
 
     if(binary_op->right->type == SSA_DATA_NODE_TYPE_CONSTANT &&
         binary_op->left->type == SSA_DATA_NODE_TYPE_BINARY &&
-        left_binary->operand == OP_MODULO &&
+       left_binary->operator == OP_MODULO &&
         left_binary->right->type == SSA_DATA_NODE_TYPE_CONSTANT &&
         AS_NUMBER(GET_CONST_VALUE_SSA_NODE(left_binary->right)) == 2)
     {
-        binary_op->right = &create_ssa_const_node(TO_LOX_VALUE_NUMBER(0), NULL, SSA_IR_NODE_LOX_ALLOCATOR(sr->ssa_ir))->data;
-        left_binary->right = &create_ssa_const_node(TO_LOX_VALUE_NUMBER(0x01), NULL, SSA_IR_NODE_LOX_ALLOCATOR(sr->ssa_ir))->data;
-        left_binary->operand = OP_BINARY_OP_AND;
+        binary_op->right = &create_ssa_const_node(TO_LOX_VALUE_NUMBER(0), NULL, SSA_IR_ALLOCATOR(sr->ssa_ir))->data;
+        left_binary->right = &create_ssa_const_node(TO_LOX_VALUE_NUMBER(0x01), NULL, SSA_IR_ALLOCATOR(sr->ssa_ir))->data;
+        left_binary->operator = OP_BINARY_OP_AND;
     }
 }
 
@@ -108,8 +108,8 @@ static void modulo_strength_reduction_transformer(
     if (binary_op->right->type == SSA_DATA_NODE_TYPE_CONSTANT) {
         double constant_right = AS_NUMBER(GET_CONST_VALUE_SSA_NODE(binary_op->right));
         if (is_double_power_of_2(constant_right)) {
-            binary_op->operand = OP_BINARY_OP_AND;
-            binary_op->right = &create_ssa_const_node(TO_LOX_VALUE_NUMBER(constant_right - 1), NULL, SSA_IR_NODE_LOX_ALLOCATOR(sr->ssa_ir))->data;
+            binary_op->operator = OP_BINARY_OP_AND;
+            binary_op->right = &create_ssa_const_node(TO_LOX_VALUE_NUMBER(constant_right - 1), NULL, SSA_IR_ALLOCATOR(sr->ssa_ir))->data;
         }
     }
 }
