@@ -56,7 +56,7 @@ ssa_type_t native_type_to_lox_ssa_type(ssa_type_t native_type) {
         case SSA_TYPE_NATIVE_NIL: return SSA_TYPE_LOX_NIL;
         case SSA_TYPE_NATIVE_ARRAY: return SSA_TYPE_LOX_ARRAY;
         case SSA_TYPE_NATIVE_STRUCT_INSTANCE: return SSA_TYPE_LOX_STRUCT_INSTANCE;
-        default: return native_type; //TODO Panick
+        default: return native_type;
     }
 }
 

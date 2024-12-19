@@ -19,6 +19,7 @@ static ssa_type_t binary_to_ssa_type(bytecode_t, ssa_type_t, ssa_type_t);
 static struct ssa_type * union_type(struct ta *, struct ssa_type*, struct ssa_type*);
 static struct ssa_type * union_struct_types_same_definition(struct ta*, struct ssa_type*, struct ssa_type*);
 static struct ssa_type * union_array_types(struct ta*, struct ssa_type*, struct ssa_type*);
+static void insert_box_node_if_neccesary(struct ta*, struct ssa_control_node *);
 
 extern void runtime_panic(char * format, ...);
 
@@ -61,6 +62,49 @@ static void perform_type_analysis_block(struct ta * ta, struct ssa_block * block
 
 static void perform_type_analysis_control(struct ta * ta, struct ssa_control_node * control_node) {
     for_each_data_node_in_control_node(control_node, ta, SSA_DATA_NODE_OPT_PRE_ORDER, perform_type_analysis_data);
+
+    insert_box_node_if_neccesary(ta, control_node);
+
+    if(control_node->type == SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME){
+        struct ssa_control_define_ssa_name_node * define = (struct ssa_control_define_ssa_name_node *) control_node;
+        put_u64_hash_table(&ta->ssa_type_by_ssa_name, define->ssa_name.u16, define->value->produced_type);
+    }
+}
+
+static void insert_box_node_if_neccesary(struct ta * ta, struct ssa_control_node * control_node) {
+    switch (control_node->type) {
+        case SSA_CONTROL_NODE_TYPE_RETURN: {
+            struct ssa_control_return_node * return_node = (struct ssa_control_return_node *) control_node;
+            return_node->data = create_box_node(ta, return_node->data);
+            return_node->data->produced_type->type = native_type_to_lox_ssa_type(return_node->data->produced_type->type);
+            break;
+        }
+        case SSA_CONTROL_NODE_TYPE_PRINT: {
+            struct ssa_control_print_node * print_node = (struct ssa_control_print_node *) control_node;
+            print_node->data = create_box_node(ta, print_node->data);
+            print_node->data->produced_type->type = native_type_to_lox_ssa_type(print_node->data->produced_type->type);
+            break;
+        }
+        case SSA_CONTORL_NODE_TYPE_SET_GLOBAL: {
+            struct ssa_control_set_global_node * set_global = (struct ssa_control_set_global_node *) control_node;
+            set_global->value_node = create_box_node(ta, set_global->value_node);
+            set_global->value_node->produced_type->type = native_type_to_lox_ssa_type(set_global->value_node->produced_type->type);
+            break;
+        }
+        case SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD: {
+            struct ssa_control_set_struct_field_node * set_struct_field = (struct ssa_control_set_struct_field_node *) control_node;
+            set_struct_field->new_field_value = create_box_node(ta, set_struct_field->new_field_value);
+            set_struct_field->new_field_value->produced_type->type = native_type_to_lox_ssa_type(set_struct_field->new_field_value->produced_type->type);
+            break;
+        }
+        case SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT: {
+            struct ssa_control_set_array_element_node * set_array_element = (struct ssa_control_set_array_element_node *) control_node;
+            set_array_element->new_element_value = create_box_node(ta, set_array_element->new_element_value);
+            set_array_element->new_element_value->produced_type->type = native_type_to_lox_ssa_type(set_array_element->new_element_value->produced_type->type);
+            break;
+        }
+        default: break;
+    }
 }
 
 static bool perform_type_analysis_data(
@@ -216,13 +260,13 @@ static struct ssa_type * get_type_data_node_recursive(struct ta * ta, struct ssa
             struct ssa_type * type_struct_field = get_type_data_node_recursive(ta, instance_node);
             instance_node->produced_type = type_struct_field;
 
-            if(!IS_STRUCT_INSTANCE_SSA_TYPE(type_struct_field->type)){
-                runtime_panic("TOOD");
+            if(IS_STRUCT_INSTANCE_SSA_TYPE(type_struct_field->type)){
+                return get_struct_field_ssa_type(
+                        type_struct_field, get_struct_field->field_name->chars,SSA_IR_ALLOCATOR(ta->ssa_ir)
+                );
+            } else {
+                return CREATE_SSA_TYPE(SSA_TYPE_LOX_ANY, SSA_IR_ALLOCATOR(ta->ssa_ir));
             }
-
-            return get_struct_field_ssa_type(
-                    type_struct_field, get_struct_field->field_name->chars, SSA_IR_ALLOCATOR(ta->ssa_ir)
-            );
         }
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
             struct ssa_data_get_array_element_node * get_array_element = (struct ssa_data_get_array_element_node *) node;
@@ -233,16 +277,16 @@ static struct ssa_type * get_type_data_node_recursive(struct ta * ta, struct ssa
             array_node->produced_type = type_array;
             index_node->produced_type = type_index;
 
-            if(!IS_STRUCT_INSTANCE_SSA_TYPE(type_array->type)){
-                runtime_panic("TOOD");
+            if(IS_STRUCT_INSTANCE_SSA_TYPE(type_array->type)){
+                return type_array;
+            } else {
+                return CREATE_SSA_TYPE(SSA_TYPE_LOX_ANY, SSA_IR_ALLOCATOR(ta->ssa_ir));
             }
-
-            return type_array;
         }
 
-
-        case SSA_DATA_NODE_TYPE_GET_LOCAL:
+        case SSA_DATA_NODE_TYPE_GET_LOCAL: {
             runtime_panic("Illegal code path");
+        }
     }
 }
 
@@ -303,19 +347,27 @@ static void add_argument_types(struct ta * ta) {
 }
 
 static struct ssa_data_node * create_unbox_node(struct ta * ta, struct ssa_data_node * to_unbox) {
-    struct ssa_data_node_unbox * unbox_node = ALLOC_SSA_DATA_NODE(
-            SSA_DATA_NODE_TYPE_UNBOX, struct ssa_data_node_unbox, NULL, SSA_IR_ALLOCATOR(ta->ssa_ir)
-    );
-    unbox_node->to_unbox = to_unbox;
-    return &unbox_node->data;
+    if(to_unbox->type != SSA_DATA_NODE_TYPE_UNBOX){
+        struct ssa_data_node_unbox * unbox_node = ALLOC_SSA_DATA_NODE(
+                SSA_DATA_NODE_TYPE_UNBOX, struct ssa_data_node_unbox, NULL, SSA_IR_ALLOCATOR(ta->ssa_ir)
+        );
+        unbox_node->to_unbox = to_unbox;
+        return &unbox_node->data;
+    } else {
+        return to_unbox;
+    }
 }
 
 static struct ssa_data_node * create_box_node(struct ta * ta, struct ssa_data_node * to_box) {
-    struct ssa_data_node_box * box_node = ALLOC_SSA_DATA_NODE(
-            SSA_DATA_NODE_TYPE_BOX, struct ssa_data_node_box, NULL, SSA_IR_ALLOCATOR(ta->ssa_ir)
-    );
-    box_node->to_box = to_box;
-    return &box_node->data;
+    if(to_box->type != SSA_DATA_NODE_TYPE_BOX){
+        struct ssa_data_node_box * box_node = ALLOC_SSA_DATA_NODE(
+                SSA_DATA_NODE_TYPE_BOX, struct ssa_data_node_box, NULL, SSA_IR_ALLOCATOR(ta->ssa_ir)
+        );
+        box_node->to_box = to_box;
+        return &box_node->data;
+    } else {
+        return to_box;
+    }
 }
 
 //Expect left & right to be both of them lox or native
