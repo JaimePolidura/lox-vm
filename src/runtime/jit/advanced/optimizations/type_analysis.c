@@ -16,8 +16,9 @@ static void add_argument_types(struct ta *);
 static struct ssa_data_node * create_unbox_node(struct ta *ta, struct ssa_data_node *to_unbox);
 static struct ssa_data_node * create_box_node(struct ta *ta, struct ssa_data_node *to_box);
 static ssa_type_t binary_to_ssa_type(bytecode_t, ssa_type_t, ssa_type_t);
-static struct ssa_type * union_type(struct ta *, struct ssa_type *, struct ssa_type *);
-static struct ssa_type * union_struct_types(struct ta *, struct ssa_type *, struct ssa_type *);
+static struct ssa_type * union_type(struct ta *, struct ssa_type*, struct ssa_type*);
+static struct ssa_type * union_struct_types_same_definition(struct ta*, struct ssa_type*, struct ssa_type*);
+static struct ssa_type * union_array_types(struct ta*, struct ssa_type*, struct ssa_type*);
 
 extern void runtime_panic(char * format, ...);
 
@@ -156,26 +157,10 @@ static struct ssa_type * get_type_data_node_recursive(struct ta * ta, struct ssa
                     return CREATE_SSA_TYPE(SSA_TYPE_NATIVE_BOOLEAN, SSA_IR_ALLOCATOR(ta->ssa_ir));
                 }
             }
-            break;
-        }
-        case SSA_DATA_NODE_TYPE_PHI: {
-            struct ssa_data_phi_node * phi = (struct ssa_data_phi_node *) node;
-            struct ssa_type * phi_type_result = NULL;
-
-            FOR_EACH_SSA_NAME_IN_PHI_NODE(phi, current_ssa_name) {
-                struct ssa_type * type_current_ssa_name = get_u64_hash_table(&ta->ssa_type_by_ssa_name, current_ssa_name.u16);
-
-                if (phi_type_result == NULL) {
-                    phi_type_result = type_current_ssa_name;
-                } else {
-                    phi_type_result = union_type(ta, phi_type_result, type_current_ssa_name);
-                }
-            }
         }
         case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT: {
             struct ssa_data_initialize_struct_node * init_struct = (struct ssa_data_initialize_struct_node *) node;
-            struct ssa_type * ssa_type = CREATE_INITIALIZE_STRUCT_SSA_TYPE(init_struct->definition,
-                    SSA_IR_ALLOCATOR(ta->ssa_ir));
+            struct ssa_type * ssa_type = CREATE_STRUCT_SSA_TYPE(init_struct->definition, SSA_IR_ALLOCATOR(ta->ssa_ir));
 
             for(int i = 0; i < init_struct->definition->n_fields; i++) {
                 struct ssa_data_node * field_node_arg = init_struct->fields_nodes[i];
@@ -189,29 +174,103 @@ static struct ssa_type * get_type_data_node_recursive(struct ta * ta, struct ssa
 
             return ssa_type;
         }
-        case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD:
-            break;
-        case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT:
-            break;
-        case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY:
-            break;
+        case SSA_DATA_NODE_TYPE_PHI: {
+            struct ssa_data_phi_node * phi = (struct ssa_data_phi_node *) node;
+            struct ssa_type * phi_type_result = NULL;
+
+            FOR_EACH_SSA_NAME_IN_PHI_NODE(phi, current_ssa_name) {
+                struct ssa_type * type_current_ssa_name = get_u64_hash_table(&ta->ssa_type_by_ssa_name, current_ssa_name.u16);
+
+                if (phi_type_result == NULL) {
+                    phi_type_result = type_current_ssa_name;
+                } else {
+                    phi_type_result = union_type(ta, phi_type_result, type_current_ssa_name);
+                }
+
+                return phi_type_result;
+            }
+        }
+        case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY: {
+            struct ssa_data_initialize_array_node * init_array = (struct ssa_data_initialize_array_node *) node;
+            int array_size = init_array->n_elements;
+            struct ssa_type * type = NULL;
+
+            for (int i = 0; i < init_array->n_elements && !init_array->empty_initialization; i++) {
+                struct ssa_data_node * array_element_type = init_array->elememnts_node[i];
+                array_element_type->produced_type = get_type_data_node_recursive(ta, array_element_type);
+
+                if(type == NULL){
+                    type = array_element_type->produced_type;
+                } else if(type->type != SSA_TYPE_LOX_ANY){
+                    type = !is_eq_ssa_type(type, array_element_type->produced_type) ?
+                           CREATE_SSA_TYPE(SSA_TYPE_LOX_ANY, SSA_IR_ALLOCATOR(ta->ssa_ir)):
+                           array_element_type->produced_type;
+                }
+            }
+
+            return CREATE_ARRAY_SSA_TYPE(array_size, type, SSA_IR_ALLOCATOR(ta->ssa_ir));
+        }
+        case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD: {
+            struct ssa_data_get_struct_field_node * get_struct_field = (struct ssa_data_get_struct_field_node *) node;
+            struct ssa_data_node * instance_node = get_struct_field->instance_node;
+            struct ssa_type * type_struct_field = get_type_data_node_recursive(ta, instance_node);
+            instance_node->produced_type = type_struct_field;
+
+            if(!IS_STRUCT_INSTANCE_SSA_TYPE(type_struct_field->type)){
+                runtime_panic("TOOD");
+            }
+
+            return get_struct_field_ssa_type(
+                    type_struct_field, get_struct_field->field_name->chars, SSA_IR_ALLOCATOR(ta->ssa_ir)
+            );
+        }
+        case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
+            struct ssa_data_get_array_element_node * get_array_element = (struct ssa_data_get_array_element_node *) node;
+            struct ssa_data_node * array_node = get_array_element->instance;
+            struct ssa_data_node * index_node = get_array_element->index;
+            struct ssa_type * type_array = get_type_data_node_recursive(ta, array_node);
+            struct ssa_type * type_index = get_type_data_node_recursive(ta, index_node);
+            array_node->produced_type = type_array;
+            index_node->produced_type = type_index;
+
+            if(!IS_STRUCT_INSTANCE_SSA_TYPE(type_array->type)){
+                runtime_panic("TOOD");
+            }
+
+            return type_array;
+        }
+
 
         case SSA_DATA_NODE_TYPE_GET_LOCAL:
             runtime_panic("Illegal code path");
     }
 }
 
-//This function will insert box/unbox nodes in the definitinos of the ssa node
-static struct ssa_type * union_type(struct ta * ta, struct ssa_type * a, struct ssa_type * b) {
+//This function will insert box/unbox nodes in the definitions of the ssa node
+static struct ssa_type * union_type(
+        struct ta * ta,
+        struct ssa_type * a,
+        struct ssa_type * b
+) {
     if(a->type == b->type){
         //Different struct instances
         if(IS_STRUCT_INSTANCE_SSA_TYPE(a->type) &&
             a->value.struct_instance->definition == b->value.struct_instance->definition &&
             a->value.struct_instance != b->value.struct_instance) {
-            return union_struct_types(ta, a, b);
-        }
+            return union_struct_types_same_definition(ta, a, b);
 
-        return a;
+        } else if(IS_STRUCT_INSTANCE_SSA_TYPE(a->type) &&
+                  a->value.struct_instance->definition != b->value.struct_instance->definition){
+            return CREATE_STRUCT_SSA_TYPE(NULL, SSA_IR_ALLOCATOR(ta->ssa_ir));
+
+        } else if(IS_ARRAY_SSA_TYPE(a->type) &&
+            a->value.array != b->value.array) {
+            return union_array_types(ta, a, b);
+        } else {
+            return a;
+        }
+    } else {
+        //TODO
     }
 }
 
@@ -300,24 +359,40 @@ ssa_type_t binary_to_ssa_type(bytecode_t operator, ssa_type_t left, ssa_type_t r
 }
 
 //Expect same definition
-static struct ssa_type * union_struct_types(
+static struct ssa_type * union_struct_types_same_definition(
         struct ta * ta,
         struct ssa_type * a,
         struct ssa_type * b
 ) {
     struct struct_definition_object * definition = a->value.struct_instance->definition;
-    struct ssa_type * union_struct = CREATE_INITIALIZE_STRUCT_SSA_TYPE(definition, SSA_IR_ALLOCATOR(ta->ssa_ir));
+    struct ssa_type * union_struct = CREATE_STRUCT_SSA_TYPE(definition, SSA_IR_ALLOCATOR(ta->ssa_ir));
     struct struct_instance_ssa_type * struct_instance_ssa_type = union_struct->value.struct_instance;
 
-    for(int i = 0; i < definition->n_fields; i++){
+    for(int i = 0; definition != NULL && i < definition->n_fields; i++){
         char * field_name = definition->field_names[i]->chars;
         struct ssa_type * field_a_type = get_u64_hash_table(&a->value.struct_instance->type_by_field_name, (uint64_t) field_name);
         struct ssa_type * field_b_type = get_u64_hash_table(&b->value.struct_instance->type_by_field_name, (uint64_t) field_name);
 
-        if (field_a_type->type != field_b_type->type) {
-            put_u64_hash_table(&struct_instance_ssa_type->type_by_field_name, field_name, );
-        }
+        struct ssa_type * new_field_type = field_a_type->type != field_b_type->type ?
+                CREATE_SSA_TYPE(SSA_TYPE_LOX_ANY, SSA_IR_ALLOCATOR(ta->ssa_ir)) :
+                union_type(ta, field_a_type, field_b_type);
+
+        put_u64_hash_table(&struct_instance_ssa_type->type_by_field_name, (uint64_t) field_name, new_field_type);
     }
 
     return union_struct;
+}
+
+static struct ssa_type * union_array_types(
+        struct ta * ta,
+        struct ssa_type * a,
+        struct ssa_type * b
+) {
+    //This might be usefult for range check elimination
+    int new_array_size = MIN(a->value.array->size, b->value.array->size);
+    struct ssa_type * new_array_type = !is_eq_ssa_type(a->value.array->type, b->value.array->type) ?
+            CREATE_SSA_TYPE(SSA_TYPE_LOX_ANY, SSA_IR_ALLOCATOR(ta->ssa_ir)) :
+            a->value.array->type;
+
+    return CREATE_ARRAY_SSA_TYPE(new_array_size, new_array_type, SSA_IR_ALLOCATOR(ta->ssa_ir));
 }
