@@ -591,3 +591,25 @@ static bool check_equivalence_flatted_out(struct u64_set left, struct u64_set ri
 
     return false;
 }
+
+struct ssa_data_guard_node * screate_from_profile_ssa_data_guard_node(
+        struct type_profile_data type_profile,
+        struct ssa_data_node * source,
+        struct lox_allocator * allocator
+) {
+    profile_data_type_t profiled_type = get_type_by_type_profile_data(type_profile);
+
+    struct ssa_data_guard_node * guard_node = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_GUARD, struct ssa_data_guard_node, NULL,
+            allocator);
+    guard_node->guard.value = source;
+
+    if(profiled_type == PROFILE_DATA_TYPE_STRUCT_INSTANCE && type_profile.invalid_struct_definition){
+        guard_node->guard.type = SSA_GUARD_STRUCT_DEFINITION_TYPE_CHECK;
+        guard_node->guard.value_to_compare.struct_definition = type_profile.struct_definition;
+    } else {
+        guard_node->guard.type = SSA_GUARD_TYPE_CHECK;
+        guard_node->guard.value_to_compare.type = profiled_type;
+    }
+
+    return guard_node;
+}

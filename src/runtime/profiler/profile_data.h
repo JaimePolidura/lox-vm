@@ -3,6 +3,7 @@
 #include "shared.h"
 #include "shared/types/types.h"
 #include "shared/types/string_object.h"
+#include "shared/types/struct_definition_object.h"
 #include "shared/bytecode/bytecode.h"
 
 typedef enum {
@@ -32,6 +33,9 @@ struct type_profile_data {
     int array;
     int struct_instance;
     int any; //Any other type
+
+    struct struct_definition_object * struct_definition;
+    bool invalid_struct_definition;
 };
 
 struct function_call_profile {

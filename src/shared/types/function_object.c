@@ -25,7 +25,6 @@ struct instruction_profile_data get_instruction_profile_data_function(
     return function->state_as.profiling.profile_data.profile_by_instruction_index[bytecode->original_chunk_index];
 }
 
-profile_data_type_t get_function_argument_profiled_type(struct function_object * function, int local_number) {
-    struct type_profile_data profile_data = function->state_as.profiling.profile_data.arguments_type_profile[local_number];
-    return get_type_by_type_profile_data(profile_data);
+struct type_profile_data get_function_argument_profiled_type(struct function_object * function, int local_number) {
+    return function->state_as.profiling.profile_data.arguments_type_profile[local_number];
 }

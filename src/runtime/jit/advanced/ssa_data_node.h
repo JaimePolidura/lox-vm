@@ -233,6 +233,9 @@ struct ssa_data_guard_node {
     struct ssa_guard guard;
 };
 
+struct ssa_data_guard_node * create_from_profile_ssa_data_guard_node(
+        struct type_profile_data, struct ssa_data_node *, struct lox_allocator *);
+
 struct ssa_data_node_box {
     struct ssa_data_node data;
     struct ssa_data_node * to_box;

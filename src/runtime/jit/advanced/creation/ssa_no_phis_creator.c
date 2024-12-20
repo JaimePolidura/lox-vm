@@ -65,11 +65,13 @@ static void get_struct_field(struct function_object *, struct ssa_no_phis_insert
 static void get_array_element(struct ssa_no_phis_inserter *, struct pending_evaluate *);
 static void unary(struct ssa_no_phis_inserter *, struct pending_evaluate *);
 static void binary(struct ssa_no_phis_inserter *, struct pending_evaluate *);
-static void add_argument_guards(struct ssa_no_phis_inserter *, struct ssa_block *, struct function_object *);
+static void add_arguments_guard(struct ssa_no_phis_inserter *inserter, struct ssa_block *block, struct function_object *function);
 static bool can_optimize_branch(struct ssa_no_phis_inserter *, struct bytecode_list *);
 static bool can_discard_true_branch(struct ssa_no_phis_inserter *, struct bytecode_list *);
 static struct instruction_profile_data get_instruction_profile_data(struct ssa_no_phis_inserter *, struct bytecode_list *);
 static struct object * get_function(struct ssa_no_phis_inserter *, struct ssa_data_node * function_data_node);
+static void add_argument_guard(struct ssa_no_phis_inserter*, struct ssa_block*, struct type_profile_data, int);
+static struct ssa_data_guard_node * create_guard(struct ssa_no_phis_inserter *, struct ssa_data_node * source, struct bytecode_list *);
 
 struct ssa_block * create_ssa_ir_no_phis(
         struct package * package,
@@ -88,7 +90,7 @@ struct ssa_block * create_ssa_ir_no_phis(
     inserter->first_block = first_block;
     first_block->ssa_ir_head_block = first_block;
 
-    add_argument_guards(inserter, first_block, function);
+    add_arguments_guard(inserter, first_block, function);
 
     while (!is_empty_stack_list(&inserter->pending_evaluation)) {
         struct pending_evaluate * to_evaluate = pop_stack_list(&inserter->pending_evaluation);
@@ -363,19 +365,11 @@ static void call(struct ssa_no_phis_inserter * inserter, struct pending_evaluate
     pop_stack_list(&inserter->data_nodes_stack);
 
     //Add guard, if the returned value type has a profiled data
-    struct function_call_profile function_call_profile = get_instruction_profile_data(inserter, to_evaluate->pending_bytecode).as.function_call;
-    profile_data_type_t returned_value_type_profile = get_type_by_type_profile_data(function_call_profile.returned_type_profile);
-    if (returned_value_type_profile != PROFILE_DATA_TYPE_ANY &&
-        returned_value_type_profile != PROFILE_DATA_TYPE_NIL) {
-        struct ssa_data_guard_node * guard_node = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_GUARD, struct ssa_data_guard_node, NULL,
-                                                                      GET_SSA_NODES_ALLOCATOR(inserter));
-        guard_node->guard.value_to_compare.type = returned_value_type_profile;
-        guard_node->guard.type = SSA_GUARD_TYPE_CHECK;
-        guard_node->guard.value = &call_node->data;
-
-        push_stack_list(&inserter->data_nodes_stack, guard_node);
+    struct ssa_data_guard_node * guard_node = create_guard(inserter, &call_node->data, to_evaluate->pending_bytecode);
+    if(guard_node != NULL){
+        push_stack_list(&inserter->data_nodes_stack, &guard_node->data);
     } else {
-        push_stack_list(&inserter->data_nodes_stack, call_node);
+        push_stack_list(&inserter->data_nodes_stack, &call_node->data);
     }
 
     push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
@@ -831,26 +825,45 @@ static void calculate_and_put_use_before_assigment(struct ssa_block * block, str
     union_u8_set(&block->use_before_assigment, use_before_assigment);
 }
 
-static void add_argument_guards(struct ssa_no_phis_inserter * inserter, struct ssa_block * block, struct function_object * function) {
+static void add_arguments_guard(struct ssa_no_phis_inserter * inserter, struct ssa_block * block, struct function_object * function) {
     struct function_profile_data function_profile = function->state_as.profiling.profile_data;
 
     for (int i = 0; i < function->n_arguments; i++) {
         struct type_profile_data argument_type_profile_data = function_profile.arguments_type_profile[i];
-        profile_data_type_t argument_profiled_type = get_type_by_type_profile_data(argument_type_profile_data);
-
-        if (argument_profiled_type != PROFILE_DATA_TYPE_ANY) {
-           struct ssa_control_guard_node * guard_node = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_GUARD, struct ssa_control_guard_node,
-                   block, &inserter->ssa_node_allocator->lox_allocator);
-            guard_node->guard.value_to_compare.type = argument_profiled_type;
-            guard_node->guard.type = SSA_GUARD_TYPE_CHECK;
-            struct ssa_data_get_local_node * get_argument = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_GET_LOCAL, struct ssa_data_get_local_node,
-                    NULL, &inserter->ssa_node_allocator->lox_allocator);
-            get_argument->local_number = i;
-            guard_node->guard.value = &get_argument->data;
-
-            add_last_control_node_ssa_block(block, &guard_node->control);
-         }
+        add_argument_guard(inserter, block, argument_type_profile_data, i);
     }
+}
+
+static void add_argument_guard(
+        struct ssa_no_phis_inserter * inserter,
+        struct ssa_block * block,
+        struct type_profile_data type_profile,
+        int argument_local_number
+) {
+    profile_data_type_t argument_profiled_type = get_type_by_type_profile_data(type_profile);
+    if(argument_profiled_type == PROFILE_DATA_TYPE_ANY) {
+        return;
+    }
+
+    struct ssa_control_guard_node * guard_node = NULL;
+    if(argument_profiled_type == PROFILE_DATA_TYPE_STRUCT_INSTANCE && !type_profile.invalid_struct_definition){
+        guard_node = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_GUARD, struct ssa_control_guard_node,
+                block, &inserter->ssa_node_allocator->lox_allocator);
+        guard_node->guard.type = SSA_GUARD_STRUCT_DEFINITION_TYPE_CHECK;
+        guard_node->guard.value_to_compare.struct_definition = type_profile.struct_definition;
+    } else {
+        guard_node = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_GUARD, struct ssa_control_guard_node,
+                block, &inserter->ssa_node_allocator->lox_allocator);
+        guard_node->guard.value_to_compare.type = argument_profiled_type;
+        guard_node->guard.type = SSA_GUARD_TYPE_CHECK;
+    }
+
+    struct ssa_data_get_local_node * get_argument = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_GET_LOCAL, struct ssa_data_get_local_node,
+            NULL, &inserter->ssa_node_allocator->lox_allocator);
+    guard_node->guard.value = &get_argument->data;
+    get_argument->local_number = argument_local_number;
+
+    add_last_control_node_ssa_block(block, &guard_node->control);
 }
 
 static bool can_optimize_branch(struct ssa_no_phis_inserter * inserter, struct bytecode_list * condition_bytecode) {
@@ -885,4 +898,24 @@ static struct object * get_function(struct ssa_no_phis_inserter * inserter, stru
     }
 
     return AS_OBJECT(function_lox_value);
+}
+
+static struct ssa_data_guard_node * create_guard(
+        struct ssa_no_phis_inserter * inserter,
+        struct ssa_data_node * source,
+        struct bytecode_list * call_bytecode
+) {
+    struct function_call_profile function_call_profile = get_instruction_profile_data(inserter,
+            call_bytecode).as.function_call;
+    struct type_profile_data return_type_profile_data = function_call_profile.returned_type_profile;
+    profile_data_type_t return_type_profile = get_type_by_type_profile_data(return_type_profile_data);
+
+    if (return_type_profile == PROFILE_DATA_TYPE_ANY ||
+        return_type_profile == PROFILE_DATA_TYPE_NIL ||
+        call_bytecode->next->bytecode != OP_POP
+    ) {
+        return NULL;
+    }
+
+    return create_from_profile_ssa_data_guard_node(return_type_profile_data, source, GET_SSA_NODES_ALLOCATOR(inserter));
 }

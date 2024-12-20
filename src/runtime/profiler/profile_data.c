@@ -64,7 +64,7 @@ profile_data_type_t get_type_by_type_profile_data(struct type_profile_data type_
                type_profile.boolean == 0 && type_profile.nil == 0 && type_profile.string == 0 && type_profile.i64 == 0) {
         return PROFILE_DATA_TYPE_ANY;
     } else if(type_profile.struct_instance == 0 && type_profile.array == 0 && type_profile.any == 0 && type_profile.f64 > 0 &&
-              type_profile.boolean == 0 && type_profile.nil == 0 && type_profile.string == 0 && type_profile.i64 == 0){
+              type_profile.boolean == 0 && type_profile.nil == 0 && type_profile.string == 0 && type_profile.i64 >= 0){
         return PROFILE_DATA_TYPE_F64;
     } else if(type_profile.struct_instance == 0 && type_profile.array == 0 && type_profile.any == 0 && type_profile.f64 == 0 &&
               type_profile.boolean > 0 && type_profile.nil == 0 && type_profile.string == 0 && type_profile.i64 == 0){

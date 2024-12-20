@@ -16,6 +16,8 @@
 //Creates the ssa ir, without phi functions. OP_GET_LOCAL and OP_SET_LOCAL are represented with
 //ssa_control_set_local_node and ssa_data_get_local_node.
 //It also creates blocks, which is a series of ssa_control_nodes that are executed sequentially without branches
+//It also insert guards in:ç
+//  - Return values
 struct ssa_block * create_ssa_ir_no_phis(
         struct package * package,
         struct function_object * function,

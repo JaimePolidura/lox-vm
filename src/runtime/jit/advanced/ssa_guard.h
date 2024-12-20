@@ -4,8 +4,10 @@
 
 typedef enum {
     SSA_GUARD_TYPE_CHECK,
+    //This is like a typecheck but with the aditional condition that the struct instance shluld have a specific definition
     SSA_GUARD_STRUCT_DEFINITION_TYPE_CHECK,
-    SSA_GUARD_BOOLEAN_CHECK //Used in branches
+    //Used in branches
+    SSA_GUARD_BOOLEAN_CHECK
 } ssa_guard_type_t;
 
 extern struct ssa_data_node;

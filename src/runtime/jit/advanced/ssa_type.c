@@ -22,12 +22,10 @@ struct ssa_type * create_initialize_struct_ssa_type(
 
 struct ssa_type * create_array_ssa_type(
         struct ssa_type * array_type,
-        int array_size,
         struct lox_allocator * allocator
 ) {
     struct array_ssa_type * array_ssa_type = LOX_MALLOC(allocator, sizeof(struct array_ssa_type));
     array_ssa_type->type = array_type;
-    array_ssa_type->size = array_size;
 
     struct ssa_type * ssa_type = CREATE_SSA_TYPE(SSA_TYPE_LOX_ARRAY, allocator);
     ssa_type->value.array = array_ssa_type;
@@ -104,8 +102,7 @@ bool is_eq_ssa_type(struct ssa_type * a, struct ssa_type * b) {
         }
         case SSA_TYPE_NATIVE_ARRAY:
         case SSA_TYPE_LOX_ARRAY: {
-            return a->value.array->size == b->value.array->size &&
-                   is_eq_ssa_type(a->value.array->type, b->value.array->type);
+            return is_eq_ssa_type(a->value.array->type, b->value.array->type);
         }
         default: {
             return true;

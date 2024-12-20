@@ -5,10 +5,10 @@ extern __thread struct vm_thread * self_thread;
 static struct instruction_profile_data * get_profile_data(struct function_object *, int instruction_index);
 static void profile_conditional_branch(struct function_object *, int instruction_index);
 static void profile_type(struct type_profile_data *profile_node_data, lox_value_t lox_value);
-static void profile_struct_field(struct function_object *, int instruction_index);
-static void profile_get_struct_field(struct function_object *, int instruction_index);
+static void profile_struct_definition(struct function_object *function, int instruction_index);
+static void profile_get_struct_field_type(struct function_object *function, int instruction_index);
 static void profile_function_call(struct function_object *, int instruction_index);
-static void profile_get_array_elemet(struct function_object *, int instruction_index);
+static void profile_get_array_element_type(struct function_object *function, int instruction_index);
 
 void profile_instruction_profiler(uint8_t * pc, struct function_object * function) {
     bytecode_t instruction = (bytecode_t) *pc;
@@ -16,14 +16,14 @@ void profile_instruction_profiler(uint8_t * pc, struct function_object * functio
 
     switch (instruction) {
         case OP_GET_ARRAY_ELEMENT:
-            profile_get_array_elemet(function, instruction_index);
+            profile_get_array_element_type(function, instruction_index);
             break;
         case OP_GET_STRUCT_FIELD:
-            profile_get_struct_field(function, instruction_index);
-            profile_struct_field(function, instruction_index);
+            profile_get_struct_field_type(function, instruction_index);
+            profile_struct_definition(function, instruction_index);
             break;
         case OP_SET_STRUCT_FIELD:
-            profile_struct_field(function, instruction_index);
+            profile_struct_definition(function, instruction_index);
             break;
         case OP_JUMP_IF_FALSE:
             profile_conditional_branch(function, instruction_index);
@@ -33,7 +33,7 @@ void profile_instruction_profiler(uint8_t * pc, struct function_object * functio
     }
 }
 
-static void profile_get_struct_field(struct function_object * function, int instruction_index) {
+static void profile_get_struct_field_type(struct function_object * function, int instruction_index) {
     struct instruction_profile_data * instruction_profile = get_profile_data(function, instruction_index);
     lox_value_t field_name_lox_value = *(self_thread->esp - 2);
     lox_value_t struct_lox_value = *(self_thread->esp - 1);
@@ -55,7 +55,7 @@ static void profile_get_struct_field(struct function_object * function, int inst
     profile_type(&instruction_profile->as.struct_field.get_struct_field_profile, field_value);
 }
 
-static void profile_get_array_elemet(struct function_object * function, int instruction_index) {
+static void profile_get_array_element_type(struct function_object * function, int instruction_index) {
     struct instruction_profile_data * instruction_profile = get_profile_data(function, instruction_index);
     lox_value_t array_lox_value = *(self_thread->esp - 1);
     lox_value_t index_lox_value = *(self_thread->esp - 2);
@@ -101,7 +101,7 @@ bool can_jit_compile_profiler(struct function_object * function) {
     return function->state_as.not_profiling.n_calls >= MIN_CALLS_TO_JIT_COMPILE;
 }
 
-static void profile_struct_field(struct function_object * function, int instruction_index) {
+static void profile_struct_definition(struct function_object * function, int instruction_index) {
     struct instruction_profile_data * profile_data = get_profile_data(function, instruction_index);
     lox_value_t struct_instance_lox_value = *(self_thread->esp - 1);
 
@@ -133,9 +133,18 @@ static void profile_type(struct type_profile_data * profile_node_data, lox_value
         case PROFILE_DATA_TYPE_NIL:
             atomic_fetch_add(&profile_node_data->nil, 1);
             break;
-        case PROFILE_DATA_TYPE_STRUCT_INSTANCE:
+        case PROFILE_DATA_TYPE_STRUCT_INSTANCE: {
             atomic_fetch_add(&profile_node_data->struct_instance, 1);
+            struct struct_instance_object * instance = (struct struct_instance_object *) AS_OBJECT(lox_value);
+            struct struct_definition_object * definition = instance->definition;
+            
+            if (!profile_node_data->invalid_struct_definition && profile_node_data->struct_definition == NULL) {
+                profile_node_data->struct_definition = definition;
+            } else if(!profile_node_data->invalid_struct_definition && profile_node_data->struct_definition != definition){
+                profile_node_data->invalid_struct_definition = true;
+            }
             break;
+        }
         case PROFILE_DATA_TYPE_ARRAY:
             atomic_fetch_add(&profile_node_data->array, 1);
             break;

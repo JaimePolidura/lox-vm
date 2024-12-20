@@ -61,4 +61,4 @@ struct function_object {
 
 struct function_object * alloc_function();
 struct instruction_profile_data get_instruction_profile_data_function(struct function_object*, struct bytecode_list*);
-profile_data_type_t get_function_argument_profiled_type(struct function_object *, int local_number);
+struct type_profile_data get_function_argument_profiled_type(struct function_object *, int local_number);
