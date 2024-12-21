@@ -13,6 +13,7 @@
 
 typedef enum {
     SSA_TYPE_F64, //Floating numbers have the same binary representation in lox & native format
+    SSA_TYPE_UNKNOWN,
 
     SSA_TYPE_NATIVE_I64,
     SSA_TYPE_NATIVE_STRING,
@@ -36,7 +37,7 @@ struct struct_instance_ssa_type {
 };
 
 struct array_ssa_type {
-    struct ssa_type * type;
+    struct ssa_type * type; //If null the array type is unknown
 };
 
 struct ssa_type {
