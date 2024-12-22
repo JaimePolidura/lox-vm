@@ -1,46 +1,55 @@
 #include "type_analysis.h"
 
 struct ta {
-    struct u64_hash_table ssa_type_by_ssa_name;
     struct ssa_ir * ssa_ir;
     struct arena_lox_allocator ta_allocator;
 };
 
+struct pending_evaluate {
+    struct ta * ta;
+    struct u64_hash_table * ssa_type_by_ssa_name;
+    struct ssa_block * block;
+};
+
 static struct ta * alloc_type_analysis(struct ssa_ir*);
 static void free_type_analysis(struct ta*);
-static void perform_type_analysis_block(struct ta*, struct ssa_block *);
-static void perform_type_analysis_control(struct ta* ta, struct ssa_control_node *);
+static void perform_type_analysis_block(struct pending_evaluate*);
+static void perform_type_analysis_control(struct pending_evaluate*, struct ssa_control_node*);
 static bool perform_type_analysis_data(struct ssa_data_node*, void**, struct ssa_data_node*, void*);
-static struct ssa_type * get_type_data_node_recursive(struct ta*, struct ssa_data_node*, struct ssa_data_node** parent_ptr);
-static void add_argument_types(struct ta*);
+static struct ssa_type * get_type_data_node_recursive(struct pending_evaluate*, struct ssa_data_node*, struct ssa_data_node** parent_ptr);
+static void add_argument_types(struct ta*, struct u64_hash_table*);
 static ssa_type_t binary_to_ssa_type(bytecode_t, ssa_type_t, ssa_type_t);
 static struct ssa_type * union_type(struct ta*, struct ssa_type*, struct ssa_type*);
 static struct ssa_type * union_struct_types_same_definition(struct ta*, struct ssa_type*, struct ssa_type*);
 static struct ssa_type * union_array_types(struct ta*, struct ssa_type*, struct ssa_type*);
 static void clear_type(struct ssa_type *);
+static void push_pending_evaluate(struct stack_list*, struct ta*, struct ssa_block*, struct u64_hash_table*);
 
 extern void runtime_panic(char * format, ...);
 
 void perform_type_analysis(struct ssa_ir * ssa_ir) {
     struct ta * ta = alloc_type_analysis(ssa_ir);
+    struct u64_hash_table * ssa_type_by_ssa_name = LOX_MALLOC(&ta->ta_allocator.lox_allocator, sizeof(struct u64_hash_table));
+    init_u64_hash_table(ssa_type_by_ssa_name, &ta->ta_allocator.lox_allocator);
 
-    add_argument_types(ta);
+    add_argument_types(ta, ssa_type_by_ssa_name);
 
-    struct stack_list pending_blocks;
-    init_stack_list(&pending_blocks, &ta->ta_allocator.lox_allocator);
-    push_stack_list(&pending_blocks, ssa_ir->first_block);
-    while(!is_empty_stack_list(&pending_blocks)) {
-        struct ssa_block * current_block = pop_stack_list(&pending_blocks);
+    struct stack_list pending_to_evaluate;
+    init_stack_list(&pending_to_evaluate, &ta->ta_allocator.lox_allocator);
+    push_pending_evaluate(&pending_to_evaluate, ta, ssa_ir->first_block, ssa_type_by_ssa_name);
 
-        perform_type_analysis_block(ta, current_block);
+    while(!is_empty_stack_list(&pending_to_evaluate)) {
+        struct pending_evaluate * to_evalute = pop_stack_list(&pending_to_evaluate);
 
-        switch (current_block->type_next_ssa_block) {
+        perform_type_analysis_block(to_evalute);
+
+        switch (to_evalute->block->type_next_ssa_block) {
             case TYPE_NEXT_SSA_BLOCK_SEQ: {
-                push_stack_list(&pending_blocks, current_block->next_as.next);
+                push_stack_list(&pending_to_evaluate, to_evalute->block->next_as.next);
             }
             case TYPE_NEXT_SSA_BLOCK_BRANCH: {
-                push_stack_list(&pending_blocks, current_block->next_as.branch.true_branch);
-                push_stack_list(&pending_blocks, current_block->next_as.branch.false_branch);
+                push_stack_list(&pending_to_evaluate, to_evalute->block->next_as.branch.true_branch);
+                push_stack_list(&pending_to_evaluate, to_evalute->block->next_as.branch.false_branch);
             }
         }
     }
@@ -48,22 +57,22 @@ void perform_type_analysis(struct ssa_ir * ssa_ir) {
     free_type_analysis(ta);
 }
 
-static void perform_type_analysis_block(struct ta * ta, struct ssa_block * block) {
-    for(struct ssa_control_node * current_control = block->first;; current_control = current_control->next){
-        perform_type_analysis_control(ta, current_control);
+static void perform_type_analysis_block(struct pending_evaluate * to_evalute) {
+    for(struct ssa_control_node * current_control = to_evalute->block->first;; current_control = current_control->next){
+        perform_type_analysis_control(to_evalute, current_control);
 
-        if(current_control == block->last){
+        if(current_control == to_evalute->block->last){
             break;
         }
     }
 }
 
-static void perform_type_analysis_control(struct ta * ta, struct ssa_control_node * control_node) {
-    for_each_data_node_in_control_node(control_node, ta, SSA_DATA_NODE_OPT_PRE_ORDER, perform_type_analysis_data);
+static void perform_type_analysis_control(struct pending_evaluate * to_evalute, struct ssa_control_node * control_node) {
+    for_each_data_node_in_control_node(control_node, to_evalute, SSA_DATA_NODE_OPT_PRE_ORDER, perform_type_analysis_data);
 
     if(control_node->type == SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME){
         struct ssa_control_define_ssa_name_node * define = (struct ssa_control_define_ssa_name_node *) control_node;
-        put_u64_hash_table(&ta->ssa_type_by_ssa_name, define->ssa_name.u16, define->value->produced_type);
+        put_u64_hash_table(to_evalute->ssa_type_by_ssa_name, define->ssa_name.u16, define->value->produced_type);
 
     } else if (control_node->type == SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD) {
         struct ssa_control_set_struct_field_node * set_struct_field = (struct ssa_control_set_struct_field_node *) control_node;
@@ -76,7 +85,7 @@ static void perform_type_analysis_control(struct ta * ta, struct ssa_control_nod
         struct ssa_control_set_array_element_node * set_array_element = (struct ssa_control_set_array_element_node *) control_node;
         if(set_array_element->array->produced_type->type == SSA_TYPE_LOX_ARRAY) {
             struct array_ssa_type * array_type = set_array_element->array->produced_type->value.array;
-            array_type->type = union_type(ta, array_type->type, set_array_element->new_element_value->produced_type);
+            array_type->type = union_type(to_evalute->ta, array_type->type, set_array_element->new_element_value->produced_type);
         }
     } else if (control_node->type == SSA_CONTORL_NODE_TYPE_SET_GLOBAL) {
         struct ssa_control_set_global_node * set_global = (struct ssa_control_set_global_node *) control_node;
@@ -90,16 +99,18 @@ static bool perform_type_analysis_data(
         struct ssa_data_node * data_node,
         void * extra
 ) {
-    struct ta * ta = extra;
-    data_node->produced_type = get_type_data_node_recursive(ta, data_node, (struct ssa_data_node **) parent_ptr);
+    struct pending_evaluate * pending_evaluate = extra;
+    data_node->produced_type = get_type_data_node_recursive(pending_evaluate, data_node, (struct ssa_data_node **) parent_ptr);
     return false;
 }
 
 static struct ssa_type * get_type_data_node_recursive(
-        struct ta * ta,
+        struct pending_evaluate * to_evaluate,
         struct ssa_data_node * node,
         struct ssa_data_node ** parent_ptr
 ) {
+    struct ta * ta = to_evaluate->ta;
+
     switch (node->type) {
         case SSA_DATA_NODE_TYPE_CONSTANT: {
             struct ssa_data_constant_node * constant = (struct ssa_data_constant_node *) node;
@@ -114,19 +125,19 @@ static struct ssa_type * get_type_data_node_recursive(
         }
         case SSA_DATA_NODE_TYPE_UNARY: {
             struct ssa_data_unary_node * unary = (struct ssa_data_unary_node *) node;
-            struct ssa_type * unary_operand_type = get_type_data_node_recursive(ta, unary->operand, &unary->operand);
+            struct ssa_type * unary_operand_type = get_type_data_node_recursive(to_evaluate, unary->operand, &unary->operand);
             unary->operand->produced_type = unary_operand_type;
             return unary_operand_type;
         }
         case SSA_DATA_NODE_TYPE_GET_SSA_NAME: {
             struct ssa_data_get_ssa_name_node * get_ssa_name = (struct ssa_data_get_ssa_name_node *) node;
-            return get_u64_hash_table(&ta->ssa_type_by_ssa_name, get_ssa_name->ssa_name.u16);
+            return get_u64_hash_table(to_evaluate->ssa_type_by_ssa_name, get_ssa_name->ssa_name.u16);
         }
         case SSA_DATA_NODE_TYPE_CALL: {
             struct ssa_data_function_call_node * call = (struct ssa_data_function_call_node *) node;
             for(int i = 0; i < call->n_arguments; i++){
                 struct ssa_data_node * argument = call->arguments[i];
-                argument->produced_type = get_type_data_node_recursive(ta, argument, &call->arguments[i]);
+                argument->produced_type = get_type_data_node_recursive(to_evaluate, argument, &call->arguments[i]);
                 //Functions might modify the array/struct. So we need to clear its type
                 clear_type(argument->produced_type);
             }
@@ -144,8 +155,8 @@ static struct ssa_type * get_type_data_node_recursive(
         }
         case SSA_DATA_NODE_TYPE_BINARY: {
             struct ssa_data_binary_node * binary = (struct ssa_data_binary_node *) node;
-            struct ssa_type * right_type = get_type_data_node_recursive(ta, binary->right, &binary->right);
-            struct ssa_type * left_type = get_type_data_node_recursive(ta, binary->left, &binary->left);
+            struct ssa_type * right_type = get_type_data_node_recursive(to_evaluate, binary->right, &binary->right);
+            struct ssa_type * left_type = get_type_data_node_recursive(to_evaluate, binary->left, &binary->left);
 
             binary->right->produced_type = right_type;
             binary->left->produced_type = left_type;
@@ -175,7 +186,7 @@ static struct ssa_type * get_type_data_node_recursive(
 
             for(int i = 0; i < init_struct->definition->n_fields; i++) {
                 struct ssa_data_node * field_node_arg = init_struct->fields_nodes[i];
-                struct ssa_type * field_node_type = get_type_data_node_recursive(ta, field_node_arg, &init_struct->fields_nodes[i]);
+                struct ssa_type * field_node_type = get_type_data_node_recursive(to_evaluate, field_node_arg, &init_struct->fields_nodes[i]);
                 field_node_arg->produced_type = field_node_type;
                 struct string_object * field_name = init_struct->definition->field_names[i];
 
@@ -195,7 +206,7 @@ static struct ssa_type * get_type_data_node_recursive(
 
             for (int i = 0; i < init_array->n_elements && !init_array->empty_initialization; i++) {
                 struct ssa_data_node * array_element_type = init_array->elememnts_node[i];
-                array_element_type->produced_type = get_type_data_node_recursive(ta, array_element_type, &init_array->elememnts_node[i]);
+                array_element_type->produced_type = get_type_data_node_recursive(to_evaluate, array_element_type, &init_array->elememnts_node[i]);
 
                 if(type == NULL){
                     type = array_element_type->produced_type;
@@ -215,14 +226,14 @@ static struct ssa_type * get_type_data_node_recursive(
                     ta->ssa_ir->function, get_struct_field->data.original_bytecode);
             struct type_profile_data get_struct_field_type_profile = get_struct_field_profile_data.as.struct_field.get_struct_field_profile;
 
-            struct ssa_type * type_struct_instance = get_type_data_node_recursive(ta, instance_node, &get_struct_field->instance_node);
+            struct ssa_type * type_struct_instance = get_type_data_node_recursive(to_evaluate, instance_node, &get_struct_field->instance_node);
 
             //We insert a struct definition guard
             if (type_struct_instance->type != SSA_TYPE_LOX_STRUCT_INSTANCE) {
                 struct ssa_data_guard_node * struct_instance_guard = create_from_profile_ssa_data_guard_node(get_struct_field_type_profile,
                         get_struct_field->instance_node, SSA_IR_ALLOCATOR(ta->ssa_ir));
                 get_struct_field->instance_node = &struct_instance_guard->data;
-                type_struct_instance = get_type_data_node_recursive(ta, instance_node, &get_struct_field->instance_node);
+                type_struct_instance = get_type_data_node_recursive(to_evaluate, instance_node, &get_struct_field->instance_node);
                 instance_node->produced_type = type_struct_instance;
             }
 
@@ -240,7 +251,7 @@ static struct ssa_type * get_type_data_node_recursive(
             //If not found, we insert a type guard in the get_struct_field
             struct ssa_data_guard_node * guard_node = create_from_profile_ssa_data_guard_node(get_struct_field_type_profile,
                     &get_struct_field->data, SSA_IR_ALLOCATOR(ta->ssa_ir));
-            struct ssa_type * type_struct_field = get_type_data_node_recursive(ta, &guard_node->data, &guard_node->guard.value);
+            struct ssa_type * type_struct_field = get_type_data_node_recursive(to_evaluate, &guard_node->data, &guard_node->guard.value);
             *parent_ptr = &guard_node->data;
 
             return type_struct_field;
@@ -253,8 +264,8 @@ static struct ssa_type * get_type_data_node_recursive(
 
             struct ssa_data_node * array_instance = get_array_element->instance;
             struct ssa_data_node * index = get_array_element->index;
-            array_instance->produced_type = get_type_data_node_recursive(ta, array_instance, &get_array_element->instance);
-            index->produced_type = get_type_data_node_recursive(ta, index, &get_array_element->index);
+            array_instance->produced_type = get_type_data_node_recursive(to_evaluate, array_instance, &get_array_element->instance);
+            index->produced_type = get_type_data_node_recursive(to_evaluate, index, &get_array_element->index);
 
             //We insert array type check guard
             if(array_instance->produced_type->type != SSA_TYPE_LOX_ARRAY){
@@ -264,7 +275,7 @@ static struct ssa_type * get_type_data_node_recursive(
                 array_type_guard->guard.type = SSA_GUARD_TYPE_CHECK;
                 array_type_guard->guard.value = array_instance;
                 get_array_element->instance = &array_type_guard->data;
-                array_instance->produced_type = get_type_data_node_recursive(ta, &array_type_guard->data, &array_type_guard->guard.value);
+                array_instance->produced_type = get_type_data_node_recursive(to_evaluate, &array_type_guard->data, &array_type_guard->guard.value);
             }
 
             //Array type found
@@ -281,7 +292,7 @@ static struct ssa_type * get_type_data_node_recursive(
             array_element_type_guard->guard.type = SSA_GUARD_TYPE_CHECK;
             *parent_ptr = &array_element_type_guard->data;
 
-            return get_type_data_node_recursive(ta, &array_element_type_guard->data, parent_ptr);
+            return get_type_data_node_recursive(to_evaluate, &array_element_type_guard->data, parent_ptr);
         }
 
         case SSA_DATA_NODE_TYPE_PHI: {
@@ -289,7 +300,7 @@ static struct ssa_type * get_type_data_node_recursive(
             struct ssa_type * phi_type_result = NULL;
 
             FOR_EACH_SSA_NAME_IN_PHI_NODE(phi, current_ssa_name) {
-                struct ssa_type * type_current_ssa_name = get_u64_hash_table(&ta->ssa_type_by_ssa_name, current_ssa_name.u16);
+                struct ssa_type * type_current_ssa_name = get_u64_hash_table(to_evaluate->ssa_type_by_ssa_name, current_ssa_name.u16);
 
                 if (phi_type_result == NULL) {
                     phi_type_result = type_current_ssa_name;
@@ -340,7 +351,6 @@ static struct ta * alloc_type_analysis(struct ssa_ir * ssa_ir) {
     struct arena arena;
     init_arena(&arena);
     ta->ta_allocator = to_lox_allocator_arena(arena);
-    init_u64_hash_table(&ta->ssa_type_by_ssa_name, &ta->ta_allocator.lox_allocator);
     return ta;
 }
 
@@ -349,7 +359,7 @@ static void free_type_analysis(struct ta * ta) {
     NATIVE_LOX_FREE(ta);
 }
 
-static void add_argument_types(struct ta * ta) {
+static void add_argument_types(struct ta * ta, struct u64_hash_table * ssa_type_by_ssa_name) {
     struct function_object * function = ta->ssa_ir->function;
 
     for (int i = 1; i < ta->ssa_ir->function->n_arguments + 1; i++) {
@@ -366,7 +376,7 @@ static void add_argument_types(struct ta * ta) {
             function_arg_type = CREATE_SSA_TYPE(profiled_type_to_ssa_type(function_arg_profiled_type), SSA_IR_ALLOCATOR(ta->ssa_ir));
         }
 
-        put_u64_hash_table(&ta->ssa_type_by_ssa_name, function_arg_ssa_name.u16, function_arg_type);
+        put_u64_hash_table(ssa_type_by_ssa_name, function_arg_ssa_name.u16, function_arg_type);
     }
 }
 
@@ -456,4 +466,17 @@ static void clear_type(struct ssa_type *type) {
     } else if(type->type == SSA_TYPE_LOX_STRUCT_INSTANCE){
         clear_u64_hash_table(&type->value.struct_instance->type_by_field_name);
     }
+}
+
+static void push_pending_evaluate(
+        struct stack_list * pending_stack,
+        struct ta * ta,
+        struct ssa_block * block,
+        struct u64_hash_table * ssa_type_by_ssa_name
+) {
+    struct pending_evaluate * pending_evaluate = LOX_MALLOC(&ta->ta_allocator.lox_allocator, sizeof(struct pending_evaluate));
+    pending_evaluate->ssa_type_by_ssa_name = ssa_type_by_ssa_name;
+    pending_evaluate->block = block;
+    pending_evaluate->ta = ta;
+    push_stack_list(pending_stack, pending_evaluate);
 }
