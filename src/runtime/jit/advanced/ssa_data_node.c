@@ -592,7 +592,7 @@ static bool check_equivalence_flatted_out(struct u64_set left, struct u64_set ri
     return false;
 }
 
-struct ssa_data_guard_node * screate_from_profile_ssa_data_guard_node(
+struct ssa_data_guard_node * create_from_profile_ssa_data_guard_node(
         struct type_profile_data type_profile,
         struct ssa_data_node * source,
         struct lox_allocator * allocator

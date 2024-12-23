@@ -121,7 +121,7 @@ void remove_control_node_ssa_block(
         return;
     }
     //Unlink the control_node from the control control_node linkedlist in a block
-    if (node_to_remove != NULL) {
+    if (node_to_remove->prev != NULL) {
         node_to_remove->prev->next = node_to_remove->next;
     }
     if(node_to_remove->next != NULL){

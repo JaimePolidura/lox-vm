@@ -7,6 +7,8 @@ struct ta {
     struct u64_hash_table ssa_type_by_ssa_name_by_block;
 
     struct u64_set loops_aready_scanned;
+    bool rescanning_loop_body;
+    int rescanning_loop_body_nested_loops;
 };
 
 struct pending_evaluate {
@@ -62,13 +64,19 @@ void perform_type_analysis(struct ssa_ir * ssa_ir) {
             case TYPE_NEXT_SSA_BLOCK_BRANCH: {
                 struct ssa_block * false_branch = block_to_evalute->next_as.branch.false_branch;
                 struct ssa_block * true_branch = block_to_evalute->next_as.branch.true_branch;
-                struct u64_hash_table * types_false = get_merged_type_map_block(to_evalute->ta,
-                        block_to_evalute->next_as.branch.false_branch);
-                struct u64_hash_table * types_true = get_merged_type_map_block(to_evalute->ta,
-                        block_to_evalute->next_as.branch.true_branch);
 
-                push_pending_evaluate(&pending_to_evaluate, ta, false_branch, types_false);
-                push_pending_evaluate(&pending_to_evaluate, ta, true_branch, types_true);
+                if(block_to_evalute->is_loop_condition &&
+                    ta->rescanning_loop_body &&
+                    false_branch->nested_loop_body < ta->rescanning_loop_body_nested_loops) {
+
+                    struct u64_hash_table * types_true = get_merged_type_map_block(to_evalute->ta, true_branch);
+                    push_pending_evaluate(&pending_to_evaluate, ta, true_branch, types_true);
+                } else {
+                    struct u64_hash_table * types_false = get_merged_type_map_block(to_evalute->ta,false_branch);
+                    struct u64_hash_table * types_true = get_merged_type_map_block(to_evalute->ta, true_branch);
+                    push_pending_evaluate(&pending_to_evaluate, ta, false_branch, types_false);
+                    push_pending_evaluate(&pending_to_evaluate, ta, true_branch, types_true);
+                }
                 break;
             }
             case TYPE_NEXT_SSA_BLOCK_LOOP: {
@@ -77,6 +85,11 @@ void perform_type_analysis(struct ssa_ir * ssa_ir) {
                     struct u64_hash_table * types_loop = clone_u64_hash_table(to_evalute->ssa_type_by_ssa_name, &ta->ta_allocator.lox_allocator);
                     push_pending_evaluate(&pending_to_evaluate, ta, to_jump_loop_block, types_loop);
                     add_u64_set(&ta->loops_aready_scanned, (uint64_t) to_jump_loop_block);
+
+                    ta->rescanning_loop_body_nested_loops = block_to_evalute->nested_loop_body;
+                    ta->rescanning_loop_body = true;
+                } else {
+                    ta->rescanning_loop_body = false;
                 }
                 break;
             }
