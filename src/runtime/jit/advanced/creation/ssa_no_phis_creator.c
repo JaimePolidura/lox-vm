@@ -124,7 +124,7 @@ struct ssa_block * create_ssa_ir_no_phis(
             case OP_PRINT: print(inserter, to_evaluate); break;
             case OP_SET_LOCAL: set_local(inserter, to_evaluate); break;
 
-                //Expressions -> control nodes
+            //Expressions -> control nodes
             case OP_GET_LOCAL: get_local(function, inserter, to_evaluate); break;
             case OP_CALL: call(inserter, to_evaluate); break;
             case OP_GET_GLOBAL: get_global(function, inserter, to_evaluate); break;
@@ -134,7 +134,7 @@ struct ssa_block * create_ssa_ir_no_phis(
             case OP_GET_ARRAY_ELEMENT: get_array_element(inserter, to_evaluate); break;
             case OP_NEGATE:
             case OP_NOT: unary(inserter, to_evaluate); break;
-                //Binary operations
+            //Binary operations
             case OP_ADD:
             case OP_SUB:
             case OP_MUL:

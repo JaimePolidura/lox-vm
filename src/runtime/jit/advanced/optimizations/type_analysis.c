@@ -5,6 +5,8 @@ struct ta {
     struct arena_lox_allocator ta_allocator;
     //Key block pointer: value pointer to pending_evaluate's ssa_type_by_ssa_name
     struct u64_hash_table ssa_type_by_ssa_name_by_block;
+
+    struct u64_set loops_aready_scanned;
 };
 
 struct pending_evaluate {
@@ -27,7 +29,7 @@ static struct ssa_type * union_array_types(struct ta*, struct ssa_type*, struct 
 static void clear_type(struct ssa_type *);
 static void push_pending_evaluate(struct stack_list*, struct ta*, struct ssa_block*, struct u64_hash_table*);
 static struct ssa_type * get_type_by_ssa_name(struct ta*, struct pending_evaluate*, struct ssa_name);
-static struct u64_hash_table * merge_types_map(struct pending_evaluate*, struct ssa_block *);
+static struct u64_hash_table * get_merged_type_map_block(struct ta *ta, struct ssa_block *next_block);
 static struct u64_hash_table * get_ssa_type_by_ssa_name_by_block(struct ta *, struct ssa_block *);
 
 extern void runtime_panic(char * format, ...);
@@ -46,23 +48,36 @@ void perform_type_analysis(struct ssa_ir * ssa_ir) {
 
     while(!is_empty_stack_list(&pending_to_evaluate)) {
         struct pending_evaluate * to_evalute = pop_stack_list(&pending_to_evaluate);
+        struct ssa_block * block_to_evalute = to_evalute->block;
 
         perform_type_analysis_block(to_evalute);
 
         switch (to_evalute->block->type_next_ssa_block) {
             case TYPE_NEXT_SSA_BLOCK_SEQ: {
-                struct u64_hash_table * next_block_types = merge_types_map(to_evalute, to_evalute->block->next_as.next);
-                push_pending_evaluate(&pending_to_evaluate, ta, to_evalute->block->next_as.next, next_block_types);
+                struct u64_hash_table * next_block_types = get_merged_type_map_block(to_evalute->ta,
+                        block_to_evalute->next_as.next);
+                push_pending_evaluate(&pending_to_evaluate, ta, block_to_evalute->next_as.next, next_block_types);
                 break;
             }
             case TYPE_NEXT_SSA_BLOCK_BRANCH: {
-                struct ssa_block * false_branch = to_evalute->block->next_as.branch.false_branch;
-                struct ssa_block * true_branch = to_evalute->block->next_as.branch.true_branch;
-                struct u64_hash_table * types_false = merge_types_map(to_evalute, to_evalute->block->next_as.branch.false_branch);
-                struct u64_hash_table * types_true = merge_types_map(to_evalute, to_evalute->block->next_as.branch.true_branch);
+                struct ssa_block * false_branch = block_to_evalute->next_as.branch.false_branch;
+                struct ssa_block * true_branch = block_to_evalute->next_as.branch.true_branch;
+                struct u64_hash_table * types_false = get_merged_type_map_block(to_evalute->ta,
+                        block_to_evalute->next_as.branch.false_branch);
+                struct u64_hash_table * types_true = get_merged_type_map_block(to_evalute->ta,
+                        block_to_evalute->next_as.branch.true_branch);
 
                 push_pending_evaluate(&pending_to_evaluate, ta, false_branch, types_false);
                 push_pending_evaluate(&pending_to_evaluate, ta, true_branch, types_true);
+                break;
+            }
+            case TYPE_NEXT_SSA_BLOCK_LOOP: {
+                struct ssa_block * to_jump_loop_block = block_to_evalute->next_as.loop;
+                if (!contains_u64_set(&ta->loops_aready_scanned, (uint64_t) to_jump_loop_block)) {
+                    struct u64_hash_table * types_loop = clone_u64_hash_table(to_evalute->ssa_type_by_ssa_name, &ta->ta_allocator.lox_allocator);
+                    push_pending_evaluate(&pending_to_evaluate, ta, to_jump_loop_block, types_loop);
+                    add_u64_set(&ta->loops_aready_scanned, (uint64_t) to_jump_loop_block);
+                }
                 break;
             }
         }
@@ -368,6 +383,8 @@ static struct ta * alloc_type_analysis(struct ssa_ir * ssa_ir) {
     init_arena(&arena);
     ta->ta_allocator = to_lox_allocator_arena(arena);
     init_u64_hash_table(&ta->ssa_type_by_ssa_name_by_block, &ta->ta_allocator.lox_allocator);
+    init_u64_set(&ta->loops_aready_scanned, &ta->ta_allocator.lox_allocator);
+
     return ta;
 }
 
@@ -512,12 +529,12 @@ static struct ssa_type * get_type_by_ssa_name(struct ta * ta, struct pending_eva
     }
 }
 
-static struct u64_hash_table * merge_types_map(struct pending_evaluate * to_evaluate, struct ssa_block * next_block) {
-    struct u64_hash_table * merged = get_ssa_type_by_ssa_name_by_block(to_evaluate->ta, next_block);
+static struct u64_hash_table * get_merged_type_map_block(struct ta * ta, struct ssa_block * next_block) {
+    struct u64_hash_table * merged = get_ssa_type_by_ssa_name_by_block(ta, next_block);
 
     FOR_EACH_U64_SET_VALUE(next_block->predecesors, predecesor_u64_ptr) {
         struct ssa_block * predecesor = (struct ssa_block *) predecesor_u64_ptr;
-        struct u64_hash_table * predecesor_ssa_type_by_ssa_name = get_ssa_type_by_ssa_name_by_block(to_evaluate->ta, predecesor);
+        struct u64_hash_table * predecesor_ssa_type_by_ssa_name = get_ssa_type_by_ssa_name_by_block(ta, predecesor);
         struct u64_hash_table_iterator predecesor_ssa_type_by_ssa_name_it;
         init_u64_hash_table_iterator(&predecesor_ssa_type_by_ssa_name_it, *predecesor_ssa_type_by_ssa_name);
 
@@ -528,7 +545,7 @@ static struct u64_hash_table * merge_types_map(struct pending_evaluate * to_eval
 
             if (contains_u64_hash_table(merged, current_predecesor_ssa_name_u64)) {
                 struct ssa_type * type_to_union = get_u64_hash_table(merged, current_predecesor_ssa_name_u64);
-                struct ssa_type * type_result = union_type(to_evaluate->ta, current_predecesor_ssa_type, type_to_union);
+                struct ssa_type * type_result = union_type(ta, current_predecesor_ssa_type, type_to_union);
 
                 put_u64_hash_table(merged, current_predecesor_ssa_name_u64, type_result);
             } else {
