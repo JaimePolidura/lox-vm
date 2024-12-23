@@ -46,6 +46,8 @@ bool contains_u64_hash_table(struct u64_hash_table *, uint64_t key);
 
 void remove_u64_hash_table(struct u64_hash_table *, uint64_t key);
 
+struct u64_hash_table * clone_u64_hash_table(struct u64_hash_table *, struct lox_allocator *);
+
 void init_u64_hash_table_iterator(struct u64_hash_table_iterator *, struct u64_hash_table);
 bool has_next_u64_hash_table_iterator(struct u64_hash_table_iterator iterator);
 struct u64_hash_table_entry next_u64_hash_table_iterator(struct u64_hash_table_iterator * iterator);

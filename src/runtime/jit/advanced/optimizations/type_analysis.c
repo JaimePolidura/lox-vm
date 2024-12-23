@@ -3,6 +3,8 @@
 struct ta {
     struct ssa_ir * ssa_ir;
     struct arena_lox_allocator ta_allocator;
+    //Key block pointer: value pointer to pending_evaluate's ssa_type_by_ssa_name
+    struct u64_hash_table ssa_type_by_ssa_name_by_block;
 };
 
 struct pending_evaluate {
@@ -24,6 +26,9 @@ static struct ssa_type * union_struct_types_same_definition(struct ta*, struct s
 static struct ssa_type * union_array_types(struct ta*, struct ssa_type*, struct ssa_type*);
 static void clear_type(struct ssa_type *);
 static void push_pending_evaluate(struct stack_list*, struct ta*, struct ssa_block*, struct u64_hash_table*);
+static struct ssa_type * get_type_by_ssa_name(struct ta*, struct pending_evaluate*, struct ssa_name);
+static struct u64_hash_table * merge_types_map(struct pending_evaluate*, struct ssa_block *);
+static struct u64_hash_table * get_ssa_type_by_ssa_name_by_block(struct ta *, struct ssa_block *);
 
 extern void runtime_panic(char * format, ...);
 
@@ -37,6 +42,7 @@ void perform_type_analysis(struct ssa_ir * ssa_ir) {
     struct stack_list pending_to_evaluate;
     init_stack_list(&pending_to_evaluate, &ta->ta_allocator.lox_allocator);
     push_pending_evaluate(&pending_to_evaluate, ta, ssa_ir->first_block, ssa_type_by_ssa_name);
+    put_u64_hash_table(&ta->ssa_type_by_ssa_name_by_block, (uint64_t) ssa_ir->first_block, ssa_type_by_ssa_name);
 
     while(!is_empty_stack_list(&pending_to_evaluate)) {
         struct pending_evaluate * to_evalute = pop_stack_list(&pending_to_evaluate);
@@ -45,11 +51,19 @@ void perform_type_analysis(struct ssa_ir * ssa_ir) {
 
         switch (to_evalute->block->type_next_ssa_block) {
             case TYPE_NEXT_SSA_BLOCK_SEQ: {
-                push_stack_list(&pending_to_evaluate, to_evalute->block->next_as.next);
+                struct u64_hash_table * next_block_types = merge_types_map(to_evalute, to_evalute->block->next_as.next);
+                push_pending_evaluate(&pending_to_evaluate, ta, to_evalute->block->next_as.next, next_block_types);
+                break;
             }
             case TYPE_NEXT_SSA_BLOCK_BRANCH: {
-                push_stack_list(&pending_to_evaluate, to_evalute->block->next_as.branch.true_branch);
-                push_stack_list(&pending_to_evaluate, to_evalute->block->next_as.branch.false_branch);
+                struct ssa_block * false_branch = to_evalute->block->next_as.branch.false_branch;
+                struct ssa_block * true_branch = to_evalute->block->next_as.branch.true_branch;
+                struct u64_hash_table * types_false = merge_types_map(to_evalute, to_evalute->block->next_as.branch.false_branch);
+                struct u64_hash_table * types_true = merge_types_map(to_evalute, to_evalute->block->next_as.branch.true_branch);
+
+                push_pending_evaluate(&pending_to_evaluate, ta, false_branch, types_false);
+                push_pending_evaluate(&pending_to_evaluate, ta, true_branch, types_true);
+                break;
             }
         }
     }
@@ -131,7 +145,7 @@ static struct ssa_type * get_type_data_node_recursive(
         }
         case SSA_DATA_NODE_TYPE_GET_SSA_NAME: {
             struct ssa_data_get_ssa_name_node * get_ssa_name = (struct ssa_data_get_ssa_name_node *) node;
-            return get_u64_hash_table(to_evaluate->ssa_type_by_ssa_name, get_ssa_name->ssa_name.u16);
+            return get_type_by_ssa_name(ta, to_evaluate, get_ssa_name->ssa_name);
         }
         case SSA_DATA_NODE_TYPE_CALL: {
             struct ssa_data_function_call_node * call = (struct ssa_data_function_call_node *) node;
@@ -300,7 +314,7 @@ static struct ssa_type * get_type_data_node_recursive(
             struct ssa_type * phi_type_result = NULL;
 
             FOR_EACH_SSA_NAME_IN_PHI_NODE(phi, current_ssa_name) {
-                struct ssa_type * type_current_ssa_name = get_u64_hash_table(to_evaluate->ssa_type_by_ssa_name, current_ssa_name.u16);
+                struct ssa_type * type_current_ssa_name = get_type_by_ssa_name(ta, to_evaluate, current_ssa_name);
 
                 if (phi_type_result == NULL) {
                     phi_type_result = type_current_ssa_name;
@@ -323,7 +337,9 @@ static struct ssa_type * union_type(
         struct ssa_type * a,
         struct ssa_type * b
 ) {
-    if(a->type == b->type){
+    if(a->type == SSA_TYPE_UNKNOWN || b->type == SSA_TYPE_UNKNOWN){
+        return CREATE_SSA_TYPE(SSA_TYPE_UNKNOWN, SSA_IR_ALLOCATOR(ta->ssa_ir));
+    } else if(a->type == b->type){
         //Different struct instances
         if(a->type == SSA_TYPE_LOX_STRUCT_INSTANCE &&
             a->value.struct_instance->definition == b->value.struct_instance->definition &&
@@ -351,6 +367,7 @@ static struct ta * alloc_type_analysis(struct ssa_ir * ssa_ir) {
     struct arena arena;
     init_arena(&arena);
     ta->ta_allocator = to_lox_allocator_arena(arena);
+    init_u64_hash_table(&ta->ssa_type_by_ssa_name_by_block, &ta->ta_allocator.lox_allocator);
     return ta;
 }
 
@@ -384,6 +401,9 @@ static void add_argument_types(struct ta * ta, struct u64_hash_table * ssa_type_
 ssa_type_t binary_to_ssa_type(bytecode_t operator, ssa_type_t left, ssa_type_t right) {
     if(left == right){
         return left;
+    }
+    if(left == SSA_TYPE_UNKNOWN || right == SSA_TYPE_UNKNOWN){
+        return SSA_TYPE_UNKNOWN;
     }
     if(left == SSA_TYPE_LOX_ANY || right == SSA_TYPE_LOX_ANY){
         return SSA_TYPE_LOX_ANY;
@@ -479,4 +499,56 @@ static void push_pending_evaluate(
     pending_evaluate->block = block;
     pending_evaluate->ta = ta;
     push_stack_list(pending_stack, pending_evaluate);
+}
+
+static struct ssa_type * get_type_by_ssa_name(struct ta * ta, struct pending_evaluate * to_evalute, struct ssa_name name) {
+    struct ssa_type * type = get_u64_hash_table(to_evalute->ssa_type_by_ssa_name, name.u16);
+    if(type == NULL){
+        struct ssa_type * unknown_type = CREATE_SSA_TYPE(SSA_TYPE_UNKNOWN, SSA_IR_ALLOCATOR(ta->ssa_ir));
+        put_u64_hash_table(to_evalute->ssa_type_by_ssa_name, name.u16, unknown_type);
+        return unknown_type;
+    } else {
+        return type;
+    }
+}
+
+static struct u64_hash_table * merge_types_map(struct pending_evaluate * to_evaluate, struct ssa_block * next_block) {
+    struct u64_hash_table * merged = get_ssa_type_by_ssa_name_by_block(to_evaluate->ta, next_block);
+
+    FOR_EACH_U64_SET_VALUE(next_block->predecesors, predecesor_u64_ptr) {
+        struct ssa_block * predecesor = (struct ssa_block *) predecesor_u64_ptr;
+        struct u64_hash_table * predecesor_ssa_type_by_ssa_name = get_ssa_type_by_ssa_name_by_block(to_evaluate->ta, predecesor);
+        struct u64_hash_table_iterator predecesor_ssa_type_by_ssa_name_it;
+        init_u64_hash_table_iterator(&predecesor_ssa_type_by_ssa_name_it, *predecesor_ssa_type_by_ssa_name);
+
+        while(has_next_u64_hash_table_iterator(predecesor_ssa_type_by_ssa_name_it)) {
+            struct u64_hash_table_entry current_predecesor_ssa_type_entry = next_u64_hash_table_iterator(&predecesor_ssa_type_by_ssa_name_it);
+            struct ssa_type * current_predecesor_ssa_type = current_predecesor_ssa_type_entry.value;
+            uint64_t current_predecesor_ssa_name_u64 = current_predecesor_ssa_type_entry.key;
+
+            if (contains_u64_hash_table(merged, current_predecesor_ssa_name_u64)) {
+                struct ssa_type * type_to_union = get_u64_hash_table(merged, current_predecesor_ssa_name_u64);
+                struct ssa_type * type_result = union_type(to_evaluate->ta, current_predecesor_ssa_type, type_to_union);
+
+                put_u64_hash_table(merged, current_predecesor_ssa_name_u64, type_result);
+            } else {
+                put_u64_hash_table(merged, current_predecesor_ssa_name_u64, current_predecesor_ssa_type);
+            }
+        }
+    }
+
+    return merged;
+}
+
+static struct u64_hash_table * get_ssa_type_by_ssa_name_by_block(struct ta * ta, struct ssa_block * block) {
+    if(!contains_u64_hash_table(&ta->ssa_type_by_ssa_name_by_block, (uint64_t) block)){
+        struct u64_hash_table * ssa_type_by_ssa_name = LOX_MALLOC(&ta->ta_allocator.lox_allocator, sizeof(struct u64_hash_table));
+        init_u64_hash_table(ssa_type_by_ssa_name, &ta->ta_allocator.lox_allocator);
+
+        put_u64_hash_table(&ta->ssa_type_by_ssa_name_by_block, (uint64_t) block, ssa_type_by_ssa_name);
+
+        return ssa_type_by_ssa_name;
+    } else {
+        return get_u64_hash_table(&ta->ssa_type_by_ssa_name_by_block, (uint64_t) block);
+    }
 }

@@ -129,3 +129,13 @@ struct u64_hash_table_entry next_u64_hash_table_iterator(struct u64_hash_table_i
     runtime_panic("Illegal state of u64_hash_table_iterator. Expect call to has_next() before call to next_as()");
     exit(1);
 }
+
+struct u64_hash_table * clone_u64_hash_table(struct u64_hash_table * from, struct lox_allocator * allocator) {
+    struct u64_hash_table * new = LOX_MALLOC(allocator, sizeof(struct u64_hash_table));
+    new->entries = LOX_MALLOC(from->allocator, sizeof(struct u64_hash_table_entry) * from->capacity);
+    memcpy(new->entries, from->entries, sizeof(struct u64_hash_table_entry) * from->capacity);
+    new->allocator = from->allocator;
+    new->capacity = from->capacity;
+    new->size = from->size;
+    return new;
+}
