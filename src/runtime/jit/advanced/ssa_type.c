@@ -126,3 +126,38 @@ struct ssa_type * get_struct_field_ssa_type(
         return field_type;
     }
 }
+
+char * to_string_ssa_type(struct ssa_type * type) {
+    switch (type->type) {
+        case SSA_TYPE_F64:
+            return "F64";
+        case SSA_TYPE_UNKNOWN:
+            return "Uknown";
+        case SSA_TYPE_NATIVE_I64:
+            return "Native I64";
+        case SSA_TYPE_NATIVE_STRING:
+            return "Native String";
+        case SSA_TYPE_NATIVE_BOOLEAN:
+            return "Native Boolean";
+        case SSA_TYPE_NATIVE_NIL:
+            return "Native Nil";
+        case SSA_TYPE_NATIVE_ARRAY:
+            return "Native Array";
+        case SSA_TYPE_NATIVE_STRUCT_INSTANCE:
+            return "Native StructInstance";
+        case SSA_TYPE_LOX_ANY:
+            return "Lox Any";
+        case SSA_TYPE_LOX_I64:
+            return "Lox I64";
+        case SSA_TYPE_LOX_STRING:
+            return "Lox String";
+        case SSA_TYPE_LOX_BOOLEAN:
+            return "Lox Boolean";
+        case SSA_TYPE_LOX_NIL:
+            return "Lox Nil";
+        case SSA_TYPE_LOX_ARRAY:
+            return "Lox Array";
+        case SSA_TYPE_LOX_STRUCT_INSTANCE:
+            return "Lox StructInstance";
+    }
+}

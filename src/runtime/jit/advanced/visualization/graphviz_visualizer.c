@@ -48,6 +48,7 @@ static struct block_graph_generated generate_block_graph(struct graphviz_visuali
 static int generate_control_node_graph(struct graphviz_visualizer *, struct ssa_control_node *);
 static int generate_data_node_graph(struct graphviz_visualizer *, struct ssa_data_node *);
 static struct block_graph_generated generate_blocks_graph(struct graphviz_visualizer *, struct ssa_block * first);
+static char * maybe_add_type_info_data_node(struct graphviz_visualizer*, struct ssa_data_node*, char*);
 
 static char * unary_operator_to_string(ssa_unary_operator_type_t);
 static char * binary_operator_to_string(bytecode_t);
@@ -157,6 +158,15 @@ void generate_ssa_graphviz_graph(
             generate_graph_and_write(&graphviz_visualizer, ssa_ir.first_block);
             break;
         }
+        case TYPE_ANALYSIS_PHASE_SSA_GRAPHVIZ: {
+            struct ssa_ir ssa_ir = create_ssa_ir(package, function, create_bytecode_list(function->chunk,
+                    &ssa_node_allocator.lox_allocator), graphviz_visualizer.ssa_options);
+            perform_type_analysis(&ssa_ir);
+            graphviz_visualizer.ssa_ir = ssa_ir;
+
+            generate_graph_and_write(&graphviz_visualizer, ssa_ir.first_block);
+            break;
+        }
         case ALL_PHASE_SSA_GRAPHVIZ: {
             struct ssa_ir ssa_ir = create_ssa_ir(package, function, create_bytecode_list(function->chunk,
                 &ssa_node_allocator.lox_allocator), graphviz_visualizer.ssa_options);
@@ -165,6 +175,7 @@ void generate_ssa_graphviz_graph(
             perform_strength_reduction(&ssa_ir);
             perform_loop_invariant_code_motion(&ssa_ir);
             perform_copy_propagation(&ssa_ir);
+            perform_type_analysis(&ssa_ir);
 
             graphviz_visualizer.ssa_ir = ssa_ir;
 
@@ -355,7 +366,7 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
         case SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT: {
             struct ssa_control_set_array_element_node * set_array_element = (struct ssa_control_set_array_element_node *) node;
             char * node_desc = dynamic_format_string("SetArrayElement");
-
+3
             add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
             free(node_desc);
             if(!IS_FLAG_SET(visualizer->graphviz_options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
@@ -412,6 +423,7 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             int guard_value_node_id = generate_data_node_graph(visualizer, guard_node->guard.value);
             char * guard_node_desc = guard_node_to_string(guard_node->guard);
             char * node_desc = dynamic_format_string("Guard %s", guard_node_desc);
+            node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             link_data_data_node_graphviz_file(visualizer, self_data_node_id, guard_value_node_id);
@@ -422,6 +434,7 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             struct ssa_data_unary_node * unary = (struct ssa_data_unary_node *) node;
             int unary_value_node_id = generate_data_node_graph(visualizer, unary->operand);
             char * node_desc = dynamic_format_string("%s", unary_operator_to_string(unary->operator));
+            node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             link_data_data_node_graphviz_file(visualizer, self_data_node_id, unary_value_node_id);
@@ -434,6 +447,7 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             int right_node_id = generate_data_node_graph(visualizer, binary->right);
             char * node_desc = dynamic_format_string("%s", binary_operator_to_string(binary->operator));
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
+            node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
 
             link_data_data_node_graphviz_file(visualizer, self_data_node_id, left_node_id);
             link_data_data_node_graphviz_file(visualizer, self_data_node_id, right_node_id);
@@ -444,6 +458,7 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             struct ssa_data_function_call_node * call = (struct ssa_data_function_call_node *) node;
             char * function_name = call->is_native ? call->native_function->name : call->lox_function.function->name->chars;
             char * node_desc = dynamic_format_string("%s()", function_name);
+            node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             for (int i = 0; i < call->n_arguments; i++){
@@ -457,6 +472,7 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             struct ssa_data_get_struct_field_node * get_struct_field = (struct ssa_data_get_struct_field_node *) node;
             char * node_desc = dynamic_format_string("GetStructField %s", get_struct_field->field_name->chars);
             int struct_instance_node_id = generate_data_node_graph(visualizer, get_struct_field->instance_node);
+            node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             link_data_data_node_graphviz_file(visualizer, self_data_node_id, struct_instance_node_id);
@@ -466,6 +482,7 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
         case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT: {
             struct ssa_data_initialize_struct_node * initialize_struct = (struct ssa_data_initialize_struct_node *) node;
             char * node_desc = dynamic_format_string("InitializeStruct %s", initialize_struct->definition->name);
+            node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             for(int i = 0; i < initialize_struct->definition->n_fields; i++){
@@ -477,6 +494,7 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
         }
         case SSA_DATA_NODE_TYPE_GET_ARRAY_LENGTH: {
             struct ssa_data_get_array_length * get_array_length = (struct ssa_data_get_array_length *) node;
+            char * node_desc = maybe_add_type_info_data_node(visualizer, node, "GetArrayLength");
 
             add_data_node_graphviz_file(visualizer, "GetArrayLength", self_data_node_id);
             int array_instance_node_id = generate_data_node_graph(visualizer, get_array_length->instance);
@@ -485,7 +503,7 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
         }
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
             struct ssa_data_get_array_element_node * get_array_element = (struct ssa_data_get_array_element_node *) node;
-            char * node_desc = dynamic_format_string("GetArrayElement");
+            char * node_desc = maybe_add_type_info_data_node(visualizer, node, "GetArrayElement");
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             int array_instance_node_id = generate_data_node_graph(visualizer, get_array_element->instance);
@@ -497,7 +515,8 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
         }
         case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY: {
             struct ssa_data_initialize_array_node *initialize_array = (struct ssa_data_initialize_array_node *) node;
-            char *node_desc = dynamic_format_string("InitializeArray %i", initialize_array->n_elements);
+            char * node_desc = dynamic_format_string("InitializeArray %i", initialize_array->n_elements);
+            node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             for (int i = 0; i < initialize_array->n_elements && !initialize_array->empty_initialization; i++) {
@@ -525,6 +544,7 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             remove_last_string_builder(&node_desc_string_builder);
             append_string_builder(&node_desc_string_builder, ")");
             char * node_desc = to_string_string_builder(&node_desc_string_builder, NATIVE_LOX_ALLOCATOR());
+            node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             free_string_builder(&node_desc_string_builder);
@@ -533,13 +553,16 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
         }
         case SSA_DATA_NODE_TYPE_CONSTANT: {
             lox_value_t const_value = GET_CONST_VALUE_SSA_NODE(node);
-            add_data_node_graphviz_file(visualizer, lox_value_to_string(const_value), self_data_node_id);
+            char * node_desc = maybe_add_type_info_data_node(visualizer, node, lox_value_to_string(const_value));
+
+            add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             break;
         }
         case SSA_DATA_NODE_TYPE_GET_LOCAL: {
             struct ssa_data_get_local_node * get_local = (struct ssa_data_get_local_node *) node;
             char * local_name = get_u8_hash_table(&visualizer->function->local_numbers_to_names, get_local->local_number);
             char * node_desc = dynamic_format_string("GetLocal %s", local_name);
+            node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             free(node_desc);
@@ -550,6 +573,7 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             char * package_name = get_global->package->name;
             char * global_name = get_global->name->chars;
             char * node_desc = dynamic_format_string("GetGlobal\\npackage: %s\\nname: %s)", package_name, global_name);
+            node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             free(node_desc);
@@ -559,6 +583,7 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             struct ssa_data_get_ssa_name_node * get_ssa_name = (struct ssa_data_get_ssa_name_node *) node;
             char * local_name = get_u8_hash_table(&visualizer->function->local_numbers_to_names, get_ssa_name->ssa_name.value.local_number);
             char * node_desc = dynamic_format_string("GetSSA %s %i", local_name, get_ssa_name->ssa_name.value.version);
+            node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             free(node_desc);
@@ -747,5 +772,17 @@ static char * guard_node_to_string(struct ssa_guard guard) {
                     guard.value_to_compare.struct_definition;
             return dynamic_format_string("StructDefinitionCheck %s", definition->name->chars);
         }
+    }
+}
+
+static char * maybe_add_type_info_data_node(
+        struct graphviz_visualizer * visualizer,
+        struct ssa_data_node * data_node,
+        char * label
+) {
+    if(IS_FLAG_SET(visualizer->graphviz_options, DISPLAY_TYPE_INFO_OPT)){
+        return dynamic_format_string("%s\nType: %s", to_string_ssa_type(data_node->produced_type));
+    } else {
+        return label;
     }
 }
