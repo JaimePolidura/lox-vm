@@ -366,7 +366,7 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
         case SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT: {
             struct ssa_control_set_array_element_node * set_array_element = (struct ssa_control_set_array_element_node *) node;
             char * node_desc = dynamic_format_string("SetArrayElement");
-3
+
             add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
             free(node_desc);
             if(!IS_FLAG_SET(visualizer->graphviz_options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
@@ -446,9 +446,9 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             int left_node_id = generate_data_node_graph(visualizer, binary->left);
             int right_node_id = generate_data_node_graph(visualizer, binary->right);
             char * node_desc = dynamic_format_string("%s", binary_operator_to_string(binary->operator));
-            add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
 
+            add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             link_data_data_node_graphviz_file(visualizer, self_data_node_id, left_node_id);
             link_data_data_node_graphviz_file(visualizer, self_data_node_id, right_node_id);
             free(node_desc);
@@ -781,7 +781,7 @@ static char * maybe_add_type_info_data_node(
         char * label
 ) {
     if(IS_FLAG_SET(visualizer->graphviz_options, DISPLAY_TYPE_INFO_OPT)){
-        return dynamic_format_string("%s\nType: %s", to_string_ssa_type(data_node->produced_type));
+        return dynamic_format_string("%s\nType: %s", label, to_string_ssa_type(data_node->produced_type));
     } else {
         return label;
     }

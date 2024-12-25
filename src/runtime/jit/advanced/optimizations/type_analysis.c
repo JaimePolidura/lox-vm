@@ -72,7 +72,7 @@ void perform_type_analysis(struct ssa_ir * ssa_ir) {
                     struct u64_hash_table * types_true = get_merged_type_map_block(to_evalute->ta, true_branch);
                     push_pending_evaluate(&pending_to_evaluate, ta, true_branch, types_true);
                 } else {
-                    struct u64_hash_table * types_false = get_merged_type_map_block(to_evalute->ta,false_branch);
+                    struct u64_hash_table * types_false = get_merged_type_map_block(to_evalute->ta, false_branch);
                     struct u64_hash_table * types_true = get_merged_type_map_block(to_evalute->ta, true_branch);
                     push_pending_evaluate(&pending_to_evaluate, ta, false_branch, types_false);
                     push_pending_evaluate(&pending_to_evaluate, ta, true_branch, types_true);
@@ -349,9 +349,9 @@ static struct ssa_type * get_type_data_node_recursive(
                 } else {
                     phi_type_result = union_type(ta, phi_type_result, type_current_ssa_name);
                 }
-
-                return phi_type_result;
             }
+
+            return phi_type_result;
         }
 
         case SSA_DATA_NODE_TYPE_GET_LOCAL: {
@@ -365,6 +365,12 @@ static struct ssa_type * union_type(
         struct ssa_type * a,
         struct ssa_type * b
 ) {
+    if(a == NULL){
+        return b;
+    }
+    if(b == NULL){
+        return a;
+    }
     if(a->type == SSA_TYPE_UNKNOWN || b->type == SSA_TYPE_UNKNOWN){
         return CREATE_SSA_TYPE(SSA_TYPE_UNKNOWN, SSA_IR_ALLOCATOR(ta->ssa_ir));
     } else if(a->type == b->type){
@@ -531,17 +537,6 @@ static void push_pending_evaluate(
     push_stack_list(pending_stack, pending_evaluate);
 }
 
-static struct ssa_type * get_type_by_ssa_name(struct ta * ta, struct pending_evaluate * to_evalute, struct ssa_name name) {
-    struct ssa_type * type = get_u64_hash_table(to_evalute->ssa_type_by_ssa_name, name.u16);
-    if(type == NULL){
-        struct ssa_type * unknown_type = CREATE_SSA_TYPE(SSA_TYPE_UNKNOWN, SSA_IR_ALLOCATOR(ta->ssa_ir));
-        put_u64_hash_table(to_evalute->ssa_type_by_ssa_name, name.u16, unknown_type);
-        return unknown_type;
-    } else {
-        return type;
-    }
-}
-
 static struct u64_hash_table * get_merged_type_map_block(struct ta * ta, struct ssa_block * next_block) {
     struct u64_hash_table * merged = get_ssa_type_by_ssa_name_by_block(ta, next_block);
 
@@ -555,6 +550,7 @@ static struct u64_hash_table * get_merged_type_map_block(struct ta * ta, struct 
             struct u64_hash_table_entry current_predecesor_ssa_type_entry = next_u64_hash_table_iterator(&predecesor_ssa_type_by_ssa_name_it);
             struct ssa_type * current_predecesor_ssa_type = current_predecesor_ssa_type_entry.value;
             uint64_t current_predecesor_ssa_name_u64 = current_predecesor_ssa_type_entry.key;
+            struct ssa_name name = CREATE_SSA_NAME_FROM_U64(current_predecesor_ssa_name_u64);
 
             if (contains_u64_hash_table(merged, current_predecesor_ssa_name_u64)) {
                 struct ssa_type * type_to_union = get_u64_hash_table(merged, current_predecesor_ssa_name_u64);
@@ -580,5 +576,14 @@ static struct u64_hash_table * get_ssa_type_by_ssa_name_by_block(struct ta * ta,
         return ssa_type_by_ssa_name;
     } else {
         return get_u64_hash_table(&ta->ssa_type_by_ssa_name_by_block, (uint64_t) block);
+    }
+}
+
+static struct ssa_type * get_type_by_ssa_name(struct ta * ta, struct pending_evaluate * to_evalute, struct ssa_name name) {
+    struct ssa_type * type = get_u64_hash_table(to_evalute->ssa_type_by_ssa_name, name.u16);
+    if(type == NULL){
+        return CREATE_SSA_TYPE(SSA_TYPE_UNKNOWN, SSA_IR_ALLOCATOR(ta->ssa_ir));
+    } else {
+        return type;
     }
 }

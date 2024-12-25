@@ -2,6 +2,7 @@
 
 struct ssa_type * create_ssa_type(ssa_type_t type, struct lox_allocator * allocator) {
     struct ssa_type * ssa_type = LOX_MALLOC(allocator, sizeof(struct ssa_type));
+    memset(ssa_type, 0, sizeof(struct ssa_type));
     ssa_type->type = type;
     return ssa_type;
 }
@@ -42,6 +43,7 @@ ssa_type_t profiled_type_to_ssa_type(profile_data_type_t profiled_type) {
         case PROFILE_DATA_TYPE_ARRAY: return SSA_TYPE_LOX_ARRAY;
         case PROFILE_DATA_TYPE_STRUCT_INSTANCE: return SSA_TYPE_LOX_STRUCT_INSTANCE;
         case PROFILE_DATA_TYPE_ANY: return SSA_TYPE_LOX_ANY;
+        case PROFILE_DATA_TYPE_STRING: return SSA_TYPE_LOX_STRING;
         default: return 0;
     }
 }
