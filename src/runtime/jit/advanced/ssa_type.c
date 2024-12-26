@@ -129,8 +129,8 @@ struct ssa_type * get_struct_field_ssa_type(
     }
 }
 
-char * to_string_ssa_type(struct ssa_type * type) {
-    switch (type->type) {
+char * to_string_ssa_type(ssa_type_t type) {
+    switch (type) {
         case SSA_TYPE_F64:
             return "F64";
         case SSA_TYPE_UNKNOWN:

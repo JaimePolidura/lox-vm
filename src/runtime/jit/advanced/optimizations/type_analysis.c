@@ -209,9 +209,12 @@ static struct ssa_type * get_type_data_node_recursive(
         case SSA_DATA_NODE_TYPE_GUARD: {
             struct ssa_data_guard_node * guard = (struct ssa_data_guard_node *) node;
             switch (guard->guard.type) {
+                case SSA_GUARD_ARRAY_TYPE_CHECK: {
+                    struct ssa_type * array_type = CREATE_SSA_TYPE(guard->guard.value_to_compare.type, SSA_IR_ALLOCATOR(ta->ssa_ir));
+                    return CREATE_ARRAY_SSA_TYPE(array_type, SSA_IR_ALLOCATOR(ta->ssa_ir));
+                }
                 case SSA_GUARD_TYPE_CHECK: {
-                    profile_data_type_t guard_type = guard->guard.value_to_compare.type;
-                    return CREATE_SSA_TYPE(profiled_type_to_ssa_type(guard_type), SSA_IR_ALLOCATOR(ta->ssa_ir));
+                    return CREATE_SSA_TYPE(guard->guard.value_to_compare.type, SSA_IR_ALLOCATOR(ta->ssa_ir));
                 }
                 case SSA_GUARD_STRUCT_DEFINITION_TYPE_CHECK: {
                     struct struct_definition_object * definition = guard->guard.value_to_compare.struct_definition;
@@ -300,41 +303,31 @@ static struct ssa_type * get_type_data_node_recursive(
         }
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
             struct ssa_data_get_array_element_node * get_array_element = (struct ssa_data_get_array_element_node *) node;
-            struct instruction_profile_data get_struct_field_profile_data = get_instruction_profile_data_function(
-                    ta->ssa_ir->function, get_array_element->data.original_bytecode);
-            struct type_profile_data get_struct_field_type_profile = get_struct_field_profile_data.as.struct_field.get_struct_field_profile;
-
             struct ssa_data_node * array_instance = get_array_element->instance;
             struct ssa_data_node * index = get_array_element->index;
             array_instance->produced_type = get_type_data_node_recursive(to_evaluate, array_instance, &get_array_element->instance);
             index->produced_type = get_type_data_node_recursive(to_evaluate, index, &get_array_element->index);
 
-            //We insert array type check guard
-            if(array_instance->produced_type->type != SSA_TYPE_LOX_ARRAY){
-                struct ssa_data_guard_node * array_type_guard = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_GUARD,
-                        struct ssa_data_guard_node, NULL, SSA_IR_ALLOCATOR(ta->ssa_ir));
-                array_type_guard->guard.value_to_compare.type = PROFILE_DATA_TYPE_ARRAY;
-                array_type_guard->guard.type = SSA_GUARD_TYPE_CHECK;
-                array_type_guard->guard.value = array_instance;
-                get_array_element->instance = &array_type_guard->data;
-                array_instance->produced_type = get_type_data_node_recursive(to_evaluate, &array_type_guard->data, &array_type_guard->guard.value);
-            }
-
             //Array type found
-            if(array_instance->produced_type->value.array->type->type != SSA_TYPE_UNKNOWN &&
+            if(array_instance->produced_type->type == SSA_TYPE_LOX_ARRAY &&
+               array_instance->produced_type->value.array->type->type != SSA_TYPE_UNKNOWN &&
                array_instance->produced_type->value.array->type->type != SSA_TYPE_LOX_ANY){
                 return array_instance->produced_type->value.array->type;
             }
 
-            //If not found, add guard type check
-            struct ssa_data_guard_node * array_element_type_guard = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_GUARD,
-                    struct ssa_data_guard_node, NULL, SSA_IR_ALLOCATOR(ta->ssa_ir));
-            array_element_type_guard->guard.value_to_compare.type = get_type_by_type_profile_data(get_struct_field_type_profile);
-            array_element_type_guard->guard.value = &get_array_element->data;
-            array_element_type_guard->guard.type = SSA_GUARD_TYPE_CHECK;
-            *parent_ptr = &array_element_type_guard->data;
+            struct instruction_profile_data get_array_profiled_instruction_profile_data = get_instruction_profile_data_function(
+                    ta->ssa_ir->function, get_array_element->data.original_bytecode);
+            struct type_profile_data get_array_profiled_data = get_array_profiled_instruction_profile_data.as.get_array_element_profile;
+            profile_data_type_t get_array_profiled_type = get_type_by_type_profile_data(get_array_profiled_data);
 
-            return get_type_data_node_recursive(to_evaluate, &array_element_type_guard->data, parent_ptr);
+            struct ssa_data_guard_node * array_type_guard = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_GUARD,
+                    struct ssa_data_guard_node, NULL, SSA_IR_ALLOCATOR(ta->ssa_ir));
+            array_type_guard->guard.value_to_compare.type = profiled_type_to_ssa_type(get_array_profiled_type);
+            array_type_guard->guard.type = SSA_GUARD_ARRAY_TYPE_CHECK;
+            array_type_guard->guard.value = array_instance;
+            *parent_ptr = &array_type_guard->data;
+
+            return get_type_data_node_recursive(to_evaluate, &array_type_guard->data, parent_ptr);
         }
 
         case SSA_DATA_NODE_TYPE_PHI: {

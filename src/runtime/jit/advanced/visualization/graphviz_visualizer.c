@@ -759,9 +759,14 @@ static char * unary_operator_to_string(ssa_unary_operator_type_t operator) {
 
 static char * guard_node_to_string(struct ssa_guard guard) {
     switch (guard.type) {
+        case SSA_GUARD_ARRAY_TYPE_CHECK: {
+            char * type_name = to_string_ssa_type(guard.value_to_compare.type);
+            return dynamic_format_string("ArrayTypeCheck %s", type_name);
+            break;
+        }
         case SSA_GUARD_TYPE_CHECK: {
-            char * type_name = profile_data_type_to_string(guard.value_to_compare.type);
-            return dynamic_format_string("TypeScheck %s", type_name);
+            char * type_name = to_string_ssa_type(guard.value_to_compare.type);
+            return dynamic_format_string("TypeCheck %s", type_name);
         }
         case SSA_GUARD_BOOLEAN_CHECK: {
             char * value_name = lox_value_to_string(AS_BOOL(guard.value_to_compare.check_true));
@@ -781,7 +786,7 @@ static char * maybe_add_type_info_data_node(
         char * label
 ) {
     if(IS_FLAG_SET(visualizer->graphviz_options, DISPLAY_TYPE_INFO_OPT)){
-        return dynamic_format_string("%s\nType: %s", label, to_string_ssa_type(data_node->produced_type));
+        return dynamic_format_string("%s\nType: %s", label, to_string_ssa_type(data_node->produced_type->type));
     } else {
         return label;
     }

@@ -59,4 +59,4 @@ ssa_type_t profiled_type_to_ssa_type(profile_data_type_t);
 
 ssa_type_t lox_type_to_native_ssa_type(ssa_type_t);
 ssa_type_t native_type_to_lox_ssa_type(ssa_type_t);
-char * to_string_ssa_type(struct ssa_type *);
+char * to_string_ssa_type(ssa_type_t);
