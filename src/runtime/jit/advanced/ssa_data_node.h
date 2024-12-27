@@ -45,7 +45,9 @@ typedef enum {
 //Represents expressions in CFG
 struct ssa_data_node {
     struct bytecode_list * original_bytecode;
-    struct ssa_type * produced_type; //Added in type_annalysis optimization process
+    //The type produced by this data node
+    //This is added in type_propagation optimization process
+    struct ssa_type * produced_type;
     ssa_data_node_type type;
 };
 

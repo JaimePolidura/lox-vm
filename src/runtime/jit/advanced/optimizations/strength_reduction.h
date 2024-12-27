@@ -5,7 +5,9 @@
 #include "shared/utils/memory/arena.h"
 #include "shared.h"
 
-//Optmizes math operations into cheaper ones. Operations that are being optimized:
+//Transforms math operations into cheaper ones.
+//Uses type information. Run after type propagation optimization process.
+// Operations that are being optimized:
 // Check for odd/even numbers:
 //  number % 2 -> number & 0x01 == 0
 //  number % k -> Where k is power of 2: number & (k - 1)
