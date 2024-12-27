@@ -17,10 +17,12 @@ static bool node_defines_ssa_name(struct ssa_control_node *, int version);
 
 TEST(ssa_creation_ta){
     struct compilation_result compilation = compile_standalone(
-            "fun function(arr) {"
+            "fun function() {"
+            "   var mensaje = \"a\";"
             "   for(var i = 0; i < 10; i = i + 1){"
-            "       print arr[0];"
+            "       mensaje = mensaje + i;"
             "   }"
+            "   return mensaje;"
             "}"
     );
 

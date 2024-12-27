@@ -8,17 +8,12 @@
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) > (b) ? (b) : (a))
 #define IS_FLAG_SET(to_test, flag) (((to_test) & (flag)) == flag)
-
 #define TO_UPPER_CASE(character) ( ~((character >= 'a' & character <= 'z') << 5) & character )
-
 #define COMPILER_BARRIER() asm volatile ("" : : : "memory")
-
 #define GROW_CAPACITY(capacity) (capacity < 8 ? 8 : capacity << 1)
-
 //It zeros the memory
 #define GROW_ARRAY(allocator, type, pointer, oldCount, newCount) \
     (type*) grow_array(allocator, newCount * sizeof(type), pointer, sizeof(type) * (oldCount))
-
 #define VARARGS_TO_ARRAY(type, arr, count, ...) \
 do { \
     va_list args; \
@@ -28,6 +23,9 @@ do { \
     } \
     va_end(args); \
 } while (0)
+#define container_of(ptr, type, member) ({                      \
+        const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
+        (type *)((char *)__mptr - offsetof(type,member));})
 
 char * to_upper_case(char * key, int length);
 bool string_contains(char * string, int length, char to_check);

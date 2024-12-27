@@ -854,7 +854,7 @@ static void add_argument_guard(
     } else {
         guard_node = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_GUARD, struct ssa_control_guard_node,
                 block, &inserter->ssa_node_allocator->lox_allocator);
-        guard_node->guard.value_to_compare.type = argument_profiled_type;
+        guard_node->guard.value_to_compare.type = profiled_type_to_ssa_type(argument_profiled_type);
         guard_node->guard.type = SSA_GUARD_TYPE_CHECK;
     }
 
