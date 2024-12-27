@@ -158,10 +158,10 @@ void generate_ssa_graphviz_graph(
             generate_graph_and_write(&graphviz_visualizer, ssa_ir.first_block);
             break;
         }
-        case TYPE_ANALYSIS_PHASE_SSA_GRAPHVIZ: {
+        case TYPE_PROPAGATION_PHASE_SSA_GRAPHVIZ: {
             struct ssa_ir ssa_ir = create_ssa_ir(package, function, create_bytecode_list(function->chunk,
                     &ssa_node_allocator.lox_allocator), graphviz_visualizer.ssa_options);
-            perform_type_analysis(&ssa_ir);
+            perform_type_propagation(&ssa_ir);
             graphviz_visualizer.ssa_ir = ssa_ir;
 
             generate_graph_and_write(&graphviz_visualizer, ssa_ir.first_block);
@@ -175,7 +175,7 @@ void generate_ssa_graphviz_graph(
             perform_strength_reduction(&ssa_ir);
             perform_loop_invariant_code_motion(&ssa_ir);
             perform_copy_propagation(&ssa_ir);
-            perform_type_analysis(&ssa_ir);
+            perform_type_propagation(&ssa_ir);
 
             graphviz_visualizer.ssa_ir = ssa_ir;
 

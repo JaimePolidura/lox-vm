@@ -5,7 +5,7 @@
 #include "runtime/jit/advanced/optimizations/sparse_constant_propagation.h"
 #include "runtime/jit/advanced/optimizations/strength_reduction.h"
 #include "runtime/jit/advanced/optimizations/copy_propagation.h"
-#include "runtime/jit/advanced/optimizations/type_analysis.h"
+#include "runtime/jit/advanced/optimizations/type_propagation.h"
 
 #include "runtime/jit/advanced/creation/ssa_no_phis_creator.h"
 #include "runtime/jit/advanced/creation/ssa_phi_inserter.h"
@@ -27,7 +27,7 @@ typedef enum {
     STRENGTH_REDUCTION_PHASE_SSA_GRAPHVIZ = 1 << 5,
     LOOP_INVARIANT_CODE_MOTION_PHASE_SSA_GRAPHVIZ = 1 << 6,
     COPY_PROPAGATION_PHASE_SSA_GRAPHVIZ = 1 << 7,
-    TYPE_ANALYSIS_PHASE_SSA_GRAPHVIZ = 1 << 8,
+    TYPE_PROPAGATION_PHASE_SSA_GRAPHVIZ = 1 << 8,
 
     ALL_PHASE_SSA_GRAPHVIZ = 1 << 9,
 } phase_ssa_graphviz_t;

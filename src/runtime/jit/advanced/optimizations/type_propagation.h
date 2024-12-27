@@ -5,4 +5,4 @@
 #include "shared/utils/memory/arena.h"
 #include "shared.h"
 
-void perform_type_analysis(struct ssa_ir *);
+void perform_type_propagation(struct ssa_ir *);
