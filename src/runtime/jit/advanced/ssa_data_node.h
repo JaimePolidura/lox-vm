@@ -82,6 +82,8 @@ bool is_eq_ssa_data_node(struct ssa_data_node *, struct ssa_data_node *, struct 
 struct u64_set get_used_ssa_names_ssa_data_node(struct ssa_data_node *, struct lox_allocator *);
 //A terminator node is a node that has no children
 bool is_terminator_ssa_data_node(struct ssa_data_node *);
+//Returns set of pointers to the fields of parent that contains the children pointer. Type: struct ssa_data_node **
+struct u64_set get_children_ssa_data_node(struct ssa_data_node * parent, struct lox_allocator *);
 
 //OP_GET_LOCAL
 struct ssa_data_get_local_node {

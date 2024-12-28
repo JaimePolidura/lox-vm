@@ -280,63 +280,13 @@ static bool for_each_ssa_data_node_recursive(
         }
     }
 
-    switch (current_node->type) {
-        case SSA_DATA_NODE_TYPE_GUARD: {
-            struct ssa_data_guard_node * guard_node = (struct ssa_data_guard_node * ) current_node;
-            for_each_ssa_data_node_recursive(current_node, (void **) &guard_node->guard.value, guard_node->guard.value, extra, options, consumer);
-        }
-        case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT: {
-            struct ssa_data_initialize_struct_node * init_struct = (struct ssa_data_initialize_struct_node *) current_node;
-            for(int i = 0; i < init_struct->definition->n_fields; i++) {
-                for_each_ssa_data_node_recursive(current_node, (void **) &init_struct->fields_nodes[i], init_struct->fields_nodes[i], extra, options, consumer);
-            }
-            break;
-        }
-        case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD: {
-            struct ssa_data_get_struct_field_node * get_struct_field = (struct ssa_data_get_struct_field_node *) current_node;
-            for_each_ssa_data_node_recursive(current_node, (void **) &get_struct_field->instance_node, get_struct_field->instance_node, extra, options, consumer);
-            break;
-        }
-        case SSA_DATA_NODE_TYPE_BINARY: {
-            struct ssa_data_binary_node * binary_node = (struct ssa_data_binary_node *) current_node;
-            for_each_ssa_data_node_recursive(current_node, (void **) &binary_node->right, binary_node->right, extra, options, consumer);
-            for_each_ssa_data_node_recursive(current_node, (void **) &binary_node->left, binary_node->left, extra, options, consumer);
-            break;
-        }
-        case SSA_DATA_NODE_TYPE_UNARY: {
-            struct ssa_data_unary_node * unary = (struct ssa_data_unary_node *) current_node;
-            for_each_ssa_data_node_recursive(current_node, (void **) &unary->operand, unary->operand, extra, options, consumer);
-            break;
-        }
-        case SSA_DATA_NODE_TYPE_CALL: {
-            struct ssa_data_function_call_node * call_node = (struct ssa_data_function_call_node *) current_node;
-            for (int i = 0; i < call_node->n_arguments; i++) {
-                for_each_ssa_data_node_recursive(current_node, (void **) &call_node->arguments[i], call_node->arguments[i], extra, options, consumer);
-            }
-            break;
-        }
-        case SSA_DATA_NODE_TYPE_GET_ARRAY_LENGTH: {
-            struct ssa_data_get_array_length * get_array_element = (struct ssa_data_get_array_length *) current_node;
-            for_each_ssa_data_node_recursive(current_node, (void **) &get_array_element->instance, get_array_element->instance, extra, options, consumer);
-            break;
-        }
-        case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
-            struct ssa_data_get_array_element_node * get_array_element = (struct ssa_data_get_array_element_node *) current_node;
-            for_each_ssa_data_node_recursive(current_node, (void **) &get_array_element->instance, get_array_element->instance, extra, options, consumer);
-            for_each_ssa_data_node_recursive(current_node, (void **) &get_array_element->index, get_array_element->index, extra, options, consumer);
-            break;
-        }
-        case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY: {
-            struct ssa_data_initialize_array_node * init_array = (struct ssa_data_initialize_array_node *) current_node;
-            for(int i = 0; i < init_array->n_elements && !init_array->empty_initialization; i++){
-                for_each_ssa_data_node_recursive(current_node, (void **) &init_array->elememnts_node[i],
-                                                 init_array->elememnts_node[i], extra, options, consumer);
-            }
-            break;
-        }
-        default:
-            break;
+    struct u64_set children_ptr_set = get_children_ssa_data_node(current_node, NATIVE_LOX_ALLOCATOR());
+    FOR_EACH_U64_SET_VALUE(children_ptr_set, children_ptr_u64) {
+        struct ssa_data_node ** children_ptr = (struct ssa_data_node **) children_ptr_u64;
+        for_each_ssa_data_node_recursive(current_node, (void **) children_ptr, *children_ptr, extra, options, consumer);
     }
+
+    free_u64_set(&children_ptr_set);
 
     if (IS_FLAG_SET(options, SSA_DATA_NODE_OPT_POST_ORDER)) {
         consumer(parent_current, parent_current_ptr, current_node, extra);
@@ -608,8 +558,88 @@ struct ssa_data_guard_node * create_from_profile_ssa_data_guard_node(
         guard_node->guard.value_to_compare.struct_definition = type_profile.struct_definition;
     } else {
         guard_node->guard.type = SSA_GUARD_TYPE_CHECK;
-        guard_node->guard.value_to_compare.type = profiled_type;
+        guard_node->guard.value_to_compare.type = profiled_type_to_ssa_type(profiled_type);
     }
 
     return guard_node;
+}
+
+struct u64_set get_children_ssa_data_node(struct ssa_data_node * node, struct lox_allocator * allocator) {
+    struct u64_set children;
+    init_u64_set(&children, allocator);
+
+    switch (node->type) {
+        case SSA_DATA_NODE_TYPE_CALL: {
+            struct ssa_data_function_call_node * call_node = (struct ssa_data_function_call_node *) node;
+            for(int i = 0 ; i < call_node->n_arguments; i++){
+                add_u64_set(&children, (uint64_t) &call_node->arguments[i]);
+            }
+            break;
+        }
+        case SSA_DATA_NODE_TYPE_BINARY: {
+            struct ssa_data_binary_node * binary = (struct ssa_data_binary_node *) node;
+            add_u64_set(&children, (uint64_t) &binary->left);
+            add_u64_set(&children, (uint64_t) &binary->right);
+            break;
+        }
+        case SSA_DATA_NODE_TYPE_UNARY: {
+            struct ssa_data_unary_node * unary = (struct ssa_data_unary_node *) node;
+            add_u64_set(&children, (uint64_t) &unary->operand);
+            break;
+        }
+        case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD: {
+            struct ssa_data_get_struct_field_node * get_struct_field = (struct ssa_data_get_struct_field_node *) node;
+            add_u64_set(&children, (uint64_t) &get_struct_field->instance_node);
+            break;
+        }
+        case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT: {
+            struct ssa_data_initialize_struct_node * init_struct = (struct ssa_data_initialize_struct_node *) node;
+            for(int i = 0; i < init_struct->definition->n_fields; i++){
+                add_u64_set(&children, (uint64_t) &init_struct->fields_nodes[i]);
+            }
+            break;
+        }
+        case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
+            struct ssa_data_get_array_element_node * get_arr_element = (struct ssa_data_get_array_element_node *) node;
+            add_u64_set(&children, (uint64_t) &get_arr_element->instance);
+            add_u64_set(&children, (uint64_t) &get_arr_element->index);
+            break;
+        }
+        case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY: {
+            struct ssa_data_initialize_array_node * init_array = (struct ssa_data_initialize_array_node *) node;
+            for(int i = 0; i < init_array->n_elements && !init_array->empty_initialization; i++){
+                add_u64_set(&children, (uint64_t) &init_array->elememnts_node[i]);
+            }
+            break;
+        }
+        case SSA_DATA_NODE_TYPE_GET_ARRAY_LENGTH: {
+            struct ssa_data_get_array_length * get_arr_len = (struct ssa_data_get_array_length *) node;
+            add_u64_set(&children, (uint64_t) &get_arr_len->instance);
+            break;
+        }
+        case SSA_DATA_NODE_TYPE_GUARD: {
+            struct ssa_data_guard_node * guard = (struct ssa_data_guard_node *) node;
+            add_u64_set(&children, (uint64_t) &guard->guard.value);
+            break;
+        }
+        case SSA_DATA_NODE_TYPE_UNBOX: {
+            struct ssa_data_node_unbox * unbox = (struct ssa_data_node_unbox *) node;
+            add_u64_set(&children, (uint64_t) &unbox->to_unbox);
+            break;
+        }
+        case SSA_DATA_NODE_TYPE_BOX: {
+            struct ssa_data_node_box * box = (struct ssa_data_node_box *) node;
+            add_u64_set(&children, (uint64_t) &box->to_box);
+            break;
+        }
+        case SSA_DATA_NODE_TYPE_GET_LOCAL:
+        case SSA_DATA_NODE_TYPE_CONSTANT:
+        case SSA_DATA_NODE_TYPE_PHI:
+        case SSA_DATA_NODE_TYPE_GET_SSA_NAME:
+        case SSA_DATA_NODE_TYPE_GET_GLOBAL: {
+            break;
+        }
+    }
+
+    return children;
 }
