@@ -163,3 +163,109 @@ char * to_string_ssa_type(ssa_type_t type) {
             return "Lox StructInstance";
     }
 }
+
+struct ssa_type * native_to_lox_ssa_type(struct ssa_type * native_type, struct lox_allocator * allocator) {
+    if(is_lox_ssa_type(native_type->type)){
+        return native_type;
+    }
+
+    switch (native_type->type) {
+        case SSA_TYPE_NATIVE_I64: return CREATE_SSA_TYPE(SSA_TYPE_LOX_I64, allocator);
+        case SSA_TYPE_NATIVE_STRING: return CREATE_SSA_TYPE(SSA_TYPE_LOX_STRING, allocator);
+        case SSA_TYPE_NATIVE_BOOLEAN: return CREATE_SSA_TYPE(SSA_TYPE_LOX_BOOLEAN, allocator);
+        case SSA_TYPE_NATIVE_NIL: return CREATE_SSA_TYPE(SSA_TYPE_LOX_NIL, allocator);
+        case SSA_TYPE_NATIVE_ARRAY: {
+            struct ssa_type * array = CREATE_SSA_TYPE(SSA_TYPE_LOX_ARRAY, allocator);
+            array->value.array = native_type->value.array;
+            return array;
+        }
+        case SSA_TYPE_NATIVE_STRUCT_INSTANCE: {
+            struct ssa_type * struct_instance = CREATE_SSA_TYPE(SSA_TYPE_LOX_STRUCT_INSTANCE, allocator);
+            struct_instance->value.struct_instance = native_type->value.struct_instance;
+            return struct_instance;
+        }
+    }
+    //TODO Runtime panic
+}
+
+struct ssa_type * lox_to_native_ssa_type(struct ssa_type * lox_type, struct lox_allocator * allocator) {
+    if (is_native_ssa_type(lox_type->type)) {
+        return lox_type;
+    }
+
+    switch (lox_type->type) {
+        case SSA_TYPE_LOX_I64: return CREATE_SSA_TYPE(SSA_TYPE_NATIVE_I64, allocator);
+        case SSA_TYPE_LOX_STRING: return CREATE_SSA_TYPE(SSA_TYPE_NATIVE_STRING, allocator);
+        case SSA_TYPE_LOX_BOOLEAN: return CREATE_SSA_TYPE(SSA_TYPE_NATIVE_BOOLEAN, allocator);
+        case SSA_TYPE_LOX_NIL: return CREATE_SSA_TYPE(SSA_TYPE_NATIVE_NIL, allocator);
+        case SSA_TYPE_LOX_ARRAY: {
+            struct ssa_type * array = CREATE_SSA_TYPE(SSA_TYPE_NATIVE_ARRAY, allocator);
+            array->value.array = lox_type->value.array;
+            return array;
+        }
+        case SSA_TYPE_LOX_STRUCT_INSTANCE: {
+            struct ssa_type * struct_instance = CREATE_SSA_TYPE(SSA_TYPE_NATIVE_STRUCT_INSTANCE, allocator);
+            struct_instance->value.struct_instance = lox_type->value.struct_instance;
+            return struct_instance;
+        }
+    }
+    //TODO Runtime panic
+}
+
+bool is_lox_ssa_type(ssa_type_t type) {
+    return type >= SSA_TYPE_LOX_ANY;
+}
+
+
+bool is_native_ssa_type(ssa_type_t type) {
+    return type >= SSA_TYPE_NATIVE_I64 && SSA_TYPE_NATIVE_STRUCT_INSTANCE <= type;
+}
+
+ssa_type_t binary_to_ssa_type(bytecode_t operator, ssa_type_t left, ssa_type_t right, bool return_lox_as_default) {
+    switch (operator) {
+        case OP_GREATER:
+        case OP_EQUAL:
+        case OP_LESS: {
+            return return_lox_as_default ? SSA_TYPE_LOX_BOOLEAN : SSA_TYPE_NATIVE_BOOLEAN;
+        }
+        case OP_BINARY_OP_AND:
+        case OP_BINARY_OP_OR:
+        case OP_LEFT_SHIFT:
+        case OP_RIGHT_SHIFT:
+        case OP_MODULO: {
+            return return_lox_as_default ? SSA_TYPE_LOX_I64 : SSA_TYPE_NATIVE_I64;
+        }
+        case OP_ADD: {
+            if(left == SSA_TYPE_UNKNOWN || right == SSA_TYPE_UNKNOWN){
+                return SSA_TYPE_UNKNOWN;
+            }
+
+            bool some_string = left == SSA_TYPE_LOX_STRING || right == SSA_TYPE_LOX_STRING ||
+                    left == SSA_TYPE_NATIVE_STRING || right == SSA_TYPE_NATIVE_STRING;
+            bool some_f64 = left == SSA_TYPE_F64 || right == SSA_TYPE_F64;
+
+            if(some_string){
+                return return_lox_as_default ? SSA_TYPE_LOX_STRING : SSA_TYPE_NATIVE_STRING;
+            } else if(some_f64){
+                return SSA_TYPE_F64;
+            } else {
+                return return_lox_as_default ? SSA_TYPE_LOX_I64 : SSA_TYPE_NATIVE_I64;
+            }
+        }
+        case OP_SUB:
+        case OP_MUL: {
+            if(left == SSA_TYPE_UNKNOWN || right == SSA_TYPE_UNKNOWN){
+                return SSA_TYPE_UNKNOWN;
+            }
+
+            if(left == SSA_TYPE_F64 || right == SSA_TYPE_F64) {
+                return SSA_TYPE_F64;
+            } else {
+                return return_lox_as_default ? SSA_TYPE_LOX_I64 : SSA_TYPE_NATIVE_I64;
+            }
+        }
+        case OP_DIV: {
+            return SSA_TYPE_F64;
+        }
+    }
+}

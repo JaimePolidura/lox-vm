@@ -2,7 +2,7 @@
 
 struct tp {
     struct ssa_ir * ssa_ir;
-    struct arena_lox_allocator ta_allocator;
+    struct arena_lox_allocator tp_allocator;
     //Key block pointer: value pointer to pending_evaluate's ssa_type_by_ssa_name
     struct u64_hash_table ssa_type_by_ssa_name_by_block;
 
@@ -26,7 +26,6 @@ static void perform_type_propagation_control(struct pending_evaluate *to_evalute
 static bool perform_type_propagation_data(struct ssa_data_node *_, void **parent_ptr, struct ssa_data_node *data_node, void *extra);
 static struct ssa_type * get_type_data_node_recursive(struct pending_evaluate*, struct ssa_data_node*, struct ssa_data_node** parent_ptr);
 static void add_argument_types(struct tp*, struct u64_hash_table*);
-static ssa_type_t binary_to_ssa_type(bytecode_t, ssa_type_t, ssa_type_t);
 static struct ssa_type * union_type(struct tp*, struct ssa_type*, struct ssa_type*);
 static struct ssa_type * union_struct_types_same_definition(struct tp*, struct ssa_type*, struct ssa_type*);
 static struct ssa_type * union_array_types(struct tp*, struct ssa_type*, struct ssa_type*);
@@ -41,15 +40,15 @@ static bool produced_type_has_been_asigned(struct ssa_data_node *);
 
 extern void runtime_panic(char * format, ...);
 
-void perform_type_propagation(struct ssa_ir * ssa_ir) {
+struct type_propagation_result perform_type_propagation(struct ssa_ir * ssa_ir) {
     struct tp * tp = alloc_type_propagation(ssa_ir);
-    struct u64_hash_table * ssa_type_by_ssa_name = LOX_MALLOC(&tp->ta_allocator.lox_allocator, sizeof(struct u64_hash_table));
-    init_u64_hash_table(ssa_type_by_ssa_name, &tp->ta_allocator.lox_allocator);
+    struct u64_hash_table * ssa_type_by_ssa_name = LOX_MALLOC(&tp->tp_allocator.lox_allocator, sizeof(struct u64_hash_table));
+    init_u64_hash_table(ssa_type_by_ssa_name, &tp->tp_allocator.lox_allocator);
 
     add_argument_types(tp, ssa_type_by_ssa_name);
 
     struct stack_list pending_to_evaluate;
-    init_stack_list(&pending_to_evaluate, &tp->ta_allocator.lox_allocator);
+    init_stack_list(&pending_to_evaluate, &tp->tp_allocator.lox_allocator);
     push_pending_evaluate(&pending_to_evaluate, tp, ssa_ir->first_block, ssa_type_by_ssa_name);
     put_u64_hash_table(&tp->ssa_type_by_ssa_name_by_block, (uint64_t) ssa_ir->first_block, ssa_type_by_ssa_name);
 
@@ -86,7 +85,7 @@ void perform_type_propagation(struct ssa_ir * ssa_ir) {
             }
             case TYPE_NEXT_SSA_BLOCK_LOOP: {
                 struct ssa_block * to_jump_loop_block = block_to_evalute->next_as.loop;
-                struct u64_hash_table * types_loop = clone_u64_hash_table(to_evalute->ssa_type_by_ssa_name, &tp->ta_allocator.lox_allocator);
+                struct u64_hash_table * types_loop = clone_u64_hash_table(to_evalute->ssa_type_by_ssa_name, &tp->tp_allocator.lox_allocator);
 
                 if (!contains_u64_set(&tp->loops_aready_scanned, (uint64_t) to_jump_loop_block)) {
                     push_pending_evaluate(&pending_to_evaluate, tp, to_jump_loop_block, types_loop);
@@ -103,7 +102,14 @@ void perform_type_propagation(struct ssa_ir * ssa_ir) {
         }
     }
 
-    free_type_propagation(tp);
+    struct type_propagation_result result = (struct type_propagation_result) {
+        .ssa_type_by_ssa_name_by_block = tp->ssa_type_by_ssa_name_by_block,
+        .tp_allocator = tp->tp_allocator,
+    };
+
+    NATIVE_LOX_FREE(tp);
+
+    return result;
 }
 
 static void perform_type_propagation_block(struct pending_evaluate * to_evalute) {
@@ -217,8 +223,8 @@ static struct ssa_type * get_type_data_node_recursive(
 
             binary->right->produced_type = right_type;
             binary->left->produced_type = left_type;
-            ssa_type_t produced_type = binary_to_ssa_type(binary->operator, left_type->type, right_type->type);
-
+            ssa_type_t produced_type = binary_to_ssa_type(binary->operator, left_type->type, right_type->type,
+                RETURN_LOX_TYPE_AS_DEFAULT);
             return CREATE_SSA_TYPE(produced_type, SSA_IR_ALLOCATOR(tp->ssa_ir));
         }
         case SSA_DATA_NODE_TYPE_GUARD: {
@@ -415,16 +421,15 @@ static struct tp * alloc_type_propagation(struct ssa_ir * ssa_ir) {
     tp->ssa_ir = ssa_ir;
     struct arena arena;
     init_arena(&arena);
-    tp->ta_allocator = to_lox_allocator_arena(arena);
-    init_u64_hash_table(&tp->ssa_type_by_ssa_name_by_block, &tp->ta_allocator.lox_allocator);
-    init_u64_set(&tp->loops_aready_scanned, &tp->ta_allocator.lox_allocator);
-    init_u64_hash_table(&tp->cyclic_ssa_name_definitions, &tp->ta_allocator.lox_allocator);
+    tp->tp_allocator = to_lox_allocator_arena(arena);
+    init_u64_hash_table(&tp->ssa_type_by_ssa_name_by_block, &tp->tp_allocator.lox_allocator);
+    init_u64_set(&tp->loops_aready_scanned, &tp->tp_allocator.lox_allocator);
+    init_u64_hash_table(&tp->cyclic_ssa_name_definitions, &tp->tp_allocator.lox_allocator);
 
     return tp;
 }
 
 static void free_type_propagation(struct tp * tp) {
-    free_arena(&tp->ta_allocator.arena);
     NATIVE_LOX_FREE(tp);
 }
 
@@ -446,55 +451,6 @@ static void add_argument_types(struct tp * tp, struct u64_hash_table * ssa_type_
         }
 
         put_u64_hash_table(ssa_type_by_ssa_name, function_arg_ssa_name.u16, function_arg_type);
-    }
-}
-
-//Expect left & right to be both of them lox or native
-ssa_type_t binary_to_ssa_type(bytecode_t operator, ssa_type_t left, ssa_type_t right) {
-    switch (operator) {
-        case OP_GREATER:
-        case OP_EQUAL:
-        case OP_LESS: {
-            return SSA_TYPE_LOX_BOOLEAN;
-        }
-        case OP_BINARY_OP_AND:
-        case OP_BINARY_OP_OR:
-        case OP_LEFT_SHIFT:
-        case OP_RIGHT_SHIFT:
-        case OP_MODULO: {
-            return SSA_TYPE_LOX_I64;
-        }
-        case OP_ADD: {
-            if(left == SSA_TYPE_UNKNOWN || right == SSA_TYPE_UNKNOWN){
-                return SSA_TYPE_UNKNOWN;
-            }
-
-            bool some_string = left == SSA_TYPE_LOX_STRING || right == SSA_TYPE_LOX_STRING;
-            bool some_f64 = left == SSA_TYPE_F64 || right == SSA_TYPE_F64;
-
-            if(some_string){
-                return SSA_TYPE_LOX_STRING;
-            } else if(some_f64){
-                return SSA_TYPE_F64;
-            } else {
-                return SSA_TYPE_LOX_I64;
-            }
-        }
-        case OP_SUB:
-        case OP_MUL: {
-            if(left == SSA_TYPE_UNKNOWN || right == SSA_TYPE_UNKNOWN){
-                return SSA_TYPE_UNKNOWN;
-            }
-
-            if(left == SSA_TYPE_F64 || right == SSA_TYPE_F64) {
-                return SSA_TYPE_F64;
-            } else {
-                return SSA_TYPE_LOX_I64;
-            }
-        }
-        case OP_DIV: {
-            return SSA_TYPE_F64;
-        }
     }
 }
 
@@ -551,7 +507,7 @@ static void push_pending_evaluate(
         struct ssa_block * block,
         struct u64_hash_table * ssa_type_by_ssa_name
 ) {
-    struct pending_evaluate * pending_evaluate = LOX_MALLOC(&tp->ta_allocator.lox_allocator, sizeof(struct pending_evaluate));
+    struct pending_evaluate * pending_evaluate = LOX_MALLOC(&tp->tp_allocator.lox_allocator, sizeof(struct pending_evaluate));
     pending_evaluate->ssa_type_by_ssa_name = ssa_type_by_ssa_name;
     pending_evaluate->block = block;
     pending_evaluate->tp = tp;
@@ -607,7 +563,7 @@ static bool is_cyclic_definition(struct tp * tp, struct ssa_name parent, struct 
 //TODO Incorporate type info
 static bool calculate_is_cyclic_definition(struct tp * tp, struct ssa_name target, struct ssa_name start) {
     struct stack_list pending_evaluate;
-    init_stack_list(&pending_evaluate, &tp->ta_allocator.lox_allocator);
+    init_stack_list(&pending_evaluate, &tp->tp_allocator.lox_allocator);
     push_stack_list(&pending_evaluate, (void *) start.u16);
 
     struct u8_set visited_ssa_names;
@@ -617,7 +573,7 @@ static bool calculate_is_cyclic_definition(struct tp * tp, struct ssa_name targe
         struct ssa_name current_ssa_name = CREATE_SSA_NAME_FROM_U64((uint64_t) pop_stack_list(&pending_evaluate));
         struct ssa_control_define_ssa_name_node * define_ssa_name = get_u64_hash_table(
                 &tp->ssa_ir->ssa_definitions_by_ssa_name, current_ssa_name.u16);
-        struct u64_set used_ssa_names = get_used_ssa_names_ssa_data_node(define_ssa_name->value, &tp->ta_allocator.lox_allocator);
+        struct u64_set used_ssa_names = get_used_ssa_names_ssa_data_node(define_ssa_name->value, &tp->tp_allocator.lox_allocator);
 
         FOR_EACH_U64_SET_VALUE(used_ssa_names, used_ssa_name_u16) {
             struct ssa_name used_ssa_name = CREATE_SSA_NAME_FROM_U64(used_ssa_name_u16);
@@ -640,8 +596,8 @@ static bool calculate_is_cyclic_definition(struct tp * tp, struct ssa_name targe
 
 static struct u64_hash_table * get_ssa_type_by_ssa_name_by_block(struct tp * tp, struct ssa_block * block) {
     if(!contains_u64_hash_table(&tp->ssa_type_by_ssa_name_by_block, (uint64_t) block)){
-        struct u64_hash_table * ssa_type_by_ssa_name = LOX_MALLOC(&tp->ta_allocator.lox_allocator, sizeof(struct u64_hash_table));
-        init_u64_hash_table(ssa_type_by_ssa_name, &tp->ta_allocator.lox_allocator);
+        struct u64_hash_table * ssa_type_by_ssa_name = LOX_MALLOC(&tp->tp_allocator.lox_allocator, sizeof(struct u64_hash_table));
+        init_u64_hash_table(ssa_type_by_ssa_name, &tp->tp_allocator.lox_allocator);
 
         put_u64_hash_table(&tp->ssa_type_by_ssa_name_by_block, (uint64_t) block, ssa_type_by_ssa_name);
 

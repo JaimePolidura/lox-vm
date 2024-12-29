@@ -11,6 +11,7 @@
 #define IS_NATIVE_SSA_TYPE(type) ((type) >= SSA_TYPE_NATIVE_I64 && (type) <= SSA_TYPE_NATIVE_STRUCT_INSTANCE)
 #define IS_STRING_SSA_TYPE(type) ((type) == SSA_TYPE_LOX_STRING || (type) == SSA_TYPE_NATIVE_STRING)
 
+//Dont change order
 typedef enum {
     SSA_TYPE_F64, //Floating numbers have the same binary representation in lox & native format
     SSA_TYPE_UNKNOWN,
@@ -52,11 +53,18 @@ struct ssa_type {
 struct ssa_type * create_ssa_type(ssa_type_t, struct lox_allocator *);
 struct ssa_type * create_initialize_struct_ssa_type(struct struct_definition_object *, struct lox_allocator *);
 struct ssa_type * create_array_ssa_type(struct ssa_type *, struct lox_allocator *);
+
 struct ssa_type * get_struct_field_ssa_type(struct ssa_type *, char *, struct lox_allocator *);
-
 bool is_eq_ssa_type(struct ssa_type *, struct ssa_type *);
-ssa_type_t profiled_type_to_ssa_type(profile_data_type_t);
+struct ssa_type * native_to_lox_ssa_type(struct ssa_type *, struct lox_allocator *);
+struct ssa_type * lox_to_native_ssa_type(struct ssa_type *, struct lox_allocator *);
 
+#define RETURN_LOX_TYPE_AS_DEFAULT true
+#define RETURN_NATIVE_TYPE_AS_DEFAULT true
+ssa_type_t binary_to_ssa_type(bytecode_t, ssa_type_t, ssa_type_t, bool);
+ssa_type_t profiled_type_to_ssa_type(profile_data_type_t);
+bool is_lox_ssa_type(ssa_type_t);
+bool is_native_ssa_type(ssa_type_t);
 ssa_type_t lox_type_to_native_ssa_type(ssa_type_t);
 ssa_type_t native_type_to_lox_ssa_type(ssa_type_t);
 char * to_string_ssa_type(ssa_type_t);
