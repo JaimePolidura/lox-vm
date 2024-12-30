@@ -25,6 +25,24 @@ struct ssa_name alloc_ssa_name_ssa_ir(struct ssa_ir * ssa_ir, int ssa_version, c
     return ssa_name;
 }
 
+struct ssa_name alloc_ssa_version_ssa_ir(struct ssa_ir * ssa_ir, int local_number) {
+    uint8_t last_version = (uint8_t) get_u8_hash_table(&ssa_ir->max_version_allocated_per_local, local_number);
+    uint8_t new_version = last_version + 1;
+    put_u8_hash_table(&ssa_ir->max_version_allocated_per_local, local_number, (void *) new_version);
+    return CREATE_SSA_NAME(local_number, new_version);
+}
+
+void remove_ssa_name_use_ssa_ir(
+    struct ssa_ir * ssa_ir,
+    struct ssa_name ssa_name,
+    struct ssa_control_node * ssa_control_node
+) {
+    if(contains_u64_hash_table(&ssa_ir->node_uses_by_ssa_name, ssa_name.u16)){
+        struct u64_set * uses = get_u64_hash_table(&ssa_ir->node_uses_by_ssa_name, ssa_name.u16);
+        remove_u64_set(uses, (uint64_t) ssa_control_node);
+    }
+}
+
 void add_ssa_name_use_ssa_ir(
         struct ssa_ir * ssa_ir,
         struct ssa_name ssa_name,

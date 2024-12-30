@@ -36,4 +36,6 @@ void remove_names_references_ssa_ir(struct ssa_ir *, struct u64_set);
 void remove_name_references_ssa_ir(struct ssa_ir *, struct ssa_name);
 
 struct ssa_name alloc_ssa_name_ssa_ir(struct ssa_ir *, int ssa_version, char *local_name);
+struct ssa_name alloc_ssa_version_ssa_ir(struct ssa_ir *, int local_number);
 void add_ssa_name_use_ssa_ir(struct ssa_ir *, struct ssa_name, struct ssa_control_node *);
+void remove_ssa_name_use_ssa_ir(struct ssa_ir *, struct ssa_name, struct ssa_control_node *);
