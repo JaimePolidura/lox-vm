@@ -239,6 +239,9 @@ ssa_type_t binary_to_ssa_type(bytecode_t operator, ssa_type_t left, ssa_type_t r
             if(left == SSA_TYPE_UNKNOWN || right == SSA_TYPE_UNKNOWN){
                 return SSA_TYPE_UNKNOWN;
             }
+            if (left == SSA_TYPE_LOX_ANY || right == SSA_TYPE_LOX_ANY) {
+                return SSA_TYPE_LOX_ANY;
+            }
 
             bool some_string = left == SSA_TYPE_LOX_STRING || right == SSA_TYPE_LOX_STRING ||
                     left == SSA_TYPE_NATIVE_STRING || right == SSA_TYPE_NATIVE_STRING;

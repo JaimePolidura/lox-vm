@@ -15,7 +15,7 @@ static bool data_requires_boxed_input(struct ssa_data_node *);
 static bool perform_unboxing_insertion_block(struct ssa_block *, void *);
 static void perform_unboxing_insertion_control(struct ui *, struct ssa_block *, struct ssa_control_node *);
 static bool perform_unboxing_insertion_data_consumer(struct ssa_data_node*, void**, struct ssa_data_node*, void*);
-static void perform_unboxing_insertion_data(struct ui*, struct ssa_block*, struct ssa_control_node*, struct ssa_data_node*,  void**, bool should_produce_boxed);
+static void perform_unboxing_insertion_data(struct ui*, struct ssa_block*, struct ssa_control_node*, struct ssa_data_node*,  void**, bool);
 static void insert_box_node(struct ui*, struct ssa_data_node *, void **);
 static void insert_unbox_node(struct ui*, struct ssa_data_node *, void **);
 static void unbox_terminator_data_node(struct ui*, struct ssa_block*, struct ssa_control_node*, struct ssa_data_node*, void**);
@@ -181,7 +181,8 @@ static void unbox_terminator_data_node(
         struct ssa_data_node * data_node,
         void ** data_node_field_ptr
 ) {
-    if(is_native_ssa_type(data_node->produced_type->type) || data_node->produced_type->type == SSA_TYPE_F64){
+    if(is_native_ssa_type(data_node->produced_type->type) || data_node->produced_type->type == SSA_TYPE_F64 ||
+        data_node->produced_type->type == SSA_TYPE_LOX_ANY){
         return;
     }
 
@@ -222,6 +223,10 @@ static void extract_define_unboxed_from_phi(
         struct ssa_data_phi_node * phi_node,
         struct ssa_name ssa_name_to_extract
 ) {
+    if(get_type_by_ssa_name(ui, block, ssa_name_to_extract)->type == SSA_TYPE_LOX_ANY){
+        return;
+    }
+
     struct ssa_name unboxed_ssa_name = alloc_ssa_version_ssa_ir(ui->ssa_ir, ssa_name_to_extract.value.local_number);
 
     struct ssa_control_define_ssa_name_node * define_unboxed = ALLOC_SSA_CONTROL_NODE(
@@ -270,7 +275,7 @@ static void insert_box_node(struct ui * ui, struct ssa_data_node * data_node, vo
 }
 
 static void insert_unbox_node(struct ui * ui, struct ssa_data_node * data_node, void ** data_node_field_ptr) {
-    if(is_lox_ssa_type(data_node->produced_type->type)){
+    if (is_lox_ssa_type(data_node->produced_type->type) && data_node->produced_type->type != SSA_TYPE_LOX_ANY) {
         struct ssa_data_node_unbox * unbox = ALLOC_SSA_DATA_NODE(
                 SSA_DATA_NODE_TYPE_UNBOX, struct ssa_data_node_unbox, NULL, SSA_IR_ALLOCATOR(ui->ssa_ir)
         );
