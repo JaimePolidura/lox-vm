@@ -149,13 +149,18 @@ static void unbox_non_terminator_data_node(struct ui * ui, struct ssa_data_node 
             break;
         }
         case SSA_DATA_NODE_TYPE_UNARY: {
+            struct ssa_data_unary_node * unary = (struct ssa_data_unary_node *) data_node;
+            unary->data.produced_type = unary->data.produced_type;
             insert_unbox_node(ui, data_node, data_node_field_ptr);
             break;
         }
         case SSA_DATA_NODE_TYPE_GUARD: {
+            struct ssa_guard * guard = (struct ssa_guard *) data_node;
+            if (guard->type == SSA_GUARD_TYPE_CHECK) {
+                insert_unbox_node(ui, data_node, data_node_field_ptr);
+            }
             break;
         }
-
     }
 }
 
@@ -177,6 +182,8 @@ static void unbox_terminator_data_node(struct ui * ui, struct ssa_data_node * da
         }
         case SSA_DATA_NODE_TYPE_GET_SSA_NAME: {
             struct ssa_data_get_ssa_name_node * get_ssa_name = (struct ssa_data_get_ssa_name_node *) data_node;
+            get_ssa_name->data.produced_type = get_u64_hash_table(&ui->ssa_type_by_ssa_name_by_block, get_ssa_name);
+
             if (!is_ssa_name_unboxed(ui, get_ssa_name->ssa_name)) {
                 insert_unbox_node(ui, data_node, data_node_field_ptr);
             }
