@@ -296,7 +296,8 @@ static bool for_each_ssa_data_node_recursive(
 }
 
 struct ssa_data_constant_node * create_ssa_const_node(
-        lox_value_t constant_value,
+        uint64_t constant_value,
+        ssa_type_t type,
         struct bytecode_list * bytecode,
         struct lox_allocator * allocator
 ) {
@@ -304,6 +305,7 @@ struct ssa_data_constant_node * create_ssa_const_node(
             SSA_DATA_NODE_TYPE_CONSTANT, struct ssa_data_constant_node, bytecode, allocator
     );
 
+    constant_node->data.produced_type = CREATE_SSA_TYPE(type, allocator);
     constant_node->constant_lox_value = constant_value;
 
     switch (get_lox_type(constant_value)) {

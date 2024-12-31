@@ -40,10 +40,10 @@ static bool produced_type_has_been_asigned(struct ssa_data_node *);
 
 extern void runtime_panic(char * format, ...);
 
-struct type_propagation_result perform_type_propagation(struct ssa_ir * ssa_ir) {
+void perform_type_propagation(struct ssa_ir * ssa_ir) {
     struct tp * tp = alloc_type_propagation(ssa_ir);
-    struct u64_hash_table * ssa_type_by_ssa_name = LOX_MALLOC(&tp->tp_allocator.lox_allocator, sizeof(struct u64_hash_table));
-    init_u64_hash_table(ssa_type_by_ssa_name, &tp->tp_allocator.lox_allocator);
+    struct u64_hash_table * ssa_type_by_ssa_name = LOX_MALLOC(SSA_IR_ALLOCATOR(ssa_ir), sizeof(struct u64_hash_table));
+    init_u64_hash_table(ssa_type_by_ssa_name, SSA_IR_ALLOCATOR(ssa_ir));
 
     add_argument_types(tp, ssa_type_by_ssa_name);
 
@@ -85,7 +85,8 @@ struct type_propagation_result perform_type_propagation(struct ssa_ir * ssa_ir) 
             }
             case TYPE_NEXT_SSA_BLOCK_LOOP: {
                 struct ssa_block * to_jump_loop_block = block_to_evalute->next_as.loop;
-                struct u64_hash_table * types_loop = clone_u64_hash_table(to_evalute->ssa_type_by_ssa_name, &tp->tp_allocator.lox_allocator);
+                struct u64_hash_table * types_loop = clone_u64_hash_table(to_evalute->ssa_type_by_ssa_name,
+                        SSA_IR_ALLOCATOR(tp->ssa_ir));
 
                 if (!contains_u64_set(&tp->loops_aready_scanned, (uint64_t) to_jump_loop_block)) {
                     push_pending_evaluate(&pending_to_evaluate, tp, to_jump_loop_block, types_loop);
@@ -102,14 +103,9 @@ struct type_propagation_result perform_type_propagation(struct ssa_ir * ssa_ir) 
         }
     }
 
-    struct type_propagation_result result = (struct type_propagation_result) {
-        .ssa_type_by_ssa_name_by_block = tp->ssa_type_by_ssa_name_by_block,
-        .tp_allocator = tp->tp_allocator,
-    };
+    free_type_propagation(tp);
 
-    NATIVE_LOX_FREE(tp);
-
-    return result;
+    ssa_ir->ssa_type_by_ssa_name_by_block = tp->ssa_type_by_ssa_name_by_block;
 }
 
 static void perform_type_propagation_block(struct pending_evaluate * to_evalute) {
@@ -422,7 +418,7 @@ static struct tp * alloc_type_propagation(struct ssa_ir * ssa_ir) {
     struct arena arena;
     init_arena(&arena);
     tp->tp_allocator = to_lox_allocator_arena(arena);
-    init_u64_hash_table(&tp->ssa_type_by_ssa_name_by_block, &tp->tp_allocator.lox_allocator);
+    init_u64_hash_table(&tp->ssa_type_by_ssa_name_by_block, SSA_IR_ALLOCATOR(ssa_ir));
     init_u64_set(&tp->loops_aready_scanned, &tp->tp_allocator.lox_allocator);
     init_u64_hash_table(&tp->cyclic_ssa_name_definitions, &tp->tp_allocator.lox_allocator);
 
@@ -430,6 +426,7 @@ static struct tp * alloc_type_propagation(struct ssa_ir * ssa_ir) {
 }
 
 static void free_type_propagation(struct tp * tp) {
+    free_arena(&tp->tp_allocator.arena);
     NATIVE_LOX_FREE(tp);
 }
 
@@ -596,8 +593,8 @@ static bool calculate_is_cyclic_definition(struct tp * tp, struct ssa_name targe
 
 static struct u64_hash_table * get_ssa_type_by_ssa_name_by_block(struct tp * tp, struct ssa_block * block) {
     if(!contains_u64_hash_table(&tp->ssa_type_by_ssa_name_by_block, (uint64_t) block)){
-        struct u64_hash_table * ssa_type_by_ssa_name = LOX_MALLOC(&tp->tp_allocator.lox_allocator, sizeof(struct u64_hash_table));
-        init_u64_hash_table(ssa_type_by_ssa_name, &tp->tp_allocator.lox_allocator);
+        struct u64_hash_table * ssa_type_by_ssa_name = LOX_MALLOC(SSA_IR_ALLOCATOR(tp->ssa_ir), sizeof(struct u64_hash_table));
+        init_u64_hash_table(ssa_type_by_ssa_name, SSA_IR_ALLOCATOR(tp->ssa_ir));
 
         put_u64_hash_table(&tp->ssa_type_by_ssa_name_by_block, (uint64_t) block, ssa_type_by_ssa_name);
 

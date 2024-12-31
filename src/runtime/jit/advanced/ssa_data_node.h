@@ -71,7 +71,7 @@ typedef bool (*ssa_data_node_consumer_t)(
 //Iterates all nodes. If the consumer return false, the node's children won't be scanned.
 void for_each_ssa_data_node(struct ssa_data_node *, void **, void *, long options, ssa_data_node_consumer_t);
 
-struct ssa_data_constant_node * create_ssa_const_node(lox_value_t, struct bytecode_list *, struct lox_allocator *);
+struct ssa_data_constant_node * create_ssa_const_node(uint64_t, ssa_type_t, struct bytecode_list *, struct lox_allocator *);
 struct u8_set get_used_locals_ssa_data_node(struct ssa_data_node *);
 //Returns hashcode for ssa_data_node. The hashcode calculation should be the same for commative & associative data nodes.
 //Example: Hash(a + b) == Hash(b + a) Or Hash((a + b) + c) == Hash(b + (a + c))

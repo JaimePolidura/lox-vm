@@ -272,7 +272,7 @@ struct constant_rewrite * rewrite_constant_expressions_propagation_data_node(
 
             if (semilattice_ssa_name->type == SEMILATTICE_CONSTANT && size_u64_set(semilattice_ssa_name->values) == 1) {
                 lox_value_t ssa_value = get_first_value_u64_set(semilattice_ssa_name->values);
-                struct ssa_data_constant_node * constant_node = create_ssa_const_node(ssa_value, NULL, SSA_IR_ALLOCATOR(scp->ssa_ir));
+                struct ssa_data_constant_node * constant_node = create_ssa_const_node(ssa_value, SSA_TYPE_LOX_ANY, NULL, SSA_IR_ALLOCATOR(scp->ssa_ir));
                 return alloc_constant_rewrite(scp, &constant_node->data, alloc_single_const_value_semilattice(scp, ssa_value));
             } else {
                 return alloc_constant_rewrite(scp, current_node, semilattice_ssa_name);
@@ -521,7 +521,8 @@ static void rewrite_graph_as_constant(
         struct ssa_data_node ** parent_ptr,
         lox_value_t constant
 ) {
-    struct ssa_data_constant_node * constant_node = create_ssa_const_node(constant, NULL, SSA_IR_ALLOCATOR(scp->ssa_ir));
+    struct ssa_data_constant_node * constant_node = create_ssa_const_node(constant, SSA_TYPE_LOX_ANY,
+            NULL, SSA_IR_ALLOCATOR(scp->ssa_ir));
     *parent_ptr = &constant_node->data;
     free_ssa_data_node(old_node);
 }
@@ -667,7 +668,8 @@ static struct constant_rewrite * create_constant_rewrite_from_result(
 ) {
     if(size_u64_set(possible_values) == 1){
         lox_value_t value = get_first_value_u64_set(possible_values);
-        struct ssa_data_node * const_node = (struct ssa_data_node *) create_ssa_const_node(value, NULL, GET_SCP_ALLOCATOR(scp));
+        struct ssa_data_node * const_node = (struct ssa_data_node *) create_ssa_const_node(value, SSA_TYPE_LOX_ANY,
+                NULL, GET_SCP_ALLOCATOR(scp));
         return alloc_constant_rewrite(scp, const_node, alloc_single_const_value_semilattice(scp, value));
     } else {
         return alloc_constant_rewrite(scp, data_node, alloc_multiple_const_values_semilattice(scp, possible_values));

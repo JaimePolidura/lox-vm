@@ -4,6 +4,7 @@
 #include "runtime/jit/advanced/optimizations/common_subexpression_elimination.h"
 #include "runtime/jit/advanced/optimizations/sparse_constant_propagation.h"
 #include "runtime/jit/advanced/optimizations/strength_reduction.h"
+#include "runtime/jit/advanced/optimizations/unboxing_insertion.h"
 #include "runtime/jit/advanced/optimizations/copy_propagation.h"
 #include "runtime/jit/advanced/optimizations/type_propagation.h"
 
@@ -28,8 +29,9 @@ typedef enum {
     LOOP_INVARIANT_CODE_MOTION_PHASE_SSA_GRAPHVIZ = 1 << 6,
     COPY_PROPAGATION_PHASE_SSA_GRAPHVIZ = 1 << 7,
     TYPE_PROPAGATION_PHASE_SSA_GRAPHVIZ = 1 << 8,
+    UNBOXING_INSERTION_PHASE_SSA_GRAPHVIZ = 1 << 9,
 
-    ALL_PHASE_SSA_GRAPHVIZ = 1 << 9,
+    ALL_PHASE_SSA_GRAPHVIZ = 1 << 10,
 } phase_ssa_graphviz_t;
 
 enum {

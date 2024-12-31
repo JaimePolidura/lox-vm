@@ -9,4 +9,4 @@
 //Inserts box/unbox nodes in the ssa_ir
 //Uses type information. Run after type_propagation
 //Might introduce redundant expressions. Run before common_subexpression_elimination
-void perform_unboxing_insertion(struct ssa_ir *, struct type_propagation_result);
+void perform_unboxing_insertion(struct ssa_ir *);

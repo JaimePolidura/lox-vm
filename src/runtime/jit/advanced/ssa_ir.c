@@ -12,7 +12,13 @@ void remove_name_references_ssa_ir(struct ssa_ir * ssa_ir, struct ssa_name ssa_n
     remove_u64_hash_table(&ssa_ir->node_uses_by_ssa_name, ssa_name_to_remove.u16);
 }
 
-struct ssa_name alloc_ssa_name_ssa_ir(struct ssa_ir * ssa_ir, int ssa_version, char * local_name) {
+struct ssa_name alloc_ssa_name_ssa_ir(
+        struct ssa_ir * ssa_ir,
+        int ssa_version,
+        char * local_name,
+        struct ssa_block * block,
+        struct ssa_type * type
+) {
     int local_number = ++ssa_ir->function->n_locals;
     struct ssa_name ssa_name = CREATE_SSA_NAME(local_number, ssa_version);
     local_name = dynamic_format_string("%s%i", local_name, local_number);
@@ -21,6 +27,8 @@ struct ssa_name alloc_ssa_name_ssa_ir(struct ssa_ir * ssa_ir, int ssa_version, c
 
     struct u64_set * uses = alloc_u64_set(NATIVE_LOX_ALLOCATOR());
     put_u64_hash_table(&ssa_ir->node_uses_by_ssa_name, ssa_name.u16, uses);
+
+    put_type_by_ssa_name_ssa_ir(ssa_ir, block, ssa_name, type);
 
     return ssa_name;
 }
@@ -56,4 +64,32 @@ void add_ssa_name_use_ssa_ir(
 
     struct u64_set * uses = get_u64_hash_table(&ssa_ir->node_uses_by_ssa_name, ssa_name.u16);
     add_u64_set(uses, (uint64_t) ssa_control_node);
+}
+
+struct ssa_type * get_type_by_ssa_name_ssa_ir(
+        struct ssa_ir * ssa_ir,
+        struct ssa_block * block,
+        struct ssa_name ssa_name
+) {
+    struct u64_hash_table * types_by_block = get_u64_hash_table(&ssa_ir->ssa_type_by_ssa_name_by_block, (uint64_t) block);
+    return get_u64_hash_table(types_by_block, ssa_name.u16);
+}
+
+void put_type_by_ssa_name_ssa_ir(
+        struct ssa_ir * ssa_ir,
+        struct ssa_block * ssa_block,
+        struct ssa_name ssa_name,
+        struct ssa_type * type
+) {
+    if(type == NULL){
+        return;
+    }
+    if(!contains_u64_hash_table(&ssa_ir->ssa_type_by_ssa_name_by_block, (uint64_t) ssa_block)){
+        struct u64_hash_table * types_by_block = LOX_MALLOC(SSA_IR_ALLOCATOR(ssa_ir), sizeof(struct u64_hash_table));
+        init_u64_hash_table(types_by_block, SSA_IR_ALLOCATOR(ssa_ir));
+        put_u64_hash_table(&ssa_ir->ssa_type_by_ssa_name_by_block, (uint64_t) ssa_block, types_by_block);
+    }
+
+    struct u64_hash_table * types_by_block = get_u64_hash_table(&ssa_ir->ssa_type_by_ssa_name_by_block, (uint64_t) ssa_block);
+    put_u64_hash_table(types_by_block, ssa_name.u16, type);
 }

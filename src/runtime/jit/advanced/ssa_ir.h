@@ -28,6 +28,8 @@ struct ssa_ir {
     struct arena_lox_allocator * ssa_nodes_allocator_arena;
     //Function of the ssa_ir
     struct function_object * function;
+    //Set by type_propagation Key: block pointer, value: Hashtable of key ssa_name, value: ssa_type *.
+    struct u64_hash_table ssa_type_by_ssa_name_by_block;
 };
 
 //Removes the references in the struct ssa_ir data structure to the ssa_name. It doest
@@ -35,7 +37,10 @@ struct ssa_ir {
 void remove_names_references_ssa_ir(struct ssa_ir *, struct u64_set);
 void remove_name_references_ssa_ir(struct ssa_ir *, struct ssa_name);
 
-struct ssa_name alloc_ssa_name_ssa_ir(struct ssa_ir *, int ssa_version, char *local_name);
+struct ssa_name alloc_ssa_name_ssa_ir(struct ssa_ir*, int, char*, struct ssa_block*, struct ssa_type*);
 struct ssa_name alloc_ssa_version_ssa_ir(struct ssa_ir *, int local_number);
 void add_ssa_name_use_ssa_ir(struct ssa_ir *, struct ssa_name, struct ssa_control_node *);
 void remove_ssa_name_use_ssa_ir(struct ssa_ir *, struct ssa_name, struct ssa_control_node *);
+
+struct ssa_type * get_type_by_ssa_name_ssa_ir(struct ssa_ir*, struct ssa_block*, struct ssa_name);
+void put_type_by_ssa_name_ssa_ir(struct ssa_ir*, struct ssa_block*, struct ssa_name, struct ssa_type*);

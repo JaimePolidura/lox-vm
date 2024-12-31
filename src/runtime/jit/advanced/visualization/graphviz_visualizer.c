@@ -134,6 +134,7 @@ void generate_ssa_graphviz_graph(
         case STRENGTH_REDUCTION_PHASE_SSA_GRAPHVIZ: {
             struct ssa_ir ssa_ir = create_ssa_ir(package, function, create_bytecode_list(function->chunk,
                     &ssa_node_allocator.lox_allocator), graphviz_visualizer.ssa_options);
+            perform_type_propagation(&ssa_ir);
             perform_strength_reduction(&ssa_ir);
             graphviz_visualizer.ssa_ir = ssa_ir;
 
@@ -167,15 +168,26 @@ void generate_ssa_graphviz_graph(
             generate_graph_and_write(&graphviz_visualizer, ssa_ir.first_block);
             break;
         }
+        case UNBOXING_INSERTION_PHASE_SSA_GRAPHVIZ: {
+            struct ssa_ir ssa_ir = create_ssa_ir(package, function, create_bytecode_list(function->chunk,
+                    &ssa_node_allocator.lox_allocator), graphviz_visualizer.ssa_options);
+            perform_type_propagation(&ssa_ir);
+            perform_unboxing_insertion(&ssa_ir);
+            graphviz_visualizer.ssa_ir = ssa_ir;
+
+            generate_graph_and_write(&graphviz_visualizer, ssa_ir.first_block);
+            break;
+        }
         case ALL_PHASE_SSA_GRAPHVIZ: {
             struct ssa_ir ssa_ir = create_ssa_ir(package, function, create_bytecode_list(function->chunk,
                 &ssa_node_allocator.lox_allocator), graphviz_visualizer.ssa_options);
             perform_sparse_constant_propagation(&ssa_ir);
             perform_common_subexpression_elimination(&ssa_ir);
-            perform_strength_reduction(&ssa_ir);
             perform_loop_invariant_code_motion(&ssa_ir);
-            perform_copy_propagation(&ssa_ir);
             perform_type_propagation(&ssa_ir);
+            perform_strength_reduction(&ssa_ir);
+            perform_copy_propagation(&ssa_ir);
+            perform_unboxing_insertion(&ssa_ir);
 
             graphviz_visualizer.ssa_ir = ssa_ir;
 
