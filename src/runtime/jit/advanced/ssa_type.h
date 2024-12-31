@@ -10,6 +10,7 @@
 #define CREATE_ARRAY_SSA_TYPE(array_type, allocator) (create_array_ssa_type((array_type), (allocator)))
 #define IS_NATIVE_SSA_TYPE(type) ((type) >= SSA_TYPE_NATIVE_I64 && (type) <= SSA_TYPE_NATIVE_STRUCT_INSTANCE)
 #define IS_STRING_SSA_TYPE(type) ((type) == SSA_TYPE_LOX_STRING || (type) == SSA_TYPE_NATIVE_STRING)
+#define IS_I64_SSA_TYPE(type) ((type) == SSA_TYPE_LOX_I64 || (type) == SSA_TYPE_NATIVE_I64)
 
 //Dont change order
 typedef enum {

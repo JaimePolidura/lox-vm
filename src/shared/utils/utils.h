@@ -27,6 +27,18 @@ do { \
         const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
         (type *)((char *)__mptr - offsetof(type,member));})
 
+//Given: 27, this will return:
+// powers: 4, 3
+// extra: 3
+// 2^4 + 2^3 + 3 = 27
+//Powers is heap allocated
+struct decomposed_power_two {
+    int * exponents;
+    int n_exponents;
+    int remainder;
+};
+struct decomposed_power_two decompose_power_of_two(int number_to_decompose);
+
 char * to_upper_case(char * key, int length);
 bool string_contains(char * string, int length, char to_check);
 bool string_equals_ignore_case(char * a, char * b, int length_a);
@@ -35,6 +47,7 @@ char * copy_string(char * source, int end);
 int string_replace(char * string, int length, char old, char new);
 void * grow_array(struct lox_allocator *, size_t new_size, void * original_array, size_t old_size);
 int round_up_8(int number);
+int round_down_power_two(int number);
 int align(int not_aligned, int value_to_align);
 bool has_decimals(double double_value);
 char * dynamic_format_string(const char * format, ...);

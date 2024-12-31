@@ -62,6 +62,20 @@ int string_replace(char * string, int length, char old, char new) {
     return n_replaced;
 }
 
+int round_down_power_two(int number) {
+    if (number == 0) {
+        return 0;
+    }
+
+    number |= (number >> 1);
+    number |= (number >> 2);
+    number |= (number >> 4);
+    number |= (number >> 8);
+    number |= (number >> 16);
+
+    return number - (number >> 1);
+}
+
 int round_up_8(int number) {
     return ceil(number / 8.0) * 8;
 }
@@ -80,4 +94,28 @@ bool is_double_power_of_2(double doule_value) {
     }
     uint64_t u64_value = (uint64_t) doule_value;
     return (u64_value & (u64_value - 1)) == 0;
+}
+
+//Given: 27, this will return:
+// powers: 4, 3
+// extra: 3
+// 2^4 + 2^3 + 3 = 27
+struct decomposed_power_two decompose_power_of_two(int number_to_decompose) {
+    int * exponents = NATIVE_LOX_MALLOC(sizeof(int) * 32);
+    int remaining_value = number_to_decompose;
+    int n_exponents = 0;
+
+    while (remaining_value > 0) {
+        int largest_power_of_two = round_down_power_two(remaining_value);
+        int exponent = log2(largest_power_of_two);
+
+        exponents[n_exponents++] = exponent;
+        remaining_value -= largest_power_of_two;
+    }
+
+    return (struct decomposed_power_two) {
+        .n_exponents = n_exponents,
+        .remainder = remaining_value,
+        .exponents = exponents,
+    };
 }

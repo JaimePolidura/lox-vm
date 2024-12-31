@@ -9,16 +9,20 @@ static struct sr alloc_strength_reduction(struct ssa_ir *);
 static void free_strength_reduction(struct sr *);
 static bool perform_strength_reduction_block(struct ssa_block *, void *);
 static bool perform_strength_reduction_data_node(struct ssa_data_node *, void **, struct ssa_data_node *, void *);
+static bool is_node_power_of_two(struct ssa_data_node*);
+static void reduce_multiplication_strength_into_multiple_shifts(struct sr *sr, struct decomposed_power_two decomposed_power_two, struct ssa_data_binary_node *binary_op);
 
 typedef void (*strength_reduction_transformer_t) (struct ssa_data_binary_node *, struct sr *);
 static void modulo_strength_reduction_transformer(struct ssa_data_binary_node *, struct sr *);
 static void check_even_strength_reduction_transformer(struct ssa_data_binary_node *, struct sr *);
+static void division_strength_reduction_transformer(struct ssa_data_binary_node *, struct sr *);
+static void multiplication_strength_reduction_transformer(struct ssa_data_binary_node *, struct sr *);
 
 strength_reduction_transformer_t transformation_by_binary_op[] = {
         [OP_ADD] = NULL,
         [OP_SUB] = NULL,
-        [OP_MUL] = NULL,
-        [OP_DIV] = NULL,
+        [OP_MUL] = &multiplication_strength_reduction_transformer,
+        [OP_DIV] = &division_strength_reduction_transformer,
         [OP_GREATER] = NULL,
         [OP_BINARY_OP_AND] = NULL,
         [OP_BINARY_OP_OR] = NULL,
@@ -81,7 +85,7 @@ static bool perform_strength_reduction_data_node(
     return true;
 }
 
-//  number % 2 -> number & 0x01 == 0
+// n % 2 -> n & 0x01 == 0
 static void check_even_strength_reduction_transformer(
         struct ssa_data_binary_node * binary_op,
         struct sr * sr
@@ -90,7 +94,7 @@ static void check_even_strength_reduction_transformer(
 
     if(binary_op->right->type == SSA_DATA_NODE_TYPE_CONSTANT &&
         binary_op->left->type == SSA_DATA_NODE_TYPE_BINARY &&
-       left_binary->operator == OP_MODULO &&
+        left_binary->operator == OP_MODULO &&
         left_binary->right->type == SSA_DATA_NODE_TYPE_CONSTANT &&
         AS_NUMBER(GET_CONST_VALUE_SSA_NODE(left_binary->right)) == 2)
     {
@@ -100,17 +104,55 @@ static void check_even_strength_reduction_transformer(
     }
 }
 
-// number % k -> Where k is power of 2: number & (k - 1)
+//  n * 2 -> n << 1; Where constant number is not f64 type
+//  n * 5 -> n << 2 + m; Where constant number is not f64 type
+static void multiplication_strength_reduction_transformer(
+        struct ssa_data_binary_node * binary_op,
+        struct sr * sr
+) {
+    if(binary_op->right->type == SSA_DATA_NODE_TYPE_CONSTANT &&
+        IS_I64_SSA_TYPE(binary_op->right->produced_type->type) &&
+        binary_op->left->produced_type->type != SSA_TYPE_F64 &&
+        AS_NUMBER(GET_CONST_VALUE_SSA_NODE(binary_op->right)) > 8.0
+    ) {
+        int multipled_number = AS_NUMBER(GET_CONST_VALUE_SSA_NODE(binary_op->right));
+        struct decomposed_power_two decomposed_power_two = decompose_power_of_two(multipled_number);
+        struct ssa_data_node * multiplied_node = binary_op->left;
+
+        if(decomposed_power_two.n_exponents == 1 && decomposed_power_two.remainder == 0){
+            binary_op->operator = OP_LEFT_SHIFT;
+            binary_op->right = &create_ssa_const_node(AS_NUMBER(decomposed_power_two.exponents[0]), NULL,
+                                                      SSA_IR_ALLOCATOR(sr->ssa_ir))->data;
+        } else if (decomposed_power_two.n_exponents > 0) {
+            reduce_multiplication_strength_into_multiple_shifts(sr, decomposed_power_two, binary_op);
+        }
+
+        NATIVE_LOX_FREE(decomposed_power_two.exponents);
+    }
+}
+
+//  m / n -> m >> k Where n is power of 2 and m is not f64:
+static void division_strength_reduction_transformer(
+        struct ssa_data_binary_node * binary_op,
+        struct sr * sr
+) {
+    if (binary_op->right->type == SSA_DATA_NODE_TYPE_CONSTANT &&
+        is_node_power_of_two(binary_op->left) &&
+        binary_op->right->produced_type->type != SSA_TYPE_F64
+    ) {
+        binary_op->operator = OP_RIGHT_SHIFT;
+    }
+}
+
+//  m % n -> m & (n - 1) Where n is power of 2:
 static void modulo_strength_reduction_transformer(
         struct ssa_data_binary_node * binary_op,
         struct sr * sr
 ) {
-    if (binary_op->right->type == SSA_DATA_NODE_TYPE_CONSTANT) {
+    if (binary_op->right->type == SSA_DATA_NODE_TYPE_CONSTANT && is_node_power_of_two(binary_op->right)) {
         double constant_right = AS_NUMBER(GET_CONST_VALUE_SSA_NODE(binary_op->right));
-        if (is_double_power_of_2(constant_right)) {
-            binary_op->operator = OP_BINARY_OP_AND;
-            binary_op->right = &create_ssa_const_node(TO_LOX_VALUE_NUMBER(constant_right - 1), NULL, SSA_IR_ALLOCATOR(sr->ssa_ir))->data;
-        }
+        binary_op->operator = OP_BINARY_OP_AND;
+        binary_op->right = &create_ssa_const_node(TO_LOX_VALUE_NUMBER(constant_right - 1), NULL, SSA_IR_ALLOCATOR(sr->ssa_ir))->data;
     }
 }
 
@@ -126,4 +168,64 @@ static struct sr alloc_strength_reduction(struct ssa_ir * ssa_ir) {
 
 static void free_strength_reduction(struct sr * sr) {
     free_arena(&sr->sr_allocator.arena);
+}
+
+static bool is_node_power_of_two(struct ssa_data_node * const_node) {
+    return const_node->type == SSA_DATA_NODE_TYPE_CONSTANT &&
+            is_double_power_of_2(AS_NUMBER(GET_CONST_VALUE_SSA_NODE(const_node)));
+}
+
+//decomposed_power_two contains at least 1 exponent
+static void reduce_multiplication_strength_into_multiple_shifts(
+        struct sr * sr,
+        struct decomposed_power_two decomposed_power_two,
+        struct ssa_data_binary_node * binary_op
+) {
+    //We fill shift_nodes with binary shift nodes
+    struct ptr_arraylist shift_nodes;
+    struct ssa_data_node * multiplied_node = binary_op->left;
+    init_ptr_arraylist(&shift_nodes, NATIVE_LOX_ALLOCATOR());
+    for (int i = 0; i < decomposed_power_two.n_exponents; i++) {
+        int power_of_two = decomposed_power_two.exponents[i];
+
+        struct ssa_data_binary_node * binary = ALLOC_SSA_DATA_NODE(
+                SSA_DATA_NODE_TYPE_BINARY, struct ssa_data_binary_node, NULL, SSA_IR_ALLOCATOR(sr->ssa_ir)
+        );
+        binary->operator = OP_LEFT_SHIFT;
+        binary->left = multiplied_node;
+        binary->right = &create_ssa_const_node(AS_NUMBER(power_of_two), NULL, SSA_IR_ALLOCATOR(sr->ssa_ir))->data;
+        append_ptr_arraylist(&shift_nodes, binary);
+    }
+
+    //Head node wil contain the new multiplication tree
+    struct ssa_data_binary_node * head_node = NULL;
+    for(int i = 0; i < shift_nodes.in_use; i++){
+        struct ssa_data_binary_node * shift_node = shift_nodes.values[i];
+        if (i > 0) {
+            struct ssa_data_binary_node * add = ALLOC_SSA_DATA_NODE(
+                    SSA_DATA_NODE_TYPE_BINARY, struct ssa_data_binary_node, NULL, SSA_IR_ALLOCATOR(sr->ssa_ir)
+            );
+            add->operator = OP_ADD;
+            add->left = &shift_node->data;
+            add->right = &head_node->data;
+
+            head_node = add;
+        } else if(head_node == NULL) {
+            head_node = shift_node;
+        }
+    }
+    if (decomposed_power_two.remainder != 0) {
+        struct ssa_data_binary_node * add = ALLOC_SSA_DATA_NODE(
+                SSA_DATA_NODE_TYPE_BINARY, struct ssa_data_binary_node, NULL, SSA_IR_ALLOCATOR(sr->ssa_ir)
+        );
+        add->operator = OP_ADD;
+        add->left = &head_node->data;
+        add->right = &create_ssa_const_node(AS_NUMBER(decomposed_power_two.remainder), NULL, SSA_IR_ALLOCATOR(sr->ssa_ir))->data;
+        head_node = add;
+    }
+
+    //We will replace binary_op with head_node
+    binary_op->operator = head_node->operator;
+    binary_op->right = head_node->right;
+    binary_op->left = head_node->left;
 }
