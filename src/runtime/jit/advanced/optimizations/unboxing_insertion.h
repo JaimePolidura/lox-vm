@@ -8,5 +8,5 @@
 
 //Inserts box/unbox nodes in the ssa_ir
 //Uses type information. Run after type_propagation
-//Might introduce redundant expressions. Run before common_subexpression_elimination
+//Might introduce redundant unbox/box expressions. Run before common_subexpression_elimination & loop invariant code motion
 void perform_unboxing_insertion(struct ssa_ir *);

@@ -223,6 +223,7 @@ struct ssa_data_phi_node {
     struct ssa_data_node data;
     uint8_t local_number;
 
+    //Set of versions
     struct u64_set ssa_versions;
 };
 

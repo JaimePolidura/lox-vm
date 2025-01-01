@@ -525,6 +525,28 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             free(node_desc);
             break;
         }
+        case SSA_DATA_NODE_TYPE_UNBOX: {
+            struct ssa_data_node_unbox * unbox = (struct ssa_data_node_unbox *) node;
+            char * node_desc = dynamic_format_string("Unbox");
+            node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
+
+            add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
+            int unboxed_value_node_id = generate_data_node_graph(visualizer, unbox->to_unbox);
+            link_data_data_node_graphviz_file(visualizer, self_data_node_id, unboxed_value_node_id);
+            free(node_desc);
+            break;
+        }
+        case SSA_DATA_NODE_TYPE_BOX: {
+            struct ssa_data_node_box * box = (struct ssa_data_node_box *) node;
+            char * node_desc = dynamic_format_string("Box");
+            node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
+
+            add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
+            int boxed_value_node_id = generate_data_node_graph(visualizer, box->to_box);
+            link_data_data_node_graphviz_file(visualizer, self_data_node_id, boxed_value_node_id);
+            free(node_desc);
+            break;
+        }
         case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY: {
             struct ssa_data_initialize_array_node *initialize_array = (struct ssa_data_initialize_array_node *) node;
             char * node_desc = dynamic_format_string("InitializeArray %i", initialize_array->n_elements);

@@ -79,9 +79,9 @@ void put_type_by_ssa_name_ssa_ir(
         struct ssa_ir * ssa_ir,
         struct ssa_block * ssa_block,
         struct ssa_name ssa_name,
-        struct ssa_type * type
+        struct ssa_type * new_type
 ) {
-    if(type == NULL){
+    if(new_type == NULL){
         return;
     }
     if(!contains_u64_hash_table(&ssa_ir->ssa_type_by_ssa_name_by_block, (uint64_t) ssa_block)){
@@ -91,5 +91,17 @@ void put_type_by_ssa_name_ssa_ir(
     }
 
     struct u64_hash_table * types_by_block = get_u64_hash_table(&ssa_ir->ssa_type_by_ssa_name_by_block, (uint64_t) ssa_block);
-    put_u64_hash_table(types_by_block, ssa_name.u16, type);
+    put_u64_hash_table(types_by_block, ssa_name.u16, new_type);
+
+    struct u64_hash_table_iterator ssa_type_by_ssa_name_by_block_ite;
+    init_u64_hash_table_iterator(&ssa_type_by_ssa_name_by_block_ite, ssa_ir->ssa_type_by_ssa_name_by_block);
+
+    while (has_next_u64_hash_table_iterator(ssa_type_by_ssa_name_by_block_ite)) {
+        struct u64_hash_table_entry current_entry = next_u64_hash_table_iterator(&ssa_type_by_ssa_name_by_block_ite);
+        struct u64_hash_table * current_types_by_ssa_name = current_entry.value;
+
+        if (contains_u64_hash_table(current_types_by_ssa_name, ssa_name.u16)) {
+            put_u64_hash_table(current_types_by_ssa_name, ssa_name.u16, new_type);
+        }
+    }
 }

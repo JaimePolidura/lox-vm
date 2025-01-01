@@ -242,18 +242,18 @@ static void extract_define_unboxed_from_phi(
     put_u64_hash_table(&ui->ssa_ir->ssa_definitions_by_ssa_name, unboxed_ssa_name.u16, define_unboxed);
     add_before_control_node_ssa_block(block, control_uses_phi, &define_unboxed->control);
 
-    //unbox_node
-    unbox_node->to_unbox = &get_boxed_ssa_name_node->data;
-    unbox_node->data.produced_type = lox_to_native_ssa_type(get_boxed_ssa_name_node->data.produced_type, SSA_IR_ALLOCATOR(ui->ssa_ir));
-
     //get_boxed_ssa_name_node
     get_boxed_ssa_name_node->data.produced_type = get_type_by_ssa_name_ssa_ir(ui->ssa_ir, block, ssa_name_to_extract);
     get_boxed_ssa_name_node->ssa_name = ssa_name_to_extract;
     add_ssa_name_use_ssa_ir(ui->ssa_ir, ssa_name_to_extract, &define_unboxed->control);
 
+    //unbox_node
+    unbox_node->to_unbox = &get_boxed_ssa_name_node->data;
+    unbox_node->data.produced_type = lox_to_native_ssa_type(get_boxed_ssa_name_node->data.produced_type, SSA_IR_ALLOCATOR(ui->ssa_ir));
+
     //control_uses_phi
-    remove_u64_set(&phi_node->ssa_versions, ssa_name_to_extract.u16);
-    add_u64_set(&phi_node->ssa_versions, unboxed_ssa_name.u16);
+    remove_u64_set(&phi_node->ssa_versions, ssa_name_to_extract.value.version);
+    add_u64_set(&phi_node->ssa_versions, unboxed_ssa_name.value.version);
     add_ssa_name_use_ssa_ir(ui->ssa_ir, unboxed_ssa_name, &define_unboxed->control);
     remove_ssa_name_use_ssa_ir(ui->ssa_ir, ssa_name_to_extract, control_uses_phi);
 }

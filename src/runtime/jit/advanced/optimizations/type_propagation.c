@@ -103,9 +103,9 @@ void perform_type_propagation(struct ssa_ir * ssa_ir) {
         }
     }
 
-    free_type_propagation(tp);
-
     ssa_ir->ssa_type_by_ssa_name_by_block = tp->ssa_type_by_ssa_name_by_block;
+
+    free_type_propagation(tp);
 }
 
 static void perform_type_propagation_block(struct pending_evaluate * to_evalute) {
@@ -350,9 +350,12 @@ static struct ssa_type * get_type_data_node_recursive(
             struct ssa_control_define_ssa_name_node * definition_node = container_of(parent_ptr, struct ssa_control_define_ssa_name_node, value);
             struct ssa_data_phi_node * phi = (struct ssa_data_phi_node *) node;
             struct ssa_type * phi_type_result = NULL;
+            struct u64_hash_table * types_by_ssa_name_block = get_ssa_type_by_ssa_name_by_block(tp, to_evaluate->block);
 
             FOR_EACH_SSA_NAME_IN_PHI_NODE(phi, current_ssa_name) {
                 struct ssa_type * type_current_ssa_name = get_type_by_ssa_name(tp, to_evaluate, current_ssa_name);
+
+                put_u64_hash_table(types_by_ssa_name_block, current_ssa_name.u16, type_current_ssa_name);
 
                 if(node->produced_type != NULL && node->produced_type->type != SSA_TYPE_UNKNOWN && type_current_ssa_name->type == SSA_TYPE_UNKNOWN){
                     continue;

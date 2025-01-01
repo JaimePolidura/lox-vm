@@ -34,7 +34,7 @@ TEST(ssa_creation_ta){
     generate_ssa_graphviz_graph(
             package,
             function_ssa,
-            TYPE_PROPAGATION_PHASE_SSA_GRAPHVIZ,
+            UNBOXING_INSERTION_PHASE_SSA_GRAPHVIZ,
             DEFAULT_GRAPHVIZ_OPT | DISPLAY_TYPE_INFO_OPT,
             SSA_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"

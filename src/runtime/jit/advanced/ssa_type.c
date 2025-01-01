@@ -218,7 +218,7 @@ bool is_lox_ssa_type(ssa_type_t type) {
 
 
 bool is_native_ssa_type(ssa_type_t type) {
-    return type >= SSA_TYPE_NATIVE_I64 && SSA_TYPE_NATIVE_STRUCT_INSTANCE <= type;
+    return type >= SSA_TYPE_NATIVE_I64 && type <= SSA_TYPE_NATIVE_STRUCT_INSTANCE;
 }
 
 ssa_type_t binary_to_ssa_type(bytecode_t operator, ssa_type_t left, ssa_type_t right, bool return_lox_as_default) {
