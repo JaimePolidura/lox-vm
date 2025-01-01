@@ -69,3 +69,4 @@ bool is_native_ssa_type(ssa_type_t);
 ssa_type_t lox_type_to_native_ssa_type(ssa_type_t);
 ssa_type_t native_type_to_lox_ssa_type(ssa_type_t);
 char * to_string_ssa_type(ssa_type_t);
+bool is_same_format_ssa_type(ssa_type_t, ssa_type_t);

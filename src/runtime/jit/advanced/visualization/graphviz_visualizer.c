@@ -819,7 +819,7 @@ static char * maybe_add_type_info_data_node(
         struct ssa_data_node * data_node,
         char * label
 ) {
-    if(IS_FLAG_SET(visualizer->graphviz_options, DISPLAY_TYPE_INFO_OPT)){
+    if(IS_FLAG_SET(visualizer->graphviz_options, DISPLAY_TYPE_INFO_OPT) && data_node->produced_type != NULL){
         return dynamic_format_string("%s\nType: %s", label, to_string_ssa_type(data_node->produced_type->type));
     } else {
         return label;

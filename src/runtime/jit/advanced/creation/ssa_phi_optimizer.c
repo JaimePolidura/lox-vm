@@ -79,7 +79,7 @@ static bool optimize_ssa_ir_phis_block(struct ssa_block * current_block, void * 
                 current,
                 &for_each_node_struct,
                 SSA_DATA_NODE_OPT_POST_ORDER,
-                optimize_phi_functions_consumer
+                &optimize_phi_functions_consumer
         );
 
         if(current == current_block->last){
@@ -91,7 +91,7 @@ static bool optimize_ssa_ir_phis_block(struct ssa_block * current_block, void * 
 }
 
 static bool optimize_phi_functions_consumer(
-        struct ssa_data_node * __,
+        struct ssa_data_node * parent,
         void ** parent_child_ptr,
         struct ssa_data_node * current_node,
         void * consumer_struct_ptr
@@ -102,7 +102,7 @@ static bool optimize_phi_functions_consumer(
         struct ssa_data_phi_node * phi_node = (struct ssa_data_phi_node *) current_node;
         if (size_u64_set(phi_node->ssa_versions) == 1) {
             remove_innecesary_phi_function(for_each_node_consumer_struct, phi_node, parent_child_ptr);
-        } else if(size_u64_set(phi_node->ssa_versions) > 1 && for_each_node_consumer_struct->control_node->type != SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME) {
+        } else if(size_u64_set(phi_node->ssa_versions) > 1 && parent != NULL) { //Nesed phi
             extract_phi_to_ssa_name(for_each_node_consumer_struct, (struct ssa_data_phi_node *) current_node, parent_child_ptr);
         }
     }

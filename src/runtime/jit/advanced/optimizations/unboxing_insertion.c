@@ -7,13 +7,14 @@ struct ui {
 
 static struct ui * alloc_unbox_insertion(struct ssa_ir *);
 static void free_unbox_insertion(struct ui*);
-static bool control_requires_boxed_input(struct ssa_control_node *);
+static bool control_requires_boxed_input(struct ui*, struct ssa_control_node *);
 static bool data_requires_boxed_input(struct ssa_data_node *);
+static bool ssa_names_requires_to_be_boxed(struct ui*, struct ssa_name);
 
 static bool perform_unboxing_insertion_block(struct ssa_block *, void *);
 static void perform_unboxing_insertion_control(struct ui *, struct ssa_block *, struct ssa_control_node *);
 static bool perform_unboxing_insertion_data_consumer(struct ssa_data_node*, void**, struct ssa_data_node*, void*);
-static void perform_unboxing_insertion_data(struct ui*, struct ssa_block*, struct ssa_control_node*, struct ssa_data_node*,  void**, bool);
+static void perform_unboxing_insertion_data(struct ui*, struct ssa_block*, struct ssa_control_node*, struct ssa_data_node*, struct ssa_data_node*, void**, bool);
 static void insert_box_node(struct ui*, struct ssa_data_node *, void **);
 static void insert_unbox_node(struct ui*, struct ssa_data_node *, void **);
 static void unbox_terminator_data_node(struct ui*, struct ssa_block*, struct ssa_control_node*, struct ssa_data_node*, void**);
@@ -62,7 +63,7 @@ static void perform_unboxing_insertion_control(
         struct ssa_control_node * current_control
 ) {
     struct perform_unboxing_insertion_data_struct consumer_struct = (struct perform_unboxing_insertion_data_struct) {
-        .should_produced_boxed_result = control_requires_boxed_input(current_control),
+        .should_produced_boxed_result = control_requires_boxed_input(ui, current_control),
         .control_node = current_control,
         .block = current_block,
         .ui = ui,
@@ -82,7 +83,7 @@ static void perform_unboxing_insertion_control(
 }
 
 static bool perform_unboxing_insertion_data_consumer(
-        struct ssa_data_node * _,
+        struct ssa_data_node * parent,
         void ** parent_child_ptr,
         struct ssa_data_node * child,
         void * extra
@@ -90,7 +91,7 @@ static bool perform_unboxing_insertion_data_consumer(
     struct perform_unboxing_insertion_data_struct * consumer_struct = extra;
     bool should_produed_boxed_result = consumer_struct->should_produced_boxed_result;
     perform_unboxing_insertion_data(consumer_struct->ui, consumer_struct->block, consumer_struct->control_node,
-        child, parent_child_ptr, should_produed_boxed_result);
+        child, parent, parent_child_ptr, should_produed_boxed_result);
 
     //Only iterate parent
     return false;
@@ -101,6 +102,7 @@ static void perform_unboxing_insertion_data(
         struct ssa_block * block,
         struct ssa_control_node * control_node,
         struct ssa_data_node * data_node,
+        struct ssa_data_node * parent,
         void ** parent_data_node_ptr,
         bool data_node_should_produce_boxed_output
 ) {
@@ -110,16 +112,15 @@ static void perform_unboxing_insertion_data(
         void ** children_field_ptr = (void **) children_field_ptr_u64;
         struct ssa_data_node * child = *((struct ssa_data_node **) children_field_ptr);
 
-        perform_unboxing_insertion_data(ui, block, control_node, child, (void**) children_field_ptr, data_node_requires_boxed_inputs);
+        perform_unboxing_insertion_data(ui, block, control_node, child, data_node,
+            (void**) children_field_ptr, data_node_requires_boxed_inputs);
     }
 
     if (!data_node_should_produce_boxed_output && is_terminator_ssa_data_node(data_node)) {
         unbox_terminator_data_node(ui, block, control_node, data_node, parent_data_node_ptr);
-    }
-    if (!data_node_should_produce_boxed_output && !is_terminator_ssa_data_node(data_node)) {
+    } else if (!data_node_should_produce_boxed_output && !is_terminator_ssa_data_node(data_node)) {
         unbox_non_terminator_data_node(ui, data_node, parent_data_node_ptr);
-    }
-    if (data_node_should_produce_boxed_output){
+    } else if (data_node_should_produce_boxed_output){
         insert_box_node(ui, data_node, parent_data_node_ptr);
     }
 }
@@ -201,9 +202,13 @@ static void unbox_terminator_data_node(
                 insert_unbox_node(ui, data_node, data_node_field_ptr);
             }
         }
-        case SSA_DATA_NODE_TYPE_CONSTANT:
+        case SSA_DATA_NODE_TYPE_CONSTANT: {
+            unbox_const_ssa_data_node((struct ssa_data_constant_node *) data_node);
+            break;
+        }
         case SSA_DATA_NODE_TYPE_GET_GLOBAL: {
             insert_unbox_node(ui, data_node, data_node_field_ptr);
+            break;
         }
         default: {
             //TODO Runtime panic
@@ -287,8 +292,12 @@ static bool is_ssa_name_unboxed(struct ui * ui, struct ssa_block * block, struct
     return type->type == SSA_TYPE_F64 || is_native_ssa_type(type->type);
 }
 
-static bool control_requires_boxed_input(struct ssa_control_node * control) {
+static bool control_requires_boxed_input(struct ui * ui, struct ssa_control_node * control) {
     switch (control->type) {
+        case SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME: {
+            struct ssa_control_define_ssa_name_node * define = (struct ssa_control_define_ssa_name_node *) control;
+            return ssa_names_requires_to_be_boxed(ui, define->ssa_name);
+        }
         case SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT:
         case SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD:
         case SSA_CONTORL_NODE_TYPE_SET_GLOBAL:
@@ -302,10 +311,10 @@ static bool control_requires_boxed_input(struct ssa_control_node * control) {
         case SSA_CONTROL_NODE_TYPE_LOOP_JUMP:
         case SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP:
         case SSA_CONTROL_NODE_GUARD:
-        case SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME:
             return false;
     }
 }
+
 static bool data_requires_boxed_input(struct ssa_data_node * data) {
     switch (data->type) {
         case SSA_DATA_NODE_TYPE_CALL:
@@ -314,7 +323,6 @@ static bool data_requires_boxed_input(struct ssa_data_node * data) {
         case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY:
             return true;
         case SSA_DATA_NODE_TYPE_GET_LOCAL:
-        case SSA_DATA_NODE_TYPE_BINARY:
         case SSA_DATA_NODE_TYPE_GET_GLOBAL:
         case SSA_DATA_NODE_TYPE_CONSTANT:
         case SSA_DATA_NODE_TYPE_UNARY:
@@ -326,7 +334,27 @@ static bool data_requires_boxed_input(struct ssa_data_node * data) {
         case SSA_DATA_NODE_TYPE_PHI:
         case SSA_DATA_NODE_TYPE_GET_SSA_NAME:
             return false;
+        case SSA_DATA_NODE_TYPE_BINARY: {
+            struct ssa_data_binary_node * binary = (struct ssa_data_binary_node *) data;
+            return binary->left->produced_type->type == SSA_TYPE_LOX_ANY || binary->right->produced_type->type == SSA_TYPE_LOX_ANY;
+        }
     }
+}
+
+static bool ssa_names_requires_to_be_boxed(struct ui * ui, struct ssa_name ssa_name) {
+    struct u64_set * ssa_name_uses_set = get_u64_hash_table(&ui->ssa_ir->node_uses_by_ssa_name, ssa_name.u16);
+    bool input_requires_to_be_boxed = false;
+
+    FOR_EACH_U64_SET_VALUE(*ssa_name_uses_set, control_nodes_uses_ssa_name_u64_ptr) {
+        struct ssa_control_node * control_nodes_uses_ssa_name = (struct ssa_control_node *) control_nodes_uses_ssa_name_u64_ptr;
+
+        if (control_requires_boxed_input(ui, control_nodes_uses_ssa_name)) {
+            input_requires_to_be_boxed = true;
+            break;
+        }
+    }
+
+    return input_requires_to_be_boxed;
 }
 
 static struct ui * alloc_unbox_insertion(struct ssa_ir * ssa_ir) {

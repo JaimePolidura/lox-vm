@@ -39,7 +39,7 @@ typedef enum {
 } ssa_data_node_type;
 
 #define ALLOC_SSA_DATA_NODE(type, struct_type, bytecode, allocator) (struct_type *) allocate_ssa_data_node(type, sizeof(struct_type), bytecode, allocator)
-#define GET_CONST_VALUE_SSA_NODE(node) (((struct ssa_data_constant_node *) (node))->constant_lox_value)
+#define GET_CONST_VALUE_SSA_NODE(node) (((struct ssa_data_constant_node *) (node))->value)
 #define GET_USED_SSA_NAME(node) (((struct ssa_data_get_ssa_name_node *) (node))->ssa_name)
 
 //Represents expressions in CFG
@@ -84,6 +84,7 @@ struct u64_set get_used_ssa_names_ssa_data_node(struct ssa_data_node *, struct l
 bool is_terminator_ssa_data_node(struct ssa_data_node *);
 //Returns set of pointers to the fields of parent that contains the children pointer. Type: struct ssa_data_node **
 struct u64_set get_children_ssa_data_node(struct ssa_data_node * parent, struct lox_allocator *);
+void unbox_const_ssa_data_node(struct ssa_data_constant_node *);
 
 //OP_GET_LOCAL
 struct ssa_data_get_local_node {
@@ -136,18 +137,7 @@ struct ssa_data_get_array_length {
 //OP_CONST, OP_FAST_CONST_8, OP_FAST_CONST_16, OP_CONST_1, OP_CONST_2
 struct ssa_data_constant_node {
     struct ssa_data_node data;
-
-    lox_value_t constant_lox_value;
-
-    //These fields won't be heap allocated when creating a ssa_data_constant_node
-    union {
-        struct string_object * string;
-        struct object * object;
-        int64_t i64;
-        double f64;
-        bool boolean;
-        void * nil;
-    } value_as;
+    uint64_t value;
 };
 
 //TODO Replace it with bytecode_t in struct ssa_data_unary_node

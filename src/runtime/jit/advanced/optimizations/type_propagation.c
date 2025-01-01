@@ -173,7 +173,7 @@ static struct ssa_type * get_type_data_node_recursive(
     switch (node->type) {
         case SSA_DATA_NODE_TYPE_CONSTANT: {
             struct ssa_data_constant_node * constant = (struct ssa_data_constant_node *) node;
-            profile_data_type_t type = lox_value_to_profile_type(constant->constant_lox_value);
+            profile_data_type_t type = lox_value_to_profile_type(constant->value);
             return CREATE_SSA_TYPE(profiled_type_to_ssa_type(type), SSA_IR_ALLOCATOR(tp->ssa_ir));
         }
         case SSA_DATA_NODE_TYPE_GET_GLOBAL: {

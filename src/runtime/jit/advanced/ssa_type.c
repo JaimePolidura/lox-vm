@@ -239,16 +239,16 @@ ssa_type_t binary_to_ssa_type(bytecode_t operator, ssa_type_t left, ssa_type_t r
             if(left == SSA_TYPE_UNKNOWN || right == SSA_TYPE_UNKNOWN){
                 return SSA_TYPE_UNKNOWN;
             }
-            if (left == SSA_TYPE_LOX_ANY || right == SSA_TYPE_LOX_ANY) {
-                return SSA_TYPE_LOX_ANY;
-            }
-
             bool some_string = left == SSA_TYPE_LOX_STRING || right == SSA_TYPE_LOX_STRING ||
-                    left == SSA_TYPE_NATIVE_STRING || right == SSA_TYPE_NATIVE_STRING;
+                               left == SSA_TYPE_NATIVE_STRING || right == SSA_TYPE_NATIVE_STRING;
             bool some_f64 = left == SSA_TYPE_F64 || right == SSA_TYPE_F64;
+            bool some_any = left == SSA_TYPE_LOX_ANY || right == SSA_TYPE_LOX_ANY;
+            bool some_lox = is_lox_ssa_type(left) || is_lox_ssa_type(right);
 
-            if(some_string){
+            if (some_string) {
                 return return_lox_as_default ? SSA_TYPE_LOX_STRING : SSA_TYPE_NATIVE_STRING;
+            } else if (some_any) {
+                return SSA_TYPE_LOX_ANY;
             } else if(some_f64){
                 return SSA_TYPE_F64;
             } else {
@@ -271,4 +271,13 @@ ssa_type_t binary_to_ssa_type(bytecode_t operator, ssa_type_t left, ssa_type_t r
             return SSA_TYPE_F64;
         }
     }
+}
+
+bool is_same_format_ssa_type(ssa_type_t left, ssa_type_t right) {
+    if(left == SSA_TYPE_F64 || right == SSA_TYPE_F64){
+        return true;
+    }
+
+    return (is_lox_ssa_type(left) && is_lox_ssa_type(right)) ||
+        (is_native_ssa_type(left) && is_native_ssa_type(right));
 }

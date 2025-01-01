@@ -190,7 +190,7 @@ static struct semilattice_value * get_semilattice_propagation_from_data(
         }
         case SSA_DATA_NODE_TYPE_CONSTANT: {
             struct ssa_data_constant_node * constant_node = (struct ssa_data_constant_node *) current_node;
-            return alloc_single_const_value_semilattice(scp, constant_node->constant_lox_value);
+            return alloc_single_const_value_semilattice(scp, constant_node->value);
         }
         case SSA_DATA_NODE_TYPE_PHI: {
             return get_semilattice_phi(scp, (struct ssa_data_phi_node *) current_node);
@@ -280,7 +280,7 @@ struct constant_rewrite * rewrite_constant_expressions_propagation_data_node(
         }
         case SSA_DATA_NODE_TYPE_CONSTANT: {
             struct ssa_data_constant_node * const_node = (struct ssa_data_constant_node *) current_node;
-            return alloc_constant_rewrite(scp, current_node, alloc_single_const_value_semilattice(scp, const_node->constant_lox_value));
+            return alloc_constant_rewrite(scp, current_node, alloc_single_const_value_semilattice(scp, const_node->value));
         }
         case SSA_DATA_NODE_TYPE_GET_GLOBAL:
         case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD:
@@ -360,7 +360,7 @@ struct constant_rewrite * rewrite_constant_expressions_initialization_data_node(
         }
         case SSA_DATA_NODE_TYPE_CONSTANT: {
             struct ssa_data_constant_node * const_node = (struct ssa_data_constant_node *) current_node;
-            return alloc_constant_rewrite(scp, current_node, alloc_single_const_value_semilattice(scp, const_node->constant_lox_value));
+            return alloc_constant_rewrite(scp, current_node, alloc_single_const_value_semilattice(scp, const_node->value));
         }
         case SSA_DATA_NODE_TYPE_GET_GLOBAL:
         case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD:
@@ -401,7 +401,7 @@ static struct semilattice_value * get_semilattice_initialization_from_data(struc
         //Constant value:
         case SSA_DATA_NODE_TYPE_CONSTANT: {
             struct ssa_data_constant_node * constant_node = (struct ssa_data_constant_node *) current_data_node;
-            return alloc_single_const_value_semilattice(scp, constant_node->constant_lox_value);
+            return alloc_single_const_value_semilattice(scp, constant_node->value);
         }
         //Unknown value
         case SSA_DATA_NODE_TYPE_PHI: {

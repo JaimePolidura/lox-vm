@@ -306,34 +306,7 @@ struct ssa_data_constant_node * create_ssa_const_node(
     );
 
     constant_node->data.produced_type = CREATE_SSA_TYPE(type, allocator);
-    constant_node->constant_lox_value = constant_value;
-
-    switch (get_lox_type(constant_value)) {
-        case VAL_BOOL: {
-            constant_node->value_as.boolean = AS_BOOL(constant_value);
-            break;
-        }
-        case VAL_NIL: {
-            constant_node->value_as.nil = NULL;
-            break;
-        }
-        case VAL_NUMBER: {
-            if(has_decimals(AS_NUMBER(constant_value))){
-                constant_node->value_as.f64 = AS_NUMBER(constant_value);
-            } else {
-                constant_node->value_as.i64 = (int64_t) constant_value;
-            }
-            break;
-        }
-        case VAL_OBJ: {
-            if(IS_STRING(constant_value)){
-                constant_node->value_as.string = AS_STRING_OBJECT(constant_value);
-            } else {
-                constant_node->value_as.object = AS_OBJECT(constant_value);
-            }
-            break;
-        }
-    }
+    constant_node->value = constant_value;
 
     return constant_node;
 }
@@ -644,4 +617,11 @@ struct u64_set get_children_ssa_data_node(struct ssa_data_node * node, struct lo
     }
 
     return children;
+}
+
+void unbox_const_ssa_data_node(struct ssa_data_constant_node * const_node) {
+    if (is_lox_ssa_type(const_node->data.produced_type->type)) {
+        const_node->data.produced_type->type = lox_type_to_native_ssa_type(const_node->data.produced_type->type);
+        const_node->value = lox_to_native_type((lox_value_t) const_node->value);
+    }
 }

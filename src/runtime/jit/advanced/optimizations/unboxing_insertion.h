@@ -3,6 +3,7 @@
 #include "runtime/jit/advanced/optimizations/type_propagation.h"
 #include "runtime/jit/advanced/creation/ssa_creator.h"
 
+#include "shared/utils/collections/stack_list.h"
 #include "shared/utils/memory/arena.h"
 #include "shared.h"
 
