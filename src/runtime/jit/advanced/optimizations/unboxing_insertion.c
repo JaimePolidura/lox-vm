@@ -116,6 +116,11 @@ static void perform_unboxing_insertion_data(
             (void**) children_field_ptr, data_node_requires_boxed_inputs);
     }
 
+    //Innecesary to add unbox/box node in conditional jump
+    if(parent == NULL && control_node->type == SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP){
+        return;
+    }
+
     if (!data_node_should_produce_boxed_output && is_terminator_ssa_data_node(data_node)) {
         unbox_terminator_data_node(ui, block, control_node, data_node, parent_data_node_ptr);
     } else if (!data_node_should_produce_boxed_output && !is_terminator_ssa_data_node(data_node)) {
@@ -294,10 +299,6 @@ static bool is_ssa_name_unboxed(struct ui * ui, struct ssa_block * block, struct
 
 static bool control_requires_boxed_input(struct ui * ui, struct ssa_control_node * control) {
     switch (control->type) {
-        case SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME: {
-            struct ssa_control_define_ssa_name_node * define = (struct ssa_control_define_ssa_name_node *) control;
-            return ssa_names_requires_to_be_boxed(ui, define->ssa_name);
-        }
         case SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT:
         case SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD:
         case SSA_CONTORL_NODE_TYPE_SET_GLOBAL:
@@ -312,6 +313,29 @@ static bool control_requires_boxed_input(struct ui * ui, struct ssa_control_node
         case SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP:
         case SSA_CONTROL_NODE_GUARD:
             return false;
+        case SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME: {
+            struct ssa_control_define_ssa_name_node * define = (struct ssa_control_define_ssa_name_node *) control;
+            struct u64_set * uses_ssa_name = get_u64_hash_table(&ui->ssa_ir->node_uses_by_ssa_name, define->ssa_name.u16);
+            if(uses_ssa_name == NULL){
+                return false;
+            }
+
+            bool some_use_required_unboxed = false;
+
+            FOR_EACH_U64_SET_VALUE(*uses_ssa_name, node_uses_ssa_name_ptr_u64) {
+                struct ssa_control_node * node_uses_ssa_name = (struct ssa_control_node *) node_uses_ssa_name_ptr_u64;
+
+                if(node_uses_ssa_name->type != SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT &&
+                        node_uses_ssa_name->type != SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD &&
+                        node_uses_ssa_name->type != SSA_CONTORL_NODE_TYPE_SET_GLOBAL &&
+                        node_uses_ssa_name->type != SSA_CONTROL_NODE_TYPE_RETURN){
+                    some_use_required_unboxed = true;
+                    break;
+                }
+            }
+
+            return !some_use_required_unboxed;
+        }
     }
 }
 

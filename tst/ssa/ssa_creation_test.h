@@ -24,7 +24,7 @@ TEST(ssa_creation_ta){
             "       numero = a + 1;"
             "   }"
             "   mensaje = mensaje + numero;"
-            "   return mensaje;"
+            "   return numero;"
             "}"
     );
 
