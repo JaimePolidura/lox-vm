@@ -21,7 +21,7 @@ TEST(ssa_creation_ta){
             "   var mensaje = \"a\";"
             "   var numero = 2;"
             "   if(a > numero) {"
-            "       numero = a + 1;"
+            "       numero = a;"
             "   }"
             "   mensaje = mensaje + numero;"
             "   return numero;"

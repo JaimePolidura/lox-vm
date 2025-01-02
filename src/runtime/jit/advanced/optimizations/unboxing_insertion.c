@@ -20,7 +20,9 @@ static void insert_unbox_node(struct ui*, struct ssa_data_node *, void **);
 static void unbox_terminator_data_node(struct ui*, struct ssa_block*, struct ssa_control_node*, struct ssa_data_node*, void**);
 static void unbox_non_terminator_data_node(struct ui *, struct ssa_data_node*, void**);
 static bool is_ssa_name_unboxed(struct ui*, struct ssa_block*, struct ssa_name);
+static bool is_ssa_name_boxed(struct ui*, struct ssa_block*, struct ssa_name);
 static void extract_define_unboxed_from_phi(struct ui*, struct ssa_block*, struct ssa_control_node*, struct ssa_data_phi_node*, struct ssa_name);
+static void extract_define_boxed_from_phi(struct ui*, struct ssa_block*, struct ssa_control_node*, struct ssa_data_phi_node*, struct ssa_name);
 
 void perform_unboxing_insertion(struct ssa_ir * ssa_ir) {
     struct ui * ui = alloc_unbox_insertion(ssa_ir);
@@ -183,18 +185,22 @@ static void unbox_terminator_data_node(
         struct ssa_data_node * data_node,
         void ** data_node_field_ptr
 ) {
-    if(is_native_ssa_type(data_node->produced_type->type) || data_node->produced_type->type == SSA_TYPE_F64 ||
-        data_node->produced_type->type == SSA_TYPE_LOX_ANY){
+    if (is_native_ssa_type(data_node->produced_type->type) || data_node->produced_type->type == SSA_TYPE_F64) {
         return;
     }
 
     switch (data_node->type) {
         case SSA_DATA_NODE_TYPE_PHI: {
             struct ssa_data_phi_node * phi = (struct ssa_data_phi_node *) data_node;
+            bool produced_any = phi->data.produced_type->type == SSA_TYPE_LOX_ANY;
+            bool phi_node_should_produce_boxed = produced_any;
+            bool phi_node_should_produce_unboxed = !produced_any;
 
             FOR_EACH_SSA_NAME_IN_PHI_NODE(phi, phi_ssa_name) {
-                if (!is_ssa_name_unboxed(ui, block, phi_ssa_name)) {
+                if (is_ssa_name_boxed(ui, block, phi_ssa_name) && phi_node_should_produce_unboxed) {
                     extract_define_unboxed_from_phi(ui, block, control_node, phi, phi_ssa_name);
+                } else if(is_ssa_name_unboxed(ui, block, phi_ssa_name) && phi_node_should_produce_boxed) {
+                    extract_define_boxed_from_phi(ui, block, control_node, phi, phi_ssa_name);
                 }
             }
             break;
@@ -222,6 +228,49 @@ static void unbox_terminator_data_node(
 }
 
 //Given a2 = phi(a0, a1) Extract: a1, it will produce: a3 = unbox(a1); a2 = phi(a0, a3)
+static void extract_define_boxed_from_phi(
+        struct ui * ui,
+        struct ssa_block * block,
+        struct ssa_control_node * control_uses_phi,
+        struct ssa_data_phi_node * phi_node,
+        struct ssa_name ssa_name_to_extract
+) {
+    struct ssa_name unboxed_ssa_name = alloc_ssa_version_ssa_ir(ui->ssa_ir, ssa_name_to_extract.value.local_number);
+
+    struct ssa_control_define_ssa_name_node * define_boxed = ALLOC_SSA_CONTROL_NODE(
+            SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME, struct ssa_control_define_ssa_name_node, block, SSA_IR_ALLOCATOR(ui->ssa_ir)
+    );
+    struct ssa_data_node_box * box_node = ALLOC_SSA_DATA_NODE(
+            SSA_DATA_NODE_TYPE_BOX, struct ssa_data_node_box, NULL, SSA_IR_ALLOCATOR(ui->ssa_ir)
+    );
+    struct ssa_data_get_ssa_name_node * get_boxed_ssa_name_node = ALLOC_SSA_DATA_NODE(
+            SSA_DATA_NODE_TYPE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL, SSA_IR_ALLOCATOR(ui->ssa_ir)
+    );
+
+    //define_boxed
+    define_boxed->ssa_name = unboxed_ssa_name;
+    define_boxed->value = &box_node->data;
+    add_u64_set(&block->defined_ssa_names, unboxed_ssa_name.u16);
+    put_u64_hash_table(&ui->ssa_ir->ssa_definitions_by_ssa_name, unboxed_ssa_name.u16, define_boxed);
+    add_before_control_node_ssa_block(block, control_uses_phi, &define_boxed->control);
+
+    //get_boxed_ssa_name_node
+    get_boxed_ssa_name_node->data.produced_type = get_type_by_ssa_name_ssa_ir(ui->ssa_ir, block, ssa_name_to_extract);
+    get_boxed_ssa_name_node->ssa_name = ssa_name_to_extract;
+    add_ssa_name_use_ssa_ir(ui->ssa_ir, ssa_name_to_extract, &define_boxed->control);
+
+    //box_node
+    box_node->to_box = &get_boxed_ssa_name_node->data;
+    box_node->data.produced_type = native_to_lox_ssa_type(get_boxed_ssa_name_node->data.produced_type, SSA_IR_ALLOCATOR(ui->ssa_ir));
+
+    //control_uses_phi
+    remove_u64_set(&phi_node->ssa_versions, ssa_name_to_extract.value.version);
+    add_u64_set(&phi_node->ssa_versions, unboxed_ssa_name.value.version);
+    add_ssa_name_use_ssa_ir(ui->ssa_ir, unboxed_ssa_name, &define_boxed->control);
+    remove_ssa_name_use_ssa_ir(ui->ssa_ir, ssa_name_to_extract, control_uses_phi);
+}
+
+//Given a2 = phi(a0, a1) Extract: a1, it will produce: a3 = unbox(a1); a2 = phi(a0, a3)
 static void extract_define_unboxed_from_phi(
         struct ui * ui,
         struct ssa_block * block,
@@ -229,10 +278,6 @@ static void extract_define_unboxed_from_phi(
         struct ssa_data_phi_node * phi_node,
         struct ssa_name ssa_name_to_extract
 ) {
-    if(get_type_by_ssa_name_ssa_ir(ui->ssa_ir, block, ssa_name_to_extract)->type == SSA_TYPE_LOX_ANY){
-        return;
-    }
-
     struct ssa_name unboxed_ssa_name = alloc_ssa_version_ssa_ir(ui->ssa_ir, ssa_name_to_extract.value.local_number);
 
     struct ssa_control_define_ssa_name_node * define_unboxed = ALLOC_SSA_CONTROL_NODE(
@@ -290,6 +335,10 @@ static void insert_unbox_node(struct ui * ui, struct ssa_data_node * data_node, 
 
         *data_node_field_ptr = unbox;
     }
+}
+
+static bool is_ssa_name_boxed(struct ui * ui, struct ssa_block * block, struct ssa_name ssa_name) {
+    return !is_ssa_name_unboxed(ui, block, ssa_name);
 }
 
 static bool is_ssa_name_unboxed(struct ui * ui, struct ssa_block * block, struct ssa_name ssa_name) {
