@@ -123,12 +123,18 @@ static void perform_unboxing_insertion_data(
     if(parent == NULL && control_node->type == SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP){
         return;
     }
+    
+    bool data_node_produces_boxed_output = data_produces_boxed_output(data_node);
+    bool data_node_produces_unboxed_output = !data_node_produces_boxed_output;
 
-    if (data_node_should_produce_unboxed_output) {
+    if (data_node_should_produce_unboxed_output && data_node_produces_boxed_output) {
         unbox_data_node(ui, control_node, data_node, parent_data_node_ptr);
     }
-    if (data_node_should_produce_boxed_output) {
+    if (data_node_should_produce_boxed_output && data_node_produces_unboxed_output) {
         insert_box_node(ui, data_node, parent_data_node_ptr);
+    }
+    if(data_node_produces_boxed_output && is_lox_ssa_type(data_node->produced_type->type)){
+        data_node->produced_type->type = lox_type_to_native_ssa_type(data_node->produced_type->type);
     }
 }
 
