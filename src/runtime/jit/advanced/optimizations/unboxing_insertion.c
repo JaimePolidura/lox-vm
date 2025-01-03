@@ -9,6 +9,7 @@ static struct ui * alloc_unbox_insertion(struct ssa_ir *);
 static void free_unbox_insertion(struct ui*);
 static bool control_requires_boxed_input(struct ui*, struct ssa_control_node *);
 static bool data_requires_boxed_input(struct ssa_data_node *);
+static bool data_produces_boxed_output(struct ssa_data_node *data_node);
 static bool ssa_names_requires_to_be_boxed(struct ui*, struct ssa_name);
 
 static bool perform_unboxing_insertion_block(struct ssa_block *, void *);
@@ -17,8 +18,7 @@ static bool perform_unboxing_insertion_data_consumer(struct ssa_data_node*, void
 static void perform_unboxing_insertion_data(struct ui*, struct ssa_block*, struct ssa_control_node*, struct ssa_data_node*, struct ssa_data_node*, void**, bool);
 static void insert_box_node(struct ui*, struct ssa_data_node *, void **);
 static void insert_unbox_node(struct ui*, struct ssa_data_node *, void **);
-static void unbox_terminator_data_node(struct ui*, struct ssa_block*, struct ssa_control_node*, struct ssa_data_node*, void**);
-static void unbox_non_terminator_data_node(struct ui *, struct ssa_data_node*, void**);
+static void unbox_data_node(struct ui *ui, struct ssa_control_node*, struct ssa_data_node *, void **);
 static bool is_ssa_name_unboxed(struct ui*, struct ssa_block*, struct ssa_name);
 static bool is_ssa_name_boxed(struct ui*, struct ssa_block*, struct ssa_name);
 static void extract_define_unboxed_from_phi(struct ui*, struct ssa_block*, struct ssa_control_node*, struct ssa_data_phi_node*, struct ssa_name);
@@ -108,6 +108,7 @@ static void perform_unboxing_insertion_data(
         void ** parent_data_node_ptr,
         bool data_node_should_produce_boxed_output
 ) {
+    bool data_node_should_produce_unboxed_output = !data_node_should_produce_boxed_output;
     bool data_node_requires_boxed_inputs = data_requires_boxed_input(data_node);
 
     FOR_EACH_U64_SET_VALUE(get_children_ssa_data_node(data_node, &ui->ui_allocator.lox_allocator), children_field_ptr_u64) {
@@ -123,19 +124,25 @@ static void perform_unboxing_insertion_data(
         return;
     }
 
-    if (!data_node_should_produce_boxed_output && is_terminator_ssa_data_node(data_node)) {
-        unbox_terminator_data_node(ui, block, control_node, data_node, parent_data_node_ptr);
-    } else if (!data_node_should_produce_boxed_output && !is_terminator_ssa_data_node(data_node)) {
-        unbox_non_terminator_data_node(ui, data_node, parent_data_node_ptr);
-    } else if (data_node_should_produce_boxed_output){
+    if (data_node_should_produce_unboxed_output) {
+        unbox_data_node(ui, control_node, data_node, parent_data_node_ptr);
+    }
+    if (data_node_should_produce_boxed_output) {
         insert_box_node(ui, data_node, parent_data_node_ptr);
     }
 }
 
-static void unbox_non_terminator_data_node(struct ui * ui, struct ssa_data_node * data_node, void ** data_node_field_ptr) {
+static void unbox_data_node(
+        struct ui * ui,
+        struct ssa_control_node * control_node,
+        struct ssa_data_node * data_node,
+        void ** data_node_field_ptr
+) {
     if(is_native_ssa_type(data_node->produced_type->type) || data_node->produced_type->type == SSA_TYPE_F64){
         return;
     }
+
+    struct ssa_block * block = control_node->block;
 
     switch (data_node->type) {
         case SSA_DATA_NODE_TYPE_BINARY: {
@@ -175,21 +182,6 @@ static void unbox_non_terminator_data_node(struct ui * ui, struct ssa_data_node 
             }
             break;
         }
-    }
-}
-
-static void unbox_terminator_data_node(
-        struct ui * ui,
-        struct ssa_block * block,
-        struct ssa_control_node * control_node,
-        struct ssa_data_node * data_node,
-        void ** data_node_field_ptr
-) {
-    if (is_native_ssa_type(data_node->produced_type->type) || data_node->produced_type->type == SSA_TYPE_F64) {
-        return;
-    }
-
-    switch (data_node->type) {
         case SSA_DATA_NODE_TYPE_PHI: {
             struct ssa_data_phi_node * phi = (struct ssa_data_phi_node *) data_node;
             bool produced_any = phi->data.produced_type->type == SSA_TYPE_LOX_ANY;
@@ -220,9 +212,6 @@ static void unbox_terminator_data_node(
         case SSA_DATA_NODE_TYPE_GET_GLOBAL: {
             insert_unbox_node(ui, data_node, data_node_field_ptr);
             break;
-        }
-        default: {
-            //TODO Runtime panic
         }
     }
 }
@@ -410,6 +399,37 @@ static bool data_requires_boxed_input(struct ssa_data_node * data) {
         case SSA_DATA_NODE_TYPE_BINARY: {
             struct ssa_data_binary_node * binary = (struct ssa_data_binary_node *) data;
             return binary->left->produced_type->type == SSA_TYPE_LOX_ANY || binary->right->produced_type->type == SSA_TYPE_LOX_ANY;
+        }
+    }
+}
+
+static bool data_produces_boxed_output(struct ssa_data_node * data_node) {
+    switch (data_node->type) {
+        case SSA_DATA_NODE_TYPE_CALL:
+        case SSA_DATA_NODE_TYPE_GET_GLOBAL:
+        case SSA_DATA_NODE_TYPE_BOX:
+        case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD:
+        case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT:
+            return true;
+        case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT:
+        case SSA_DATA_NODE_TYPE_UNBOX:
+        case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY:
+            return false;
+        case SSA_DATA_NODE_TYPE_GET_ARRAY_LENGTH:
+        case SSA_DATA_NODE_TYPE_PHI:
+        case SSA_DATA_NODE_TYPE_GUARD:
+        case SSA_DATA_NODE_TYPE_GET_SSA_NAME:
+        case SSA_DATA_NODE_TYPE_CONSTANT: {
+            return is_lox_ssa_type(data_node->produced_type->type);
+        }
+        case SSA_DATA_NODE_TYPE_UNARY: {
+            struct ssa_data_unary_node * unary = (struct ssa_data_unary_node *) data_node;
+            return is_lox_ssa_type(unary->operand->produced_type->type);
+        }
+        case SSA_DATA_NODE_TYPE_BINARY: {
+            //In binary, the left and right side should have the same format
+            struct ssa_data_binary_node * binary = (struct ssa_data_binary_node *) data_node;
+            return is_lox_ssa_type(binary->left->produced_type->type);
         }
     }
 }

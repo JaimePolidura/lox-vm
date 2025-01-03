@@ -19,12 +19,11 @@ TEST(ssa_creation_ta){
     struct compilation_result compilation = compile_standalone(
             "fun function(a, b) {"
             "   var mensaje = \"a\";"
-            "   var numero = 2;"
-            "   if(a > numero) {"
-            "       numero = a;"
+            "   for(var i = 0; i < 10; i = i + 1){"
+            "       mensaje = mensaje + i;"
+            "       print mensaje;"
             "   }"
-            "   mensaje = mensaje + numero;"
-            "   return numero;"
+            "   return mensaje;"
             "}"
     );
 
