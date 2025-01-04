@@ -100,6 +100,7 @@ struct ssa_control_set_struct_field_node {
     struct string_object * field_name;
     struct ssa_data_node * new_field_value;
     struct ssa_data_node * instance;
+    bool escapes;
 };
 
 struct ssa_control_set_array_element_node {
@@ -108,6 +109,7 @@ struct ssa_control_set_array_element_node {
     struct ssa_data_node * index;
     struct ssa_data_node * array;
     struct ssa_data_node * new_element_value;
+    bool escapes;
 };
 
 //OP_LOOP

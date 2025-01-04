@@ -159,6 +159,7 @@ struct ssa_data_get_struct_field_node {
 
     struct string_object * field_name;
     struct ssa_data_node * instance_node;
+    bool escapes;
 };
 
 struct ssa_data_initialize_struct_node {
@@ -166,6 +167,7 @@ struct ssa_data_initialize_struct_node {
 
     struct struct_definition_object * definition;
     struct ssa_data_node ** fields_nodes;
+    bool escapes;
 };
 
 struct ssa_data_get_array_element_node {
@@ -173,6 +175,7 @@ struct ssa_data_get_array_element_node {
 
     struct ssa_data_node * index;
     struct ssa_data_node * instance;
+    bool escapes;
 };
 
 struct ssa_data_initialize_array_node {
@@ -181,6 +184,7 @@ struct ssa_data_initialize_array_node {
     int n_elements;
     bool empty_initialization;
     struct ssa_data_node ** elememnts_node;
+    bool escapes;
 };
 
 //These nodes will be only used when inserting phi functions in the graph ir creation process
