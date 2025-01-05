@@ -625,3 +625,47 @@ void unbox_const_ssa_data_node(struct ssa_data_constant_node * const_node) {
         const_node->value = lox_to_native_type((lox_value_t) const_node->value);
     }
 }
+
+bool is_escaped_ssa_data_node(struct ssa_data_node * data_node) {
+    switch (data_node->type) {
+        case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD: {
+            struct ssa_data_get_struct_field_node * get_struct_field = (struct ssa_data_get_struct_field_node *) data_node;
+            return get_struct_field->escapes;
+        }
+        case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT: {
+            struct ssa_data_initialize_struct_node * init_struct = (struct ssa_data_initialize_struct_node *) data_node;
+            return init_struct->escapes;
+        }
+        case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
+            struct ssa_data_get_array_element_node * get_arr_ele = (struct ssa_data_get_array_element_node *) data_node;
+            return get_arr_ele->escapes;
+        }
+        case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY: {
+            struct ssa_data_initialize_array_node * init_array = (struct ssa_data_initialize_array_node *) data_node;
+            return init_array->escapes;
+        }
+        default:
+            return false;
+    }
+}
+
+void mark_as_escaped_ssa_data_node(struct ssa_data_node * data_node) {
+    switch (data_node->type) {
+        case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD: {
+            struct ssa_data_get_struct_field_node * get_struct_field = (struct ssa_data_get_struct_field_node *) data_node;
+            get_struct_field->escapes = true;
+        }
+        case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT: {
+            struct ssa_data_initialize_struct_node * init_struct = (struct ssa_data_initialize_struct_node *) data_node;
+            init_struct->escapes = true;
+        }
+        case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
+            struct ssa_data_get_array_element_node * get_arr_ele = (struct ssa_data_get_array_element_node *) data_node;
+            get_arr_ele->escapes = true;
+        }
+        case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY: {
+            struct ssa_data_initialize_array_node * init_array = (struct ssa_data_initialize_array_node *) data_node;
+            init_array->escapes = true;
+        }
+    }
+}
