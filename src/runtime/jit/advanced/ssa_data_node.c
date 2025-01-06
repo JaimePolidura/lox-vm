@@ -204,7 +204,7 @@ bool is_eq_ssa_data_node(struct ssa_data_node * a, struct ssa_data_node * b, str
             struct ssa_data_get_array_element_node * a_get_array_ele = (struct ssa_data_get_array_element_node *) a;
             struct ssa_data_get_array_element_node * b_get_array_ele = (struct ssa_data_get_array_element_node *) b;
             return is_eq_ssa_data_node(a_get_array_ele->index, b_get_array_ele->index, allocator) &&
-                   is_eq_ssa_data_node(a_get_array_ele->instance, b_get_array_ele->instance, allocator);
+                   is_eq_ssa_data_node(a_get_array_ele->instance_node, b_get_array_ele->instance_node, allocator);
         }
         case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY: {
             struct ssa_data_initialize_array_node * a_init_array = (struct ssa_data_initialize_array_node *) a;
@@ -412,7 +412,7 @@ uint64_t hash_ssa_data_node(struct ssa_data_node * node) {
         }
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
             struct ssa_data_get_array_element_node * get_arr_ele = (struct ssa_data_get_array_element_node *) node;
-            uint64_t array_instance_hash = hash_ssa_data_node(get_arr_ele->instance);
+            uint64_t array_instance_hash = hash_ssa_data_node(get_arr_ele->instance_node);
             uint64_t index_instance_hash = hash_ssa_data_node(get_arr_ele->index);
             return mix_hash_not_commutative(array_instance_hash, index_instance_hash);
         }
@@ -576,7 +576,7 @@ struct u64_set get_children_ssa_data_node(struct ssa_data_node * node, struct lo
         }
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
             struct ssa_data_get_array_element_node * get_arr_element = (struct ssa_data_get_array_element_node *) node;
-            add_u64_set(&children, (uint64_t) &get_arr_element->instance);
+            add_u64_set(&children, (uint64_t) &get_arr_element->instance_node);
             add_u64_set(&children, (uint64_t) &get_arr_element->index);
             break;
         }

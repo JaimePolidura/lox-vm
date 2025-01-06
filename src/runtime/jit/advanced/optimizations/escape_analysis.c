@@ -19,7 +19,7 @@ void free_escape_analysis(struct ea *);
 
 static bool perform_escape_analysis_block(struct ssa_block*, void*);
 static void perform_escape_analysis_control(struct ea*, struct ssa_control_node*);
-static void perform_escape_analysis_define_ssa_name(struct ea*, struct ssa_control_define_ssa_name_node*);
+static void maybe_save_instance_define_ssa(struct ea*, struct ssa_control_define_ssa_name_node*);
 static void mark_control_node_input_nodes_as_escaped(struct ea *ea, struct ssa_control_node *control_node);
 static bool control_node_escapes_inputs(struct ssa_control_node *);
 static bool mark_control_node_input_nodes_as_escaped_consumer(struct ssa_data_node*, void**, struct ssa_data_node*, void*);
@@ -58,46 +58,26 @@ static bool perform_escape_analysis_block(struct ssa_block * block, void * extra
 
 static void perform_escape_analysis_control(struct ea * ea, struct ssa_control_node * control_node) {
     if (control_node->type == SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME) {
-        perform_escape_analysis_define_ssa_name(ea, (struct ssa_control_define_ssa_name_node *) control_node);
+        maybe_save_instance_define_ssa(ea, (struct ssa_control_define_ssa_name_node *) control_node);
     }
-
 
     if (control_node_escapes_inputs(control_node)) {
         mark_control_node_input_nodes_as_escaped(ea, control_node);
+        return;
+    }
+
+    struct u64_set children = get_children_ssa_control_node(control_node);
+    bool escapes = false;
+    FOR_EACH_U64_SET_VALUE(children, child_parent_field_ptr_u64) {
+        struct ssa_data_node * child = * ((struct ssa_data_node **) child_parent_field_ptr_u64);
+        escapes |= perform_escape_analysis_data(ea, control_node, child);
+    }
+
+    if (escapes) {
+        mark_as_escaped_ssa_control_node(control_node);
     }
 }
 
-static void mark_control_node_input_nodes_as_escaped(struct ea * ea, struct ssa_control_node * control_node) {
-    for_each_data_node_in_control_node(control_node, ea, SSA_DATA_NODE_OPT_ANY_ORDER, mark_control_node_input_nodes_as_escaped_consumer);
-}
-
-static bool mark_control_node_input_nodes_as_escaped_consumer(
-        struct ssa_data_node * _,
-        void ** __,
-        struct ssa_data_node * child,
-        void * extra
-) {
-    struct ea * ea = extra;
-    mark_data_node_as_escaped(ea, child);
-
-    return true;
-}
-
-static void mark_data_node_as_escaped(struct ea * ea, struct ssa_data_node * data_node) {
-    mark_as_escaped_ssa_data_node(data_node);
-}
-
-static void perform_escape_analysis_define_ssa_name(struct ea * ea, struct ssa_control_define_ssa_name_node * define) {
-    if(define->value->type == SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY || define->value->type == SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT){
-        put_u64_hash_table(&ea->instance_by_ssa_name, define->ssa_name.u16, define->value);
-    } else if (define->value->type == SSA_DATA_NODE_TYPE_GET_SSA_NAME) {
-        struct ssa_data_get_ssa_name_node * get_ssa_name = (struct ssa_data_get_ssa_name_node * ) define->value;
-        void * instance = get_u64_hash_table(&ea->instance_by_ssa_name, get_ssa_name->ssa_name.u16);
-        put_u64_hash_table(&ea->instance_by_ssa_name, define->ssa_name.u16, instance);
-    }
-}
-
-//Returns true if escapes
 //TODO Save control node usage
 static bool perform_escape_analysis_data(
         struct ea * ea,
@@ -134,13 +114,14 @@ static bool perform_escape_analysis_data(
         }
         case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD: {
             struct ssa_data_get_struct_field_node * get_struct_field = (struct ssa_data_get_struct_field_node *) data_node;
+            get_struct_field->escapes = perform_escape_analysis_data(ea, control_node, get_struct_field->instance_node);
             return get_struct_field->escapes;
         }
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
             struct ssa_data_get_array_element_node * get_arr_element = (struct ssa_data_get_array_element_node *) data_node;
+            get_arr_element->escapes = perform_escape_analysis_data(ea, control_node, get_arr_element->instance_node);
             return get_arr_element->escapes;
         }
-
         case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT: {
             struct ssa_data_initialize_struct_node * init_struct = (struct ssa_data_initialize_struct_node *) data_node;
             bool escapes = false;
@@ -153,8 +134,8 @@ static bool perform_escape_analysis_data(
                     escapes |= perform_escape_analysis_data(ea, control_node, struct_field);
                 }
             }
-
-            return false;
+            init_struct->escapes = escapes;
+            return escapes;
         }
         case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY: {
             struct ssa_data_initialize_array_node * init_array = (struct ssa_data_initialize_array_node *) data_node;
@@ -169,7 +150,7 @@ static bool perform_escape_analysis_data(
                     escapes |= perform_escape_analysis_data(ea, control_node, array_element);
                 }
             }
-
+            init_array->escapes = escapes;
             return escapes;
         }
         case SSA_DATA_NODE_TYPE_PHI: {
@@ -186,6 +167,36 @@ static bool perform_escape_analysis_data(
             struct ssa_data_get_ssa_name_node * get = (struct ssa_data_get_ssa_name_node *) data_node;
             return does_ssa_name_escapes(ea, get->ssa_name);
         }
+    }
+}
+
+static void mark_control_node_input_nodes_as_escaped(struct ea * ea, struct ssa_control_node * control_node) {
+    for_each_data_node_in_control_node(control_node, ea, SSA_DATA_NODE_OPT_ANY_ORDER, mark_control_node_input_nodes_as_escaped_consumer);
+}
+
+static bool mark_control_node_input_nodes_as_escaped_consumer(
+        struct ssa_data_node * _,
+        void ** __,
+        struct ssa_data_node * child,
+        void * extra
+) {
+    struct ea * ea = extra;
+    mark_data_node_as_escaped(ea, child);
+
+    return true;
+}
+
+static void mark_data_node_as_escaped(struct ea * ea, struct ssa_data_node * data_node) {
+    mark_as_escaped_ssa_data_node(data_node);
+}
+
+static void maybe_save_instance_define_ssa(struct ea * ea, struct ssa_control_define_ssa_name_node * define) {
+    if(define->value->type == SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY || define->value->type == SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT){
+        put_u64_hash_table(&ea->instance_by_ssa_name, define->ssa_name.u16, define->value);
+    } else if (define->value->type == SSA_DATA_NODE_TYPE_GET_SSA_NAME) {
+        struct ssa_data_get_ssa_name_node * get_ssa_name = (struct ssa_data_get_ssa_name_node * ) define->value;
+        void * instance = get_u64_hash_table(&ea->instance_by_ssa_name, get_ssa_name->ssa_name.u16);
+        put_u64_hash_table(&ea->instance_by_ssa_name, define->ssa_name.u16, instance);
     }
 }
 
@@ -241,7 +252,7 @@ static struct ssa_data_node * get_instance_data_node(struct ssa_data_node * data
         }
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
             struct ssa_data_get_array_element_node * get_arr_ele = (struct ssa_data_get_array_element_node *) data_node;
-            return get_arr_ele->instance;
+            return get_arr_ele->instance_node;
         }
         default: {
             return NULL;

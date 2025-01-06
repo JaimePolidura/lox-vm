@@ -176,7 +176,7 @@ struct ssa_data_get_array_element_node {
     struct ssa_data_node data;
 
     struct ssa_data_node * index;
-    struct ssa_data_node * instance;
+    struct ssa_data_node * instance_node;
     bool escapes;
 };
 

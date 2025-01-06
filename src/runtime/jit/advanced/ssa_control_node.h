@@ -46,6 +46,9 @@ struct ssa_control_node {
 
 void for_each_data_node_in_control_node(struct ssa_control_node *, void *, long options, ssa_data_node_consumer_t);
 struct u64_set get_used_ssa_names_ssa_control_node(struct ssa_control_node *, struct lox_allocator *);
+//Returns set of pointers to the fields of parent that contains the children pointer. Type: struct ssa_data_node **
+struct u64_set get_children_ssa_control_node(struct ssa_control_node *);
+void mark_as_escaped_ssa_control_node(struct ssa_control_node *);
 
 //OP_SET_LOCAL
 struct ssa_control_set_local_node {

@@ -19,58 +19,71 @@ void for_each_data_node_in_control_node(
         long options,
         ssa_data_node_consumer_t consumer
 ) {
-    switch(control_node->type){
-        case SSA_CONTROL_NODE_GUARD: {
-            struct ssa_control_guard_node * guard = (struct ssa_control_guard_node *) control_node;
-            for_each_ssa_data_node(guard->guard.value, (void**) &guard->guard.value, extra, options, consumer);
-            break;
-        }
-        case SSA_CONTORL_NODE_TYPE_SET_LOCAL: {
-            struct ssa_control_set_local_node * set_local = (struct ssa_control_set_local_node *) control_node;
-            for_each_ssa_data_node(set_local->new_local_value, (void**) &set_local->new_local_value, extra, options, consumer);
-            break;
-        }
+    struct u64_set children = get_children_ssa_control_node(control_node);
+    FOR_EACH_U64_SET_VALUE(children, child_parent_field_ptr_u64) {
+        struct ssa_data_node ** child_parent_field_ptr = (struct ssa_data_node **) child_parent_field_ptr_u64;
+        struct ssa_data_node * child = *child_parent_field_ptr;
+
+        for_each_ssa_data_node(child, (void**) child_parent_field_ptr, extra, options, consumer);
+    }
+}
+
+struct u64_set get_children_ssa_control_node(struct ssa_control_node * control_node) {
+    struct u64_set children;
+    init_u64_set(&children, NATIVE_LOX_ALLOCATOR());
+
+    switch (control_node->type) {
         case SSA_CONTROL_NODE_TYPE_DATA: {
             struct ssa_control_data_node * data_node = (struct ssa_control_data_node *) control_node;
-            for_each_ssa_data_node(data_node->data, (void**) &data_node->data, extra, options, consumer);
+            add_u64_set(&children, (uint64_t) &data_node->data);
             break;
         }
         case SSA_CONTROL_NODE_TYPE_RETURN: {
             struct ssa_control_return_node * return_node = (struct ssa_control_return_node *) control_node;
-            for_each_ssa_data_node(return_node->data, (void**) &return_node->data, extra, options, consumer);
+            add_u64_set(&children, (uint64_t) &return_node->data);
             break;
         }
         case SSA_CONTROL_NODE_TYPE_PRINT: {
             struct ssa_control_print_node * print_node = (struct ssa_control_print_node *) control_node;
-            for_each_ssa_data_node(print_node->data, (void**) &print_node->data, extra, options, consumer);
+            add_u64_set(&children, (uint64_t) &print_node->data);
             break;
         }
         case SSA_CONTORL_NODE_TYPE_SET_GLOBAL: {
             struct ssa_control_set_global_node * set_global = (struct ssa_control_set_global_node *) control_node;
-            for_each_ssa_data_node(set_global->value_node, (void**) &set_global->value_node, extra, options, consumer);
+            add_u64_set(&children, (uint64_t) &set_global->value_node);
+            break;
+        }
+        case SSA_CONTORL_NODE_TYPE_SET_LOCAL: {
+            struct ssa_control_set_local_node * set_local = (struct ssa_control_set_local_node *) control_node;
+            add_u64_set(&children, (uint64_t) &set_local->new_local_value);
             break;
         }
         case SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD: {
             struct ssa_control_set_struct_field_node * set_struct_field = (struct ssa_control_set_struct_field_node *) control_node;
-            for_each_ssa_data_node(set_struct_field->new_field_value, (void**) &set_struct_field->new_field_value, extra, options, consumer);
-            for_each_ssa_data_node(set_struct_field->instance, (void**) &set_struct_field->instance, extra, options, consumer);
+            add_u64_set(&children, (uint64_t) &set_struct_field->instance);
+            add_u64_set(&children, (uint64_t) &set_struct_field->new_field_value);
             break;
         }
         case SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT: {
             struct ssa_control_set_array_element_node * set_array_element = (struct ssa_control_set_array_element_node *) control_node;
-            for_each_ssa_data_node(set_array_element->new_element_value, (void**) &set_array_element->new_element_value, extra, options, consumer);
-            for_each_ssa_data_node(set_array_element->array, (void**) &set_array_element->array, extra, options, consumer);
-            for_each_ssa_data_node(set_array_element->index, (void**) &set_array_element->index, extra, options, consumer);
+            add_u64_set(&children, (uint64_t) &set_array_element->new_element_value);
+            add_u64_set(&children, (uint64_t) &set_array_element->array);
+            add_u64_set(&children, (uint64_t) &set_array_element->index);
             break;
         }
         case SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP: {
-            struct ssa_control_conditional_jump_node * conditional_jump = (struct ssa_control_conditional_jump_node *) control_node;
-            for_each_ssa_data_node(conditional_jump->condition, (void**) &conditional_jump->condition, extra, options, consumer);
+            struct ssa_control_conditional_jump_node * cond_jump = (struct ssa_control_conditional_jump_node *) control_node;
+            add_u64_set(&children, (uint64_t) &cond_jump->condition);
+            break;
+        }
+        case SSA_CONTROL_NODE_GUARD: {
+            struct ssa_control_guard_node * guard = (struct ssa_control_guard_node *) control_node;
+            add_u64_set(&children, (uint64_t) &guard->guard.value);
             break;
         }
         case SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME: {
             struct ssa_control_define_ssa_name_node * define_ssa_name = (struct ssa_control_define_ssa_name_node *) control_node;
-            for_each_ssa_data_node(define_ssa_name->value, (void**) &define_ssa_name->value, extra, options, consumer);
+            add_u64_set(&children, (uint64_t) &define_ssa_name->value);
             break;
         }
         case SSA_CONTROL_NODE_TYPE_ENTER_MONITOR:
@@ -78,6 +91,8 @@ void for_each_data_node_in_control_node(
         case SSA_CONTROL_NODE_TYPE_LOOP_JUMP:
             break;
     }
+
+    return children;
 }
 
 static bool get_used_ssa_names_ssa_control_node_consumer(
@@ -110,4 +125,19 @@ struct u64_set get_used_ssa_names_ssa_control_node(struct ssa_control_node * con
     );
 
     return used_ssa_names;
+}
+
+void mark_as_escaped_ssa_control_node(struct ssa_control_node * node) {
+    switch (node->type) {
+        case SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD: {
+            struct ssa_control_set_struct_field_node * set_struct_field = (struct ssa_control_set_struct_field_node *) node;
+            set_struct_field->escapes = true;
+            break;
+        }
+        case SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT: {
+            struct ssa_control_set_array_element_node * set_array_element = (struct ssa_control_set_array_element_node *) node;
+            set_array_element->escapes = true;
+            break;
+        }
+    }
 }
