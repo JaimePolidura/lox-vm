@@ -27,6 +27,8 @@ static void mark_data_node_as_escaped(struct ea*, struct ssa_data_node*);
 static struct ssa_data_node * get_instance_data_node(struct ssa_data_node *);
 static bool perform_escape_analysis_data(struct ea*, struct ssa_control_node*, struct ssa_data_node*);
 static bool does_ssa_name_escapes(struct ea*, struct ssa_name);
+static bool is_control_set_operation_too_complex(struct ssa_control_node *);
+static bool is_ssa_data_node_type_too_complex_to_set_instance(struct ssa_data_node *);
 
 void perform_escape_analysis(struct ssa_ir * ssa_ir) {
     struct ea * escape_analysis = alloc_escape_analysis(ssa_ir);
@@ -61,7 +63,7 @@ static void perform_escape_analysis_control(struct ea * ea, struct ssa_control_n
         maybe_save_instance_define_ssa(ea, (struct ssa_control_define_ssa_name_node *) control_node);
     }
 
-    if (control_node_escapes_inputs(control_node)) {
+    if (control_node_escapes_inputs(control_node) || is_control_set_operation_too_complex(control_node)) {
         mark_control_node_input_nodes_as_escaped(ea, control_node);
         return;
     }
@@ -127,8 +129,7 @@ static bool perform_escape_analysis_data(
             bool escapes = false;
             for(int i = 0; i < init_struct->definition->n_fields; i++){
                 struct ssa_data_node * struct_field = init_struct->fields_nodes[i];
-                if (IS_ARRAY_SSA_TYPE(struct_field->produced_type->type) ||
-                    IS_STRUCT_SSA_TYPE(struct_field->produced_type->type)){
+                if(is_ssa_data_node_type_too_complex_to_set_instance(struct_field)){
                     escapes = true;
                 } else {
                     escapes |= perform_escape_analysis_data(ea, control_node, struct_field);
@@ -143,8 +144,7 @@ static bool perform_escape_analysis_data(
             for (int i = 0; i < init_array->n_elements && !init_array->empty_initialization; i++) {
                 struct ssa_data_node * array_element = init_array->elememnts_node[i];
 
-                if (IS_ARRAY_SSA_TYPE(array_element->produced_type->type) ||
-                    IS_STRUCT_SSA_TYPE(array_element->produced_type->type)){
+                if (is_ssa_data_node_type_too_complex_to_set_instance(array_element)) {
                     escapes = true;
                 } else {
                     escapes |= perform_escape_analysis_data(ea, control_node, array_element);
@@ -270,4 +270,24 @@ static bool does_ssa_name_escapes(struct ea * ea, struct ssa_name name) {
     }
 
     return escapes;
+}
+
+//Set operatinos includes: set_struct_field, set_struct_instance
+static bool is_control_set_operation_too_complex(struct ssa_control_node * control_node) {
+    switch (control_node->type) {
+        case SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD: {
+            struct ssa_control_set_struct_field_node * set_struct_field = (struct ssa_control_set_struct_field_node *) control_node;
+            return is_ssa_data_node_type_too_complex_to_set_instance(set_struct_field->new_field_value);
+        }
+        case SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT: {
+            struct ssa_control_set_array_element_node * set_arr_element = (struct ssa_control_set_array_element_node *) control_node;
+            return is_ssa_data_node_type_too_complex_to_set_instance(set_arr_element->new_element_value);
+        }
+        default:
+            return false;
+    }
+}
+
+static bool is_ssa_data_node_type_too_complex_to_set_instance(struct ssa_data_node * data_node) {
+    return IS_ARRAY_SSA_TYPE(data_node->produced_type->type) || IS_STRUCT_SSA_TYPE(data_node->produced_type->type);
 }
