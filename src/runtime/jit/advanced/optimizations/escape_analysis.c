@@ -80,7 +80,6 @@ static void perform_escape_analysis_control(struct ea * ea, struct ssa_control_n
     }
 }
 
-//TODO Save control node usage
 static bool perform_escape_analysis_data(
         struct ea * ea,
         struct ssa_control_node * control_node,
@@ -191,7 +190,7 @@ static void mark_data_node_as_escaped(struct ea * ea, struct ssa_data_node * dat
 }
 
 static void maybe_save_instance_define_ssa(struct ea * ea, struct ssa_control_define_ssa_name_node * define) {
-    if(define->value->type == SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY || define->value->type == SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT){
+    if (define->value->type == SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY || define->value->type == SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT) {
         put_u64_hash_table(&ea->instance_by_ssa_name, define->ssa_name.u16, define->value);
     } else if (define->value->type == SSA_DATA_NODE_TYPE_GET_SSA_NAME) {
         struct ssa_data_get_ssa_name_node * get_ssa_name = (struct ssa_data_get_ssa_name_node * ) define->value;
