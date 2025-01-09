@@ -6,6 +6,18 @@
 
 #define U64_HASH_TABLE_INITIAL_CAPACITY 8
 
+#define EMPTY_U64_HASH_TABLE_ENTRY() ((struct u64_hash_table_entry) {.key = 0, .value = NULL, .some_value = false} )
+
+#define FOR_EACH_U64_HASH_TABLE_ENTRY(hash_table, entry) \
+    struct u64_hash_table_iterator iterator##entry; \
+    init_u64_hash_table_iterator(&iterator##entry, (hash_table)); \
+    struct u64_hash_table_entry entry = has_next_u64_hash_table_iterator(iterator##entry) ? \
+        next_u64_hash_table_iterator(&iterator##entry) : EMPTY_U64_HASH_TABLE_ENTRY(); \
+    for(int i##value = 0; \
+        i##value < (hash_table).size; \
+        i##value++, entry = has_next_u64_hash_table_iterator(iterator##entry) ? next_u64_hash_table_iterator(&iterator##entry) : EMPTY_U64_HASH_TABLE_ENTRY())
+
+
 //Regular hash table which uses the uint64 value_as an index
 struct u64_hash_table_entry {
     uint64_t key;

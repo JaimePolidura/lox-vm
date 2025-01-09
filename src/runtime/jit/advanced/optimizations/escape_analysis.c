@@ -5,7 +5,7 @@ struct ea {
     struct arena_lox_allocator ea_allocator;
 
     //Key: ssa_name as u16,
-    //Value: poiner to ssa_data_initialize_struct_node or ssa_data_initialize_array_node
+    //Value: pointer to ssa_data_initialize_struct_node or ssa_data_initialize_array_node
     struct u64_hash_table instance_by_ssa_name;
     //Key: poiner to ssa_data_initialize_struct_node or ssa_data_initialize_array_node,
     //value: struct u64_set * with values of pointers to ssa_control_node
@@ -29,6 +29,7 @@ static bool perform_escape_analysis_data(struct ea*, struct ssa_control_node*, s
 static bool does_ssa_name_escapes(struct ea*, struct ssa_name);
 static bool is_control_set_operation_too_complex(struct ssa_control_node *);
 static bool is_ssa_data_node_type_too_complex_to_set_instance(struct ssa_data_node *);
+static void propagate_ssa_name_as_escaped(struct ea *, struct ssa_name);
 
 void perform_escape_analysis(struct ssa_ir * ssa_ir) {
     struct ea * escape_analysis = alloc_escape_analysis(ssa_ir);
@@ -186,7 +187,54 @@ static bool mark_control_node_input_nodes_as_escaped_consumer(
 }
 
 static void mark_data_node_as_escaped(struct ea * ea, struct ssa_data_node * data_node) {
-    mark_as_escaped_ssa_data_node(data_node);
+    switch (data_node->type) {
+        case SSA_DATA_NODE_TYPE_BINARY:
+        case SSA_DATA_NODE_TYPE_UNARY:
+        case SSA_DATA_NODE_TYPE_GUARD:
+        case SSA_DATA_NODE_TYPE_CALL: {
+            struct u64_set children = get_children_ssa_data_node(data_node, &ea->ea_allocator.lox_allocator);
+            FOR_EACH_U64_SET_VALUE(children, child_parent_ptr) {
+                struct ssa_data_node * child = *((struct ssa_data_node **) child_parent_ptr);
+                mark_data_node_as_escaped(ea, child);
+            }
+            break;
+        }
+        case SSA_DATA_NODE_TYPE_GET_SSA_NAME: {
+            struct ssa_data_get_ssa_name_node * get_ssa_name = (struct ssa_data_get_ssa_name_node *) data_node;
+            propagate_ssa_name_as_escaped(ea, get_ssa_name->ssa_name);
+            break;
+        }
+        case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD:
+        case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT:
+        case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT:
+        case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY: {
+            mark_as_escaped_ssa_data_node(data_node);
+            break;
+        }
+        case SSA_DATA_NODE_TYPE_GET_GLOBAL:
+        case SSA_DATA_NODE_TYPE_CONSTANT:
+        case SSA_DATA_NODE_TYPE_GET_ARRAY_LENGTH:
+        case SSA_DATA_NODE_TYPE_PHI:
+        case SSA_DATA_NODE_TYPE_UNBOX:
+        case SSA_DATA_NODE_TYPE_BOX:
+        case SSA_DATA_NODE_TYPE_GET_LOCAL:
+            break;
+    }
+}
+
+static void propagate_ssa_name_as_escaped(struct ea * ea, struct ssa_name name_to_propagate) {
+    if (contains_u64_hash_table(&ea->instance_by_ssa_name, name_to_propagate.u16)) {
+        struct ssa_data_node * instance_node = get_u64_hash_table(&ea->instance_by_ssa_name, name_to_propagate.u16);
+
+        FOR_EACH_U64_HASH_TABLE_ENTRY(ea->control_uses_by_instance, current_control_uses_by_instance_entry) {
+            struct ssa_control_node * control_node_uses_ssa_name =  current_control_uses_by_instance_entry.value;
+            mark_as_escaped_ssa_control_node(control_node_uses_ssa_name);
+        }
+        FOR_EACH_U64_HASH_TABLE_ENTRY(ea->data_uses_by_instance, current_dat_uses_by_instance_entry) {
+            struct ssa_data_node * data_node_uses_ssa_name = current_dat_uses_by_instance_entry.value;
+            mark_as_escaped_ssa_data_node(data_node_uses_ssa_name);
+        }
+    }
 }
 
 static void maybe_save_instance_define_ssa(struct ea * ea, struct ssa_control_define_ssa_name_node * define) {
