@@ -8,10 +8,13 @@ struct ea {
     //Value: pointer to ssa_data_initialize_struct_node or ssa_data_initialize_array_node
     struct u64_hash_table instance_by_ssa_name;
     //Key: poiner to ssa_data_initialize_struct_node or ssa_data_initialize_array_node,
-    //value: struct u64_set * with values of pointers to ssa_control_node
+    //Value: struct u64_set * with values of pointers to ssa_control_node
     struct u64_hash_table control_uses_by_instance;
     //Same as control_uses_by_instance but instead of pointer to control nodes, to data nodes
     struct u64_hash_table data_uses_by_instance;
+    //Key ssa_name as u16
+    //Value: struct u64_set * with values of pointers to ssa_name as u16
+    struct u64_hash_table dependents_ssa_names_definitions;
 };
 
 struct ea * alloc_escape_analysis(struct ssa_ir *);
@@ -30,6 +33,9 @@ static bool does_ssa_name_escapes(struct ea*, struct ssa_name);
 static bool is_control_set_operation_too_complex(struct ssa_control_node *);
 static bool is_ssa_data_node_type_too_complex_to_set_instance(struct ssa_data_node *);
 static void propagate_ssa_name_as_escaped(struct ea *, struct ssa_name);
+static void save_ssa_name_dependent_definition(struct ea *, struct ssa_control_define_ssa_name_node *);
+static bool is_dependent_ssa_name_definition(struct ssa_control_node *);
+static void save_usage_of_data_node(struct ea*, void*, struct ssa_data_node*, struct u64_hash_table*);
 
 void perform_escape_analysis(struct ssa_ir * ssa_ir) {
     struct ea * escape_analysis = alloc_escape_analysis(ssa_ir);
@@ -62,6 +68,19 @@ static bool perform_escape_analysis_block(struct ssa_block * block, void * extra
 static void perform_escape_analysis_control(struct ea * ea, struct ssa_control_node * control_node) {
     if (control_node->type == SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME) {
         maybe_save_instance_define_ssa(ea, (struct ssa_control_define_ssa_name_node *) control_node);
+    }
+
+    if (control_node->type == SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD) {
+        struct ssa_control_set_struct_field_node * set_struct_field = (struct ssa_control_set_struct_field_node *) control_node;
+        save_usage_of_data_node(ea, set_struct_field, set_struct_field->instance, &ea->control_uses_by_instance);
+    }
+    if (control_node->type == SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT) {
+        struct ssa_control_set_array_element_node * set_arr_element = (struct ssa_control_set_array_element_node *) control_node;
+        save_usage_of_data_node(ea, set_arr_element, set_arr_element->array, &ea->control_uses_by_instance);
+    }
+
+    if (is_dependent_ssa_name_definition(control_node)) {
+        save_ssa_name_dependent_definition(ea, (struct ssa_control_define_ssa_name_node *) control_node);
     }
 
     if (control_node_escapes_inputs(control_node) || is_control_set_operation_too_complex(control_node)) {
@@ -106,7 +125,6 @@ static bool perform_escape_analysis_data(
         case SSA_DATA_NODE_TYPE_BOX:
         case SSA_DATA_NODE_TYPE_BINARY: {
             bool escapes = false;
-
             FOR_EACH_U64_SET_VALUE(get_children_ssa_data_node(data_node, &ea->ea_allocator.lox_allocator), child_ptr_u64) {
                 struct ssa_data_node * child = (struct ssa_data_node *) child_ptr_u64;
                 escapes |= perform_escape_analysis_data(ea, control_node, child);
@@ -116,11 +134,13 @@ static bool perform_escape_analysis_data(
         }
         case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD: {
             struct ssa_data_get_struct_field_node * get_struct_field = (struct ssa_data_get_struct_field_node *) data_node;
+            save_usage_of_data_node(ea, &get_struct_field->data, get_struct_field->instance_node, &ea->data_uses_by_instance);
             get_struct_field->escapes = perform_escape_analysis_data(ea, control_node, get_struct_field->instance_node);
             return get_struct_field->escapes;
         }
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
             struct ssa_data_get_array_element_node * get_arr_element = (struct ssa_data_get_array_element_node *) data_node;
+            save_usage_of_data_node(ea, &get_arr_element->data, get_arr_element->instance_node, &ea->data_uses_by_instance);
             get_arr_element->escapes = perform_escape_analysis_data(ea, control_node, get_arr_element->instance_node);
             return get_arr_element->escapes;
         }
@@ -234,6 +254,14 @@ static void propagate_ssa_name_as_escaped(struct ea * ea, struct ssa_name name_t
             struct ssa_data_node * data_node_uses_ssa_name = current_dat_uses_by_instance_entry.value;
             mark_as_escaped_ssa_data_node(data_node_uses_ssa_name);
         }
+
+        struct u64_set * dependents_ssa_names = get_u64_hash_table(&ea->dependents_ssa_names_definitions, name_to_propagate.u16);
+        if(dependents_ssa_names != NULL){
+            FOR_EACH_U64_SET_VALUE(*dependents_ssa_names, dependent_ssa_name_u16) {
+                struct ssa_name dependent_ssa_name = CREATE_SSA_NAME_FROM_U64(dependent_ssa_name_u16);
+                propagate_ssa_name_as_escaped(ea, dependent_ssa_name);
+            }
+        }
     }
 }
 
@@ -254,8 +282,9 @@ struct ea * alloc_escape_analysis(struct ssa_ir * ssa_ir) {
     struct arena arena;
     init_arena(&arena);
     escape_analysis->ea_allocator = to_lox_allocator_arena(arena);
-    init_u64_hash_table(&escape_analysis->instance_by_ssa_name, &escape_analysis->ea_allocator.lox_allocator);
     init_u64_hash_table(&escape_analysis->control_uses_by_instance, &escape_analysis->ea_allocator.lox_allocator);
+    init_u64_hash_table(&escape_analysis->instance_by_ssa_name, &escape_analysis->ea_allocator.lox_allocator);
+    init_u64_hash_table(&escape_analysis->dependents_ssa_names_definitions, &escape_analysis->ea_allocator.lox_allocator);
 
     return escape_analysis;
 }
@@ -337,4 +366,49 @@ static bool is_control_set_operation_too_complex(struct ssa_control_node * contr
 
 static bool is_ssa_data_node_type_too_complex_to_set_instance(struct ssa_data_node * data_node) {
     return IS_ARRAY_SSA_TYPE(data_node->produced_type->type) || IS_STRUCT_SSA_TYPE(data_node->produced_type->type);
+}
+
+static bool is_dependent_ssa_name_definition(struct ssa_control_node * control_node) {
+    return control_node->type == SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME &&
+           GET_DEFINED_SSA_NAME_VALUE(control_node)->type == SSA_DATA_NODE_TYPE_GET_SSA_NAME;
+}
+
+//a = b
+//a will depend on b, a will be used as a key in the hash_table and b as the value
+static void save_ssa_name_dependent_definition(struct ea * ea, struct ssa_control_define_ssa_name_node * define) {
+    struct ssa_name b = ((struct ssa_data_get_ssa_name_node *) define->value)->ssa_name;
+    struct ssa_name a = define->ssa_name;
+
+    if (!contains_u64_hash_table(&ea->dependents_ssa_names_definitions, a.u16)) {
+        struct u64_set * definitions_set = LOX_MALLOC(&ea->ea_allocator.lox_allocator, sizeof(struct u64_set));
+        put_u64_hash_table(&ea->dependents_ssa_names_definitions, a.u16, definitions_set);
+    }
+
+    struct u64_set * definitions_set = get_u64_hash_table(&ea->dependents_ssa_names_definitions, a.u16);
+    add_u64_set(definitions_set, b.u16);
+}
+
+static void save_usage_of_data_node(
+        struct ea * ea,
+        void * node_uses_instance,
+        struct ssa_data_node * get_instance_node,
+        struct u64_hash_table * usage_hash_table
+) {
+    struct ssa_data_get_ssa_name_node * get_instance = (struct ssa_data_get_ssa_name_node *) node_uses_instance;
+    if (get_instance_node->type != SSA_DATA_NODE_TYPE_GET_SSA_NAME) {
+        return;
+    }
+    if(!contains_u64_hash_table(usage_hash_table, get_instance->ssa_name.u16)){
+        return;
+    }
+
+    void * instance = get_u64_hash_table(usage_hash_table, get_instance->ssa_name.u16);
+
+    if (!contains_u64_hash_table(usage_hash_table, (uint64_t) instance)) {
+        struct u64_set * usage_set = LOX_MALLOC(&ea->ea_allocator.lox_allocator, sizeof(struct u64_set));
+        put_u64_hash_table(usage_hash_table, (uint64_t) instance, usage_set);
+    }
+
+    struct u64_set * usage_set = get_u64_hash_table(usage_hash_table, (uint64_t) instance);
+    add_u64_set(usage_set, (uint64_t) node_uses_instance);
 }

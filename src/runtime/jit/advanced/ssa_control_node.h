@@ -32,6 +32,7 @@ void * allocate_ssa_block_node(ssa_control_node_type type, size_t size_bytes, st
 
 #define GET_CONDITION_CONDITIONAL_JUMP_SSA_NODE(node) (((struct ssa_control_conditional_jump_node *) (node))->condition)
 #define GET_DEFINED_SSA_NAME(node) (((struct ssa_control_define_ssa_name_node *) (node))->ssa_name)
+#define GET_DEFINED_SSA_NAME_VALUE(node) (((struct ssa_control_define_ssa_name_node *) (node))->value)
 
 struct ssa_control_node {
     ssa_control_node_type type;
