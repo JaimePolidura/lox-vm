@@ -419,6 +419,7 @@ static void function_declaration(struct bytecode_compiler *compiler, bool is_pub
 
 static struct function_object * function(struct bytecode_compiler * compiler, bool is_protected_by_monitor) {
     struct bytecode_compiler function_compiler;
+    memset(&function_compiler, 0, sizeof(struct bytecode_compiler));
     init_compiler(&function_compiler, SCOPE_FUNCTION, compiler);
     begin_scope(&function_compiler);
 
@@ -609,7 +610,7 @@ static void expression_statement(struct bytecode_compiler * compiler) {
     expression(compiler);
     consume(compiler, TOKEN_SEMICOLON, "Expected ';'.");
 
-    if(compiler->compiling_set_operation || compiler->compiling_set_array_element_operation){
+    if (compiler->compiling_set_operation || compiler->compiling_set_array_element_operation) {
         compiler->compiling_set_array_element_operation = false;
         compiler->compiling_set_operation = false;
     } else {
@@ -1092,6 +1093,7 @@ static struct bytecode_compiler * alloc_compiler(scope_type_t scope, char * pack
     compiler->parser->has_error = false;
     compiler->is_standalone_mode = is_standalone_mode;
     init_trie_list(&compiler->const_global_variables, NATIVE_LOX_ALLOCATOR());
+    compiler->compiling_set_array_element_operation = false;
 
     return compiler;
 }
@@ -1175,6 +1177,7 @@ static void init_compiler(struct bytecode_compiler * compiler, scope_type_t scop
     compiler->compiling_parallel_call = false;
     compiler->compiling_set_operation = false;
     compiler->compiling_inline_call = false;
+    compiler->compiling_set_array_element_operation = false;
 
     compiler->function_calls = NULL;
 

@@ -37,8 +37,8 @@ uint64_t read_u64_chunk_iterator(struct chunk_iterator * iterator) {
 }
 
 uint16_t read_u16_chunk_iterator(struct chunk_iterator * chunk_iterator) {
-    uint8_t first_half = *(chunk_iterator->pc - 2);
-    uint8_t second_half = *(chunk_iterator->pc - 1);
+    uint8_t first_half = *(chunk_iterator->pc - 1);
+    uint8_t second_half = *(chunk_iterator->pc - 2);
     return first_half << 8 | second_half;
 }
 

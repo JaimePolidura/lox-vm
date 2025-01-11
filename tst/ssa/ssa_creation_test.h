@@ -31,7 +31,10 @@ TEST(ssa_creation_ea){
             "   var b = Point{1, 3};"
             "   var c = b;"
             "   var d = b;"
+            "   var arr = [1, 2, 3];"
             "   transform(d);"
+            "   transform(arr[0]);"
+            "   transform(a.y);"
             "   print c.x;"
             "   print a.x;"
             "}"
@@ -39,6 +42,7 @@ TEST(ssa_creation_ea){
     run(compilation);
 
     struct package * package = compilation.compiled_package;
+
     //Set global variables
     struct function_object * function_ssa = get_function_package(package, "function");
     init_function_profile_data(function_ssa);

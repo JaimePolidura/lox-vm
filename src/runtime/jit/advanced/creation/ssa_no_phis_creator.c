@@ -359,7 +359,8 @@ static void call(struct ssa_no_phis_inserter * inserter, struct pending_evaluate
     call_node->n_arguments = n_args;
     call_node->arguments = LOX_MALLOC(GET_SSA_NODES_ALLOCATOR(inserter), sizeof(struct ssa_data_node *) * n_args);
     for(int i = n_args; i > 0; i--){
-        call_node->arguments[i - 1] = pop_stack_list(&inserter->data_nodes_stack);
+        struct ssa_data_node * argument = pop_stack_list(&inserter->data_nodes_stack);
+        call_node->arguments[i - 1] = argument;
     }
 
     //Remove function_to_call_object object in the stack

@@ -300,11 +300,11 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
             break;
         }
         case SSA_CONTROL_NODE_TYPE_DATA: {
-            struct ssa_data_node * data = (struct ssa_data_node *) node;
+            struct ssa_control_data_node * data_control_node = (struct ssa_control_data_node *) node;
 
             add_control_node_graphviz_file(visualizer, "Data", self_control_node_id);
             if(!IS_FLAG_SET(visualizer->graphviz_options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
-                int data_node_id = generate_data_node_graph(visualizer, data);
+                int data_node_id = generate_data_node_graph(visualizer, data_control_node->data);
                 link_control_data_node_graphviz_file(visualizer, self_control_node_id, data_node_id);
             }
             break;

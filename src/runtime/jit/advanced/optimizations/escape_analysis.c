@@ -45,7 +45,7 @@ void perform_escape_analysis(struct ssa_ir * ssa_ir) {
             ssa_ir->first_block,
             &escape_analysis->ea_allocator.lox_allocator,
             escape_analysis,
-            SSA_BLOCK_OPT_NOT_REPEATED,
+            SSA_BLOCK_OPT_REPEATED,
             &perform_escape_analysis_block
     );
 
@@ -127,7 +127,7 @@ static bool perform_escape_analysis_data(
         case SSA_DATA_NODE_TYPE_BINARY: {
             bool escapes = false;
             FOR_EACH_U64_SET_VALUE(get_children_ssa_data_node(data_node, &ea->ea_allocator.lox_allocator), child_ptr_u64) {
-                struct ssa_data_node * child = (struct ssa_data_node *) child_ptr_u64;
+                struct ssa_data_node * child = *((struct ssa_data_node **) child_ptr_u64);
                 escapes |= perform_escape_analysis_data(ea, control_node, child);
             }
 
