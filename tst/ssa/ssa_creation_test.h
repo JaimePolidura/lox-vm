@@ -14,6 +14,45 @@
 static bool node_uses_version(struct ssa_data_node * start_node, int n_expected_version);
 static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expected_versions, ...);
 static bool node_defines_ssa_name(struct ssa_control_node *, int version);
+static void run(struct compilation_result);
+
+TEST(ssa_creation_ea){
+    struct compilation_result compilation = compile_standalone(
+            "struct Point {"
+            "   x;"
+            "   y;"
+            "}"
+            ""
+            "fun transform(p) {"
+            "}"
+            ""
+            "fun function() {"
+            "   var a = Point{1, 2};"
+            "   var b = Point{1, 3};"
+            "   var c = b;"
+            "   var d = b;"
+            "   transform(d);"
+            "   print c.x;"
+            "   print a.x;"
+            "}"
+    );
+    run(compilation);
+
+    struct package * package = compilation.compiled_package;
+    //Set global variables
+    struct function_object * function_ssa = get_function_package(package, "function");
+    init_function_profile_data(function_ssa);
+
+    //Observe the generated graph IR
+    generate_ssa_graphviz_graph(
+            package,
+            function_ssa,
+            ESCAPE_ANALYSIS_PHASE_SSA_GRAPHVIZ,
+            DEFAULT_GRAPHVIZ_OPT | DISPLAY_TYPE_INFO_OPT | DISPLAY_ESCAPE_INFO_OPT,
+            SSA_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
+            "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
+    );
+}
 
 TEST(ssa_creation_ta){
     struct compilation_result compilation = compile_standalone(
@@ -564,4 +603,11 @@ static void int_array_to_set(struct u64_set * set, int n_array_elements, int arr
     for (int i = 0; i < n_array_elements; ++i) {
         add_u64_set(set, (uint64_t) array[i]);
     }
+}
+
+static void run(struct compilation_result compilation) {
+    start_vm();
+    interpret_vm(compilation);
+    stop_vm();
+    reset_vm();
 }

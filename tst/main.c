@@ -53,7 +53,8 @@ int main() {
     ssa_data_node_hash_outer();
 #endif
 #ifdef RUN_SSA_CREATION_TEST
-    ssa_creation_ta_outer();
+    ssa_creation_ea_outer();
+//    ssa_creation_ta_outer();
 //    ssa_creation_cp_outer();
 //    ssa_creation_pg_outer();
 //    ssa_creation_licm_outer();

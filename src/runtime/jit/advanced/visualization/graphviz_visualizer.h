@@ -7,6 +7,7 @@
 #include "runtime/jit/advanced/optimizations/unboxing_insertion.h"
 #include "runtime/jit/advanced/optimizations/copy_propagation.h"
 #include "runtime/jit/advanced/optimizations/type_propagation.h"
+#include "runtime/jit/advanced/optimizations/escape_analysis.h"
 
 #include "runtime/jit/advanced/creation/ssa_no_phis_creator.h"
 #include "runtime/jit/advanced/creation/ssa_phi_inserter.h"

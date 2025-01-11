@@ -14,7 +14,7 @@ void * peek_n_stack_list(struct stack_list * list, int n) {
         current = current->prev;
     }
 
-    return current;
+    return current->data;
 }
 
 void * peek_stack_list(struct stack_list * stack) {

@@ -49,6 +49,7 @@ static int generate_control_node_graph(struct graphviz_visualizer *, struct ssa_
 static int generate_data_node_graph(struct graphviz_visualizer *, struct ssa_data_node *);
 static struct block_graph_generated generate_blocks_graph(struct graphviz_visualizer *, struct ssa_block * first);
 static char * maybe_add_type_info_data_node(struct graphviz_visualizer*, struct ssa_data_node*, char*);
+static char * maybe_add_escape_info_data_node(struct graphviz_visualizer *visualizer, struct ssa_data_node *data_node, char *label);
 
 static char * unary_operator_to_string(ssa_unary_operator_type_t);
 static char * binary_operator_to_string(bytecode_t);
@@ -173,6 +174,16 @@ void generate_ssa_graphviz_graph(
                     &ssa_node_allocator.lox_allocator), graphviz_visualizer.ssa_options);
             perform_type_propagation(&ssa_ir);
             perform_unboxing_insertion(&ssa_ir);
+            graphviz_visualizer.ssa_ir = ssa_ir;
+
+            generate_graph_and_write(&graphviz_visualizer, ssa_ir.first_block);
+            break;
+        }
+        case ESCAPE_ANALYSIS_PHASE_SSA_GRAPHVIZ: {
+            struct ssa_ir ssa_ir = create_ssa_ir(package, function, create_bytecode_list(function->chunk,
+                &ssa_node_allocator.lox_allocator), graphviz_visualizer.ssa_options);
+            perform_type_propagation(&ssa_ir);
+            perform_escape_analysis(&ssa_ir);
             graphviz_visualizer.ssa_ir = ssa_ir;
 
             generate_graph_and_write(&graphviz_visualizer, ssa_ir.first_block);
@@ -485,6 +496,7 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             char * node_desc = dynamic_format_string("GetStructField %s", get_struct_field->field_name->chars);
             int struct_instance_node_id = generate_data_node_graph(visualizer, get_struct_field->instance_node);
             node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
+            node_desc = maybe_add_escape_info_data_node(visualizer, node, node_desc);
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             link_data_data_node_graphviz_file(visualizer, self_data_node_id, struct_instance_node_id);
@@ -495,6 +507,7 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             struct ssa_data_initialize_struct_node * initialize_struct = (struct ssa_data_initialize_struct_node *) node;
             char * node_desc = dynamic_format_string("InitializeStruct %s", initialize_struct->definition->name);
             node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
+            node_desc = maybe_add_escape_info_data_node(visualizer, node, node_desc);
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             for(int i = 0; i < initialize_struct->definition->n_fields; i++){
@@ -516,6 +529,7 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
             struct ssa_data_get_array_element_node * get_array_element = (struct ssa_data_get_array_element_node *) node;
             char * node_desc = maybe_add_type_info_data_node(visualizer, node, "GetArrayElement");
+            node_desc = maybe_add_escape_info_data_node(visualizer, node, node_desc);
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             int array_instance_node_id = generate_data_node_graph(visualizer, get_array_element->instance);
@@ -551,6 +565,7 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             struct ssa_data_initialize_array_node *initialize_array = (struct ssa_data_initialize_array_node *) node;
             char * node_desc = dynamic_format_string("InitializeArray %i", initialize_array->n_elements);
             node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
+            node_desc = maybe_add_escape_info_data_node(visualizer, node, node_desc);
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             for (int i = 0; i < initialize_array->n_elements && !initialize_array->empty_initialization; i++) {
@@ -811,6 +826,19 @@ static char * guard_node_to_string(struct ssa_guard guard) {
                     guard.value_to_compare.struct_definition;
             return dynamic_format_string("StructDefinitionCheck %s", definition->name->chars);
         }
+    }
+}
+
+static char * maybe_add_escape_info_data_node(
+        struct graphviz_visualizer * visualizer,
+        struct ssa_data_node * data_node,
+        char * label
+) {
+    if(IS_FLAG_SET(visualizer->graphviz_options, DISPLAY_ESCAPE_INFO_OPT) && data_node->produced_type != NULL) {
+        bool escapes = is_marked_as_escaped_ssa_node(data_node);
+        return dynamic_format_string("%s\nEscapes: %s", label, escapes ? "true" : "false");
+    } else {
+        return label;
     }
 }
 

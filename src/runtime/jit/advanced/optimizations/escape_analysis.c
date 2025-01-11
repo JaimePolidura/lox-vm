@@ -44,7 +44,7 @@ void perform_escape_analysis(struct ssa_ir * ssa_ir) {
     for_each_ssa_block(
             ssa_ir->first_block,
             &escape_analysis->ea_allocator.lox_allocator,
-            &escape_analysis,
+            escape_analysis,
             SSA_BLOCK_OPT_NOT_REPEATED,
             &perform_escape_analysis_block
     );
@@ -286,6 +286,7 @@ struct ea * alloc_escape_analysis(struct ssa_ir * ssa_ir) {
     init_arena(&arena);
     escape_analysis->ea_allocator = to_lox_allocator_arena(arena);
     init_u64_hash_table(&escape_analysis->control_uses_by_instance, &escape_analysis->ea_allocator.lox_allocator);
+    init_u64_hash_table(&escape_analysis->data_uses_by_instance, &escape_analysis->ea_allocator.lox_allocator);
     init_u64_hash_table(&escape_analysis->instance_by_ssa_name, &escape_analysis->ea_allocator.lox_allocator);
     init_u64_hash_table(&escape_analysis->dependents_ssa_names_definitions, &escape_analysis->ea_allocator.lox_allocator);
 
@@ -370,7 +371,9 @@ static bool is_control_set_operation_too_complex(struct ssa_control_node * contr
 }
 
 static bool is_ssa_data_node_type_too_complex_to_set_instance(struct ssa_data_node * data_node) {
-    return IS_ARRAY_SSA_TYPE(data_node->produced_type->type) || IS_STRUCT_SSA_TYPE(data_node->produced_type->type);
+    return IS_ARRAY_SSA_TYPE(data_node->produced_type->type) ||
+        IS_STRUCT_SSA_TYPE(data_node->produced_type->type) ||
+        data_node->produced_type->type == SSA_TYPE_LOX_ANY;
 }
 
 static bool is_dependent_ssa_name_definition(struct ssa_control_node * control_node) {
@@ -386,6 +389,7 @@ static void save_ssa_name_dependent_definition(struct ea * ea, struct ssa_contro
 
     if (!contains_u64_hash_table(&ea->dependents_ssa_names_definitions, a.u16)) {
         struct u64_set * definitions_set = LOX_MALLOC(&ea->ea_allocator.lox_allocator, sizeof(struct u64_set));
+        init_u64_set(definitions_set, &ea->ea_allocator.lox_allocator);
         put_u64_hash_table(&ea->dependents_ssa_names_definitions, a.u16, definitions_set);
     }
 
@@ -411,6 +415,7 @@ static void save_usage_of_data_node(
 
     if (!contains_u64_hash_table(usage_hash_table, (uint64_t) instance)) {
         struct u64_set * usage_set = LOX_MALLOC(&ea->ea_allocator.lox_allocator, sizeof(struct u64_set));
+        init_u64_set(usage_set, &ea->ea_allocator.lox_allocator);
         put_u64_hash_table(usage_hash_table, (uint64_t) instance, usage_set);
     }
 
@@ -423,8 +428,11 @@ static bool does_data_node_make_control_to_escape(struct ea * ea, struct ssa_dat
     switch (data_node->type) {
         case SSA_DATA_NODE_TYPE_GET_SSA_NAME: {
             struct ssa_data_get_ssa_name_node * get_ssa_name = (struct ssa_data_get_ssa_name_node *) data_node;
-            return contains_u64_hash_table(&ea->instance_by_ssa_name, get_ssa_name->ssa_name.u16) &&
+            bool instance_escapes = contains_u64_hash_table(&ea->instance_by_ssa_name, get_ssa_name->ssa_name.u16) &&
                     is_marked_as_escaped_ssa_node(get_u64_hash_table(&ea->instance_by_ssa_name, get_ssa_name->ssa_name.u16));
+            bool instance_from_function_argument = get_ssa_name->ssa_name.value.version == 0;
+
+            return instance_from_function_argument || instance_escapes;
         }
         case SSA_DATA_NODE_TYPE_GUARD: {
             struct ssa_guard * guard = (struct ssa_guard *) data_node;

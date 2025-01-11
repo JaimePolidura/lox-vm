@@ -296,8 +296,9 @@ static struct ssa_type * get_type_data_node_recursive(
                         get_struct_field->instance_node, SSA_IR_ALLOCATOR(tp->ssa_ir));
                 get_struct_field->instance_node = &struct_instance_guard->data;
                 type_struct_instance = get_type_data_node_recursive(to_evaluate, instance_node, &get_struct_field->instance_node);
-                instance_node->produced_type = type_struct_instance;
             }
+
+            instance_node->produced_type = type_struct_instance;
 
             struct ssa_type * field_type = get_u64_hash_table(
                     &instance_node->produced_type->value.struct_instance->type_by_field_name,

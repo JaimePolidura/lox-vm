@@ -315,7 +315,7 @@ static void get_global(
         struct ssa_no_phis_inserter * inserter,
         struct pending_evaluate * to_evaluate
 ) {
-    struct package * global_variable_package = peek_stack_list(&inserter->data_nodes_stack);
+    struct package * global_variable_package = peek_stack_list(&inserter->package_stack);
     struct string_object * global_variable_name = AS_STRING_OBJECT(READ_CONSTANT(function, to_evaluate->pending_bytecode));
     //If the global variable is constant, we will return a CONST_NODE instead of GET_GLOBAL control_node
     if(contains_trie(&global_variable_package->const_global_variables_names, global_variable_name->chars, global_variable_name->length)) {
@@ -894,7 +894,7 @@ static struct object * get_function(struct ssa_no_phis_inserter * inserter, stru
     lox_value_t function_lox_value;
     get_hash_table(&get_global->package->global_variables, get_global->name, &function_lox_value);
 
-    if(IS_OBJECT(function_lox_value)){
+    if(!IS_OBJECT(function_lox_value)){
         return NULL;
     }
 
