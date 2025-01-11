@@ -36,7 +36,7 @@ typedef enum {
 } ssa_type_t;
 
 struct struct_instance_ssa_type {
-    struct struct_definition_object * definition; //If null, this struct instance_node can represent any struct
+    struct struct_definition_object * definition; //If null, this struct instance can represent any struct
     struct u64_hash_table type_by_field_name; //Mapping of string to struct ssa_type
 };
 

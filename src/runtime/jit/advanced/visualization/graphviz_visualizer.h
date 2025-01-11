@@ -30,8 +30,9 @@ typedef enum {
     COPY_PROPAGATION_PHASE_SSA_GRAPHVIZ = 1 << 7,
     TYPE_PROPAGATION_PHASE_SSA_GRAPHVIZ = 1 << 8,
     UNBOXING_INSERTION_PHASE_SSA_GRAPHVIZ = 1 << 9,
+    ESCAPE_ANALYSIS_PHASE_SSA_GRAPHVIZ = 1 << 10,
 
-    ALL_PHASE_SSA_GRAPHVIZ = 1 << 10,
+    ALL_PHASE_SSA_GRAPHVIZ = 1 << 11,
 } phase_ssa_graphviz_t;
 
 enum {
@@ -40,6 +41,7 @@ enum {
     NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT = 1 << 0,
     NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT = 1 << 1,
     DISPLAY_TYPE_INFO_OPT = 1 << 2,
+    DISPLAY_ESCAPE_INFO_OPT = 1 << 3,
 };
 
 void generate_ssa_graphviz_graph(

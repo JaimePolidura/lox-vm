@@ -85,7 +85,7 @@ bool is_terminator_ssa_data_node(struct ssa_data_node *);
 //Returns set of pointers to the fields of parent that contains the children pointer. Type: struct ssa_data_node **
 struct u64_set get_children_ssa_data_node(struct ssa_data_node * parent, struct lox_allocator *);
 void unbox_const_ssa_data_node(struct ssa_data_constant_node *);
-bool is_escaped_ssa_data_node(struct ssa_data_node *);
+bool is_marked_as_escaped_ssa_node(struct ssa_data_node *data_node);
 //Sets escapes boolean field in certain type of ssa_nodes to true
 void mark_as_escaped_ssa_data_node(struct ssa_data_node *);
 
@@ -177,7 +177,7 @@ struct ssa_data_get_array_element_node {
     struct ssa_data_node data;
 
     struct ssa_data_node * index;
-    struct ssa_data_node * instance_node;
+    struct ssa_data_node * instance;
     bool escapes;
 };
 

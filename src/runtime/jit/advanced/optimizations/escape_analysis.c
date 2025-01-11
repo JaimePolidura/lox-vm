@@ -24,7 +24,7 @@ static bool perform_escape_analysis_block(struct ssa_block*, void*);
 static void perform_escape_analysis_control(struct ea*, struct ssa_control_node*);
 static void maybe_save_instance_define_ssa(struct ea*, struct ssa_control_define_ssa_name_node*);
 static void mark_control_node_input_nodes_as_escaped(struct ea *ea, struct ssa_control_node *control_node);
-static bool control_node_escapes_inputs(struct ssa_control_node *);
+static bool control_node_escapes_inputs(struct ea*, struct ssa_control_node *);
 static bool mark_control_node_input_nodes_as_escaped_consumer(struct ssa_data_node*, void**, struct ssa_data_node*, void*);
 static void mark_data_node_as_escaped(struct ea*, struct ssa_data_node*);
 static struct ssa_data_node * get_instance_data_node(struct ssa_data_node *);
@@ -36,6 +36,7 @@ static void propagate_ssa_name_as_escaped(struct ea *, struct ssa_name);
 static void save_ssa_name_dependent_definition(struct ea *, struct ssa_control_define_ssa_name_node *);
 static bool is_dependent_ssa_name_definition(struct ssa_control_node *);
 static void save_usage_of_data_node(struct ea*, void*, struct ssa_data_node*, struct u64_hash_table*);
+static bool does_data_node_make_control_to_escape(struct ea*, struct ssa_data_node*);
 
 void perform_escape_analysis(struct ssa_ir * ssa_ir) {
     struct ea * escape_analysis = alloc_escape_analysis(ssa_ir);
@@ -83,13 +84,13 @@ static void perform_escape_analysis_control(struct ea * ea, struct ssa_control_n
         save_ssa_name_dependent_definition(ea, (struct ssa_control_define_ssa_name_node *) control_node);
     }
 
-    if (control_node_escapes_inputs(control_node) || is_control_set_operation_too_complex(control_node)) {
+    if (control_node_escapes_inputs(ea, control_node) || is_control_set_operation_too_complex(control_node)) {
         mark_control_node_input_nodes_as_escaped(ea, control_node);
         return;
     }
 
-    struct u64_set children = get_children_ssa_control_node(control_node);
     bool escapes = false;
+    struct u64_set children = get_children_ssa_control_node(control_node);
     FOR_EACH_U64_SET_VALUE(children, child_parent_field_ptr_u64) {
         struct ssa_data_node * child = * ((struct ssa_data_node **) child_parent_field_ptr_u64);
         escapes |= perform_escape_analysis_data(ea, control_node, child);
@@ -140,8 +141,8 @@ static bool perform_escape_analysis_data(
         }
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
             struct ssa_data_get_array_element_node * get_arr_element = (struct ssa_data_get_array_element_node *) data_node;
-            save_usage_of_data_node(ea, &get_arr_element->data, get_arr_element->instance_node, &ea->data_uses_by_instance);
-            get_arr_element->escapes = perform_escape_analysis_data(ea, control_node, get_arr_element->instance_node);
+            save_usage_of_data_node(ea, &get_arr_element->data, get_arr_element->instance, &ea->data_uses_by_instance);
+            get_arr_element->escapes = perform_escape_analysis_data(ea, control_node, get_arr_element->instance);
             return get_arr_element->escapes;
         }
         case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT: {
@@ -246,6 +247,8 @@ static void propagate_ssa_name_as_escaped(struct ea * ea, struct ssa_name name_t
     if (contains_u64_hash_table(&ea->instance_by_ssa_name, name_to_propagate.u16)) {
         struct ssa_data_node * instance_node = get_u64_hash_table(&ea->instance_by_ssa_name, name_to_propagate.u16);
 
+        mark_as_escaped_ssa_data_node(instance_node);
+
         FOR_EACH_U64_HASH_TABLE_ENTRY(ea->control_uses_by_instance, current_control_uses_by_instance_entry) {
             struct ssa_control_node * control_node_uses_ssa_name =  current_control_uses_by_instance_entry.value;
             mark_as_escaped_ssa_control_node(control_node_uses_ssa_name);
@@ -294,15 +297,17 @@ void free_escape_analysis(struct ea * ea) {
     NATIVE_LOX_FREE(ea);
 }
 
-static bool control_node_escapes_inputs(struct ssa_control_node * control_node) {
+static bool control_node_escapes_inputs(struct ea * ea, struct ssa_control_node * control_node) {
     switch (control_node->type) {
         case SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD: {
             struct ssa_control_set_struct_field_node * set_struct_field = (struct ssa_control_set_struct_field_node *) control_node;
-            return set_struct_field->escapes;
+            struct ssa_data_node * struct_instance = set_struct_field->instance;
+            return does_data_node_make_control_to_escape(ea, struct_instance);
         }
         case SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT: {
             struct ssa_data_get_array_element_node * get_array_element = (struct ssa_data_get_array_element_node *) control_node;
-            return get_array_element->escapes;
+            struct ssa_data_node * array_instance = get_array_element->instance;
+            return does_data_node_make_control_to_escape(ea, array_instance);
         }
         case SSA_CONTROL_NODE_TYPE_RETURN:
         case SSA_CONTORL_NODE_TYPE_SET_GLOBAL:
@@ -328,7 +333,7 @@ static struct ssa_data_node * get_instance_data_node(struct ssa_data_node * data
         }
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
             struct ssa_data_get_array_element_node * get_arr_ele = (struct ssa_data_get_array_element_node *) data_node;
-            return get_arr_ele->instance_node;
+            return get_arr_ele->instance;
         }
         default: {
             return NULL;
@@ -342,7 +347,7 @@ static bool does_ssa_name_escapes(struct ea * ea, struct ssa_name name) {
     if (contains_u64_hash_table(&ea->instance_by_ssa_name, name.u16)) {
         struct ssa_data_node * instance = (struct ssa_data_node *) get_u64_hash_table(
                 &ea->instance_by_ssa_name, name.u16);
-        escapes = is_escaped_ssa_data_node(instance);
+        escapes = is_marked_as_escaped_ssa_node(instance);
     }
 
     return escapes;
@@ -411,4 +416,45 @@ static void save_usage_of_data_node(
 
     struct u64_set * usage_set = get_u64_hash_table(usage_hash_table, (uint64_t) instance);
     add_u64_set(usage_set, (uint64_t) node_uses_instance);
+}
+
+//This data node is used as an input in a control node
+static bool does_data_node_make_control_to_escape(struct ea * ea, struct ssa_data_node * data_node) {
+    switch (data_node->type) {
+        case SSA_DATA_NODE_TYPE_GET_SSA_NAME: {
+            struct ssa_data_get_ssa_name_node * get_ssa_name = (struct ssa_data_get_ssa_name_node *) data_node;
+            return contains_u64_hash_table(&ea->instance_by_ssa_name, get_ssa_name->ssa_name.u16) &&
+                    is_marked_as_escaped_ssa_node(get_u64_hash_table(&ea->instance_by_ssa_name, get_ssa_name->ssa_name.u16));
+        }
+        case SSA_DATA_NODE_TYPE_GUARD: {
+            struct ssa_guard * guard = (struct ssa_guard *) data_node;
+            return does_data_node_make_control_to_escape(ea, guard->value);
+        }
+        case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD: {
+            struct ssa_data_get_struct_field_node * get_struct_field = (struct ssa_data_get_struct_field_node *) data_node;
+            struct ssa_data_node * instance_node = get_struct_field->instance_node;
+            return does_data_node_make_control_to_escape(ea, instance_node);
+        }
+        case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
+            struct ssa_data_get_array_element_node * get_arr_element = (struct ssa_data_get_array_element_node *) data_node;
+            struct ssa_data_node * instance_node = get_arr_element->instance;
+            return does_data_node_make_control_to_escape(ea, instance_node);
+        }
+        case SSA_DATA_NODE_TYPE_GET_GLOBAL:
+        case SSA_DATA_NODE_TYPE_CALL:
+        case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT:
+        case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY: {
+            return true;
+        }
+        case SSA_DATA_NODE_TYPE_UNBOX:
+        case SSA_DATA_NODE_TYPE_BOX:
+        case SSA_DATA_NODE_TYPE_BINARY:
+        case SSA_DATA_NODE_TYPE_CONSTANT:
+        case SSA_DATA_NODE_TYPE_GET_LOCAL:
+        case SSA_DATA_NODE_TYPE_UNARY:
+        case SSA_DATA_NODE_TYPE_GET_ARRAY_LENGTH:
+        case SSA_DATA_NODE_TYPE_PHI: {
+            return false;
+        }
+    }
 }

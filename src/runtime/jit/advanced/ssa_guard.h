@@ -5,7 +5,7 @@
 
 typedef enum {
     SSA_GUARD_TYPE_CHECK,
-    //This is like a typecheck but with the aditional condition that the struct instance_node shluld have a specific definition
+    //This is like a typecheck but with the aditional condition that the struct instance shluld have a specific definition
     SSA_GUARD_STRUCT_DEFINITION_TYPE_CHECK,
     //Same as SSA_GUARD_STRUCT_DEFINITION_TYPE_CHECK but array type
     SSA_GUARD_ARRAY_TYPE_CHECK,

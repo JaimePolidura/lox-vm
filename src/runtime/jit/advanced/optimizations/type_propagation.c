@@ -320,9 +320,9 @@ static struct ssa_type * get_type_data_node_recursive(
         }
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
             struct ssa_data_get_array_element_node * get_array_element = (struct ssa_data_get_array_element_node *) node;
-            struct ssa_data_node * array_instance = get_array_element->instance_node;
+            struct ssa_data_node * array_instance = get_array_element->instance;
             struct ssa_data_node * index = get_array_element->index;
-            array_instance->produced_type = get_type_data_node_recursive(to_evaluate, array_instance, &get_array_element->instance_node);
+            array_instance->produced_type = get_type_data_node_recursive(to_evaluate, array_instance, &get_array_element->instance);
             index->produced_type = get_type_data_node_recursive(to_evaluate, index, &get_array_element->index);
 
             //Array type found

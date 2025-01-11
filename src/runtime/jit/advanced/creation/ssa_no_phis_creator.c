@@ -249,7 +249,7 @@ static void get_array_element(struct ssa_no_phis_inserter * inserter, struct pen
     struct ssa_data_get_array_element_node * get_array_element_node = ALLOC_SSA_DATA_NODE(
             SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT, struct ssa_data_get_array_element_node, to_evaluate->pending_bytecode, GET_SSA_NODES_ALLOCATOR(inserter)
     );
-    get_array_element_node->instance_node = pop_stack_list(&inserter->data_nodes_stack);
+    get_array_element_node->instance = pop_stack_list(&inserter->data_nodes_stack);
     get_array_element_node->index = pop_stack_list(&inserter->data_nodes_stack);
 
     push_stack_list(&inserter->data_nodes_stack, get_array_element_node);

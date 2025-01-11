@@ -395,10 +395,10 @@ static void finish_gc() {
 }
 
 struct struct_instance_object * alloc_struct_instance_gc_alg(struct struct_definition_object * struct_definition) {
-    struct struct_instance_object * instance_node = NATIVE_LOX_MALLOC(sizeof(struct struct_instance_object));
-    init_struct_instance_object(instance_node, struct_definition);
-    add_object_to_heap_gc_alg(&instance_node->object);
-    return instance_node;
+    struct struct_instance_object * instance = NATIVE_LOX_MALLOC(sizeof(struct struct_instance_object));
+    init_struct_instance_object(instance, struct_definition);
+    add_object_to_heap_gc_alg(&instance->object);
+    return instance;
 }
 
 struct string_object * alloc_string_gc_alg(char * chars, int length) {

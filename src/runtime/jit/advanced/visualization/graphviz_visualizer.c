@@ -386,7 +386,7 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
                 int array_instance_data_node_id = generate_data_node_graph(visualizer, set_array_element->array);
                 int array_index_data_node_id = generate_data_node_graph(visualizer, set_array_element->index);
                 link_control_data_node_label_graphviz_file(visualizer, "newValue", self_control_node_id, array_element_data_node_id);
-                link_control_data_node_label_graphviz_file(visualizer, "instance_node", self_control_node_id, array_instance_data_node_id);
+                link_control_data_node_label_graphviz_file(visualizer, "instance", self_control_node_id, array_instance_data_node_id);
                 link_control_data_node_label_graphviz_file(visualizer, "index", self_control_node_id, array_index_data_node_id);
             }
             break;
@@ -518,7 +518,7 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             char * node_desc = maybe_add_type_info_data_node(visualizer, node, "GetArrayElement");
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
-            int array_instance_node_id = generate_data_node_graph(visualizer, get_array_element->instance_node);
+            int array_instance_node_id = generate_data_node_graph(visualizer, get_array_element->instance);
             int array_index_node_id = generate_data_node_graph(visualizer, get_array_element->index);
             link_data_data_label_node_graphviz_file(visualizer, "intance", self_data_node_id, array_instance_node_id);
             link_data_data_label_node_graphviz_file(visualizer, "index", self_data_node_id, array_index_node_id);
