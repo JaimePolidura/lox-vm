@@ -325,7 +325,7 @@ static struct ssa_type * get_type_data_node_recursive(
 
             //If not found, we insert a type guard in the get_struct_field
             struct ssa_data_guard_node * guard_node = create_from_profile_ssa_data_guard_node(get_struct_field_type_profile,
-                    &get_struct_field->data, SSA_IR_ALLOCATOR(tp->ssa_ir));
+                                                                                              &get_struct_field->data, SSA_IR_ALLOCATOR(tp->ssa_ir), SSA_GUARD_FAIL_ACTION_TYPE_SWITCH_TO_INTERPRETER);
             struct ssa_type * type_struct_field = get_type_data_node_recursive(to_evaluate, &guard_node->data, &guard_node->guard.value);
             *parent_ptr = &guard_node->data;
 
@@ -353,6 +353,7 @@ static struct ssa_type * get_type_data_node_recursive(
             struct ssa_data_guard_node * array_type_guard = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_GUARD,
                     struct ssa_data_guard_node, NULL, SSA_IR_ALLOCATOR(tp->ssa_ir));
             array_type_guard->guard.value_to_compare.type = profiled_type_to_ssa_type(get_array_profiled_type);
+            array_type_guard->guard.action_on_guard_failed = SSA_GUARD_FAIL_ACTION_TYPE_RUNTIME_ERROR;
             array_type_guard->guard.type = SSA_GUARD_ARRAY_TYPE_CHECK;
             array_type_guard->guard.value = array_instance;
             *parent_ptr = &array_type_guard->data;
@@ -400,10 +401,11 @@ static struct ssa_data_node * create_guard_get_struct_field(
 ) {
     profile_data_type_t profiled_type = get_type_by_type_profile_data(get_struct_type_profile);
     struct ssa_data_guard_node * guard_node = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_GUARD, struct ssa_data_guard_node, NULL,
-                                                                  SSA_IR_ALLOCATOR(tp->ssa_ir));
-    guard_node->guard.value = instance_node;
+            SSA_IR_ALLOCATOR(tp->ssa_ir));
+    guard_node->guard.action_on_guard_failed = SSA_GUARD_FAIL_ACTION_TYPE_RUNTIME_ERROR;
     guard_node->guard.type = SSA_GUARD_STRUCT_DEFINITION_TYPE_CHECK;
     guard_node->guard.value_to_compare.struct_definition = NULL;
+    guard_node->guard.value = instance_node;
 
     if (profiled_type == PROFILE_DATA_TYPE_STRUCT_INSTANCE && !get_struct_type_profile.invalid_struct_definition) {
         guard_node->guard.value_to_compare.struct_definition = get_struct_type_profile.struct_definition;

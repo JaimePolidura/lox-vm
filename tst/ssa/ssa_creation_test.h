@@ -60,7 +60,7 @@ TEST(ssa_creation_ea) {
             "   if (true) {"
             "       p = Point{1, 3};"
             "   } else {"
-            "       p = transform(1);"
+            "       p = 1;"
             "   }"
             "   print p.x;"
             "}"

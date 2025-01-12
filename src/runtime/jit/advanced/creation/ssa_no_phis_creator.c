@@ -675,6 +675,7 @@ static void jump_if_false(struct ssa_no_phis_inserter * inserter, struct pending
         struct ssa_control_guard_node * guard_node = ALLOC_SSA_CONTROL_NODE(SSA_CONTROL_NODE_GUARD, struct ssa_control_guard_node,
                 to_evalute->block, GET_SSA_NODES_ALLOCATOR(inserter));
         guard_node->guard.value_to_compare.check_true = !can_discard_true_branch(inserter, to_evalute->pending_bytecode);
+        guard_node->guard.action_on_guard_failed = SSA_GUARD_FAIL_ACTION_TYPE_SWITCH_TO_INTERPRETER;
         guard_node->guard.type = SSA_GUARD_BOOLEAN_CHECK;
         guard_node->guard.value = condition;
 
@@ -860,6 +861,8 @@ static void add_argument_guard(
         guard_node->guard.type = SSA_GUARD_TYPE_CHECK;
     }
 
+    guard_node->guard.action_on_guard_failed = SSA_GUARD_FAIL_ACTION_TYPE_SWITCH_TO_INTERPRETER;
+
     struct ssa_data_get_local_node * get_argument = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_GET_LOCAL, struct ssa_data_get_local_node,
             NULL, &inserter->ssa_node_allocator->lox_allocator);
     guard_node->guard.value = &get_argument->data;
@@ -919,5 +922,6 @@ static struct ssa_data_guard_node * create_guard(
         return NULL;
     }
 
-    return create_from_profile_ssa_data_guard_node(return_type_profile_data, source, GET_SSA_NODES_ALLOCATOR(inserter));
+    return create_from_profile_ssa_data_guard_node(return_type_profile_data, source, GET_SSA_NODES_ALLOCATOR(inserter),
+        SSA_GUARD_FAIL_ACTION_TYPE_SWITCH_TO_INTERPRETER);
 }

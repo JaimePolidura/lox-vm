@@ -520,12 +520,14 @@ static bool check_equivalence_flatted_out(struct u64_set left, struct u64_set ri
 struct ssa_data_guard_node * create_from_profile_ssa_data_guard_node(
         struct type_profile_data type_profile,
         struct ssa_data_node * source,
-        struct lox_allocator * allocator
+        struct lox_allocator * allocator,
+        ssa_guard_action_on_check_failed action_on_guard_failed
 ) {
     profile_data_type_t profiled_type = get_type_by_type_profile_data(type_profile);
 
     struct ssa_data_guard_node * guard_node = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_GUARD, struct ssa_data_guard_node, NULL,
             allocator);
+    guard_node->guard.action_on_guard_failed = action_on_guard_failed;
     guard_node->guard.value = source;
 
     if(profiled_type == PROFILE_DATA_TYPE_STRUCT_INSTANCE && type_profile.invalid_struct_definition){

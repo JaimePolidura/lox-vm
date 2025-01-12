@@ -13,11 +13,17 @@ typedef enum {
     SSA_GUARD_BOOLEAN_CHECK
 } ssa_guard_type_t;
 
+typedef enum {
+    SSA_GUARD_FAIL_ACTION_TYPE_SWITCH_TO_INTERPRETER,
+    SSA_GUARD_FAIL_ACTION_TYPE_RUNTIME_ERROR,
+} ssa_guard_action_on_check_failed;
+
 extern struct ssa_data_node;
 
 struct ssa_guard {
     struct ssa_data_node * value;
     ssa_guard_type_t type;
+    ssa_guard_action_on_check_failed action_on_guard_failed;
 
     union {
         //Used when type is set to SSA_GUARD_TYPE_CHECK & SSA_GUARD_ARRAY_TYPE_CHECK
