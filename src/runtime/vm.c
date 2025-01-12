@@ -75,8 +75,9 @@ static inline void increase_n_function_calls(struct function_object *function);
 static void get_array_length();
 
 #define READ_BYTECODE(frame) (*frame->pc++)
+
 #define READ_U16(frame) \
-    (frame->pc += 2, (uint16_t)((frame->pc[-2] << 8) | frame->pc[-1]))
+    (frame->pc += 2, read_u16_le(frame->pc - 2))
 #define READ_U64(frame) \
     (frame->pc += 8, (uint64_t)((frame->pc[-8] << 54) | (frame->pc[-7] << 48) | (frame->pc[-6] << 40) | \
     (frame->pc[-5] << 32) | (frame->pc[-4] << 24) | (frame->pc[-3] << 16) | (frame->pc[-2] << 8) | frame->pc[-1]))

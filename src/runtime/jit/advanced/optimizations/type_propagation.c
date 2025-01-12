@@ -37,6 +37,8 @@ static struct u64_hash_table * get_ssa_type_by_ssa_name_by_block(struct tp *, st
 static bool is_cyclic_definition(struct tp *, struct ssa_name defined_phi, struct ssa_name);
 static bool calculate_is_cyclic_definition(struct tp * tp, struct ssa_name parent, struct ssa_name);
 static bool produced_type_has_been_asigned(struct ssa_data_node *);
+static struct ssa_type * merge_block_types(struct tp*, struct ssa_type*, struct ssa_type*);
+static struct ssa_data_node * create_guard_get_struct_field(struct tp*, struct ssa_data_node*, struct type_profile_data);
 
 extern void runtime_panic(char * format, ...);
 
@@ -124,9 +126,7 @@ static void perform_type_propagation_control(struct pending_evaluate * to_evalut
 
     if(control_node->type == SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME){
         struct ssa_control_define_ssa_name_node * define = (struct ssa_control_define_ssa_name_node *) control_node;
-        if (define->value->produced_type->type != SSA_TYPE_UNKNOWN) {
-            put_u64_hash_table(to_evalute->ssa_type_by_ssa_name, define->ssa_name.u16, define->value->produced_type);
-        }
+        put_u64_hash_table(to_evalute->ssa_type_by_ssa_name, define->ssa_name.u16, define->value->produced_type);
 
     } else if (control_node->type == SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD) {
         struct ssa_control_set_struct_field_node * set_struct_field = (struct ssa_control_set_struct_field_node *) control_node;
@@ -235,7 +235,12 @@ static struct ssa_type * get_type_data_node_recursive(
                 }
                 case SSA_GUARD_STRUCT_DEFINITION_TYPE_CHECK: {
                     struct struct_definition_object * definition = guard->guard.value_to_compare.struct_definition;
-                    return CREATE_STRUCT_SSA_TYPE(definition, SSA_IR_ALLOCATOR(tp->ssa_ir));
+                    struct ssa_type * type = CREATE_STRUCT_SSA_TYPE(definition, SSA_IR_ALLOCATOR(tp->ssa_ir));
+                    if (definition == NULL) { //Expect struct, but unknown definition
+                        init_u64_hash_table(&type->value.struct_instance->type_by_field_name, SSA_IR_ALLOCATOR(tp->ssa_ir));
+                    }
+
+                    return type;
                 }
                 case SSA_GUARD_BOOLEAN_CHECK: {
                     return CREATE_SSA_TYPE(SSA_TYPE_NATIVE_BOOLEAN, SSA_IR_ALLOCATOR(tp->ssa_ir));
@@ -262,7 +267,7 @@ static struct ssa_type * get_type_data_node_recursive(
             struct ssa_data_initialize_array_node * init_array = (struct ssa_data_initialize_array_node *) node;
             struct ssa_type * type = NULL;
 
-            if(init_array->empty_initialization){
+            if (init_array->empty_initialization) {
                 type = CREATE_SSA_TYPE(SSA_TYPE_UNKNOWN, SSA_IR_ALLOCATOR(tp->ssa_ir));
             }
 
@@ -290,18 +295,22 @@ static struct ssa_type * get_type_data_node_recursive(
 
             struct ssa_type * type_struct_instance = get_type_data_node_recursive(to_evaluate, instance_node, &get_struct_field->instance_node);
 
-            //We insert a struct definition guard
+            if(type_struct_instance->type == SSA_TYPE_UNKNOWN){
+                return type_struct_instance;
+            }
+            //We insert a struct type-check/struct-definition-check guard
             if (type_struct_instance->type != SSA_TYPE_LOX_STRUCT_INSTANCE) {
-                struct ssa_data_guard_node * struct_instance_guard = create_from_profile_ssa_data_guard_node(get_struct_field_type_profile,
-                        get_struct_field->instance_node, SSA_IR_ALLOCATOR(tp->ssa_ir));
-                get_struct_field->instance_node = &struct_instance_guard->data;
+                struct ssa_data_node * guard_node = create_guard_get_struct_field(tp, instance_node, get_struct_field_type_profile);
+
+                get_struct_field->instance_node = guard_node;
+                instance_node = guard_node;
                 type_struct_instance = get_type_data_node_recursive(to_evaluate, instance_node, &get_struct_field->instance_node);
             }
 
             instance_node->produced_type = type_struct_instance;
 
             struct ssa_type * field_type = get_u64_hash_table(
-                    &instance_node->produced_type->value.struct_instance->type_by_field_name,
+                    &type_struct_instance->value.struct_instance->type_by_field_name,
                     (uint64_t) get_struct_field->field_name->chars
             );
 
@@ -309,6 +318,9 @@ static struct ssa_type * get_type_data_node_recursive(
             if (field_type != NULL) {
                 instance_node->produced_type = type_struct_instance;
                 return field_type;
+            }
+            if(get_type_by_type_profile_data(get_struct_field_type_profile) == PROFILE_DATA_TYPE_ANY){
+                return CREATE_SSA_TYPE(SSA_TYPE_LOX_ANY, SSA_IR_ALLOCATOR(tp->ssa_ir));
             }
 
             //If not found, we insert a type guard in the get_struct_field
@@ -379,6 +391,25 @@ static struct ssa_type * get_type_data_node_recursive(
             runtime_panic("Illegal code path");
         }
     }
+}
+
+static struct ssa_data_node * create_guard_get_struct_field(
+        struct tp * tp,
+        struct ssa_data_node * instance_node,
+        struct type_profile_data get_struct_type_profile
+) {
+    profile_data_type_t profiled_type = get_type_by_type_profile_data(get_struct_type_profile);
+    struct ssa_data_guard_node * guard_node = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_GUARD, struct ssa_data_guard_node, NULL,
+                                                                  SSA_IR_ALLOCATOR(tp->ssa_ir));
+    guard_node->guard.value = instance_node;
+    guard_node->guard.type = SSA_GUARD_STRUCT_DEFINITION_TYPE_CHECK;
+    guard_node->guard.value_to_compare.struct_definition = NULL;
+
+    if (profiled_type == PROFILE_DATA_TYPE_STRUCT_INSTANCE && !get_struct_type_profile.invalid_struct_definition) {
+        guard_node->guard.value_to_compare.struct_definition = get_struct_type_profile.struct_definition;
+    }
+
+    return &guard_node->data;
 }
 
 static struct ssa_type * union_type(
@@ -474,9 +505,7 @@ static struct ssa_type * union_struct_types_same_definition(
                 CREATE_SSA_TYPE(SSA_TYPE_LOX_ANY, SSA_IR_ALLOCATOR(tp->ssa_ir)) :
                 union_type(tp, field_a_type, field_b_type);
 
-        if(new_field_type->type != SSA_TYPE_UNKNOWN){
-            put_u64_hash_table(&struct_instance_ssa_type->type_by_field_name, (uint64_t) field_name, new_field_type);
-        }
+        put_u64_hash_table(&struct_instance_ssa_type->type_by_field_name, (uint64_t) field_name, new_field_type);
     }
 
     return union_struct;
@@ -532,12 +561,9 @@ static struct u64_hash_table * get_merged_type_map_block(struct tp * tp, struct 
 
             if (contains_u64_hash_table(merged, current_predecesor_ssa_name_u64)) {
                 struct ssa_type * type_to_union = get_u64_hash_table(merged, current_predecesor_ssa_name_u64);
-                struct ssa_type * type_result = union_type(tp, current_predecesor_ssa_type, type_to_union);
+                struct ssa_type * type_result = merge_block_types(tp, current_predecesor_ssa_type, type_to_union);
 
-                if(type_result->type != SSA_TYPE_UNKNOWN){
-                    put_u64_hash_table(merged, current_predecesor_ssa_name_u64, type_result);
-                }
-
+                put_u64_hash_table(merged, current_predecesor_ssa_name_u64, type_result);
             } else {
                 put_u64_hash_table(merged, current_predecesor_ssa_name_u64, current_predecesor_ssa_type);
             }
@@ -545,6 +571,17 @@ static struct u64_hash_table * get_merged_type_map_block(struct tp * tp, struct 
     }
 
     return merged;
+}
+
+static struct ssa_type * merge_block_types(struct tp * tp, struct ssa_type * a, struct ssa_type * b) {
+    if(a->type == SSA_TYPE_UNKNOWN){
+        return b;
+    }
+    if(b->type == SSA_TYPE_UNKNOWN){
+        return a;
+    }
+
+    return union_type(tp, a, b);
 }
 
 //i2 = phi(i0, i1) i1 = i2; i2 = i1 + 1;

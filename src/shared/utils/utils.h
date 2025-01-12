@@ -52,3 +52,5 @@ int align(int not_aligned, int value_to_align);
 bool has_decimals(double double_value);
 char * dynamic_format_string(const char * format, ...);
 bool is_double_power_of_2(double);
+void write_u16_le(void *, uint16_t);
+uint16_t read_u16_le(void *);

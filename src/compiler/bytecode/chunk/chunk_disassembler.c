@@ -3,7 +3,6 @@
 #include <stdio.h>
 
 #define READ_BYTECODE(pc) (*pc++)
-#define READ_U16(pc) (pc += 2, (uint16_t)((pc[-2] << 8) | pc[-1]))
 
 #define SINGLE_INSTRUCTION(name) printf("%s\n", name)
 #define BINARY_U8_INSTRUCTION(name, iterator) printf("%s %u\n", name, read_u8_chunk_iterator(&iterator))

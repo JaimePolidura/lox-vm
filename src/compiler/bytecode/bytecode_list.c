@@ -45,9 +45,7 @@ struct chunk * to_chunk_bytecode_list(struct bytecode_list * bytecode_list) {
         if (is_jump_bytecode_instruction(current_instruction->bytecode)) {
             int to_jump_index = current_instruction->as.jump->to_chunk_index;
             int jump_offset = abs(to_jump_index - current_index - 3);
-
-            write_chunk(new_chunk, (jump_offset >> 8) & 0xff);
-            write_chunk(new_chunk, jump_offset & 0xff);
+            write_u16_chunk(new_chunk, jump_offset);
         } else if (current_instruction_size == 2) {
             write_chunk(new_chunk, current_instruction->as.u8);
         } else if(current_instruction_size == 3) {
@@ -63,8 +61,7 @@ struct chunk * to_chunk_bytecode_list(struct bytecode_list * bytecode_list) {
             write_chunk(new_chunk, (current_instruction->as.u64 >>  8) & 0xff);
             write_chunk(new_chunk, (current_instruction->as.u64 >>  0) & 0xff);
         } else if (current_instruction_size == 4 && current_instruction->bytecode == OP_INITIALIZE_ARRAY) {
-            write_chunk(new_chunk, (current_instruction->as.initialize_array.n_elements >> 8) & 0xff);
-            write_chunk(new_chunk, current_instruction->as.initialize_array.n_elements & 0xff);
+            write_u16_chunk(new_chunk, current_instruction->as.initialize_array.n_elements);
             write_chunk(new_chunk, current_instruction->as.initialize_array.is_emtpy_initializaion & 0xff);
         }
 
@@ -232,7 +229,7 @@ struct bytecode_list * create_bytecode_list(struct chunk * chunk, struct lox_all
                 break;
             }
             case OP_INITIALIZE_ARRAY: {
-                current_node->as.initialize_array.n_elements = read_u16_chunk_iterator(&chunk_iterator);
+                current_node->as.initialize_array.n_elements = read_u16_le(chunk_iterator.pc - 3);
                 current_node->as.initialize_array.is_emtpy_initializaion = read_u8_chunk_iterator(&chunk_iterator);
                 break;
             }

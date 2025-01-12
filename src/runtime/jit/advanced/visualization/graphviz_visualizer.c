@@ -824,7 +824,7 @@ static char * guard_node_to_string(struct ssa_guard guard) {
         case SSA_GUARD_STRUCT_DEFINITION_TYPE_CHECK: {
             struct struct_definition_object * definition = (struct struct_definition_object *)
                     guard.value_to_compare.struct_definition;
-            return dynamic_format_string("StructDefinitionCheck %s", definition->name->chars);
+            return dynamic_format_string("StructDefinitionCheck %s", definition != NULL ? definition->name->chars : "Any definition");
         }
     }
 }

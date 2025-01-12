@@ -96,6 +96,14 @@ bool is_double_power_of_2(double doule_value) {
     return (u64_value & (u64_value - 1)) == 0;
 }
 
+void write_u16_le(void * ptr, uint16_t value) {
+    *((uint16_t *) ptr) = value;
+}
+
+uint16_t read_u16_le(void * ptr) {
+    return *((uint16_t *) ptr);
+}
+
 //Given: 27, this will return:
 // powers: 4, 3
 // extra: 3

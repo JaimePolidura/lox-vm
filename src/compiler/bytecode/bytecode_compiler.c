@@ -13,6 +13,7 @@ static struct function_object * end_compiler(struct bytecode_compiler * compiler
 static void consume(struct bytecode_compiler * compiler, tokenType_t expected_token_type, char * error_message);
 static void emit_bytecode(struct bytecode_compiler * compiler, uint8_t bytecode);
 static void emit_bytecodes(struct bytecode_compiler * compiler, uint8_t bytecodeA, uint8_t bytecodeB);
+static void emit_u16(struct bytecode_compiler * compiler, uint16_t value);
 static void emit_constant(struct bytecode_compiler * compiler, lox_value_t value);
 static void emit_package_constant(struct bytecode_compiler * compiler, lox_value_t value);
 static void expression(struct bytecode_compiler * compiler);
@@ -344,8 +345,7 @@ static void emtpy_array_initialization(struct bytecode_compiler * compiler) {
     int n_elements = strtod(number_elements_token.start, NULL);
 
     emit_bytecode(compiler, OP_INITIALIZE_ARRAY);
-    emit_bytecode(compiler, (n_elements >> 8) & 0xFF);
-    emit_bytecode(compiler, n_elements & 0xFF);
+    emit_u16(compiler, n_elements);
     emit_bytecode(compiler, 1); //Emtpy intialization
 }
 
@@ -575,9 +575,7 @@ static int emit_jump(struct bytecode_compiler * compiler, bytecode_t jump_opcode
 
 static void patch_jump_here(struct bytecode_compiler * compiler, int jump_op_index) {
     int jump = current_chunk(compiler)->in_use - jump_op_index - 2;
-
-    current_chunk(compiler)->code[jump_op_index] = (jump >> 8) & 0xff;
-    current_chunk(compiler)->code[jump_op_index + 1] = jump & 0xff;
+    write_u16_le(&current_chunk(compiler)->code[jump_op_index], jump);
 }
 
 static void and(struct bytecode_compiler * compiler, bool can_assign) {
@@ -690,11 +688,9 @@ static void for_loop_increment(struct bytecode_compiler * compiler) {
 
 static void emit_loop(struct bytecode_compiler * compiler, int loop_start_index) {
     emit_bytecode(compiler, OP_LOOP);
-
     int n_opcodes_to_jump = current_chunk(compiler)->in_use - loop_start_index + 2; // +2 to get rid of op_loop two operands
 
-    emit_bytecode(compiler, (n_opcodes_to_jump >> 8) & 0xff);
-    emit_bytecode(compiler, n_opcodes_to_jump & 0xff);
+    emit_u16(compiler, n_opcodes_to_jump);
 }
 
 static void print_statement(struct bytecode_compiler * compiler) {
@@ -915,8 +911,7 @@ static void array_inline_initialization(struct bytecode_compiler * compiler, boo
     uint16_t n_elements = (uint16_t) array_inline_initialization_elements(compiler);
 
     emit_bytecode(compiler, OP_INITIALIZE_ARRAY);
-    emit_bytecode(compiler, (n_elements >> 8) & 0xFF);
-    emit_bytecode(compiler, n_elements & 0xFF);
+    emit_u16(compiler, n_elements);
     emit_bytecode(compiler, 0); //Not emtpy intialization
 }
 
@@ -1011,11 +1006,8 @@ static void number(struct bytecode_compiler * compiler, bool can_assign) {
     } else if(!has_decimal && is_8){
         emit_bytecodes(compiler, OP_FAST_CONST_8, (int8_t) value_as_double);
     } else if(!has_decimal && is_16) {
-        int16_t value_as_16 = (int16_t) value_as_double;
-
         emit_bytecode(compiler, OP_FAST_CONST_16);
-        emit_bytecode(compiler, (value_as_16 >> 8) & 0xFF);
-        emit_bytecode(compiler, value_as_16 & 0xFF);
+        emit_u16(compiler, (int16_t) value_as_double);
     }
 }
 
@@ -1056,6 +1048,10 @@ static void advance(struct bytecode_compiler * compiler) {
 static void emit_bytecodes(struct bytecode_compiler * compiler, uint8_t bytecodeA, uint8_t bytecodeB) {
     write_chunk(current_chunk(compiler), bytecodeA);
     write_chunk(current_chunk(compiler), bytecodeB);
+}
+
+static void emit_u16(struct bytecode_compiler * compiler, uint16_t value) {
+    write_u16_chunk(current_chunk(compiler), value);
 }
 
 static void emit_bytecode(struct bytecode_compiler * compiler, uint8_t bytecode) {

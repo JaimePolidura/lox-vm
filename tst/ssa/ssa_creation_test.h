@@ -16,7 +16,36 @@ static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expe
 static bool node_defines_ssa_name(struct ssa_control_node *, int version);
 static void run(struct compilation_result);
 
-TEST(ssa_creation_ea){
+TEST(ssa_creation_ea) {
+//    struct compilation_result compilation = compile_standalone(
+//            "struct Point {"
+//            "   x;"
+//            "   y;"
+//            "}"
+//            ""
+//            "fun transform(p) {"
+//            "}"
+//            ""
+//            "fun function() {"
+//            "   var a = Point{1, 2};"
+//            "   var b = Point{1, 3};"
+//            "   var c = b;"
+//            "   var d = b;"
+//            "   var arr = [1, 2, 3];"
+//            "   transform(d);"
+//            "   transform(arr[0]);"
+//            "   transform(a.y);"
+//            "   print c.x;"
+//            "   print a.x;"
+//            "   var p = nil;"
+//            "   if (true) {"
+//            "       p = Point{1, 3};"
+//            "   } else {"
+//            "       p = transform(1);"
+//            "   }"
+//            "   print p.x;"
+//            "}"
+//    );
     struct compilation_result compilation = compile_standalone(
             "struct Point {"
             "   x;"
@@ -27,16 +56,13 @@ TEST(ssa_creation_ea){
             "}"
             ""
             "fun function() {"
-            "   var a = Point{1, 2};"
-            "   var b = Point{1, 3};"
-            "   var c = b;"
-            "   var d = b;"
-            "   var arr = [1, 2, 3];"
-            "   transform(d);"
-            "   transform(arr[0]);"
-            "   transform(a.y);"
-            "   print c.x;"
-            "   print a.x;"
+            "   var p = nil;"
+            "   if (true) {"
+            "       p = Point{1, 3};"
+            "   } else {"
+            "       p = transform(1);"
+            "   }"
+            "   print p.x;"
             "}"
     );
     run(compilation);

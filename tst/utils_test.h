@@ -39,3 +39,9 @@ TEST(utils_string_equals_ignore_case_test){
     ASSERT_TRUE(string_equals_ignore_case("hola_", "HOLA_", 5));
     ASSERT_FALSE(string_equals_ignore_case("hols_", "hola", 4));
 }
+
+TEST(read_write_u16_le) {
+    uint8_t * ptr = malloc(sizeof(uint16_t));
+    write_u16_le(ptr, 1023);
+    ASSERT_EQ(read_u16_le(ptr), 1023);
+}

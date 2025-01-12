@@ -24,11 +24,12 @@ struct chunk_bytecode_context {
     int capacity; //nº of code allocated
 };
 
-void write_chunk(struct chunk * chunk_to_write, uint8_t byte);
-int add_constant_to_chunk(struct chunk * chunk_to_write, lox_value_t constant);
 struct chunk * alloc_chunk();
 void init_chunk(struct chunk * chunk);
 void free_chunk(struct chunk * chunk_to_free);
+void write_chunk(struct chunk *, uint8_t byte);
+void write_u16_chunk(struct chunk *, uint16_t);
+int add_constant_to_chunk(struct chunk * chunk_to_write, lox_value_t constant);
 struct chunk * copy_chunk(struct chunk * src);
 
 struct chunk_bytecode_context chunk_start_new_context(struct chunk * chunk);

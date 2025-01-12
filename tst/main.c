@@ -102,6 +102,7 @@ int main() {
     package_read_package_name_test_outer();
 #endif
 #ifdef RUN_UTILS_TEST
+    read_write_u16_le_outer();
     utils_string_builder_test_outer();
     utils_string_equals_ignore_case_test_outer();
     utils_string_contains_test_outer();

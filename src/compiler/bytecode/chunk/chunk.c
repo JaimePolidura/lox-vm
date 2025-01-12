@@ -2,6 +2,8 @@
 
 #include <stdlib.h>
 
+static void grow_chunk_capacity_if_neccessary(struct chunk *, int new_capacity);
+
 struct chunk * alloc_chunk() {
     struct chunk * allocated_chunk = NATIVE_LOX_MALLOC(sizeof(struct chunk));
     init_chunk(allocated_chunk);
@@ -13,20 +15,16 @@ int add_constant_to_chunk(struct chunk * chunk_to_write, lox_value_t constant) {
     return chunk_to_write->constants.in_use - 1;
 }
 
-//TODO Add method write_chunk_u16
+void write_u16_chunk(struct chunk * chunk_to_write, uint16_t value) {
+    grow_chunk_capacity_if_neccessary(chunk_to_write, chunk_to_write->in_use + 2);
+    write_u16_le(&chunk_to_write->code[chunk_to_write->in_use], value);
+    chunk_to_write->in_use += 2;
+}
 
 void write_chunk(struct chunk * chunk_to_write, uint8_t byte) {
-    if(chunk_to_write->in_use + 1 > chunk_to_write->capacity) {
-        int new_code_capacity = GROW_CAPACITY(chunk_to_write->capacity);
-        int old_code_capacity = chunk_to_write->capacity;
-        chunk_to_write->capacity = new_code_capacity;
-
-        chunk_to_write->code = GROW_ARRAY(NATIVE_LOX_ALLOCATOR(), uint8_t, chunk_to_write->code, old_code_capacity, new_code_capacity);
-        chunk_to_write->lines = GROW_ARRAY(NATIVE_LOX_ALLOCATOR(), int, chunk_to_write->lines, old_code_capacity, new_code_capacity);
-    }
-
-    int index_to_write = chunk_to_write->in_use++;
-    chunk_to_write->code[index_to_write] = byte;
+    grow_chunk_capacity_if_neccessary(chunk_to_write, chunk_to_write->in_use + 1);
+    chunk_to_write->code[chunk_to_write->in_use] = byte;
+    chunk_to_write->in_use++;
 }
 
 void init_chunk(struct chunk * chunk) {
@@ -89,4 +87,16 @@ void chunk_write_context(struct chunk * chunk, struct chunk_bytecode_context pre
     }
 
     free(prev.code);
+}
+
+//Expect new_capacity to be less than current capacity << 2
+static void grow_chunk_capacity_if_neccessary(struct chunk * chunk, int new_capacity) {
+    if(new_capacity > chunk->capacity) {
+        int new_code_capacity = GROW_CAPACITY(chunk->capacity);
+        int old_code_capacity = chunk->capacity;
+        chunk->capacity = new_code_capacity;
+
+        chunk->code = GROW_ARRAY(NATIVE_LOX_ALLOCATOR(), uint8_t, chunk->code, old_code_capacity, new_code_capacity);
+        chunk->lines = GROW_ARRAY(NATIVE_LOX_ALLOCATOR(), int, chunk->lines, old_code_capacity, new_code_capacity);
+    }
 }
