@@ -807,26 +807,36 @@ static char * unary_operator_to_string(ssa_unary_operator_type_t operator) {
 }
 
 static char * guard_node_to_string(struct ssa_guard guard) {
+    char * guard_desc = NULL;
+
     switch (guard.type) {
         case SSA_GUARD_ARRAY_TYPE_CHECK: {
             char * type_name = to_string_ssa_type(guard.value_to_compare.type);
-            return dynamic_format_string("ArrayTypeCheck %s", type_name);
+            guard_desc = dynamic_format_string("ArrayTypeCheck %s", type_name);
             break;
         }
         case SSA_GUARD_TYPE_CHECK: {
             char * type_name = to_string_ssa_type(guard.value_to_compare.type);
-            return dynamic_format_string("TypeCheck %s", type_name);
+            guard_desc = dynamic_format_string("TypeCheck %s", type_name);
+            break;
         }
         case SSA_GUARD_BOOLEAN_CHECK: {
             char * value_name = lox_value_to_string(AS_BOOL(guard.value_to_compare.check_true));
-            return dynamic_format_string("BooleanValueCheck %s", value_name);
+            guard_desc = dynamic_format_string("BooleanValueCheck %s", value_name);
+            break;
         }
         case SSA_GUARD_STRUCT_DEFINITION_TYPE_CHECK: {
             struct struct_definition_object * definition = (struct struct_definition_object *)
                     guard.value_to_compare.struct_definition;
-            return dynamic_format_string("StructDefinitionCheck %s", definition != NULL ? definition->name->chars : "Any definition");
+            guard_desc = dynamic_format_string("StructDefinitionCheck %s", definition != NULL ? definition->name->chars : "Any definition");
+            break;
         }
     }
+
+    char * guard_fail_action_type = guard.action_on_guard_failed == SSA_GUARD_FAIL_ACTION_TYPE_SWITCH_TO_INTERPRETER ?
+            "SwitchToInterpreter" : "RuntimeError";
+    guard_desc = dynamic_format_string("%s\nOnFail: %s", guard_desc, guard_fail_action_type);
+    return guard_desc;
 }
 
 static char * maybe_add_escape_info_data_node(
