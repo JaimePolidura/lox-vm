@@ -150,6 +150,15 @@ struct ssa_block * create_ssa_ir_no_phis(
                 binary(inserter, to_evaluate);
                 break;
             }
+            case OP_GET_ARRAY_LENGTH: {
+                struct ssa_data_get_array_length * get_arr_length = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_GET_ARRAY_LENGTH,
+                        struct ssa_data_get_array_length, to_evaluate->pending_bytecode, &ssa_node_allocator->lox_allocator);
+                get_arr_length->instance = pop_stack_list(&inserter->data_nodes_stack);
+
+                push_stack_list(&inserter->data_nodes_stack, get_arr_length);
+                push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
+                break;
+            }
             case OP_CONSTANT: {
                 lox_value_t constant = READ_CONSTANT(function, to_evaluate->pending_bytecode);
                 push_stack_list(&inserter->data_nodes_stack, create_ssa_const_node(constant, SSA_TYPE_F64, to_evaluate->pending_bytecode, &ssa_node_allocator->lox_allocator));

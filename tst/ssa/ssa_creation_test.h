@@ -56,13 +56,13 @@ TEST(ssa_creation_ea) {
             "}"
             ""
             "fun function() {"
-            "   var p = nil;"
-            "   if (true) {"
-            "       p = Point{1, 3};"
+            "   var p = [1, 2, 2];"
+            "   if(len(p) > 10) {"
+            "       var c = p[0];"
             "   } else {"
-            "       p = 1;"
+            "       p = [1, 2];"
             "   }"
-            "   print p.x;"
+            "   print p[2];"
             "}"
     );
     run(compilation);

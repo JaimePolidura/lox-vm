@@ -536,7 +536,6 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             int array_index_node_id = generate_data_node_graph(visualizer, get_array_element->index);
             link_data_data_label_node_graphviz_file(visualizer, "intance", self_data_node_id, array_instance_node_id);
             link_data_data_label_node_graphviz_file(visualizer, "index", self_data_node_id, array_index_node_id);
-            free(node_desc);
             break;
         }
         case SSA_DATA_NODE_TYPE_UNBOX: {
