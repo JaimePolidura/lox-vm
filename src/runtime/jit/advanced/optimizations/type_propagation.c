@@ -301,9 +301,11 @@ static struct ssa_type * get_type_data_node_recursive(
             //We insert a struct type-check/struct-definition-check guard
             if (type_struct_instance->type != SSA_TYPE_LOX_STRUCT_INSTANCE) {
                 struct ssa_data_node * guard_node = create_guard_get_struct_field(tp, instance_node, get_struct_field_type_profile);
+                if (guard_node != NULL) {
+                    get_struct_field->instance_node = guard_node;
+                    instance_node = guard_node;
+                }
 
-                get_struct_field->instance_node = guard_node;
-                instance_node = guard_node;
                 type_struct_instance = get_type_data_node_recursive(to_evaluate, instance_node, &get_struct_field->instance_node);
             }
 
@@ -325,7 +327,7 @@ static struct ssa_type * get_type_data_node_recursive(
 
             //If not found, we insert a type guard in the get_struct_field
             struct ssa_data_guard_node * guard_node = create_from_profile_ssa_data_guard_node(get_struct_field_type_profile,
-                                                                                              &get_struct_field->data, SSA_IR_ALLOCATOR(tp->ssa_ir), SSA_GUARD_FAIL_ACTION_TYPE_SWITCH_TO_INTERPRETER);
+                    &get_struct_field->data, SSA_IR_ALLOCATOR(tp->ssa_ir), SSA_GUARD_FAIL_ACTION_TYPE_SWITCH_TO_INTERPRETER);
             struct ssa_type * type_struct_field = get_type_data_node_recursive(to_evaluate, &guard_node->data, &guard_node->guard.value);
             *parent_ptr = &guard_node->data;
 
@@ -344,11 +346,19 @@ static struct ssa_type * get_type_data_node_recursive(
                array_instance->produced_type->value.array->type->type != SSA_TYPE_LOX_ANY){
                 return array_instance->produced_type->value.array->type;
             }
+            //We don't know the type yet, lets skip scanning
+            if(array_instance->produced_type->type == SSA_TYPE_UNKNOWN){
+                return CREATE_SSA_TYPE(SSA_TYPE_UNKNOWN, SSA_IR_ALLOCATOR(tp->ssa_ir));
+            }
 
             struct instruction_profile_data get_array_profiled_instruction_profile_data = get_instruction_profile_data_function(
                     tp->ssa_ir->function, get_array_element->data.original_bytecode);
             struct type_profile_data get_array_profiled_data = get_array_profiled_instruction_profile_data.as.get_array_element_profile;
             profile_data_type_t get_array_profiled_type = get_type_by_type_profile_data(get_array_profiled_data);
+
+            if (get_array_profiled_type == PROFILE_DATA_TYPE_ANY) {
+                return CREATE_SSA_TYPE(SSA_TYPE_LOX_ANY, SSA_IR_ALLOCATOR(tp->ssa_ir));
+            }
 
             struct ssa_data_guard_node * array_type_guard = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_GUARD,
                     struct ssa_data_guard_node, NULL, SSA_IR_ALLOCATOR(tp->ssa_ir));
@@ -356,7 +366,7 @@ static struct ssa_type * get_type_data_node_recursive(
             array_type_guard->guard.action_on_guard_failed = SSA_GUARD_FAIL_ACTION_TYPE_RUNTIME_ERROR;
             array_type_guard->guard.type = SSA_GUARD_ARRAY_TYPE_CHECK;
             array_type_guard->guard.value = array_instance;
-            *parent_ptr = &array_type_guard->data;
+            get_array_element->instance = &array_type_guard->data;
 
             return get_type_data_node_recursive(to_evaluate, &array_type_guard->data, parent_ptr);
         }
@@ -394,12 +404,18 @@ static struct ssa_type * get_type_data_node_recursive(
     }
 }
 
+//Will return NULL, if there is no sufficient profile (AKA LOX_ANY) data to insert a guard
 static struct ssa_data_node * create_guard_get_struct_field(
         struct tp * tp,
         struct ssa_data_node * instance_node,
         struct type_profile_data get_struct_type_profile
 ) {
     profile_data_type_t profiled_type = get_type_by_type_profile_data(get_struct_type_profile);
+
+    if (profiled_type == PROFILE_DATA_TYPE_ANY) {
+        return NULL;
+    }
+
     struct ssa_data_guard_node * guard_node = ALLOC_SSA_DATA_NODE(SSA_DATA_NODE_TYPE_GUARD, struct ssa_data_guard_node, NULL,
             SSA_IR_ALLOCATOR(tp->ssa_ir));
     guard_node->guard.action_on_guard_failed = SSA_GUARD_FAIL_ACTION_TYPE_RUNTIME_ERROR;
@@ -439,7 +455,7 @@ static struct ssa_type * union_type(
             return CREATE_STRUCT_SSA_TYPE(NULL, SSA_IR_ALLOCATOR(tp->ssa_ir));
 
         } else if(a->type == SSA_TYPE_LOX_ARRAY &&
-            a->value.array->type->type != b->value.array->type->type) {
+            a->value.array->type->type != b->value.array->type->type) { //TODO Bug, make deep equality comparation
             return union_array_types(tp, a, b);
         } else {
             return a;
