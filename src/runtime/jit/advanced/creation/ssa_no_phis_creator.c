@@ -620,7 +620,6 @@ static void jump(struct ssa_no_phis_inserter * insterter, struct pending_evaluat
     new_block->loop_condition_block = to_evalute->block->loop_condition_block;
     new_block->nested_loop_body = to_evalute->block->nested_loop_body;
 
-    //FIXME Bug here, to_evalute->prev_control_node is NULL
     to_evalute->block->last = to_evalute->prev_control_node;
     to_evalute->block->type_next_ssa_block = TYPE_NEXT_SSA_BLOCK_SEQ;
     to_evalute->block->next_as.next = new_block;

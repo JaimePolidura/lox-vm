@@ -455,7 +455,7 @@ static struct ssa_type * union_type(
             return CREATE_STRUCT_SSA_TYPE(NULL, SSA_IR_ALLOCATOR(tp->ssa_ir));
 
         } else if(a->type == SSA_TYPE_LOX_ARRAY &&
-            a->value.array->type->type != b->value.array->type->type) { //TODO Bug, make deep equality comparation
+                is_eq_ssa_type(a->value.array->type, b->value.array->type)) {
             return union_array_types(tp, a, b);
         } else {
             return a;
@@ -495,7 +495,8 @@ static void add_argument_types(struct tp * tp, struct u64_hash_table * ssa_type_
 
         //TODO Array
         if (function_arg_profiled_type == PROFILE_DATA_TYPE_STRUCT_INSTANCE && !function_arg_profile_data.invalid_struct_definition) {
-            function_arg_type = CREATE_STRUCT_SSA_TYPE(function_arg_profile_data.struct_definition, SSA_IR_ALLOCATOR(tp->ssa_ir));
+            function_arg_type = CREATE_STRUCT_SSA_TYPE(function_arg_profile_data.struct_definition,
+                                                       SSA_IR_ALLOCATOR(tp->ssa_ir));
         } else {
             function_arg_type = CREATE_SSA_TYPE(profiled_type_to_ssa_type(function_arg_profiled_type), SSA_IR_ALLOCATOR(tp->ssa_ir));
         }

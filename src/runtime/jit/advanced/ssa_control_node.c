@@ -10,6 +10,11 @@ void * allocate_ssa_block_node(
     memset(ssa_control_node, 0, struct_size_bytes);
     ssa_control_node->block = block;
     ssa_control_node->type = type;
+
+    if (ssa_control_node->type == SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT) {
+        ((struct ssa_control_set_array_element_node *) ssa_control_node)->requires_range_check = true;
+    }
+
     return ssa_control_node;
 }
 

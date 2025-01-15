@@ -24,6 +24,11 @@ void * allocate_ssa_data_node(
     memset(ssa_control_node, 0, struct_size_bytes);
     ssa_control_node->original_bytecode = bytecode;
     ssa_control_node->type = type;
+
+    if (ssa_control_node->type == SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT) {
+        ((struct ssa_data_get_array_element_node *) ssa_control_node)->requires_range_check = true;
+    }
+
     return ssa_control_node;
 }
 

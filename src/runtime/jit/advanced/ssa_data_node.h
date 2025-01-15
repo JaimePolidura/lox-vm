@@ -179,6 +179,7 @@ struct ssa_data_get_array_element_node {
     struct ssa_data_node * index;
     struct ssa_data_node * instance;
     bool escapes;
+    bool requires_range_check;
 };
 
 struct ssa_data_initialize_array_node {

@@ -114,6 +114,7 @@ struct ssa_control_set_array_element_node {
     struct ssa_data_node * array;
     struct ssa_data_node * new_element_value;
     bool escapes;
+    bool requires_range_check;
 };
 
 //OP_LOOP
