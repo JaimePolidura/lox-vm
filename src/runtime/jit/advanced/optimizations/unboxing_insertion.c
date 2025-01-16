@@ -158,7 +158,12 @@ static void unbox_data_node(
                 binary->right->produced_type->type, RETURN_NATIVE_TYPE_AS_DEFAULT), SSA_IR_ALLOCATOR(ui->ssa_ir));
         }
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT:
-        case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD:
+        case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD: {
+            if (is_marked_as_escaped_ssa_node(data_node)) {
+                insert_unbox_node(ui, data_node, data_node_field_ptr);
+            }
+            break;
+        }
         case SSA_DATA_NODE_TYPE_CALL: {
             insert_unbox_node(ui, data_node, data_node_field_ptr);
             break;
@@ -345,6 +350,7 @@ static bool control_requires_boxed_input(struct ui * ui, struct ssa_control_node
     switch (control->type) {
         case SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT:
         case SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD:
+            return is_marked_as_escaped_ssa_control(control);
         case SSA_CONTORL_NODE_TYPE_SET_GLOBAL:
         case SSA_CONTROL_NODE_TYPE_RETURN:
             return true;
@@ -416,7 +422,8 @@ static bool data_produces_boxed_output(struct ssa_data_node * data_node) {
         case SSA_DATA_NODE_TYPE_BOX:
         case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD:
         case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT:
-            return true;
+            //If escapes, the output will be boxed
+            return is_marked_as_escaped_ssa_node(data_node);
         case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT:
         case SSA_DATA_NODE_TYPE_UNBOX:
         case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY:

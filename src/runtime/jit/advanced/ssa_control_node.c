@@ -132,6 +132,22 @@ struct u64_set get_used_ssa_names_ssa_control_node(struct ssa_control_node * con
     return used_ssa_names;
 }
 
+bool is_marked_as_escaped_ssa_control(struct ssa_control_node * node) {
+    switch (node->type) {
+        case SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD: {
+            struct ssa_control_set_struct_field_node * set_struct_field = (struct ssa_control_set_struct_field_node *) node;
+            return set_struct_field->escapes;
+        }
+        case SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT: {
+            struct ssa_control_set_array_element_node * set_arr_element = (struct ssa_control_set_array_element_node *) node;
+            return set_arr_element->escapes;
+        }
+        default: {
+            return false;
+        }
+    }
+}
+
 void mark_as_escaped_ssa_control_node(struct ssa_control_node * node) {
     switch (node->type) {
         case SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD: {
