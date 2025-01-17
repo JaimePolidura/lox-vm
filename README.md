@@ -3,7 +3,7 @@
 An implementation of lox pending_bytecode interpreter described in "Crafting Interpreters" with a jit compiler, packages, threads etc.
 
 ## New features
-- <b>Basic x64 JIT Compiler</b> When a function is called muliple times it is compiled into x64 native code. This is implemented in x64_jit_compiler.c and jit_compiler.c
+- <b>JIT Compiler</b> When a function is called muliple times, it will start recording runtime information like types, number of times that a branch is taken etc. When it has collected enough runtime information, it will compile the function bytecode to assembly code, More info [JIT Compiler](#JIT Compiler) section.
 - <b>Threads (vm_thread.h)</b> When a function is called with "parallel" prefix, it will be run in other thread. Modified the garbage collector to run safely with multiple threads. Also implemented java l monitors value_as a synchronization tool. 
 - <b>Packages (package.h)</b> Lox programs can consist of multiple files each of which can have public and private members (structs, methods and global variables)
 - <b>Generational gc (generational_gc.h minor_gc.c major_gc.c)</b> Implemented eden, survivor and memory regions with write barriers, card tables, mark compact, mark copy algorithms, mark bitmaps etc.
@@ -13,6 +13,26 @@ An implementation of lox pending_bytecode interpreter described in "Crafting Int
 ## Features from "Crafting Interpreters" not implemented
 - <b>OOP</b> Inheritnace, classess with properties and methods are not implemented. Instead, they are replaced with C like structs, which only contains plain profile_data.
 - <b>Closures</b>
+
+## JIT Compiler
+- When a function is called multiple times, the runtime will start recording runtime information like types, number of times that a branch is taken etc.
+- When enough runtime information is collected, the function will get compiled to assembly code.
+- The compiled can be divided into a series of phases:
+  - 1º Translation of the function bytecode to an internal IR (<b>ssa_creator.h</b>). The IR will have the SSA form. This IR will be composed of:
+    - Blocks (<b>ssa_block.h</b>) Series of control node that will run without branches (sequentally).
+    - Control (<b>ssa_control_node.h</b>) Instructions that represents control flow (statements). This nodes might contains data flow nodes.
+    - Data (<b>ssa_data_node.h</b>) Instructions that represents data flow (expressions)
+  - 2º Once it is translated to SSA IR a series of optimizations will be done:
+    - Copy propagation
+    - Common subexpression elimination
+    - Constant propagation
+    - Loop invariant code motion
+    - Escape analysis
+    - Type propagation/analysis
+    - Box/Unbox insertion
+    - Range check elimination
+  - 3º Code gen
+- The machine code generated will take advantaje of the runtime information collected. The IR will contain guard nodes that will check if the conditions are hold, if they are not, the bytecode interpreter will run the function. For example the first node in a function can be used for checking if an argument has type number. 
 
 ## Examples
 connection.lox
