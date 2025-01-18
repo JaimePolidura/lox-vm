@@ -39,6 +39,7 @@ bool is_terminator_ssa_data_node(struct ssa_data_node * node) {
         case SSA_DATA_NODE_TYPE_GET_GLOBAL:
         case SSA_DATA_NODE_TYPE_CONSTANT:
         case SSA_DATA_NODE_TYPE_GET_SSA_NAME:
+        case SSA_DATA_NODE_GET_V_REGISTER:
             return true;
         case SSA_DATA_NODE_TYPE_GUARD:
         case SSA_DATA_NODE_TYPE_CALL:
@@ -127,6 +128,11 @@ bool is_eq_ssa_data_node(struct ssa_data_node * a, struct ssa_data_node * b, str
 
     //At this point a & b have the same type.
     switch (a->type) {
+        case SSA_DATA_NODE_GET_V_REGISTER: {
+            struct ssa_data_get_v_register_node * get_v_reg_a = (struct ssa_data_get_v_register_node *) a;
+            struct ssa_data_get_v_register_node * get_v_reg_b = (struct ssa_data_get_v_register_node *) b;
+            return get_v_reg_a->v_register == get_v_reg_b->v_register;
+        }
         case SSA_DATA_NODE_TYPE_GUARD: {
             struct ssa_data_guard_node * a_guard = (struct ssa_data_guard_node *) a;
             struct ssa_data_guard_node * b_guard = (struct ssa_data_guard_node *) b;
@@ -346,6 +352,10 @@ uint64_t mix_hash_commutative(uint64_t a, uint64_t b) {
 
 uint64_t hash_ssa_data_node(struct ssa_data_node * node) {
     switch (node->type) {
+        case SSA_DATA_NODE_GET_V_REGISTER: {
+            struct ssa_data_get_v_register_node * get_v_reg = (struct ssa_data_get_v_register_node *) node;
+            return get_v_reg->v_register;
+        }
         case SSA_DATA_NODE_TYPE_GUARD: {
             struct ssa_data_guard_node * guard = (struct ssa_data_guard_node *) node;
             return hash_ssa_data_node(guard->guard.value);
@@ -605,12 +615,12 @@ struct u64_set get_children_ssa_data_node(struct ssa_data_node * node, struct lo
             break;
         }
         case SSA_DATA_NODE_TYPE_UNBOX: {
-            struct ssa_data_node_unbox * unbox = (struct ssa_data_node_unbox *) node;
+            struct ssa_data_unbox_node * unbox = (struct ssa_data_unbox_node *) node;
             add_u64_set(&children, (uint64_t) &unbox->to_unbox);
             break;
         }
         case SSA_DATA_NODE_TYPE_BOX: {
-            struct ssa_data_node_box * box = (struct ssa_data_node_box *) node;
+            struct ssa_data_box_node * box = (struct ssa_data_box_node *) node;
             add_u64_set(&children, (uint64_t) &box->to_box);
             break;
         }
@@ -618,6 +628,7 @@ struct u64_set get_children_ssa_data_node(struct ssa_data_node * node, struct lo
         case SSA_DATA_NODE_TYPE_CONSTANT:
         case SSA_DATA_NODE_TYPE_PHI:
         case SSA_DATA_NODE_TYPE_GET_SSA_NAME:
+        case SSA_DATA_NODE_GET_V_REGISTER:
         case SSA_DATA_NODE_TYPE_GET_GLOBAL: {
             break;
         }

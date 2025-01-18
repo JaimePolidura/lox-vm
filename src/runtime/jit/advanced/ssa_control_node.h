@@ -3,6 +3,7 @@
 #include "ssa_data_node.h"
 #include "ssa_guard.h"
 #include "runtime/threads/monitor.h"
+#include "runtime/jit/advanced/phi_resolution/v_register.h"
 
 //Control flow nodes used in SSA IR
 
@@ -22,6 +23,9 @@ typedef enum {
     //Only used when inserting phi functions in the graph ir creation process
     //It will replace all the nodes with type SSA_CONTORL_NODE_TYPE_SET_LOCAL in the phi insertion proceess
     SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME,
+
+    //Intrudcued by phi resolution phase, this is not used in optimizations
+    SSA_CONTROL_NODE_TYPE_SET_V_REGISTER,
 } ssa_control_node_type;
 
 //Fordward reference, so we can use it without including it to avoid cyclical dependencies.
@@ -144,4 +148,10 @@ struct ssa_control_define_ssa_name_node {
 struct ssa_control_guard_node {
     struct ssa_control_node control;
     struct ssa_guard guard;
+};
+
+struct ssa_control_set_v_register_node {
+    struct ssa_control_node control;
+    struct ssa_data_node * value;
+    v_register_t v_register;
 };

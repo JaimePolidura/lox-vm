@@ -91,6 +91,12 @@ struct u64_set get_children_ssa_control_node(struct ssa_control_node * control_n
             add_u64_set(&children, (uint64_t) &define_ssa_name->value);
             break;
         }
+        case SSA_CONTROL_NODE_TYPE_SET_V_REGISTER:  {
+            struct ssa_control_set_v_register_node * set_v_reg = (struct ssa_control_set_v_register_node *) control_node;
+            add_u64_set(&children, (uint64_t) &set_v_reg->value);
+            break;
+        }
+
         case SSA_CONTROL_NODE_TYPE_ENTER_MONITOR:
         case SSA_CONTROL_NODE_TYPE_EXIT_MONITOR:
         case SSA_CONTROL_NODE_TYPE_LOOP_JUMP:

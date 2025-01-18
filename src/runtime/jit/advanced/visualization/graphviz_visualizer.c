@@ -539,7 +539,7 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             break;
         }
         case SSA_DATA_NODE_TYPE_UNBOX: {
-            struct ssa_data_node_unbox * unbox = (struct ssa_data_node_unbox *) node;
+            struct ssa_data_unbox_node * unbox = (struct ssa_data_unbox_node *) node;
             char * node_desc = dynamic_format_string("Unbox");
             node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
 
@@ -550,7 +550,7 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             break;
         }
         case SSA_DATA_NODE_TYPE_BOX: {
-            struct ssa_data_node_box * box = (struct ssa_data_node_box *) node;
+            struct ssa_data_box_node * box = (struct ssa_data_box_node *) node;
             char * node_desc = dynamic_format_string("Box");
             node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
 

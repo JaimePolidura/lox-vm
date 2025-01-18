@@ -11,6 +11,7 @@
 #include "shared/package.h"
 #include "shared.h"
 
+#include "runtime/jit/advanced/phi_resolution/v_register.h"
 #include "runtime/jit/advanced/ssa_guard.h"
 #include "runtime/jit/advanced/ssa_type.h"
 #include "runtime/profiler/profile_data.h"
@@ -36,6 +37,9 @@ typedef enum {
 
     SSA_DATA_NODE_TYPE_UNBOX,
     SSA_DATA_NODE_TYPE_BOX,
+
+    //Intrudcued by phi resolution phase, this is not used in optimizations
+    SSA_DATA_NODE_GET_V_REGISTER,
 } ssa_data_node_type;
 
 #define ALLOC_SSA_DATA_NODE(type, struct_type, bytecode, allocator) (struct_type *) allocate_ssa_data_node(type, sizeof(struct_type), bytecode, allocator)
@@ -239,12 +243,17 @@ struct ssa_data_guard_node {
 struct ssa_data_guard_node * create_from_profile_ssa_data_guard_node(struct type_profile_data, struct ssa_data_node*,
         struct lox_allocator*, ssa_guard_action_on_check_failed);
 
-struct ssa_data_node_box {
+struct ssa_data_box_node {
     struct ssa_data_node data;
     struct ssa_data_node * to_box;
 };
 
-struct ssa_data_node_unbox {
+struct ssa_data_unbox_node {
     struct ssa_data_node data;
     struct ssa_data_node * to_unbox;
+};
+
+struct ssa_data_get_v_register_node {
+    struct ssa_data_node data;
+    v_register_t v_register;
 };
