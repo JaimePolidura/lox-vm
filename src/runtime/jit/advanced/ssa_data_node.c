@@ -256,17 +256,18 @@ bool is_eq_ssa_data_node(struct ssa_data_node * a, struct ssa_data_node * b, str
             struct u64_set left_operands_flatted_out = flat_out_binary_operand_nodes(a, allocator);
             return check_equivalence_flatted_out(left_operands_flatted_out, rigth_operands_flatted_out, allocator);
         }
+        default: return false;
     }
 }
 
-void for_each_ssa_data_node(
+bool for_each_ssa_data_node(
         struct ssa_data_node * node,
         void ** parent_ptr,
         void * extra,
         long options,
         ssa_data_node_consumer_t consumer
 ) {
-    for_each_ssa_data_node_recursive(NULL, parent_ptr, node, extra, options, consumer);
+    return for_each_ssa_data_node_recursive(NULL, parent_ptr, node, extra, options, consumer);
 }
 
 static bool for_each_ssa_data_node_recursive(

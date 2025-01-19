@@ -18,19 +18,23 @@ void * allocate_ssa_block_node(
     return ssa_control_node;
 }
 
-void for_each_data_node_in_control_node(
+bool for_each_data_node_in_control_node(
         struct ssa_control_node * control_node,
         void * extra,
         long options,
         ssa_data_node_consumer_t consumer
 ) {
     struct u64_set children = get_children_ssa_control_node(control_node);
+    bool all_nodes_returned_keep_scanning = true;
+    
     FOR_EACH_U64_SET_VALUE(children, child_parent_field_ptr_u64) {
         struct ssa_data_node ** child_parent_field_ptr = (struct ssa_data_node **) child_parent_field_ptr_u64;
         struct ssa_data_node * child = *child_parent_field_ptr;
 
-        for_each_ssa_data_node(child, (void**) child_parent_field_ptr, extra, options, consumer);
+        all_nodes_returned_keep_scanning &= for_each_ssa_data_node(child, (void**) child_parent_field_ptr, extra, options, consumer);
     }
+
+    return all_nodes_returned_keep_scanning;
 }
 
 struct u64_set get_children_ssa_control_node(struct ssa_control_node * control_node) {

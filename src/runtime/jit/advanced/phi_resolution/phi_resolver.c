@@ -12,12 +12,13 @@ static bool resolve_phi_block(struct ssa_block *, void *);
 
 static struct pr * alloc_phi_resolver(struct ssa_ir *);
 static void free_phi_resolver(struct pr *);
-static void resolve_phi_control(struct pr *, struct ssa_control_node *);
+static bool resolve_phi_control(struct pr *, struct ssa_control_node *);
 static v_register_t alloc_v_register(struct pr *);
 static void replace_define_ssa_name_with_set_v_reg(struct pr*, struct ssa_control_define_ssa_name_node*);
 static void replace_get_ssa_name_with_get_v_reg(struct pr*, struct ssa_data_get_ssa_name_node*);
-static void replace_phi_with_get_v_reg(struct pr*, struct ssa_data_phi_node*);
+static bool replace_phi_with_get_v_reg(struct pr*, struct ssa_data_phi_node*, struct ssa_control_define_ssa_name_node*);
 static bool resolve_phi_data(struct ssa_data_node*, void**, struct ssa_data_node*, void*);
+static bool all_predecessors_have_been_scanned(struct pr *, struct ssa_data_phi_node *);
 
 void resolve_phi(struct ssa_ir * ssa_ir) {
     struct pr * phi_resolver = alloc_phi_resolver(ssa_ir);
@@ -37,9 +38,9 @@ static bool resolve_phi_block(struct ssa_block * block, void * extra) {
     struct pr * pr = extra;
 
     for (struct ssa_control_node * current = block->first;; current = current->next) {
-        resolve_phi_control(pr, current);
+        bool keep_scanning = resolve_phi_control(pr, current);
 
-        if (current == block->last) {
+        if (current == block->last && keep_scanning) {
             break;
         }
     }
@@ -47,34 +48,45 @@ static bool resolve_phi_block(struct ssa_block * block, void * extra) {
     return true;
 }
 
-static void resolve_phi_control(struct pr * pr, struct ssa_control_node * control_node) {
-    if (control_node->type == SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME) {
-        replace_define_ssa_name_with_set_v_reg(pr, (struct ssa_control_define_ssa_name_node *) control_node);
-    }
-
-    for_each_data_node_in_control_node(
+//This functino will return false, if we don't have enough information to keep scannning, for example when we dont know
+//all mappings to v_reg given a phi node, because we haven't scanned all predecessors blocks
+static bool resolve_phi_control(struct pr * pr, struct ssa_control_node * control_node) {
+    bool keep_scanning = for_each_data_node_in_control_node(
             control_node,
             pr,
             SSA_DATA_NODE_OPT_ANY_ORDER,
             resolve_phi_data
     );
+
+    if (!keep_scanning) {
+        return false;
+    }
+
+    if (control_node->type == SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME) {
+        replace_define_ssa_name_with_set_v_reg(pr, (struct ssa_control_define_ssa_name_node *) control_node);
+    }
+
+    return true;
 }
 
 static bool resolve_phi_data(
         struct ssa_data_node * _,
-        void ** __,
+        void ** parent_field_ptr,
         struct ssa_data_node * data_node,
         void * extra
 ) {
     struct pr * pr = extra;
+    bool keep_scanning = true;
 
     if (data_node->type == SSA_DATA_NODE_TYPE_PHI) {
-        replace_phi_with_get_v_reg(pr, (struct ssa_data_phi_node *) data_node);
+        struct ssa_data_node ** parent_ptr = (struct ssa_data_node **) parent_field_ptr;
+        struct ssa_control_define_ssa_name_node * define_ssa_name = container_of(parent_ptr, struct ssa_control_define_ssa_name_node, value);
+        keep_scanning = replace_phi_with_get_v_reg(pr, (struct ssa_data_phi_node *) data_node, define_ssa_name);
     } else if (data_node->type == SSA_DATA_NODE_TYPE_GET_SSA_NAME) {
         replace_get_ssa_name_with_get_v_reg(pr, (struct ssa_data_get_ssa_name_node *) data_node);
     }
 
-    return true;
+    return keep_scanning;
 }
 
 static void replace_get_ssa_name_with_get_v_reg(struct pr * pr, struct ssa_data_get_ssa_name_node * get_ssa_name) {
@@ -84,8 +96,48 @@ static void replace_get_ssa_name_with_get_v_reg(struct pr * pr, struct ssa_data_
     get_v_reg->v_register = v_reg;
 }
 
-static void replace_phi_with_get_v_reg(struct pr * pr, struct ssa_data_phi_node * phi) {
+//If all phi ssa names have not been mapped with a v_reg, the function will return faslse, meaning the it should stop scanning
+static bool replace_phi_with_get_v_reg(
+        struct pr * pr,
+        struct ssa_data_phi_node * phi,
+        struct ssa_control_define_ssa_name_node * define_ssa_name
+) {
+    if(!all_predecessors_have_been_scanned(pr, phi)){
+        return false;
+    }
 
+    v_register_t phi_result_v_reg = alloc_v_register(pr);
+
+    FOR_EACH_SSA_NAME_IN_PHI_NODE(phi, current_ssa_name) {
+        void * ssa_name_definition_node = get_u64_hash_table(&pr->ssa_ir->ssa_definitions_by_ssa_name, current_ssa_name.u16);
+        struct ssa_control_set_v_register_node * set_v_reg_phi_argument = ssa_name_definition_node;
+
+        struct ssa_control_set_v_register_node * set_v_reg_phi_result = ALLOC_SSA_CONTROL_NODE(
+                SSA_CONTROL_NODE_TYPE_SET_V_REGISTER, struct ssa_control_set_v_register_node, set_v_reg_phi_argument->control.block,
+                SSA_IR_ALLOCATOR(pr->ssa_ir));
+
+        struct ssa_data_get_v_register_node * get_v_reg_phi_argument = ALLOC_SSA_DATA_NODE(
+                SSA_DATA_NODE_GET_V_REGISTER, struct ssa_data_get_v_register_node, NULL, SSA_IR_ALLOCATOR(pr->ssa_ir));
+        get_v_reg_phi_argument->v_register = set_v_reg_phi_argument->v_register;
+
+        set_v_reg_phi_result->v_register = phi_result_v_reg;
+        set_v_reg_phi_result->value = &get_v_reg_phi_argument->data;
+    }
+
+    put_u64_hash_table(&pr->v_reg_by_ssa_name, define_ssa_name->ssa_name.u16, (void *) phi_result_v_reg);
+    remove_control_node_ssa_block(define_ssa_name->control.block, &define_ssa_name->control);
+
+    return true;
+}
+
+static bool all_predecessors_have_been_scanned(struct pr * pr, struct ssa_data_phi_node * phi) {
+    FOR_EACH_SSA_NAME_IN_PHI_NODE(phi, current_ssa_name) {
+        if (!contains_u64_hash_table(&pr->v_reg_by_ssa_name, current_ssa_name.u16)) {
+            //We haven't scanned all predecessors, stop scanning
+            return false;
+        }
+    }
+    return true;
 }
 
 static void replace_define_ssa_name_with_set_v_reg(struct pr * pr, struct ssa_control_define_ssa_name_node * define_ssa_name) {
