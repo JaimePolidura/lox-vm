@@ -102,7 +102,7 @@ static bool replace_phi_with_get_v_reg(
         struct ssa_data_phi_node * phi,
         struct ssa_control_define_ssa_name_node * define_ssa_name
 ) {
-    if(!all_predecessors_have_been_scanned(pr, phi)){
+    if (!all_predecessors_have_been_scanned(pr, phi)) {
         return false;
     }
 
@@ -119,6 +119,7 @@ static bool replace_phi_with_get_v_reg(
         struct ssa_data_get_v_register_node * get_v_reg_phi_argument = ALLOC_SSA_DATA_NODE(
                 SSA_DATA_NODE_GET_V_REGISTER, struct ssa_data_get_v_register_node, NULL, SSA_IR_ALLOCATOR(pr->ssa_ir));
         get_v_reg_phi_argument->v_register = set_v_reg_phi_argument->v_register;
+        get_v_reg_phi_argument->data.produced_type = phi->data.produced_type;
 
         set_v_reg_phi_result->v_register = phi_result_v_reg;
         set_v_reg_phi_result->value = &get_v_reg_phi_argument->data;

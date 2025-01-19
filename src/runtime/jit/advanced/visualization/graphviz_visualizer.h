@@ -1,5 +1,6 @@
 #pragma once
 
+#include "runtime/jit/advanced/phi_resolution/phi_resolver.h"
 #include "runtime/jit/advanced/optimizations/loop_invariant_code_motion.h"
 #include "runtime/jit/advanced/optimizations/common_subexpression_elimination.h"
 #include "runtime/jit/advanced/optimizations/sparse_constant_propagation.h"
@@ -20,20 +21,25 @@
 #include "shared.h"
 
 typedef enum {
+    //SSA IR Creation
     NO_PHIS_PHASE_SSA_GRAPHVIZ = 1 << 0,
     PHIS_INSERTED_PHASE_SSA_GRAPHVIZ = 1 << 1,
     PHIS_OPTIMIZED_PHASE_SSA_GRAPHVIZ = 1 << 2,
 
+    //Optimizations
     SPARSE_CONSTANT_PROPAGATION_PHASE_SSA_GRAPHVIZ = 1 << 3,
     COMMON_SUBEXPRESSION_ELIMINATION_PHASE_SSA_GRAPHVIZ = 1 << 4,
     STRENGTH_REDUCTION_PHASE_SSA_GRAPHVIZ = 1 << 5,
     LOOP_INVARIANT_CODE_MOTION_PHASE_SSA_GRAPHVIZ = 1 << 6,
-    UNBOXING_INSERTION_PHASE_SSA_GRAPHVIZ = 1 << 8,
-    TYPE_PROPAGATION_PHASE_SSA_GRAPHVIZ = 1 << 9,
-    ESCAPE_ANALYSIS_PHASE_SSA_GRAPHVIZ = 1 << 10,
-    COPY_PROPAGATION_PHASE_SSA_GRAPHVIZ = 1 << 7,
+    UNBOXING_INSERTION_PHASE_SSA_GRAPHVIZ = 1 << 7,
+    TYPE_PROPAGATION_PHASE_SSA_GRAPHVIZ = 1 << 8,
+    ESCAPE_ANALYSIS_PHASE_SSA_GRAPHVIZ = 1 << 9,
+    COPY_PROPAGATION_PHASE_SSA_GRAPHVIZ = 1 << 10,
 
-    ALL_PHASE_SSA_GRAPHVIZ = 1 << 11,
+    //Phi node resolution / Virtual registers allocation
+    PHI_RESOLUTION_PHASE_SSA_GRAPHVIZ = 1 << 11,
+
+    ALL_PHASE_SSA_GRAPHVIZ = 1 << 63,
 } phase_ssa_graphviz_t;
 
 enum {

@@ -189,6 +189,16 @@ void generate_ssa_graphviz_graph(
             generate_graph_and_write(&graphviz_visualizer, ssa_ir.first_block);
             break;
         }
+        case PHI_RESOLUTION_PHASE_SSA_GRAPHVIZ: {
+            struct ssa_ir ssa_ir = create_ssa_ir(package, function, create_bytecode_list(function->chunk,
+                    &ssa_node_allocator.lox_allocator), graphviz_visualizer.ssa_options);
+            graphviz_visualizer.ssa_ir = ssa_ir;
+
+            resolve_phi(&ssa_ir);
+
+            generate_graph_and_write(&graphviz_visualizer, ssa_ir.first_block);
+            break;
+        }
         case ALL_PHASE_SSA_GRAPHVIZ: {
             struct ssa_ir ssa_ir = create_ssa_ir(package, function, create_bytecode_list(function->chunk,
                 &ssa_node_allocator.lox_allocator), graphviz_visualizer.ssa_options);
@@ -294,6 +304,16 @@ static struct block_graph_generated generate_block_graph(struct graphviz_visuali
 static int generate_control_node_graph(struct graphviz_visualizer * visualizer, struct ssa_control_node * node) {
     int self_control_node_id = visualizer->next_control_node_id++;
     switch (node->type) {
+        case SSA_CONTROL_NODE_TYPE_SET_V_REGISTER: {
+            struct ssa_control_set_v_register_node * set_v_reg = (struct ssa_control_set_v_register_node *) node;
+            char * node_desc = dynamic_format_string("Set VRegister %i", set_v_reg->v_register);
+            add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
+            if(!IS_FLAG_SET(visualizer->graphviz_options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
+                int data_node_id = generate_data_node_graph(visualizer, set_v_reg->value);
+                link_control_data_node_graphviz_file(visualizer, self_control_node_id, data_node_id);
+            }
+            break;
+        }
         case SSA_CONTROL_NODE_GUARD: {
             struct ssa_control_guard_node * guard = (struct ssa_control_guard_node *) node;
             add_guard_control_node_graphviz_file(visualizer, guard, self_control_node_id);
@@ -631,6 +651,15 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             struct ssa_data_get_ssa_name_node * get_ssa_name = (struct ssa_data_get_ssa_name_node *) node;
             char * local_name = get_u8_hash_table(&visualizer->function->local_numbers_to_names, get_ssa_name->ssa_name.value.local_number);
             char * node_desc = dynamic_format_string("GetSSA %s %i", local_name, get_ssa_name->ssa_name.value.version);
+            node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
+
+            add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
+            free(node_desc);
+            break;
+        }
+        case SSA_DATA_NODE_GET_V_REGISTER: {
+            struct ssa_data_get_v_register_node * get_v_reg = (struct ssa_data_get_v_register_node *) node;
+            char * node_desc = dynamic_format_string("GetVRegister %i", get_v_reg->v_register);
             node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
