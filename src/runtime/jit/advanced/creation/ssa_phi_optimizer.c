@@ -102,7 +102,11 @@ static bool optimize_phi_functions_consumer(
         struct ssa_data_phi_node * phi_node = (struct ssa_data_phi_node *) current_node;
         if (size_u64_set(phi_node->ssa_versions) == 1) {
             remove_innecesary_phi_function(for_each_node_consumer_struct, phi_node, parent_child_ptr);
-        } else if(size_u64_set(phi_node->ssa_versions) > 1 && parent != NULL) { //Nesed phi
+        } else if(size_u64_set(phi_node->ssa_versions) > 1) {
+            if (parent == NULL && for_each_node_consumer_struct->control_node->type == SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME) {
+                return true;
+            }
+
             extract_phi_to_ssa_name(for_each_node_consumer_struct, (struct ssa_data_phi_node *) current_node, parent_child_ptr);
         }
     }

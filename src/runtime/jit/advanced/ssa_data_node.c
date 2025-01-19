@@ -301,7 +301,7 @@ static bool for_each_ssa_data_node_recursive(
     free_u64_set(&children_ptr_set);
 
     if (IS_FLAG_SET(options, SSA_DATA_NODE_OPT_POST_ORDER)) {
-        consumer(parent_current, parent_current_ptr, current_node, extra);
+        return consumer(parent_current, parent_current_ptr, current_node, extra);
     }
 
     return true;

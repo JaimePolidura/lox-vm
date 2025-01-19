@@ -16,36 +16,51 @@ static bool node_uses_phi_versions(struct ssa_data_node * start_node, int n_expe
 static bool node_defines_ssa_name(struct ssa_control_node *, int version);
 static void run(struct compilation_result);
 
-TEST(ssa_creation_ea) {
+TEST (ssa_creation_pr) {
 //    struct compilation_result compilation = compile_standalone(
-//            "struct Point {"
-//            "   x;"
-//            "   y;"
-//            "}"
-//            ""
-//            "fun transform(p) {"
-//            "}"
-//            ""
 //            "fun function() {"
-//            "   var a = Point{1, 2};"
-//            "   var b = Point{1, 3};"
-//            "   var c = b;"
-//            "   var d = b;"
-//            "   var arr = [1, 2, 3];"
-//            "   transform(d);"
-//            "   transform(arr[0]);"
-//            "   transform(a.y);"
-//            "   print c.x;"
-//            "   print a.x;"
-//            "   var p = nil;"
-//            "   if (true) {"
-//            "       p = Point{1, 3};"
+//            "   var a = 1;"
+//            "   var b = 2;"
+//            "   if(a > b) {"
+//            "       a = 3;"
+//            "       if(b > 5) {"
+//            "           b = 2;"
+//            "       }"
+//            "       print b;"
 //            "   } else {"
-//            "       p = transform(1);"
+//            "       b = 3;"
 //            "   }"
-//            "   print p.x;"
+//            "   print a;"
+//            "   print b;"
 //            "}"
 //    );
+
+    struct compilation_result compilation = compile_standalone(
+            "fun function() {"
+            "   for(var i = 0; i < 10; i = i + 1) {"
+            "       print i;"
+            "   }"
+            "}"
+    );
+
+    struct package * package = compilation.compiled_package;
+
+    //Set global variables
+    struct function_object * function_ssa = get_function_package(package, "function");
+    init_function_profile_data(function_ssa);
+
+    //Observe the generated graph IR
+    generate_ssa_graphviz_graph(
+            package,
+            function_ssa,
+            PHI_RESOLUTION_PHASE_SSA_GRAPHVIZ,
+            DEFAULT_GRAPHVIZ_OPT | DISPLAY_TYPE_INFO_OPT | DISPLAY_ESCAPE_INFO_OPT,
+            SSA_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
+            "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
+    );
+}
+
+TEST(ssa_creation_ea) {
     struct compilation_result compilation = compile_standalone(
             "struct Point {"
             "   x;"
@@ -56,13 +71,30 @@ TEST(ssa_creation_ea) {
             "}"
             ""
             "fun function() {"
-            "   var p = [1, 2, 2];"
-            "   if(len(p) > 10) {"
-            "       var c = p[0];"
+            "   var a = Point{1, 2};"
+            "   var b = Point{1, 3};"
+            "   var c = b;"
+            "   var d = b;"
+            "   var arr = [1, 2, 3];"
+            "   transform(d);"
+            "   transform(arr[0]);"
+            "   transform(a.y);"
+            "   print c.x;"
+            "   print a.x;"
+            "   var p = nil;"
+            "   if (true) {"
+            "       p = Point{1, 3};"
             "   } else {"
-            "       p = [1, 2];"
+            "       p = transform(1);"
             "   }"
-            "   print p[2];"
+            "   var arr = [1, 2, 2];"
+            "   if(len(arr) > 10) {"
+            "       var t = p[0];"
+            "   } else {"
+            "       arr = [1, 2];"
+            "   }"
+            "   print arr[2];"
+            "   print p.x;"
             "}"
     );
     run(compilation);

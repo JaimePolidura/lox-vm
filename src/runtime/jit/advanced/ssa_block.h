@@ -73,6 +73,7 @@ void free_ssa_block(struct ssa_block *);
 
 void add_last_control_node_ssa_block(struct ssa_block *, struct ssa_control_node *);
 void add_before_control_node_ssa_block(struct ssa_block *, struct ssa_control_node * before, struct ssa_control_node * new);
+void add_after_control_node_ssa_block(struct ssa_block *, struct ssa_control_node * after, struct ssa_control_node * new);
 void remove_control_node_ssa_block(struct ssa_block *, struct ssa_control_node *);
 bool is_emtpy_ssa_block(struct ssa_block *);
 //a dominates b

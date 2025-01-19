@@ -144,6 +144,26 @@ void add_last_control_node_ssa_block(struct ssa_block * block, struct ssa_contro
     block->last = node;
 }
 
+void add_after_control_node_ssa_block(
+        struct ssa_block * block,
+        struct ssa_control_node * after,
+        struct ssa_control_node * new
+) {
+    record_new_node_information_of_block(block, new);
+    reset_loop_info(block);
+
+    if (block->last == after) {
+        block->last = new;
+    }
+    if (after->next != NULL) {
+        new->next = after->next;
+        after->next->prev = new;
+    }
+
+    new->prev = after;
+    after->next = new;
+}
+
 void add_before_control_node_ssa_block(
         struct ssa_block * block,
         struct ssa_control_node * before,
