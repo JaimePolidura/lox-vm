@@ -7,9 +7,9 @@ struct graphviz_visualizer {
 
     long graphviz_options;
     long ssa_options;
-    struct ssa_ir ssa_ir;
+    struct lox_ir ssa_ir;
     struct function_object * function;
-    //Set of pointers of struct ssa_block visited
+    //Set of pointers of struct lox_ir_block visited
     struct u64_set blocks_graph_generated;
     //Last control control_node graph id by block pointer
     struct u64_hash_table block_generated_graph_by_block;
@@ -43,25 +43,25 @@ struct block_graph_generated {
     };
 };
 
-static void generate_graph_and_write(struct graphviz_visualizer *, struct ssa_block *);
-static struct block_graph_generated generate_block_graph(struct graphviz_visualizer *, struct ssa_block *);
-static int generate_control_node_graph(struct graphviz_visualizer *, struct ssa_control_node *);
-static int generate_data_node_graph(struct graphviz_visualizer *, struct ssa_data_node *);
-static struct block_graph_generated generate_blocks_graph(struct graphviz_visualizer *, struct ssa_block * first);
-static char * maybe_add_type_info_data_node(struct graphviz_visualizer*, struct ssa_data_node*, char*);
-static char * maybe_add_escape_info_data_node(struct graphviz_visualizer *visualizer, struct ssa_data_node *data_node, char *label);
+static void generate_graph_and_write(struct graphviz_visualizer *, struct lox_ir_block *);
+static struct block_graph_generated generate_block_graph(struct graphviz_visualizer *, struct lox_ir_block *);
+static int generate_control_node_graph(struct graphviz_visualizer *, struct lox_ir_control_node *);
+static int generate_data_node_graph(struct graphviz_visualizer *, struct lox_ir_data_node *);
+static struct block_graph_generated generate_blocks_graph(struct graphviz_visualizer *, struct lox_ir_block * first);
+static char * maybe_add_type_info_data_node(struct graphviz_visualizer*, struct lox_ir_data_node*, char*);
+static char * maybe_add_escape_info_data_node(struct graphviz_visualizer *visualizer, struct lox_ir_data_node *data_node, char *label);
 
-static char * unary_operator_to_string(ssa_unary_operator_type_t);
+static char * unary_operator_to_string(lox_ir_unary_operator_type_t);
 static char * binary_operator_to_string(bytecode_t);
-static char * guard_node_to_string(struct ssa_guard);
+static char * guard_node_to_string(struct lox_ir_guard);
 
 struct graphviz_visualizer create_graphviz_visualizer(char *, struct arena_lox_allocator *, struct function_object *);
 void add_new_line_graphviz_file(struct graphviz_visualizer *, char * to_append);
 void add_block_graphviz_file(struct graphviz_visualizer *, int);
 void add_data_node_graphviz_file(struct graphviz_visualizer *, char *, int);
 void add_control_node_graphviz_file(struct graphviz_visualizer *, char *, int);
-void add_guard_control_node_graphviz_file(struct graphviz_visualizer *, struct ssa_control_guard_node *, int control_node_id);
-void add_guard_data_node_graphviz_file(struct graphviz_visualizer *, struct ssa_data_guard_node *, int data_node_id);
+void add_guard_control_node_graphviz_file(struct graphviz_visualizer *, struct lox_ir_control_guard_node *, int control_node_id);
+void add_guard_data_node_graphviz_file(struct graphviz_visualizer *, struct lox_ir_data_guard_node *, int data_node_id);
 void add_start_control_node_graphviz_file(struct graphviz_visualizer *);
 
 void link_data_data_node_graphviz_file(struct graphviz_visualizer *, int from, int to);
@@ -89,24 +89,24 @@ void generate_ssa_graphviz_graph(
     graphviz_visualizer.ssa_options = ssa_options;
 
     switch (phase) {
-        case NO_PHIS_PHASE_SSA_GRAPHVIZ: {
-            struct ssa_block * ssa_block = create_ssa_ir_no_phis(package, function,
-                create_bytecode_list(function->chunk, &ssa_node_allocator.lox_allocator), &ssa_node_allocator, ssa_options);
+        case NO_PHIS_PHASE_LOX_IR_GRAPHVIZ: {
+            struct lox_ir_block * ssa_block = create_ssa_ir_no_phis(package, function,
+                                                                    create_bytecode_list(function->chunk, &ssa_node_allocator.lox_allocator), &ssa_node_allocator, ssa_options);
 
             generate_graph_and_write(&graphviz_visualizer, ssa_block);
             break;
         }
-        case PHIS_INSERTED_PHASE_SSA_GRAPHVIZ: {
-            struct ssa_block * ssa_block = create_ssa_ir_no_phis(package, function,
-                create_bytecode_list(function->chunk, &ssa_node_allocator.lox_allocator), &ssa_node_allocator, ssa_options);
+        case PHIS_INSERTED_PHASE_LOX_IR_GRAPHVIZ: {
+            struct lox_ir_block * ssa_block = create_ssa_ir_no_phis(package, function,
+                                                                    create_bytecode_list(function->chunk, &ssa_node_allocator.lox_allocator), &ssa_node_allocator, ssa_options);
             insert_ssa_ir_phis(ssa_block, &ssa_node_allocator);
 
             generate_graph_and_write(&graphviz_visualizer, ssa_block);
             break;
         }
-        case PHIS_OPTIMIZED_PHASE_SSA_GRAPHVIZ: {
-            struct ssa_block * ssa_block = create_ssa_ir_no_phis(package, function,
-                create_bytecode_list(function->chunk, &ssa_node_allocator.lox_allocator), &ssa_node_allocator, ssa_options);
+        case PHIS_OPTIMIZED_PHASE_LOX_IR_GRAPHVIZ: {
+            struct lox_ir_block * ssa_block = create_ssa_ir_no_phis(package, function,
+                                                                    create_bytecode_list(function->chunk, &ssa_node_allocator.lox_allocator), &ssa_node_allocator, ssa_options);
             struct phi_insertion_result phi_insertion_result = insert_ssa_ir_phis(ssa_block, &ssa_node_allocator);
             optimize_ssa_ir_phis(ssa_block, &phi_insertion_result, &ssa_node_allocator);
 
@@ -114,8 +114,9 @@ void generate_ssa_graphviz_graph(
             break;
         }
         case SPARSE_CONSTANT_PROPAGATION_PHASE_SSA_GRAPHVIZ: {
-            struct ssa_ir ssa_ir = create_ssa_ir(package, function, create_bytecode_list(function->chunk,
-                &ssa_node_allocator.lox_allocator), graphviz_visualizer.ssa_options);
+            struct lox_ir ssa_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
+                                                                                         &ssa_node_allocator.lox_allocator),
+                                                 graphviz_visualizer.ssa_options);
             perform_sparse_constant_propagation(&ssa_ir);
             graphviz_visualizer.ssa_ir = ssa_ir;
 
@@ -123,8 +124,9 @@ void generate_ssa_graphviz_graph(
             break;
         }
         case COMMON_SUBEXPRESSION_ELIMINATION_PHASE_SSA_GRAPHVIZ: {
-            struct ssa_ir ssa_ir = create_ssa_ir(package, function, create_bytecode_list(function->chunk,
-                    &ssa_node_allocator.lox_allocator), graphviz_visualizer.ssa_options);
+            struct lox_ir ssa_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
+                                                                                         &ssa_node_allocator.lox_allocator),
+                                                 graphviz_visualizer.ssa_options);
 
             perform_common_subexpression_elimination(&ssa_ir);
             graphviz_visualizer.ssa_ir = ssa_ir;
@@ -133,8 +135,9 @@ void generate_ssa_graphviz_graph(
             break;
         }
         case STRENGTH_REDUCTION_PHASE_SSA_GRAPHVIZ: {
-            struct ssa_ir ssa_ir = create_ssa_ir(package, function, create_bytecode_list(function->chunk,
-                    &ssa_node_allocator.lox_allocator), graphviz_visualizer.ssa_options);
+            struct lox_ir ssa_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
+                                                                                         &ssa_node_allocator.lox_allocator),
+                                                 graphviz_visualizer.ssa_options);
             perform_type_propagation(&ssa_ir);
             perform_strength_reduction(&ssa_ir);
             graphviz_visualizer.ssa_ir = ssa_ir;
@@ -143,8 +146,9 @@ void generate_ssa_graphviz_graph(
             break;
         }
         case LOOP_INVARIANT_CODE_MOTION_PHASE_SSA_GRAPHVIZ: {
-            struct ssa_ir ssa_ir = create_ssa_ir(package, function, create_bytecode_list(function->chunk,
-                    &ssa_node_allocator.lox_allocator), graphviz_visualizer.ssa_options);
+            struct lox_ir ssa_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
+                                                                                         &ssa_node_allocator.lox_allocator),
+                                                 graphviz_visualizer.ssa_options);
             perform_loop_invariant_code_motion(&ssa_ir);
             graphviz_visualizer.ssa_ir = ssa_ir;
 
@@ -152,8 +156,9 @@ void generate_ssa_graphviz_graph(
             break;
         }
         case COPY_PROPAGATION_PHASE_SSA_GRAPHVIZ: {
-            struct ssa_ir ssa_ir = create_ssa_ir(package, function, create_bytecode_list(function->chunk,
-                    &ssa_node_allocator.lox_allocator), graphviz_visualizer.ssa_options);
+            struct lox_ir ssa_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
+                                                                                         &ssa_node_allocator.lox_allocator),
+                                                 graphviz_visualizer.ssa_options);
             perform_copy_propagation(&ssa_ir);
             graphviz_visualizer.ssa_ir = ssa_ir;
 
@@ -161,8 +166,9 @@ void generate_ssa_graphviz_graph(
             break;
         }
         case TYPE_PROPAGATION_PHASE_SSA_GRAPHVIZ: {
-            struct ssa_ir ssa_ir = create_ssa_ir(package, function, create_bytecode_list(function->chunk,
-                    &ssa_node_allocator.lox_allocator), graphviz_visualizer.ssa_options);
+            struct lox_ir ssa_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
+                                                                                         &ssa_node_allocator.lox_allocator),
+                                                 graphviz_visualizer.ssa_options);
             perform_type_propagation(&ssa_ir);
             graphviz_visualizer.ssa_ir = ssa_ir;
 
@@ -170,8 +176,9 @@ void generate_ssa_graphviz_graph(
             break;
         }
         case UNBOXING_INSERTION_PHASE_SSA_GRAPHVIZ: {
-            struct ssa_ir ssa_ir = create_ssa_ir(package, function, create_bytecode_list(function->chunk,
-                    &ssa_node_allocator.lox_allocator), graphviz_visualizer.ssa_options);
+            struct lox_ir ssa_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
+                                                                                         &ssa_node_allocator.lox_allocator),
+                                                 graphviz_visualizer.ssa_options);
             perform_type_propagation(&ssa_ir);
             perform_unboxing_insertion(&ssa_ir);
             graphviz_visualizer.ssa_ir = ssa_ir;
@@ -180,8 +187,9 @@ void generate_ssa_graphviz_graph(
             break;
         }
         case ESCAPE_ANALYSIS_PHASE_SSA_GRAPHVIZ: {
-            struct ssa_ir ssa_ir = create_ssa_ir(package, function, create_bytecode_list(function->chunk,
-                &ssa_node_allocator.lox_allocator), graphviz_visualizer.ssa_options);
+            struct lox_ir ssa_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
+                                                                                         &ssa_node_allocator.lox_allocator),
+                                                 graphviz_visualizer.ssa_options);
             perform_type_propagation(&ssa_ir);
             perform_escape_analysis(&ssa_ir);
             graphviz_visualizer.ssa_ir = ssa_ir;
@@ -190,8 +198,9 @@ void generate_ssa_graphviz_graph(
             break;
         }
         case PHI_RESOLUTION_PHASE_SSA_GRAPHVIZ: {
-            struct ssa_ir ssa_ir = create_ssa_ir(package, function, create_bytecode_list(function->chunk,
-                    &ssa_node_allocator.lox_allocator), graphviz_visualizer.ssa_options);
+            struct lox_ir ssa_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
+                                                                                         &ssa_node_allocator.lox_allocator),
+                                                 graphviz_visualizer.ssa_options);
             graphviz_visualizer.ssa_ir = ssa_ir;
 
             resolve_phi(&ssa_ir);
@@ -200,8 +209,9 @@ void generate_ssa_graphviz_graph(
             break;
         }
         case ALL_PHASE_SSA_GRAPHVIZ: {
-            struct ssa_ir ssa_ir = create_ssa_ir(package, function, create_bytecode_list(function->chunk,
-                &ssa_node_allocator.lox_allocator), graphviz_visualizer.ssa_options);
+            struct lox_ir ssa_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
+                                                                                         &ssa_node_allocator.lox_allocator),
+                                                 graphviz_visualizer.ssa_options);
             perform_sparse_constant_propagation(&ssa_ir);
             perform_common_subexpression_elimination(&ssa_ir);
             perform_loop_invariant_code_motion(&ssa_ir);
@@ -218,44 +228,44 @@ void generate_ssa_graphviz_graph(
     }
 }
 
-static void generate_graph_and_write(struct graphviz_visualizer * graphviz_visualizer, struct ssa_block * first_block) {
+static void generate_graph_and_write(struct graphviz_visualizer * graphviz_visualizer, struct lox_ir_block * first_block) {
     add_new_line_graphviz_file(graphviz_visualizer, "digraph G {");
     add_new_line_graphviz_file(graphviz_visualizer, "\trankdir=TB;");
     generate_blocks_graph(graphviz_visualizer, first_block);
     add_new_line_graphviz_file(graphviz_visualizer, "}");
 }
 
-static struct block_graph_generated generate_blocks_graph(struct graphviz_visualizer * visualizer, struct ssa_block * first_block) {
+static struct block_graph_generated generate_blocks_graph(struct graphviz_visualizer * visualizer, struct lox_ir_block * first_block) {
     struct block_graph_generated first_block_graph_data = generate_block_graph(visualizer, first_block);
 
-    switch (first_block->type_next_ssa_block) {
-        case TYPE_NEXT_SSA_BLOCK_SEQ: {
+    switch (first_block->type_next) {
+        case TYPE_NEXT_LOX_IR_BLOCK_SEQ: {
             struct block_graph_generated next_block_graph_data = generate_blocks_graph(visualizer, first_block->next_as.next);
             link_block_block_node_graphviz_file(visualizer, first_block_graph_data, next_block_graph_data);
             break;
         }
-        case TYPE_NEXT_SSA_BLOCK_LOOP: {
+        case TYPE_NEXT_LOX_IR_BLOCK_LOOP: {
             uint64_t loop_block_graph_data_u64 = (uint64_t) get_u64_hash_table(&visualizer->block_generated_graph_by_block,
                 (uint64_t) first_block->next_as.loop);
             struct block_graph_generated loop_block_graph_data = (struct block_graph_generated){.u64_value = loop_block_graph_data_u64};
             link_block_block_label_node_graphviz_file(visualizer, "loop", first_block_graph_data, loop_block_graph_data);
             break;
         }
-        case TYPE_NEXT_SSA_BLOCK_BRANCH: {
+        case TYPE_NEXT_LOX_IR_BLOCK_BRANCH: {
             struct block_graph_generated branch_false_block_graph_data = generate_blocks_graph(visualizer, first_block->next_as.branch.false_branch);
             struct block_graph_generated branch_true_block_graph_data = generate_blocks_graph(visualizer, first_block->next_as.branch.true_branch);
             link_block_block_label_node_graphviz_file(visualizer, "false", first_block_graph_data, branch_false_block_graph_data);
             link_block_block_label_node_graphviz_file(visualizer, "true", first_block_graph_data, branch_true_block_graph_data);
             break;
         }
-        case TYPE_NEXT_SSA_BLOCK_NONE:
+        case TYPE_NEXT_LOX_IR_BLOCK_NONE:
             break;
     }
 
     return first_block_graph_data;
 }
 
-static struct block_graph_generated generate_block_graph(struct graphviz_visualizer * visualizer, struct ssa_block * block) {
+static struct block_graph_generated generate_block_graph(struct graphviz_visualizer * visualizer, struct lox_ir_block * block) {
     if(contains_u64_set(&visualizer->blocks_graph_generated, (uint64_t) block)) {
         uint64_t block_generated_graph_by_block_u64 = (uint64_t) get_u64_hash_table(&visualizer->block_generated_graph_by_block, (uint64_t) block);
         return (struct block_graph_generated) {.u64_value = block_generated_graph_by_block_u64};
@@ -273,7 +283,7 @@ static struct block_graph_generated generate_block_graph(struct graphviz_visuali
         add_start_control_node_graphviz_file(visualizer);
         prev_node_id = visualizer->next_control_node_id - 1;
     }
-    for(struct ssa_control_node * current = block->first;; current = current->next){
+    for(struct lox_ir_control_node * current = block->first;; current = current->next){
         int control_node_id = generate_control_node_graph(visualizer, current);
 
         if(current == block->first){
@@ -301,11 +311,11 @@ static struct block_graph_generated generate_block_graph(struct graphviz_visuali
     return block_graph_generated;
 }
 
-static int generate_control_node_graph(struct graphviz_visualizer * visualizer, struct ssa_control_node * node) {
+static int generate_control_node_graph(struct graphviz_visualizer * visualizer, struct lox_ir_control_node * node) {
     int self_control_node_id = visualizer->next_control_node_id++;
     switch (node->type) {
-        case SSA_CONTROL_NODE_TYPE_SET_V_REGISTER: {
-            struct ssa_control_set_v_register_node * set_v_reg = (struct ssa_control_set_v_register_node *) node;
+        case LOX_IR_CONTROL_NODE_SET_V_REGISTER: {
+            struct lox_ir_control_set_v_register_node * set_v_reg = (struct lox_ir_control_set_v_register_node *) node;
             char * node_desc = dynamic_format_string("Set VRegister %i", set_v_reg->v_register);
             add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
             if(!IS_FLAG_SET(visualizer->graphviz_options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
@@ -314,13 +324,13 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
             }
             break;
         }
-        case SSA_CONTROL_NODE_GUARD: {
-            struct ssa_control_guard_node * guard = (struct ssa_control_guard_node *) node;
+        case LOX_IR_CONTROL_NODE_GUARD: {
+            struct lox_ir_control_guard_node * guard = (struct lox_ir_control_guard_node *) node;
             add_guard_control_node_graphviz_file(visualizer, guard, self_control_node_id);
             break;
         }
-        case SSA_CONTROL_NODE_TYPE_DATA: {
-            struct ssa_control_data_node * data_control_node = (struct ssa_control_data_node *) node;
+        case LOX_IR_CONTROL_NODE_DATA: {
+            struct lox_ir_control_data_node * data_control_node = (struct lox_ir_control_data_node *) node;
 
             add_control_node_graphviz_file(visualizer, "Data", self_control_node_id);
             if(!IS_FLAG_SET(visualizer->graphviz_options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
@@ -329,8 +339,8 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
             }
             break;
         }
-        case SSA_CONTROL_NODE_TYPE_RETURN: {
-            struct ssa_control_return_node * return_node = (struct ssa_control_return_node *) node;
+        case LOX_IR_CONTROL_NODE_RETURN: {
+            struct lox_ir_control_return_node * return_node = (struct lox_ir_control_return_node *) node;
 
             add_control_node_graphviz_file(visualizer, "Return", self_control_node_id);
             if(!IS_FLAG_SET(visualizer->graphviz_options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
@@ -339,8 +349,8 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
             }
             break;
         }
-        case SSA_CONTROL_NODE_TYPE_PRINT: {
-            struct ssa_control_print_node * print_node = (struct ssa_control_print_node *) node;
+        case LOX_IR_CONTROL_NODE_PRINT: {
+            struct lox_ir_control_print_node * print_node = (struct lox_ir_control_print_node *) node;
 
             add_control_node_graphviz_file(visualizer, "Print", self_control_node_id);
             if(!IS_FLAG_SET(visualizer->graphviz_options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
@@ -349,24 +359,24 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
             }
             break;
         }
-        case SSA_CONTROL_NODE_TYPE_ENTER_MONITOR: {
-            struct ssa_control_enter_monitor_node * enter_monitor = (struct ssa_control_enter_monitor_node *) node;
+        case LOX_IR_CONTROL_NODE_ENTER_MONITOR: {
+            struct lox_ir_control_enter_monitor_node * enter_monitor = (struct lox_ir_control_enter_monitor_node *) node;
             char * node_desc = dynamic_format_string("EnterMonitor %i\\n0x", enter_monitor->monitor_number, enter_monitor->monitor);
 
             add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
             free(node_desc);
             break;
         }
-        case SSA_CONTROL_NODE_TYPE_EXIT_MONITOR: {
-            struct ssa_control_exit_monitor_node * exit_monitor = (struct ssa_control_exit_monitor_node *) node;
+        case LOX_IR_CONTROL_NODE_EXIT_MONITOR: {
+            struct lox_ir_control_exit_monitor_node * exit_monitor = (struct lox_ir_control_exit_monitor_node *) node;
             char * node_desc = dynamic_format_string("ExitMonitor %i\\n0x", exit_monitor->monitor_number, exit_monitor->monitor);
 
             add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
             free(node_desc);
             break;
         }
-        case SSA_CONTORL_NODE_TYPE_SET_GLOBAL: {
-            struct ssa_control_set_global_node * set_global = (struct ssa_control_set_global_node *) node;
+        case LOX_IR_CONTORL_NODE_SET_GLOBAL: {
+            struct lox_ir_control_set_global_node * set_global = (struct lox_ir_control_set_global_node *) node;
             char * package_name = set_global->package->name;
             char * global_name = set_global->name->chars;
             char * node_desc = dynamic_format_string("SetGlobal\\npackage: %s\\nname: %s", package_name, global_name);
@@ -379,8 +389,8 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
             }
             break;
         }
-        case SSA_CONTORL_NODE_TYPE_SET_LOCAL: {
-            struct ssa_control_set_local_node * set_local = (struct ssa_control_set_local_node *) node;
+        case LOX_IR_CONTORL_NODE_SET_LOCAL: {
+            struct lox_ir_control_set_local_node * set_local = (struct lox_ir_control_set_local_node *) node;
             char * local_name = get_u8_hash_table(&visualizer->function->local_numbers_to_names, set_local->local_number);
             char * node_desc = dynamic_format_string("SetLocal %s", local_name);
 
@@ -392,8 +402,8 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
             }
             break;
         }
-        case SSA_CONTROL_NODE_TYPE_SET_STRUCT_FIELD: {
-            struct ssa_control_set_struct_field_node * set_struct_field = (struct ssa_control_set_struct_field_node *) node;
+        case LOX_IR_CONTROL_NODE_SET_STRUCT_FIELD: {
+            struct lox_ir_control_set_struct_field_node * set_struct_field = (struct lox_ir_control_set_struct_field_node *) node;
             char * node_desc = dynamic_format_string("SetStructField %s", set_struct_field->field_name->chars);
 
             add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
@@ -406,8 +416,8 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
             }
             break;
         }
-        case SSA_CONTROL_NODE_TYPE_SET_ARRAY_ELEMENT: {
-            struct ssa_control_set_array_element_node * set_array_element = (struct ssa_control_set_array_element_node *) node;
+        case LOX_IR_CONTROL_NODE_SET_ARRAY_ELEMENT: {
+            struct lox_ir_control_set_array_element_node * set_array_element = (struct lox_ir_control_set_array_element_node *) node;
             char * node_desc = dynamic_format_string("SetArrayElement");
 
             add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
@@ -422,8 +432,8 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
             }
             break;
         }
-        case SSA_CONTROL_NODE_TYPE_CONDITIONAL_JUMP: {
-            struct ssa_control_conditional_jump_node * cond_jump = (struct ssa_control_conditional_jump_node *) node;
+        case LOX_IR_CONTROL_NODE_CONDITIONAL_JUMP: {
+            struct lox_ir_control_conditional_jump_node * cond_jump = (struct lox_ir_control_conditional_jump_node *) node;
             char * node_desc = dynamic_format_string("ConditionalJump");
             
             add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
@@ -434,8 +444,8 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
             }
             break;
         }
-        case SSA_CONTROL_NODE_TYPE_DEFINE_SSA_NAME: {
-            struct ssa_control_define_ssa_name_node * define_ssa_name = (struct ssa_control_define_ssa_name_node *) node;
+        case LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME: {
+            struct lox_ir_control_define_ssa_name_node * define_ssa_name = (struct lox_ir_control_define_ssa_name_node *) node;
             char * local_name = get_u8_hash_table(&visualizer->function->local_numbers_to_names, define_ssa_name->ssa_name.value.local_number);
             char * node_desc = dynamic_format_string("DefineSSA %s %i", local_name, define_ssa_name->ssa_name.value.version);
 
@@ -448,7 +458,7 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
             }
             break;
         }
-        case SSA_CONTROL_NODE_TYPE_LOOP_JUMP: {
+        case LOX_IR_CONTROL_NODE_LOOP_JUMP: {
             add_control_node_graphviz_file(visualizer, "Loop", self_control_node_id);
             break;
         }
@@ -457,12 +467,12 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
     return self_control_node_id;
 }
 
-static int generate_data_node_graph(struct graphviz_visualizer * visualizer, struct ssa_data_node * node) {
+static int generate_data_node_graph(struct graphviz_visualizer * visualizer, struct lox_ir_data_node * node) {
     int self_data_node_id = visualizer->next_data_node_id++;
 
     switch (node->type) {
-        case SSA_DATA_NODE_TYPE_GUARD: {
-            struct ssa_data_guard_node * guard_node = (struct ssa_data_guard_node *) node;
+        case LOX_IR_DATA_NODE_GUARD: {
+            struct lox_ir_data_guard_node * guard_node = (struct lox_ir_data_guard_node *) node;
             int guard_value_node_id = generate_data_node_graph(visualizer, guard_node->guard.value);
             char * guard_node_desc = guard_node_to_string(guard_node->guard);
             char * node_desc = dynamic_format_string("Guard %s", guard_node_desc);
@@ -473,8 +483,8 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             free(node_desc);
             break;
         }
-        case SSA_DATA_NODE_TYPE_UNARY: {
-            struct ssa_data_unary_node * unary = (struct ssa_data_unary_node *) node;
+        case LOX_IR_DATA_NODE_UNARY: {
+            struct lox_ir_data_unary_node * unary = (struct lox_ir_data_unary_node *) node;
             int unary_value_node_id = generate_data_node_graph(visualizer, unary->operand);
             char * node_desc = dynamic_format_string("%s", unary_operator_to_string(unary->operator));
             node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
@@ -484,8 +494,8 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             free(node_desc);
             break;
         }
-        case SSA_DATA_NODE_TYPE_BINARY: {
-            struct ssa_data_binary_node * binary = (struct ssa_data_binary_node *) node;
+        case LOX_IR_DATA_NODE_BINARY: {
+            struct lox_ir_data_binary_node * binary = (struct lox_ir_data_binary_node *) node;
             int left_node_id = generate_data_node_graph(visualizer, binary->left);
             int right_node_id = generate_data_node_graph(visualizer, binary->right);
             char * node_desc = dynamic_format_string("%s", binary_operator_to_string(binary->operator));
@@ -497,8 +507,8 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             free(node_desc);
             break;
         }
-        case SSA_DATA_NODE_TYPE_CALL: {
-            struct ssa_data_function_call_node * call = (struct ssa_data_function_call_node *) node;
+        case LOX_IR_DATA_NODE_CALL: {
+            struct lox_ir_data_function_call_node * call = (struct lox_ir_data_function_call_node *) node;
             char * function_name = call->is_native ? call->native_function->name : call->lox_function.function->name->chars;
             char * node_desc = dynamic_format_string("%s()", function_name);
             node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
@@ -511,8 +521,8 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             free(node_desc);
             break;
         }
-        case SSA_DATA_NODE_TYPE_GET_STRUCT_FIELD: {
-            struct ssa_data_get_struct_field_node * get_struct_field = (struct ssa_data_get_struct_field_node *) node;
+        case LOX_IR_DATA_NODE_GET_STRUCT_FIELD: {
+            struct lox_ir_data_get_struct_field_node * get_struct_field = (struct lox_ir_data_get_struct_field_node *) node;
             char * node_desc = dynamic_format_string("GetStructField %s", get_struct_field->field_name->chars);
             int struct_instance_node_id = generate_data_node_graph(visualizer, get_struct_field->instance_node);
             node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
@@ -523,8 +533,8 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             free(node_desc);
             break;
         }
-        case SSA_DATA_NODE_TYPE_INITIALIZE_STRUCT: {
-            struct ssa_data_initialize_struct_node * initialize_struct = (struct ssa_data_initialize_struct_node *) node;
+        case LOX_IR_DATA_NODE_INITIALIZE_STRUCT: {
+            struct lox_ir_data_initialize_struct_node * initialize_struct = (struct lox_ir_data_initialize_struct_node *) node;
             char * node_desc = dynamic_format_string("InitializeStruct %s", initialize_struct->definition->name);
             node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
             node_desc = maybe_add_escape_info_data_node(visualizer, node, node_desc);
@@ -537,8 +547,8 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             free(node_desc);
             break;
         }
-        case SSA_DATA_NODE_TYPE_GET_ARRAY_LENGTH: {
-            struct ssa_data_get_array_length * get_array_length = (struct ssa_data_get_array_length *) node;
+        case LOX_IR_DATA_NODE_GET_ARRAY_LENGTH: {
+            struct lox_ir_data_get_array_length * get_array_length = (struct lox_ir_data_get_array_length *) node;
             char * node_desc = maybe_add_type_info_data_node(visualizer, node, "GetArrayLength");
 
             add_data_node_graphviz_file(visualizer, "GetArrayLength", self_data_node_id);
@@ -546,8 +556,8 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             link_data_data_node_graphviz_file(visualizer, self_data_node_id, array_instance_node_id);
             break;
         }
-        case SSA_DATA_NODE_TYPE_GET_ARRAY_ELEMENT: {
-            struct ssa_data_get_array_element_node * get_array_element = (struct ssa_data_get_array_element_node *) node;
+        case LOX_IR_DATA_NODE_GET_ARRAY_ELEMENT: {
+            struct lox_ir_data_get_array_element_node * get_array_element = (struct lox_ir_data_get_array_element_node *) node;
             char * node_desc = maybe_add_type_info_data_node(visualizer, node, "GetArrayElement");
             node_desc = maybe_add_escape_info_data_node(visualizer, node, node_desc);
 
@@ -558,8 +568,8 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             link_data_data_label_node_graphviz_file(visualizer, "index", self_data_node_id, array_index_node_id);
             break;
         }
-        case SSA_DATA_NODE_TYPE_UNBOX: {
-            struct ssa_data_unbox_node * unbox = (struct ssa_data_unbox_node *) node;
+        case LOX_IR_DATA_NODE_UNBOX: {
+            struct lox_ir_data_unbox_node * unbox = (struct lox_ir_data_unbox_node *) node;
             char * node_desc = dynamic_format_string("Unbox");
             node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
 
@@ -569,8 +579,8 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             free(node_desc);
             break;
         }
-        case SSA_DATA_NODE_TYPE_BOX: {
-            struct ssa_data_box_node * box = (struct ssa_data_box_node *) node;
+        case LOX_IR_DATA_NODE_BOX: {
+            struct lox_ir_data_box_node * box = (struct lox_ir_data_box_node *) node;
             char * node_desc = dynamic_format_string("Box");
             node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
 
@@ -580,8 +590,8 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             free(node_desc);
             break;
         }
-        case SSA_DATA_NODE_TYPE_INITIALIZE_ARRAY: {
-            struct ssa_data_initialize_array_node *initialize_array = (struct ssa_data_initialize_array_node *) node;
+        case LOX_IR_DATA_NODE_INITIALIZE_ARRAY: {
+            struct lox_ir_data_initialize_array_node *initialize_array = (struct lox_ir_data_initialize_array_node *) node;
             char * node_desc = dynamic_format_string("InitializeArray %i", initialize_array->n_elements);
             node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
             node_desc = maybe_add_escape_info_data_node(visualizer, node, node_desc);
@@ -594,8 +604,8 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             free(node_desc);
             break;
         }
-        case SSA_DATA_NODE_TYPE_PHI: {
-            struct ssa_data_phi_node * phi = (struct ssa_data_phi_node *) node;
+        case LOX_IR_DATA_NODE_PHI: {
+            struct lox_ir_data_phi_node * phi = (struct lox_ir_data_phi_node *) node;
             char * local_name = get_u8_hash_table(&visualizer->function->local_numbers_to_names, phi->local_number);
             struct string_builder node_desc_string_builder;
             init_string_builder(&node_desc_string_builder, NATIVE_LOX_ALLOCATOR());
@@ -619,15 +629,15 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             free(node_desc);
             break;
         }
-        case SSA_DATA_NODE_TYPE_CONSTANT: {
-            lox_value_t const_value = GET_CONST_VALUE_SSA_NODE(node);
+        case LOX_IR_DATA_NODE_CONSTANT: {
+            lox_value_t const_value = GET_CONST_VALUE_LOX_IR_NODE(node);
             char * node_desc = maybe_add_type_info_data_node(visualizer, node, lox_value_to_string(const_value));
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             break;
         }
-        case SSA_DATA_NODE_TYPE_GET_LOCAL: {
-            struct ssa_data_get_local_node * get_local = (struct ssa_data_get_local_node *) node;
+        case LOX_IR_DATA_NODE_GET_LOCAL: {
+            struct lox_ir_data_get_local_node * get_local = (struct lox_ir_data_get_local_node *) node;
             char * local_name = get_u8_hash_table(&visualizer->function->local_numbers_to_names, get_local->local_number);
             char * node_desc = dynamic_format_string("GetLocal %s", local_name);
             node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
@@ -636,8 +646,8 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             free(node_desc);
             break;
         }
-        case SSA_DATA_NODE_TYPE_GET_GLOBAL: {
-            struct ssa_data_get_global_node * get_global = (struct ssa_data_get_global_node *) node;
+        case LOX_IR_DATA_NODE_GET_GLOBAL: {
+            struct lox_ir_data_get_global_node * get_global = (struct lox_ir_data_get_global_node *) node;
             char * package_name = get_global->package->name;
             char * global_name = get_global->name->chars;
             char * node_desc = dynamic_format_string("GetGlobal\\npackage: %s\\nname: %s)", package_name, global_name);
@@ -647,8 +657,8 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             free(node_desc);
             break;
         }
-        case SSA_DATA_NODE_TYPE_GET_SSA_NAME: {
-            struct ssa_data_get_ssa_name_node * get_ssa_name = (struct ssa_data_get_ssa_name_node *) node;
+        case LOX_IR_DATA_NODE_GET_SSA_NAME: {
+            struct lox_ir_data_get_ssa_name_node * get_ssa_name = (struct lox_ir_data_get_ssa_name_node *) node;
             char * local_name = get_u8_hash_table(&visualizer->function->local_numbers_to_names, get_ssa_name->ssa_name.value.local_number);
             char * node_desc = dynamic_format_string("GetSSA %s %i", local_name, get_ssa_name->ssa_name.value.version);
             node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
@@ -657,8 +667,8 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
             free(node_desc);
             break;
         }
-        case SSA_DATA_NODE_GET_V_REGISTER: {
-            struct ssa_data_get_v_register_node * get_v_reg = (struct ssa_data_get_v_register_node *) node;
+        case LOX_IR_DATA_NODE_GET_V_REGISTER: {
+            struct lox_ir_data_get_v_register_node * get_v_reg = (struct lox_ir_data_get_v_register_node *) node;
             char * node_desc = dynamic_format_string("GetVRegister %i", get_v_reg->v_register);
             node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
 
@@ -739,7 +749,7 @@ void add_start_control_node_graphviz_file(struct graphviz_visualizer * visualize
     fprintf(visualizer->file, "\t\tcontrol_%i [label=\"START\", style=filled, fillcolor=blue, shape=rectangle];\n", start_control_node_id);
 }
 
-void add_guard_control_node_graphviz_file(struct graphviz_visualizer * visualizer, struct ssa_control_guard_node * guard_node, int control_node_id) {
+void add_guard_control_node_graphviz_file(struct graphviz_visualizer * visualizer, struct lox_ir_control_guard_node * guard_node, int control_node_id) {
     char * guard_desc = guard_node_to_string(guard_node->guard);
     char * node_desc = dynamic_format_string("Guard %s\n", guard_desc);
     fprintf(visualizer->file, "\t\tcontrol_%i [label=\"%s\", style=filled, fillcolor=orange, shape=rectangle];\n", control_node_id, node_desc);
@@ -747,7 +757,7 @@ void add_guard_control_node_graphviz_file(struct graphviz_visualizer * visualize
     free(guard_desc);
 }
 
-void add_guard_data_node_graphviz_file(struct graphviz_visualizer * visualizer, struct ssa_data_guard_node * guard_node, int data_node_id) {
+void add_guard_data_node_graphviz_file(struct graphviz_visualizer * visualizer, struct lox_ir_data_guard_node * guard_node, int data_node_id) {
     char * guard_desc = guard_node_to_string(guard_node->guard);
     char * node_desc = dynamic_format_string("Guard %s\n", guard_desc);
     fprintf(visualizer->file, "\t\tdata_%i [label=\"%s\", style=filled, fillcolor=orange];\n", data_node_id, node_desc);
@@ -827,33 +837,33 @@ static char * binary_operator_to_string(bytecode_t bytecode) {
     }
 }
 
-static char * unary_operator_to_string(ssa_unary_operator_type_t operator) {
+static char * unary_operator_to_string(lox_ir_unary_operator_type_t operator) {
     switch (operator) {
         case UNARY_OPERATION_TYPE_NOT: return "not";
         case UNARY_OPERATION_TYPE_NEGATION: return "-";
     }
 }
 
-static char * guard_node_to_string(struct ssa_guard guard) {
+static char * guard_node_to_string(struct lox_ir_guard guard) {
     char * guard_desc = NULL;
 
     switch (guard.type) {
-        case SSA_GUARD_ARRAY_TYPE_CHECK: {
-            char * type_name = to_string_ssa_type(guard.value_to_compare.type);
+        case LOX_IR_GUARD_ARRAY_TYPE_CHECK: {
+            char * type_name = to_string_lox_ir_type(guard.value_to_compare.type);
             guard_desc = dynamic_format_string("ArrayTypeCheck %s", type_name);
             break;
         }
-        case SSA_GUARD_TYPE_CHECK: {
-            char * type_name = to_string_ssa_type(guard.value_to_compare.type);
+        case LOX_IR_GUARD_TYPE_CHECK: {
+            char * type_name = to_string_lox_ir_type(guard.value_to_compare.type);
             guard_desc = dynamic_format_string("TypeCheck %s", type_name);
             break;
         }
-        case SSA_GUARD_BOOLEAN_CHECK: {
+        case LOX_IR_GUARD_BOOLEAN_CHECK: {
             char * value_name = lox_value_to_string(AS_BOOL(guard.value_to_compare.check_true));
             guard_desc = dynamic_format_string("BooleanValueCheck %s", value_name);
             break;
         }
-        case SSA_GUARD_STRUCT_DEFINITION_TYPE_CHECK: {
+        case LOX_IR_GUARD_STRUCT_DEFINITION_TYPE_CHECK: {
             struct struct_definition_object * definition = (struct struct_definition_object *)
                     guard.value_to_compare.struct_definition;
             guard_desc = dynamic_format_string("StructDefinitionCheck %s", definition != NULL ? definition->name->chars : "Any definition");
@@ -861,7 +871,7 @@ static char * guard_node_to_string(struct ssa_guard guard) {
         }
     }
 
-    char * guard_fail_action_type = guard.action_on_guard_failed == SSA_GUARD_FAIL_ACTION_TYPE_SWITCH_TO_INTERPRETER ?
+    char * guard_fail_action_type = guard.action_on_guard_failed == LOX_IR_GUARD_FAIL_ACTION_TYPE_SWITCH_TO_INTERPRETER ?
             "SwitchToInterpreter" : "RuntimeError";
     guard_desc = dynamic_format_string("%s\nOnFail: %s", guard_desc, guard_fail_action_type);
     return guard_desc;
@@ -869,11 +879,11 @@ static char * guard_node_to_string(struct ssa_guard guard) {
 
 static char * maybe_add_escape_info_data_node(
         struct graphviz_visualizer * visualizer,
-        struct ssa_data_node * data_node,
+        struct lox_ir_data_node * data_node,
         char * label
 ) {
     if(IS_FLAG_SET(visualizer->graphviz_options, DISPLAY_ESCAPE_INFO_OPT) && data_node->produced_type != NULL) {
-        bool escapes = is_marked_as_escaped_ssa_node(data_node);
+        bool escapes = is_marked_as_escaped_lox_ir_data_node(data_node);
         return dynamic_format_string("%s\nEscapes: %s", label, escapes ? "true" : "false");
     } else {
         return label;
@@ -882,11 +892,11 @@ static char * maybe_add_escape_info_data_node(
 
 static char * maybe_add_type_info_data_node(
         struct graphviz_visualizer * visualizer,
-        struct ssa_data_node * data_node,
+        struct lox_ir_data_node * data_node,
         char * label
 ) {
     if(IS_FLAG_SET(visualizer->graphviz_options, DISPLAY_TYPE_INFO_OPT) && data_node->produced_type != NULL){
-        return dynamic_format_string("%s\nType: %s", label, to_string_ssa_type(data_node->produced_type->type));
+        return dynamic_format_string("%s\nType: %s", label, to_string_lox_ir_type(data_node->produced_type->type));
     } else {
         return label;
     }

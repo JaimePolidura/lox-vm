@@ -19,9 +19,9 @@ An implementation of lox pending_bytecode interpreter described in "Crafting Int
 - When enough runtime information is collected, the function will get compiled to assembly code.
 - The compiled can be divided into a series of phases:
   - 1º Translation of the function bytecode to an internal IR (<b>ssa_creator.h</b>). The IR will have the SSA form. This IR will be composed of:
-    - Blocks (<b>ssa_block.h</b>) Series of control node that will run without branches (sequentally).
+    - Blocks (<b>lox_ir_block.h</b>) Series of control node that will run without branches (sequentally).
     - Control (<b>ssa_control_node.h</b>) Instructions that represents control flow (statements). This nodes might contains data flow nodes.
-    - Data (<b>ssa_data_node.h</b>) Instructions that represents data flow (expressions)
+    - Data (<b>lox_ir_data_node.h</b>) Instructions that represents data flow (expressions)
   - 2º Once it is translated to SSA IR a series of optimizations will be done:
     - Copy propagation
     - Common subexpression elimination

@@ -10,10 +10,10 @@
 #include "runtime/jit/advanced/optimizations/type_propagation.h"
 #include "runtime/jit/advanced/optimizations/escape_analysis.h"
 
-#include "runtime/jit/advanced/creation/ssa_no_phis_creator.h"
-#include "runtime/jit/advanced/creation/ssa_phi_inserter.h"
-#include "runtime/jit/advanced/creation/ssa_phi_optimizer.h"
-#include "runtime/jit/advanced/creation/ssa_creator.h"
+#include "runtime/jit/advanced/creation/no_phis_creator.h"
+#include "runtime/jit/advanced/creation/phi_inserter.h"
+#include "runtime/jit/advanced/creation/phi_optimizer.h"
+#include "runtime/jit/advanced/creation/lox_ir_creator.h"
 
 #include "shared/utils/strings/string_builder.h"
 #include "shared/types/function_object.h"
@@ -22,9 +22,9 @@
 
 typedef enum {
     //SSA IR Creation
-    NO_PHIS_PHASE_SSA_GRAPHVIZ = 1 << 0,
-    PHIS_INSERTED_PHASE_SSA_GRAPHVIZ = 1 << 1,
-    PHIS_OPTIMIZED_PHASE_SSA_GRAPHVIZ = 1 << 2,
+    NO_PHIS_PHASE_LOX_IR_GRAPHVIZ = 1 << 0,
+    PHIS_INSERTED_PHASE_LOX_IR_GRAPHVIZ = 1 << 1,
+    PHIS_OPTIMIZED_PHASE_LOX_IR_GRAPHVIZ = 1 << 2,
 
     //Optimizations
     SPARSE_CONSTANT_PROPAGATION_PHASE_SSA_GRAPHVIZ = 1 << 3,
