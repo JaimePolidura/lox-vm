@@ -6,7 +6,7 @@
 #include "shared.h"
 
 //Performs escape analysis on structs & arrays (instance) initialized in the lox_ir. If an instance does/doesn't escape
-//all the ssa node uses of that instance, the field escapes is set to true/false.
+//all the jit node uses of that instance, the field escapes is set to true/false.
 //Run after type_propagation and before box insertion. Uses type information.
 //Escape analysis is useful:
 // Allocate instances in the stack if possible

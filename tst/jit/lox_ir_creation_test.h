@@ -16,7 +16,7 @@ static bool node_uses_phi_versions(struct lox_ir_data_node * start_node, int n_e
 static bool node_defines_ssa_name(struct lox_ir_control_node *, int version);
 static void run(struct compilation_result);
 
-TEST (ssa_creation_pr) {
+TEST(lox_ir_creation_pr) {
 //    struct compilation_result compilation = compile_standalone(
 //            "fun function() {"
 //            "   var a = 1;"
@@ -46,21 +46,21 @@ TEST (ssa_creation_pr) {
     struct package * package = compilation.compiled_package;
 
     //Set global variables
-    struct function_object * function_ssa = get_function_package(package, "function");
-    init_function_profile_data(function_ssa);
+    struct function_object * function = get_function_package(package, "function");
+    init_function_profile_data(function);
 
     //Observe the generated graph IR
-    generate_ssa_graphviz_graph(
+    generate_lox_ir_graphviz_graph(
             package,
-            function_ssa,
-            PHI_RESOLUTION_PHASE_SSA_GRAPHVIZ,
+            function,
+            PHI_RESOLUTION_PHASE_LOX_IR_GRAPHVIZ,
             DEFAULT_GRAPHVIZ_OPT | DISPLAY_TYPE_INFO_OPT | DISPLAY_ESCAPE_INFO_OPT,
             LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
     );
 }
 
-TEST(ssa_creation_ea) {
+TEST(lox_ir_creation_ea) {
     struct compilation_result compilation = compile_standalone(
             "struct Point {"
             "   x;"
@@ -102,21 +102,21 @@ TEST(ssa_creation_ea) {
     struct package * package = compilation.compiled_package;
 
     //Set global variables
-    struct function_object * function_ssa = get_function_package(package, "function");
-    init_function_profile_data(function_ssa);
+    struct function_object * function = get_function_package(package, "function");
+    init_function_profile_data(function);
 
     //Observe the generated graph IR
-    generate_ssa_graphviz_graph(
+    generate_lox_ir_graphviz_graph(
             package,
-            function_ssa,
-            ESCAPE_ANALYSIS_PHASE_SSA_GRAPHVIZ,
+            function,
+            ESCAPE_ANALYSIS_PHASE_LOX_IR_GRAPHVIZ,
             DEFAULT_GRAPHVIZ_OPT | DISPLAY_TYPE_INFO_OPT | DISPLAY_ESCAPE_INFO_OPT,
             LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
     );
 }
 
-TEST(ssa_creation_ta){
+TEST(lox_ir_creation_ta){
     struct compilation_result compilation = compile_standalone(
             "fun function(a, b) {"
             "   var mensaje = \"a\";"
@@ -129,21 +129,21 @@ TEST(ssa_creation_ta){
     );
 
     struct package * package = compilation.compiled_package;
-    struct function_object * function_ssa = get_function_package(package, "function");
-    init_function_profile_data(function_ssa);
+    struct function_object * function = get_function_package(package, "function");
+    init_function_profile_data(function);
 
     //Observe the generated graph IR
-    generate_ssa_graphviz_graph(
+    generate_lox_ir_graphviz_graph(
             package,
-            function_ssa,
-            UNBOXING_INSERTION_PHASE_SSA_GRAPHVIZ,
+            function,
+            UNBOXING_INSERTION_PHASE_LOX_IR_GRAPHVIZ,
             DEFAULT_GRAPHVIZ_OPT | DISPLAY_TYPE_INFO_OPT,
             LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
     );
 }
 
-TEST(ssa_creation_cp) {
+TEST(lox_ir_creation_cp) {
     struct compilation_result compilation = compile_standalone(
             "fun function(a, b, c) {"
             "   for (var i = 0; i < 10; i = i + 1) {"
@@ -153,21 +153,21 @@ TEST(ssa_creation_cp) {
     );
 
     struct package * package = compilation.compiled_package;
-    struct function_object * function_ssa = get_function_package(package, "function");
-    init_function_profile_data(function_ssa);
+    struct function_object * function = get_function_package(package, "function");
+    init_function_profile_data(function);
 
     //Observe the generated graph IR
-    generate_ssa_graphviz_graph(
+    generate_lox_ir_graphviz_graph(
             package,
-            function_ssa,
-            COPY_PROPAGATION_PHASE_SSA_GRAPHVIZ,
+            function,
+            COPY_PROPAGATION_PHASE_LOX_IR_GRAPHVIZ,
             DEFAULT_GRAPHVIZ_OPT,
             LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
     );
 }
 
-TEST(ssa_creation_pg) {
+TEST(lox_ir_creation_pg) {
     struct compilation_result compilation = compile_standalone(
             "fun function(arr) {"
             "   for (var i = 0; i < 10; i = i + 1) {"
@@ -175,21 +175,21 @@ TEST(ssa_creation_pg) {
             "}"
     );
     struct package * package = compilation.compiled_package;
-    struct function_object * function_ssa = get_function_package(package, "function");
-    init_function_profile_data(function_ssa);
+    struct function_object * function = get_function_package(package, "function");
+    init_function_profile_data(function);
 
     //Observe the generated graph IR
-    generate_ssa_graphviz_graph(
+    generate_lox_ir_graphviz_graph(
             package,
-            function_ssa,
-            ALL_PHASE_SSA_GRAPHVIZ,
+            function,
+            ALL_PHASE_LOX_IR_GRAPHVIZ,
             NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT,
             LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
     );
 }
 
-TEST(ssa_creation_licm) {
+TEST(lox_ir_creation_licm) {
     struct compilation_result compilation = compile_standalone(
             "fun function(a, b, c) {"
             "   for (var i = 0; i < 10; i = i + 1) {"
@@ -210,13 +210,13 @@ TEST(ssa_creation_licm) {
     );
 
     struct package * package = compilation.compiled_package;
-    struct function_object * function_ssa = get_function_package(package, "function");
-    init_function_profile_data(function_ssa);
+    struct function_object * function = get_function_package(package, "function");
+    init_function_profile_data(function);
 
     //Observe the generated graph IR
-    generate_ssa_graphviz_graph(
+    generate_lox_ir_graphviz_graph(
             package,
-            function_ssa,
+            function,
             NO_PHIS_PHASE_LOX_IR_GRAPHVIZ,
             NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT,
             LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
@@ -224,32 +224,32 @@ TEST(ssa_creation_licm) {
     );
 }
 
-TEST(ssa_creation_sr){
+TEST(lox_ir_creation_sr){
     struct compilation_result compilation = compile_standalone(
-            "fun function_ssa(a, b) {"
+            "fun function(a, b) {"
             "   if(a % 2 == 0) {"
             "   }"
             "   return (a % 10) + (b % 8);"
             "}"
     );
     struct package * package = compilation.compiled_package;
-    struct function_object * function_ssa = get_function_package(package, "function_ssa");
-    init_function_profile_data(function_ssa);
+    struct function_object * function = get_function_package(package, "function");
+    init_function_profile_data(function);
 
     //Observe the generated graph IR
-    generate_ssa_graphviz_graph(
+    generate_lox_ir_graphviz_graph(
             package,
-            function_ssa,
-            STRENGTH_REDUCTION_PHASE_SSA_GRAPHVIZ,
+            function,
+            STRENGTH_REDUCTION_PHASE_LOX_IR_GRAPHVIZ,
             NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT,
             LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
     );
 }
 
-TEST(ssa_creation_cse){
+TEST(lox_ir_creation_cse){
     struct compilation_result compilation = compile_standalone(
-            "fun function_ssa(a, b) {"
+            "fun function(a, b) {"
             "   var c = a + b;"
             "   var d = 2 * (b + a);"
             "   if(a > 0) {"
@@ -264,23 +264,23 @@ TEST(ssa_creation_cse){
             "}"
     );
     struct package * package = compilation.compiled_package;
-    struct function_object * function_ssa = get_function_package(package, "function_ssa");
-    init_function_profile_data(function_ssa);
+    struct function_object * function = get_function_package(package, "function");
+    init_function_profile_data(function);
 
     //Observe the generated graph IR
-    generate_ssa_graphviz_graph(
+    generate_lox_ir_graphviz_graph(
             package,
-            function_ssa,
-            COMMON_SUBEXPRESSION_ELIMINATION_PHASE_SSA_GRAPHVIZ,
+            function,
+            COMMON_SUBEXPRESSION_ELIMINATION_PHASE_LOX_IR_GRAPHVIZ,
             NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT,
             LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
     );
 }
 
-TEST(ssa_creation_nested_loop){
+TEST(lox_ir_creation_nested_loop){
     struct compilation_result compilation = compile_standalone(
-            "fun function_ssa(a, b) {"
+            "fun function(a, b) {"
             "   for(var i = 0; i < 10; i = i + 1) {"
             "       for(var j = i; j < i; j = j + 1) {"
             "       }"
@@ -288,13 +288,13 @@ TEST(ssa_creation_nested_loop){
             "}"
     );
     struct package * package = compilation.compiled_package;
-    struct function_object * function_ssa = get_function_package(package, "function_ssa");
-    init_function_profile_data(function_ssa);
+    struct function_object * function = get_function_package(package, "function");
+    init_function_profile_data(function);
 
     //Observe the generated graph IR
-    generate_ssa_graphviz_graph(
+    generate_lox_ir_graphviz_graph(
             package,
-            function_ssa,
+            function,
             PHIS_INSERTED_PHASE_LOX_IR_GRAPHVIZ,
             NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT,
             LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
@@ -302,9 +302,9 @@ TEST(ssa_creation_nested_loop){
     );
 }
 
-TEST(ssa_creation_scp) {
+TEST(lox_ir_creation_scp) {
     struct compilation_result compilation = compile_standalone(
-            "fun function_ssa(a, b) {"
+            "fun function(a, b) {"
             "   a = 1;"
             "   if(a > 0) {"
             "      if(b > 0) {"
@@ -323,17 +323,17 @@ TEST(ssa_creation_scp) {
     );
 
     struct package * package = compilation.compiled_package;
-    struct function_object * function_ssa = get_function_package(package, "function_ssa");
-    init_function_profile_data(function_ssa);
-    struct lox_ir ssa_ir = create_lox_ir(package, function_ssa,
-                                         create_bytecode_list(function_ssa->chunk, NATIVE_LOX_ALLOCATOR()),
+    struct function_object * function = get_function_package(package, "function");
+    init_function_profile_data(function);
+    struct lox_ir lox_ir = create_lox_ir(package, function,
+                                         create_bytecode_list(function->chunk, NATIVE_LOX_ALLOCATOR()),
                                          LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE);
-    perform_sparse_constant_propagation(&ssa_ir);
+    perform_sparse_constant_propagation(&lox_ir);
 
     //Observe the generated graph IR
 
-    ASSERT_EQ(ssa_ir.first_block->type_next, TYPE_NEXT_LOX_IR_BLOCK_SEQ);
-    struct lox_ir_block * final_block = ssa_ir.first_block->next_as.branch.true_branch->next_as.next->next_as.next;
+    ASSERT_EQ(lox_ir.first_block->type_next, TYPE_NEXT_LOX_IR_BLOCK_SEQ);
+    struct lox_ir_block * final_block = lox_ir.first_block->next_as.branch.true_branch->next_as.next->next_as.next;
     struct lox_ir_control_define_ssa_name_node * print_b_extract = (struct lox_ir_control_define_ssa_name_node *) final_block->first;
     ASSERT_TRUE(node_uses_phi_versions(print_b_extract->value, 2, 0, 1));
 }
@@ -347,9 +347,9 @@ TEST(ssa_creation_scp) {
 //      -> True: [b3 = 12; i2 = i4; i3 = i2 + 1;]
 //      -> False: FINAL BLOCK
 //FINAL BLOCK: [a4 = phi(a1, a2, a3); print a4; b4 = phi(b0, b1, b2, b3); print b4]
-TEST(ssa_creation_phis_inserter_and_optimizer){
+TEST(lox_ir_creation_phis_inserter_and_optimizer){
     struct compilation_result compilation = compile_standalone(
-            "fun function_ssa(a, b) {"
+            "fun function(a, b) {"
             "   a = 1;"
             "   if(a > 0) {"
             "       if(b > 0) {"
@@ -369,21 +369,21 @@ TEST(ssa_creation_phis_inserter_and_optimizer){
             "}"
     );
     struct package * package = compilation.compiled_package;
-    struct function_object * function_ssa = get_function_package(package, "function_ssa");
-    init_function_profile_data(function_ssa);
+    struct function_object * function = get_function_package(package, "function");
+    init_function_profile_data(function);
 
-    struct lox_ir ssa_ir = create_lox_ir(package, function_ssa,
-                                         create_bytecode_list(function_ssa->chunk, NATIVE_LOX_ALLOCATOR()),
+    struct lox_ir lox_ir = create_lox_ir(package, function,
+            create_bytecode_list(function->chunk, NATIVE_LOX_ALLOCATOR()),
                                          LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE);
-    struct lox_ir_block * start_ssa_block = ssa_ir.first_block;
+    struct lox_ir_block * start_block = lox_ir.first_block;
 
-    ASSERT_EQ(size_u64_set(start_ssa_block->predecesors), 0);
-    ASSERT_TRUE(node_defines_ssa_name(start_ssa_block->first, 1)); //a1 = 1;
+    ASSERT_EQ(size_u64_set(start_block->predecesors), 0);
+    ASSERT_TRUE(node_defines_ssa_name(start_block->first, 1)); //a1 = 1;
     //a1 > 0
-    struct lox_ir_control_conditional_jump_node * a_condition = (struct lox_ir_control_conditional_jump_node *) start_ssa_block->first->next;
+    struct lox_ir_control_conditional_jump_node * a_condition = (struct lox_ir_control_conditional_jump_node *) start_block->first->next;
     ASSERT_TRUE(node_uses_phi_versions(a_condition->condition, 1, 1));
 
-    struct lox_ir_block * a_condition_true = start_ssa_block->next_as.branch.true_branch;
+    struct lox_ir_block * a_condition_true = start_block->next_as.branch.true_branch;
     ASSERT_EQ(size_u64_set(a_condition_true->predecesors), 1);
     //b0 > 0
     struct lox_ir_control_conditional_jump_node * a_condition_true_b_condition = (struct lox_ir_control_conditional_jump_node *) a_condition_true->first;
@@ -399,7 +399,7 @@ TEST(ssa_creation_phis_inserter_and_optimizer){
     ASSERT_EQ(size_u64_set(a_condition_true_b_condition_false->predecesors), 1);
     ASSERT_TRUE(node_defines_ssa_name(a_condition_true_b_condition_false->first, 2));  //b2 = 3;
 
-    struct lox_ir_block * a_condition_false = start_ssa_block->next_as.branch.false_branch;
+    struct lox_ir_block * a_condition_false = start_block->next_as.branch.false_branch;
     ASSERT_EQ(size_u64_set(a_condition_false->predecesors), 1);
     ASSERT_TRUE(node_defines_ssa_name(a_condition_false->first, 3)); //a3 = 1;
     ASSERT_TRUE(node_defines_ssa_name(a_condition_false->first->next, 1)); //i1 = 1;
@@ -447,9 +447,9 @@ TEST(ssa_creation_phis_inserter_and_optimizer){
 //      -> True: [print 1; i = i + 1] -> [¿i < 10?]
 //      -> False: FINAL BLOCK
 //FINAL BLOCK: [print a; print b];
-TEST(ssa_creation_no_phis) {
+TEST(lox_ir_creation_no_phis) {
     struct compilation_result compilation = compile_standalone(
-            "fun function_ssa(a, b, c) {"
+            "fun function(a, b, c) {"
             "   c = 1;"
             "   if(a > 0) {"
             "       if(b > 0) {"
@@ -470,77 +470,77 @@ TEST(ssa_creation_no_phis) {
     );
 
     struct package * package = compilation.compiled_package;
-    struct function_object * function_ssa = get_function_package(package, "function_ssa");
-    init_function_profile_data(function_ssa);
+    struct function_object * function = get_function_package(package, "function");
+    init_function_profile_data(function);
     struct arena arena;
     init_arena(&arena);
     struct arena_lox_allocator arena_lox_allocator = to_lox_allocator_arena(arena);
 
-    struct lox_ir_block * ssa_block = create_ssa_ir_no_phis(
-            package, function_ssa, create_bytecode_list(function_ssa->chunk, NATIVE_LOX_ALLOCATOR()),
+    struct lox_ir_block * block = create_lox_ir_no_phis(
+            package, function, create_bytecode_list(function->chunk, NATIVE_LOX_ALLOCATOR()),
             &arena_lox_allocator, LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE
     );
 
     // [c = 1, ¿a < 0?]
-    ASSERT_EQ(ssa_block->first->type, LOX_IR_CONTORL_NODE_SET_LOCAL); //Asignment
-    ASSERT_EQ(ssa_block->last->type, LOX_IR_CONTROL_NODE_CONDITIONAL_JUMP); //a < 0
-    ASSERT_EQ(size_u8_set(ssa_block->use_before_assigment), 0);
+    ASSERT_EQ(block->first->type, LOX_IR_CONTORL_NODE_SET_LOCAL); //Asignment
+    ASSERT_EQ(block->last->type, LOX_IR_CONTROL_NODE_CONDITIONAL_JUMP); //a < 0
+    ASSERT_EQ(size_u8_set(block->use_before_assigment), 0);
 
     //[c = 1, ¿a < 0?] -(true)-> [¿b > 0?]
-    struct lox_ir_block * ssa_block_true = ssa_block->next_as.branch.true_branch;
-    ASSERT_EQ(ssa_block_true->first->type, LOX_IR_CONTROL_NODE_CONDITIONAL_JUMP); //Asignment
-    ASSERT_EQ(ssa_block_true->last->type, LOX_IR_CONTROL_NODE_CONDITIONAL_JUMP); //a < 0
-    ASSERT_EQ(ssa_block_true->last, ssa_block_true->first); //a < 0
-    ASSERT_EQ(size_u8_set(ssa_block->use_before_assigment), 0);
+    struct lox_ir_block * block_true = block->next_as.branch.true_branch;
+    ASSERT_EQ(block_true->first->type, LOX_IR_CONTROL_NODE_CONDITIONAL_JUMP); //Asignment
+    ASSERT_EQ(block_true->last->type, LOX_IR_CONTROL_NODE_CONDITIONAL_JUMP); //a < 0
+    ASSERT_EQ(block_true->last, block_true->first); //a < 0
+    ASSERT_EQ(size_u8_set(block->use_before_assigment), 0);
 
     //[c = 1, ¿a < 0?] -(true)-> [¿b > 0?] -(true)-> [b = 3; a = 2]
-    struct lox_ir_block * ssa_block_true_true = ssa_block_true->next_as.branch.true_branch;
-    ASSERT_EQ(ssa_block_true_true->first->type, LOX_IR_CONTORL_NODE_SET_LOCAL); //b = 3
-    ASSERT_EQ(ssa_block_true_true->last->type, LOX_IR_CONTORL_NODE_SET_LOCAL); //a = 2
-    ASSERT_EQ(size_u8_set(ssa_block->use_before_assigment), 0);
+    struct lox_ir_block * block_true_true = block_true->next_as.branch.true_branch;
+    ASSERT_EQ(block_true_true->first->type, LOX_IR_CONTORL_NODE_SET_LOCAL); //b = 3
+    ASSERT_EQ(block_true_true->last->type, LOX_IR_CONTORL_NODE_SET_LOCAL); //a = 2
+    ASSERT_EQ(size_u8_set(block->use_before_assigment), 0);
 
     //[c = 1, ¿a < 0?] -(true)-> [¿b > 0?] -(true)-> [b = 3; a = 2] -> FINAL BLOCK
-    struct lox_ir_block * final_block = ssa_block_true_true->next_as.next;
+    struct lox_ir_block * final_block = block_true_true->next_as.next;
     ASSERT_EQ(final_block->first->type, LOX_IR_CONTROL_NODE_PRINT); //print a;
     ASSERT_EQ(final_block->last->type, LOX_IR_CONTROL_NODE_RETURN); //final return OP_NIL OP_RETURN
-    ASSERT_EQ(size_u8_set(ssa_block->use_before_assigment), 0);
+    ASSERT_EQ(size_u8_set(block->use_before_assigment), 0);
 
     //[c = 1, ¿a < 0?] -(true)-> [¿b > 0?] -(false)-> [b = 3]
-    struct lox_ir_block * ssa_block_true_false = ssa_block_true->next_as.branch.false_branch;
-    ASSERT_EQ(ssa_block_true_false->first->type, LOX_IR_CONTORL_NODE_SET_LOCAL); //b = 3
-    ASSERT_EQ(ssa_block_true_false->last->type, LOX_IR_CONTORL_NODE_SET_LOCAL); //b = 3
-    ASSERT_EQ(ssa_block_true_false->last, ssa_block_true_false->first); //a < 0
-    ASSERT_EQ(size_u8_set(ssa_block->use_before_assigment), 0);
+    struct lox_ir_block * block_true_false = block_true->next_as.branch.false_branch;
+    ASSERT_EQ(block_true_false->first->type, LOX_IR_CONTORL_NODE_SET_LOCAL); //b = 3
+    ASSERT_EQ(block_true_false->last->type, LOX_IR_CONTORL_NODE_SET_LOCAL); //b = 3
+    ASSERT_EQ(block_true_false->last, block_true_false->first); //a < 0
+    ASSERT_EQ(size_u8_set(block->use_before_assigment), 0);
 
     //[c = 1, ¿a < 0?] -(true)-> [¿b > 0?] -(false)-> [b = 3] -> FINAL BLOCK
-    ASSERT_EQ(ssa_block_true_false->next_as.next, final_block);
+    ASSERT_EQ(block_true_false->next_as.next, final_block);
     ASSERT_EQ(final_block->next_as.next, NULL);
 
     //[c = 1, ¿a < 0?] -(false)-> [c = 1, i = 0]
-    struct lox_ir_block * ssa_block_false = ssa_block->next_as.branch.false_branch;
-    ASSERT_EQ(ssa_block_false->first->type, LOX_IR_CONTORL_NODE_SET_LOCAL); //c = 1
-    ASSERT_EQ(ssa_block_false->last->type, LOX_IR_CONTORL_NODE_SET_LOCAL); //i = 0
-    ASSERT_EQ(size_u8_set(ssa_block->use_before_assigment), 0);
+    struct lox_ir_block * block_false = block->next_as.branch.false_branch;
+    ASSERT_EQ(block_false->first->type, LOX_IR_CONTORL_NODE_SET_LOCAL); //c = 1
+    ASSERT_EQ(block_false->last->type, LOX_IR_CONTORL_NODE_SET_LOCAL); //i = 0
+    ASSERT_EQ(size_u8_set(block->use_before_assigment), 0);
 
     //[c = 1, ¿a < 0?] -(false)-> [c = 1, i = 0] -> [¿i < 10?]
-    struct lox_ir_block * ssa_block_false_for_condition = ssa_block_false->next_as.next;
-    ASSERT_EQ(ssa_block_false_for_condition->first->type, LOX_IR_CONTROL_NODE_CONDITIONAL_JUMP); //i < 10
-    ASSERT_EQ(ssa_block_false_for_condition->last->type, LOX_IR_CONTROL_NODE_CONDITIONAL_JUMP);
-    ASSERT_EQ(ssa_block_false_for_condition->last, ssa_block_false_for_condition->first);
-    ASSERT_EQ(size_u8_set(ssa_block->use_before_assigment), 0);
+    struct lox_ir_block * block_false_for_condition = block_false->next_as.next;
+    ASSERT_EQ(block_false_for_condition->first->type, LOX_IR_CONTROL_NODE_CONDITIONAL_JUMP); //i < 10
+    ASSERT_EQ(block_false_for_condition->last->type, LOX_IR_CONTROL_NODE_CONDITIONAL_JUMP);
+    ASSERT_EQ(block_false_for_condition->last, block_false_for_condition->first);
+    ASSERT_EQ(size_u8_set(block->use_before_assigment), 0);
 
     //[c = 1, ¿a < 0?] -(false)-> [c = 1, i = 0] -> [¿i < 10?] -(true)-> [print 1, i = i + 1, loop]
-    struct lox_ir_block * ssa_block_false_for_condition_true = ssa_block_false_for_condition->next_as.branch.true_branch;
-    ASSERT_EQ(ssa_block_false_for_condition_true->first->type, LOX_IR_CONTROL_NODE_PRINT); //print 1
-    ASSERT_EQ(ssa_block_false_for_condition_true->first->next->type, LOX_IR_CONTORL_NODE_SET_LOCAL); //i = i + 1
-    ASSERT_EQ(ssa_block_false_for_condition_true->last->type, LOX_IR_CONTROL_NODE_LOOP_JUMP);
-    ASSERT_EQ(ssa_block_false_for_condition_true->next_as.loop, ssa_block_false_for_condition);
-    ASSERT_EQ(size_u8_set(ssa_block_false_for_condition_true->use_before_assigment), 1);
-    ASSERT_TRUE(contains_u8_set(&ssa_block_false_for_condition_true->use_before_assigment, 4));
+    struct lox_ir_block * block_false_for_condition_true = block_false_for_condition->next_as.branch.true_branch;
+    ASSERT_EQ(block_false_for_condition_true->first->type, LOX_IR_CONTROL_NODE_PRINT); //print 1
+    ASSERT_EQ(block_false_for_condition_true->first->next->type, LOX_IR_CONTORL_NODE_SET_LOCAL); //i = i + 1
+    ASSERT_EQ(block_false_for_condition_true->last->type, LOX_IR_CONTROL_NODE_LOOP_JUMP);
+    ASSERT_EQ(block_false_for_condition_true->next_as.loop, block_false_for_condition);
+    ASSERT_EQ(size_u8_set(block_false_for_condition_true->use_before_assigment), 1);
+    ASSERT_TRUE(contains_u8_set(&block_false_for_condition_true->use_before_assigment, 4));
 
     //[c = 1, ¿a < 0?] -(false)-> [c = 1, i = 0] -> [¿i < 10?] -(false)-> FINAL BLOCK
-    struct lox_ir_block * ssa_block_false_for_condition_false = ssa_block_false_for_condition->next_as.branch.false_branch;
-    ASSERT_EQ(ssa_block_false_for_condition_false, final_block);
+    struct lox_ir_block * block_false_for_condition_false = block_false_for_condition->next_as.branch.false_branch;
+    ASSERT_EQ(block_false_for_condition_false, final_block);
 
     free_arena(&arena_lox_allocator.arena);
 }

@@ -8,8 +8,8 @@
 #include "stack_test.h"
 #include "utils_test.h"
 #include "trie_test.h"
-#include "ssa/ssa_creation_test.h"
-#include "ssa/ssa_node_test.h"
+#include "jit/lox_ir_creation_test.h"
+#include "jit/lox_ir_node_test.h"
 #include "vm_test.h"
 #include "u8_set_test.h"
 #include "u8_hash_table.h"
@@ -26,8 +26,8 @@
 //#define RUN_UTILS_TEST
 //#define RUN_STACK_TEST
 //#define RUN_TRIE_TEST
-#define RUN_SSA_CREATION_TEST
-//#define RUN_SSA_NODES_TEST
+#define RUN_LOX_IR_CREATION_TEST
+//#define lox_ir_block_dominates
 //#define RUN_VM_TEST
 
 extern struct trie_list * compiled_packages;
@@ -47,24 +47,24 @@ int main() {
     u8_set_test_remove_outer();
     u8_set_test_add_contains_outer();
 #endif
-#ifdef RUN_SSA_NODES_TEST
-    ssa_block_dominates_outer();
-    ssa_data_node_is_eq_outer();
-    ssa_data_node_hash_outer();
+#ifdef RUN_LOX_IR_NODES_TEST
+    lox_ir_block_dominates_outer();
+    lox_ir_data_node_is_eq_outer();
+    lox_ir_data_node_hash_outer();
 #endif
-#ifdef RUN_SSA_CREATION_TEST
-    ssa_creation_pr_outer();
-//    ssa_creation_ea_outer();
-//    ssa_creation_ta_outer();
-//    ssa_creation_cp_outer();
-//    ssa_creation_pg_outer();
-//    ssa_creation_licm_outer();
-//    ssa_creation_sr_outer();
-//    ssa_creation_cse_outer();
-//    ssa_creation_nested_loop_outer();
-//    ssa_creation_scp_outer();
-//    ssa_creation_phis_inserter_and_optimizer_outer();
-//    ssa_creation_no_phis_outer();
+#ifdef RUN_LOX_IR_CREATION_TEST
+//    lox_ir_creation_pr_outer();
+//    lox_ir_creation_ea_outer();
+//    lox_ir_creation_ta_outer();
+//    lox_ir_creation_cp_outer();
+//    lox_ir_creation_pg_outer();
+//    lox_ir_creation_licm_outer();
+//    lox_ir_creation_sr_outer();
+//    lox_ir_creation_cse_outer();
+//    lox_ir_creation_nested_loop_outer();
+//    lox_ir_creation_scp_outer();
+//    lox_ir_creation_phis_inserter_and_optimizer_outer();
+//    lox_ir_creation_no_phis_outer();
 #endif
 #ifdef RUN_MARK_BITMAP_TEST
     multiple_mark_bitmap_test_outer();

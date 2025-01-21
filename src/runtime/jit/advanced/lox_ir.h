@@ -18,11 +18,11 @@
 
 struct lox_ir {
     struct lox_ir_block * first_block;
-    //SSA Definitions nodes by ssa name
+    //SSA Definitions nodes by jit name
     struct u64_hash_table definitions_by_ssa_name;
     //Max version allocated per local number
     struct u8_hash_table max_version_allocated_per_local;
-    //key: ssa_name, value: u64_set of pointers ssa_control_nodes
+    //key: ssa_name, value: u64_set of pointers control_nodes
     struct u64_hash_table node_uses_by_ssa_name;
     //All control, data & blocks will be allocated in the arena
     struct arena_lox_allocator * ssa_nodes_allocator_arena;
@@ -33,14 +33,14 @@ struct lox_ir {
 };
 
 //Removes the references in the struct lox_ir data structure to the ssa_name. It doest
-//remove the nodes that uses the ssa name
+//remove the nodes that uses the jit name
 void remove_names_references_lox_ir(struct lox_ir *lox_ir, struct u64_set removed_ssa_names);
 void remove_name_references_lox_ir(struct lox_ir *lox_ir, struct ssa_name ssa_name_to_remove);
 
 struct ssa_name alloc_ssa_name_lox_ir(struct lox_ir *lox_ir, int ssa_version, char *local_name, struct lox_ir_block *block, struct lox_ir_type *type);
 struct ssa_name alloc_ssa_version_lox_ir(struct lox_ir *lox_ir, int local_number);
-void add_ssa_name_use_lox_ir(struct lox_ir *lox_ir, struct ssa_name ssa_name, struct lox_ir_control_node *ssa_control_node);
-void remove_ssa_name_use_lox_ir(struct lox_ir *lox_ir, struct ssa_name ssa_name, struct lox_ir_control_node *ssa_control_node);
+void add_ssa_name_use_lox_ir(struct lox_ir *lox_ir, struct ssa_name ssa_name, struct lox_ir_control_node *control_node);
+void remove_ssa_name_use_lox_ir(struct lox_ir *lox_ir, struct ssa_name ssa_name, struct lox_ir_control_node *control_node);
 
 struct lox_ir_type * get_type_by_ssa_name_lox_ir(struct lox_ir *lox_ir, struct lox_ir_block *block, struct ssa_name ssa_name);
-void put_type_by_ssa_name_lox_ir(struct lox_ir *lox_ir, struct lox_ir_block *ssa_block, struct ssa_name ssa_name, struct lox_ir_type *new_type);
+void put_type_by_ssa_name_lox_ir(struct lox_ir *lox_ir, struct lox_ir_block *block, struct ssa_name ssa_name, struct lox_ir_type *new_type);

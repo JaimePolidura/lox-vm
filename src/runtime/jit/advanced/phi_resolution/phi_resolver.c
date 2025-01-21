@@ -112,11 +112,11 @@ static bool is_define_phi_node(struct lox_ir_control_node * control_node) {
            ((struct lox_ir_control_define_ssa_name_node *) control_node)->value->type == LOX_IR_DATA_NODE_PHI;
 }
 
-static struct pr * alloc_phi_resolver(struct lox_ir * ssa_ir) {
+static struct pr * alloc_phi_resolver(struct lox_ir * lox_ir) {
     struct pr * pr = NATIVE_LOX_MALLOC(sizeof(struct pr));
     struct arena arena;
     init_arena(&arena);
-    pr->lox_ir = ssa_ir;
+    pr->lox_ir = lox_ir;
     pr->ps_allocator = to_lox_allocator_arena(arena);
     pr->last_v_regiser_allocated = 0;
     init_u64_hash_table(&pr->v_register_by_local_number, &pr->ps_allocator.lox_allocator);

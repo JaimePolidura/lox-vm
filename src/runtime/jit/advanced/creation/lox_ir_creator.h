@@ -20,9 +20,9 @@
 //  - Control flow graph (statements) Represented by lox_ir_control_node.
 //  - Block graph. Series of control flow graph nodes, that are run sequentally. Represented by lox_ir_block
 // This proccess consists of these phases:
-// - 1º: create_ssa_ir_no_phis()
-// - 3º: insert_ssa_ir_phis()
-// - 4º: optimize_ssa_ir_phis()
+// - 1º: create_lox_ir_no_phis()
+// - 3º: insert_lox_ir_phis()
+// - 4º: optimize_lox_ir_phis()
 struct lox_ir create_lox_ir(
         struct package * package,
         struct function_object * function,

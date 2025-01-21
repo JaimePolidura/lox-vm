@@ -308,7 +308,7 @@ static void extract_get_local(
     add_u64_set(&new_get_local->ssa_versions, new_version_extracted);
     *parent_to_extract_get_local_ptr = &new_get_local->data;
 
-    //Insert the new control_node in the linkedlist of ssa_control_nodes
+    //Insert the new control_node in the linkedlist of control_nodes
     extracted_set_local->control.next = control_node_to_extract;
     extracted_set_local->control.prev = control_node_to_extract->prev;
     if(control_node_to_extract->prev != NULL){

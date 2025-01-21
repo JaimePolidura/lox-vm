@@ -24,14 +24,14 @@ struct subexpression {
     struct lox_ir_control_node * control_node;
     struct lox_ir_block * block;
     void ** parent_ptr;
-    //Set when state is REUSABLE_SUBEXPRESSION. Other nodes will be able to reuse the expression by this ssa name
+    //Set when state is REUSABLE_SUBEXPRESSION. Other nodes will be able to reuse the expression by this jit name
     struct ssa_name reusable_ssa_name;
 
     enum {
         //The value resides in a node data flow graph. Exmaple: return phi(i0, i1)
-        //To be used it needs to be extracted to a ssa name.
+        //To be used it needs to be extracted to a jit name.
         NOT_REUSABLE_SUBEXPRESSION,
-        //The value has been extracted to a ssa name. Example: i2 = phi(i0, i1); return i2;
+        //The value has been extracted to a jit name. Example: i2 = phi(i0, i1); return i2;
         //so that the value can be reused.
         REUSABLE_SUBEXPRESSION
     } state;

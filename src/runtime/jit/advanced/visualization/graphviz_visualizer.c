@@ -6,8 +6,8 @@ struct graphviz_visualizer {
     FILE * file;
 
     long graphviz_options;
-    long ssa_options;
-    struct lox_ir ssa_ir;
+    long options;
+    struct lox_ir lox_ir;
     struct function_object * function;
     //Set of pointers of struct lox_ir_block visited
     struct u64_set blocks_graph_generated;
@@ -73,156 +73,146 @@ void link_control_control_label_node_graphviz_file(struct graphviz_visualizer *,
 void link_block_block_label_node_graphviz_file(struct graphviz_visualizer *, char *, struct block_graph_generated, struct block_graph_generated);
 void link_block_block_node_graphviz_file(struct graphviz_visualizer *, struct block_graph_generated, struct block_graph_generated);
 
-void generate_ssa_graphviz_graph(
+void generate_lox_ir_graphviz_graph(
         struct package * package,
         struct function_object * function,
-        phase_ssa_graphviz_t phase,
+        phase_lox_ir_graphviz_t phase,
         long graphviz_options,
-        long ssa_options,
+        long options,
         char * path
 ) {
     struct arena arena;
     init_arena(&arena);
-    struct arena_lox_allocator ssa_node_allocator = to_lox_allocator_arena(arena);
-    struct graphviz_visualizer graphviz_visualizer = create_graphviz_visualizer(path, &ssa_node_allocator, function);
+    struct arena_lox_allocator node_allocator = to_lox_allocator_arena(arena);
+    struct graphviz_visualizer graphviz_visualizer = create_graphviz_visualizer(path, &node_allocator, function);
     graphviz_visualizer.graphviz_options = graphviz_options;
-    graphviz_visualizer.ssa_options = ssa_options;
+    graphviz_visualizer.options = options;
 
     switch (phase) {
         case NO_PHIS_PHASE_LOX_IR_GRAPHVIZ: {
-            struct lox_ir_block * ssa_block = create_ssa_ir_no_phis(package, function,
-                                                                    create_bytecode_list(function->chunk, &ssa_node_allocator.lox_allocator), &ssa_node_allocator, ssa_options);
+            struct lox_ir_block * block = create_lox_ir_no_phis(package, function,
+                    create_bytecode_list(function->chunk, &node_allocator.lox_allocator), &node_allocator, options);
 
-            generate_graph_and_write(&graphviz_visualizer, ssa_block);
+            generate_graph_and_write(&graphviz_visualizer, block);
             break;
         }
         case PHIS_INSERTED_PHASE_LOX_IR_GRAPHVIZ: {
-            struct lox_ir_block * ssa_block = create_ssa_ir_no_phis(package, function,
-                                                                    create_bytecode_list(function->chunk, &ssa_node_allocator.lox_allocator), &ssa_node_allocator, ssa_options);
-            insert_ssa_ir_phis(ssa_block, &ssa_node_allocator);
+            struct lox_ir_block * block = create_lox_ir_no_phis(package, function,
+                    create_bytecode_list(function->chunk, &node_allocator.lox_allocator), &node_allocator, options);
+            insert_lox_ir_phis(block, &node_allocator);
 
-            generate_graph_and_write(&graphviz_visualizer, ssa_block);
+            generate_graph_and_write(&graphviz_visualizer, block);
             break;
         }
         case PHIS_OPTIMIZED_PHASE_LOX_IR_GRAPHVIZ: {
-            struct lox_ir_block * ssa_block = create_ssa_ir_no_phis(package, function,
-                                                                    create_bytecode_list(function->chunk, &ssa_node_allocator.lox_allocator), &ssa_node_allocator, ssa_options);
-            struct phi_insertion_result phi_insertion_result = insert_ssa_ir_phis(ssa_block, &ssa_node_allocator);
-            optimize_ssa_ir_phis(ssa_block, &phi_insertion_result, &ssa_node_allocator);
+            struct lox_ir_block * block = create_lox_ir_no_phis(package, function,
+                    create_bytecode_list(function->chunk, &node_allocator.lox_allocator), &node_allocator, options);
+            struct phi_insertion_result phi_insertion_result = insert_lox_ir_phis(block, &node_allocator);
+            optimize_lox_ir_phis(block, &phi_insertion_result, &node_allocator);
 
-            generate_graph_and_write(&graphviz_visualizer, ssa_block);
+            generate_graph_and_write(&graphviz_visualizer, block);
             break;
         }
-        case SPARSE_CONSTANT_PROPAGATION_PHASE_SSA_GRAPHVIZ: {
-            struct lox_ir ssa_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
-                                                                                         &ssa_node_allocator.lox_allocator),
-                                                 graphviz_visualizer.ssa_options);
-            perform_sparse_constant_propagation(&ssa_ir);
-            graphviz_visualizer.ssa_ir = ssa_ir;
+        case SPARSE_CONSTANT_PROPAGATION_PHASE_LOX_IR_GRAPHVIZ: {
+            struct lox_ir lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
+                    &node_allocator.lox_allocator), graphviz_visualizer.options);
+            perform_sparse_constant_propagation(&lox_ir);
+            graphviz_visualizer.lox_ir = lox_ir;
 
-            generate_graph_and_write(&graphviz_visualizer, ssa_ir.first_block);
+            generate_graph_and_write(&graphviz_visualizer, lox_ir.first_block);
             break;
         }
-        case COMMON_SUBEXPRESSION_ELIMINATION_PHASE_SSA_GRAPHVIZ: {
-            struct lox_ir ssa_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
-                                                                                         &ssa_node_allocator.lox_allocator),
-                                                 graphviz_visualizer.ssa_options);
+        case COMMON_SUBEXPRESSION_ELIMINATION_PHASE_LOX_IR_GRAPHVIZ: {
+            struct lox_ir lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
+                    &node_allocator.lox_allocator), graphviz_visualizer.options);
 
-            perform_common_subexpression_elimination(&ssa_ir);
-            graphviz_visualizer.ssa_ir = ssa_ir;
+            perform_common_subexpression_elimination(&lox_ir);
+            graphviz_visualizer.lox_ir = lox_ir;
 
-            generate_graph_and_write(&graphviz_visualizer, ssa_ir.first_block);
+            generate_graph_and_write(&graphviz_visualizer, lox_ir.first_block);
             break;
         }
-        case STRENGTH_REDUCTION_PHASE_SSA_GRAPHVIZ: {
-            struct lox_ir ssa_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
-                                                                                         &ssa_node_allocator.lox_allocator),
-                                                 graphviz_visualizer.ssa_options);
-            perform_type_propagation(&ssa_ir);
-            perform_strength_reduction(&ssa_ir);
-            graphviz_visualizer.ssa_ir = ssa_ir;
+        case STRENGTH_REDUCTION_PHASE_LOX_IR_GRAPHVIZ: {
+            struct lox_ir lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
+                    &node_allocator.lox_allocator), graphviz_visualizer.options);
+            perform_type_propagation(&lox_ir);
+            perform_strength_reduction(&lox_ir);
+            graphviz_visualizer.lox_ir = lox_ir;
 
-            generate_graph_and_write(&graphviz_visualizer, ssa_ir.first_block);
+            generate_graph_and_write(&graphviz_visualizer, lox_ir.first_block);
             break;
         }
-        case LOOP_INVARIANT_CODE_MOTION_PHASE_SSA_GRAPHVIZ: {
-            struct lox_ir ssa_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
-                                                                                         &ssa_node_allocator.lox_allocator),
-                                                 graphviz_visualizer.ssa_options);
-            perform_loop_invariant_code_motion(&ssa_ir);
-            graphviz_visualizer.ssa_ir = ssa_ir;
+        case LOOP_INVARIANT_CODE_MOTION_PHASE_LOX_IR_GRAPHVIZ: {
+            struct lox_ir lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
+                    &node_allocator.lox_allocator), graphviz_visualizer.options);
+            perform_loop_invariant_code_motion(&lox_ir);
+            graphviz_visualizer.lox_ir = lox_ir;
 
-            generate_graph_and_write(&graphviz_visualizer, ssa_ir.first_block);
+            generate_graph_and_write(&graphviz_visualizer, lox_ir.first_block);
             break;
         }
-        case COPY_PROPAGATION_PHASE_SSA_GRAPHVIZ: {
-            struct lox_ir ssa_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
-                                                                                         &ssa_node_allocator.lox_allocator),
-                                                 graphviz_visualizer.ssa_options);
-            perform_copy_propagation(&ssa_ir);
-            graphviz_visualizer.ssa_ir = ssa_ir;
+        case COPY_PROPAGATION_PHASE_LOX_IR_GRAPHVIZ: {
+            struct lox_ir lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
+                    &node_allocator.lox_allocator), graphviz_visualizer.options);
+            perform_copy_propagation(&lox_ir);
+            graphviz_visualizer.lox_ir = lox_ir;
 
-            generate_graph_and_write(&graphviz_visualizer, ssa_ir.first_block);
+            generate_graph_and_write(&graphviz_visualizer, lox_ir.first_block);
             break;
         }
-        case TYPE_PROPAGATION_PHASE_SSA_GRAPHVIZ: {
-            struct lox_ir ssa_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
-                                                                                         &ssa_node_allocator.lox_allocator),
-                                                 graphviz_visualizer.ssa_options);
-            perform_type_propagation(&ssa_ir);
-            graphviz_visualizer.ssa_ir = ssa_ir;
+        case TYPE_PROPAGATION_PHASE_LOX_IR_GRAPHVIZ: {
+            struct lox_ir lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
+                    &node_allocator.lox_allocator), graphviz_visualizer.options);
+            perform_type_propagation(&lox_ir);
+            graphviz_visualizer.lox_ir = lox_ir;
 
-            generate_graph_and_write(&graphviz_visualizer, ssa_ir.first_block);
+            generate_graph_and_write(&graphviz_visualizer, lox_ir.first_block);
             break;
         }
-        case UNBOXING_INSERTION_PHASE_SSA_GRAPHVIZ: {
-            struct lox_ir ssa_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
-                                                                                         &ssa_node_allocator.lox_allocator),
-                                                 graphviz_visualizer.ssa_options);
-            perform_type_propagation(&ssa_ir);
-            perform_unboxing_insertion(&ssa_ir);
-            graphviz_visualizer.ssa_ir = ssa_ir;
+        case UNBOXING_INSERTION_PHASE_LOX_IR_GRAPHVIZ: {
+            struct lox_ir lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
+                    &node_allocator.lox_allocator), graphviz_visualizer.options);
+            perform_type_propagation(&lox_ir);
+            perform_unboxing_insertion(&lox_ir);
+            graphviz_visualizer.lox_ir = lox_ir;
 
-            generate_graph_and_write(&graphviz_visualizer, ssa_ir.first_block);
+            generate_graph_and_write(&graphviz_visualizer, lox_ir.first_block);
             break;
         }
-        case ESCAPE_ANALYSIS_PHASE_SSA_GRAPHVIZ: {
-            struct lox_ir ssa_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
-                                                                                         &ssa_node_allocator.lox_allocator),
-                                                 graphviz_visualizer.ssa_options);
-            perform_type_propagation(&ssa_ir);
-            perform_escape_analysis(&ssa_ir);
-            graphviz_visualizer.ssa_ir = ssa_ir;
+        case ESCAPE_ANALYSIS_PHASE_LOX_IR_GRAPHVIZ: {
+            struct lox_ir lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
+                    &node_allocator.lox_allocator), graphviz_visualizer.options);
+            perform_type_propagation(&lox_ir);
+            perform_escape_analysis(&lox_ir);
+            graphviz_visualizer.lox_ir = lox_ir;
 
-            generate_graph_and_write(&graphviz_visualizer, ssa_ir.first_block);
+            generate_graph_and_write(&graphviz_visualizer, lox_ir.first_block);
             break;
         }
-        case PHI_RESOLUTION_PHASE_SSA_GRAPHVIZ: {
-            struct lox_ir ssa_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
-                                                                                         &ssa_node_allocator.lox_allocator),
-                                                 graphviz_visualizer.ssa_options);
-            graphviz_visualizer.ssa_ir = ssa_ir;
+        case PHI_RESOLUTION_PHASE_LOX_IR_GRAPHVIZ: {
+            struct lox_ir lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
+                    &node_allocator.lox_allocator), graphviz_visualizer.options);
+            graphviz_visualizer.lox_ir = lox_ir;
 
-            resolve_phi(&ssa_ir);
+            resolve_phi(&lox_ir);
 
-            generate_graph_and_write(&graphviz_visualizer, ssa_ir.first_block);
+            generate_graph_and_write(&graphviz_visualizer, lox_ir.first_block);
             break;
         }
-        case ALL_PHASE_SSA_GRAPHVIZ: {
-            struct lox_ir ssa_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
-                                                                                         &ssa_node_allocator.lox_allocator),
-                                                 graphviz_visualizer.ssa_options);
-            perform_sparse_constant_propagation(&ssa_ir);
-            perform_common_subexpression_elimination(&ssa_ir);
-            perform_loop_invariant_code_motion(&ssa_ir);
-            perform_type_propagation(&ssa_ir);
-            perform_strength_reduction(&ssa_ir);
-            perform_copy_propagation(&ssa_ir);
-            perform_unboxing_insertion(&ssa_ir);
+        case ALL_PHASE_LOX_IR_GRAPHVIZ: {
+            struct lox_ir lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
+                    &node_allocator.lox_allocator), graphviz_visualizer.options);
+            perform_sparse_constant_propagation(&lox_ir);
+            perform_common_subexpression_elimination(&lox_ir);
+            perform_loop_invariant_code_motion(&lox_ir);
+            perform_type_propagation(&lox_ir);
+            perform_strength_reduction(&lox_ir);
+            perform_copy_propagation(&lox_ir);
+            perform_unboxing_insertion(&lox_ir);
 
-            graphviz_visualizer.ssa_ir = ssa_ir;
+            graphviz_visualizer.lox_ir = lox_ir;
 
-            generate_graph_and_write(&graphviz_visualizer, ssa_ir.first_block);
+            generate_graph_and_write(&graphviz_visualizer, lox_ir.first_block);
             break;
         }
     }

@@ -14,8 +14,8 @@ static void propagation(struct cp *);
 static bool can_be_replaced(struct lox_ir_control_define_ssa_name_node *, struct lox_ir_control_node *);
 static void remove_unused_ssa_name_definition(struct cp *cp, struct lox_ir_control_define_ssa_name_node *definition_to_remove);
 
-void perform_copy_propagation(struct lox_ir * ssa_ir) {
-    struct cp * copy_propagation = alloc_copy_propagation(ssa_ir);
+void perform_copy_propagation(struct lox_ir * lox_ir) {
+    struct cp * copy_propagation = alloc_copy_propagation(lox_ir);
 
     initialization(copy_propagation);
     propagation(copy_propagation);

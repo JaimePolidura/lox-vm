@@ -21,26 +21,26 @@
 #include "shared.h"
 
 typedef enum {
-    //SSA IR Creation
+    //LOX IR Creation
     NO_PHIS_PHASE_LOX_IR_GRAPHVIZ = 1 << 0,
     PHIS_INSERTED_PHASE_LOX_IR_GRAPHVIZ = 1 << 1,
     PHIS_OPTIMIZED_PHASE_LOX_IR_GRAPHVIZ = 1 << 2,
 
     //Optimizations
-    SPARSE_CONSTANT_PROPAGATION_PHASE_SSA_GRAPHVIZ = 1 << 3,
-    COMMON_SUBEXPRESSION_ELIMINATION_PHASE_SSA_GRAPHVIZ = 1 << 4,
-    STRENGTH_REDUCTION_PHASE_SSA_GRAPHVIZ = 1 << 5,
-    LOOP_INVARIANT_CODE_MOTION_PHASE_SSA_GRAPHVIZ = 1 << 6,
-    UNBOXING_INSERTION_PHASE_SSA_GRAPHVIZ = 1 << 7,
-    TYPE_PROPAGATION_PHASE_SSA_GRAPHVIZ = 1 << 8,
-    ESCAPE_ANALYSIS_PHASE_SSA_GRAPHVIZ = 1 << 9,
-    COPY_PROPAGATION_PHASE_SSA_GRAPHVIZ = 1 << 10,
+    SPARSE_CONSTANT_PROPAGATION_PHASE_LOX_IR_GRAPHVIZ = 1 << 3,
+    COMMON_SUBEXPRESSION_ELIMINATION_PHASE_LOX_IR_GRAPHVIZ = 1 << 4,
+    STRENGTH_REDUCTION_PHASE_LOX_IR_GRAPHVIZ = 1 << 5,
+    LOOP_INVARIANT_CODE_MOTION_PHASE_LOX_IR_GRAPHVIZ = 1 << 6,
+    UNBOXING_INSERTION_PHASE_LOX_IR_GRAPHVIZ = 1 << 7,
+    TYPE_PROPAGATION_PHASE_LOX_IR_GRAPHVIZ = 1 << 8,
+    ESCAPE_ANALYSIS_PHASE_LOX_IR_GRAPHVIZ = 1 << 9,
+    COPY_PROPAGATION_PHASE_LOX_IR_GRAPHVIZ = 1 << 10,
 
     //Phi node resolution / Virtual registers allocation
-    PHI_RESOLUTION_PHASE_SSA_GRAPHVIZ = 1 << 11,
+    PHI_RESOLUTION_PHASE_LOX_IR_GRAPHVIZ = 1 << 11,
 
-    ALL_PHASE_SSA_GRAPHVIZ = 1 << 63,
-} phase_ssa_graphviz_t;
+    ALL_PHASE_LOX_IR_GRAPHVIZ = 1 << 63,
+} phase_lox_ir_graphviz_t;
 
 enum {
     DEFAULT_GRAPHVIZ_OPT = 0,
@@ -51,11 +51,11 @@ enum {
     DISPLAY_ESCAPE_INFO_OPT = 1 << 3,
 };
 
-void generate_ssa_graphviz_graph(
+void generate_lox_ir_graphviz_graph(
         struct package * package,
         struct function_object * function,
-        phase_ssa_graphviz_t phase,
+        phase_lox_ir_graphviz_t phase,
         long graphviz_options,
-        long ssa_options,
+        long options,
         char * path
 );

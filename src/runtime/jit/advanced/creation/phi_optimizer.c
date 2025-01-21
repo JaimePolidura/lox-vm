@@ -3,7 +3,7 @@
 struct optimize_phi_functions_consumer_struct {
     struct phi_insertion_result * phi_insertion_result;
     struct lox_ir_control_node * control_node;
-    //u64_set of ssa_control_nodes per ssa name
+    //u64_set of control_nodes per jit name
     struct u64_hash_table * node_uses_by_ssa_name;
     struct lox_ir_block * block;
     struct arena_lox_allocator * nodes_allocator;
@@ -130,7 +130,7 @@ static void remove_innecesary_phi_function(
     *parent_child_ptr = (void *) new_get_ssa_name;
 }
 
-//Extracts phi functions to ssa names
+//Extracts phi functions to jit names
 //Example: Given: print phi(a0, a1). Result: a2 = phi(a0, a1); print a2;
 static void extract_phi_to_ssa_name(
         struct optimize_phi_functions_consumer_struct * consumer_struct,

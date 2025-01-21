@@ -105,7 +105,7 @@ static void propagation(struct scp * scp) {
     }
 }
 
-//Initializes list of ssa names to work with
+//Initializes list of jit names to work with
 //Also rewrites constant expressions like: 1 + 1 -> 2
 static void initialization(struct scp * scp) {
     struct u64_hash_table_iterator ssa_names_iterator;
@@ -141,20 +141,20 @@ static void remove_death_branch(struct scp * scp, struct lox_ir_control_node * b
         struct u64_set * removed_ssa_name_node_uses = get_u64_hash_table(&scp->lox_ir->node_uses_by_ssa_name, removed_ssa_definition.u16);
 
         FOR_EACH_U64_SET_VALUE(*removed_ssa_name_node_uses, node_uses_removed_ssa_name_ptr) {
-            //Every control_node that uses the removed ssa_node in an extern control_node will use it to define another ssa name, with a phi function:
+            //Every control_node that uses the removed ssa_node in an extern control_node will use it to define another jit name, with a phi function:
             //a2 = phi(a0, a1)
             struct lox_ir_control_define_ssa_name_node * node_uses_ssa_name = (void *) node_uses_removed_ssa_name_ptr;
             if(!contains_u64_set(&branch_removed.blocks_removed, (uint64_t) node_uses_ssa_name->control.block)){
                 struct lox_ir_data_phi_node * phi_node = (struct lox_ir_data_phi_node *) node_uses_ssa_name->value;
-                //Remove ssa name usage from phi control_node
+                //Remove jit name usage from phi control_node
                 remove_u64_set(&phi_node->ssa_versions, removed_ssa_definition.value.version);
-                //If there is only 1 usage of a ssa name in a phi control_node, replace it with lox_ir_data_get_ssa_name_node control_node
+                //If there is only 1 usage of a jit name in a phi control_node, replace it with lox_ir_data_get_ssa_name_node control_node
                 if (size_u64_set(phi_node->ssa_versions) == 1) {
                     node_uses_ssa_name->value = (struct lox_ir_data_node *) ALLOC_LOX_IR_DATA(
                             LOX_IR_DATA_NODE_GET_SSA_NAME, struct lox_ir_data_get_ssa_name_node, NULL, LOX_IR_ALLOCATOR(scp->lox_ir)
                     );
                 }
-                //Remove semilattice of the removed ssa name
+                //Remove semilattice of the removed jit name
                 remove_u64_hash_table(&scp->semilattice_by_ssa_name, removed_ssa_definition.u16);
                 //Clear node_uses_ssa_name's semilattice values.
                 struct semilattice_value * current_semilattice_node_uses = get_semillatice_by_ssa_name(scp, node_uses_ssa_name->ssa_name);
@@ -162,7 +162,7 @@ static void remove_death_branch(struct scp * scp, struct lox_ir_control_node * b
                 //Rescan node_uses_ssa_name: Mark as TOP and push it to the pending stack
                 current_semilattice_node_uses->type = SEMILATTICE_TOP;
                 push_stack_list(&scp->pending, (void *) node_uses_ssa_name->ssa_name.u16);
-                //Mark removed ssa name as removed
+                //Mark removed jit name as removed
                 add_u64_set(&scp->removed_ssa_names, removed_ssa_definition.u16);
             }
         };
@@ -208,7 +208,7 @@ static struct semilattice_value * get_semilattice_propagation_from_data(
         }
         case LOX_IR_DATA_NODE_GET_LOCAL:
         default:
-            runtime_panic("Unhandled ssa data control_node type %i in get_semilattice_initialization_from_data() in scp.c", current_node->type);
+            runtime_panic("Unhandled jit data control_node type %i in get_semilattice_initialization_from_data() in scp.c", current_node->type);
     }
 }
 
@@ -298,7 +298,7 @@ struct constant_rewrite * rewrite_constant_expressions_propagation_data_node(
             return alloc_constant_rewrite(scp, current_node, semilattice_phi);
         }
         case LOX_IR_DATA_NODE_GET_LOCAL: {
-            runtime_panic("Illegal get local control_node in sparse constant scp ssa optimization");
+            runtime_panic("Illegal get local control_node in sparse constant scp jit optimization");
         }
     }
 
@@ -373,7 +373,7 @@ struct constant_rewrite * rewrite_constant_expressions_initialization_data_node(
             return alloc_constant_rewrite(scp, current_node, alloc_bottom_semilatttice(scp));
         }
         case LOX_IR_DATA_NODE_GET_LOCAL: {
-            runtime_panic("Illegal get local control_node in sparse constant scp ssa optimization");
+            runtime_panic("Illegal get local control_node in sparse constant scp jit optimization");
         }
     }
 
@@ -420,7 +420,7 @@ static struct semilattice_value * get_semilattice_initialization_from_data(struc
         }
         case LOX_IR_DATA_NODE_GET_LOCAL:
         default:
-            runtime_panic("Unhandled ssa data control_node type %i in get_semilattice_initialization_from_data() in scp.c", current_data_node->type);
+            runtime_panic("Unhandled jit data control_node type %i in get_semilattice_initialization_from_data() in scp.c", current_data_node->type);
     }
 }
 
@@ -693,7 +693,7 @@ static void remove_from_ir_removed_ssa_names(struct scp * scp) {
 
 static struct semilattice_value * get_semillatice_by_ssa_name(struct scp * scp, struct ssa_name ssa_name) {
     struct semilattice_value * semilattice_value = get_u64_hash_table(&scp->semilattice_by_ssa_name, ssa_name.u16);
-    //If it is null, it means that the ssa name comes from a function argument, which is used but not defined in the ir
+    //If it is null, it means that the jit name comes from a function argument, which is used but not defined in the ir
     //A function argument is always bottom, since it could contain multiple values
     if (semilattice_value == NULL){
         struct semilattice_value * semilattice_value_func_arg = alloc_bottom_semilatttice(scp);

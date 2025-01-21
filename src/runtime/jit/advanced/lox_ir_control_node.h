@@ -136,7 +136,7 @@ struct lox_ir_control_conditional_jump_node {
 //This control_node will be only used when inserting phi functions in the graph ir creation process
 //Will replace OP_SET_LOCAL
 //The memory outlay of lox_ir_control_define_ssa_name_node and lox_ir_control_set_local_node is the same. We create two
-//different struct definitions to note, the differences between the two process in the ssa ir graph creation.
+//different struct definitions to note, the differences between the two process in the jit ir graph creation.
 //And the same memory outlay so we can replace the control_node in the graph easily, by just changing the control_node type
 struct lox_ir_control_define_ssa_name_node {
     struct lox_ir_control_node control;

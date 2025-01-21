@@ -20,7 +20,7 @@ static struct lox_ir_data_node * create_add_data_node2();
 //C dominates F
 //A dominates H
 //G doest not dominate H
-TEST(ssa_block_dominates){
+TEST(lox_ir_block_dominates){
     struct lox_ir_block * a = alloc_lox_ir_block(NATIVE_LOX_ALLOCATOR());
     struct lox_ir_block * b = alloc_lox_ir_block(NATIVE_LOX_ALLOCATOR());
     struct lox_ir_block * c = alloc_lox_ir_block(NATIVE_LOX_ALLOCATOR());
@@ -75,39 +75,39 @@ TEST(ssa_block_dominates){
 }
 
 //((a + b) + c) == (b + (a + c))
-TEST(ssa_data_node_is_eq) {
+TEST(lox_ir_data_node_is_eq) {
     ASSERT_TRUE(is_eq_lox_ir_data_node(create_add_data_node1(), create_add_data_node2(), NATIVE_LOX_ALLOCATOR()));
 }
 
 //Hash((a + b) + c) == Hash(b + (a + c))
-TEST(ssa_data_node_hash) {
+TEST(lox_ir_data_node_hash) {
     ASSERT_EQ(hash_lox_ir_data_node(create_add_data_node1()), hash_lox_ir_data_node(create_add_data_node2()));
 }
 
 //Returns: ((a + b) + c)
 static struct lox_ir_data_node * create_add_data_node1() {
     struct lox_ir_data_get_ssa_name_node * get_a = ALLOC_LOX_IR_DATA(
-            LOX_IR_DATA_NODE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL, NATIVE_LOX_ALLOCATOR()
+            LOX_IR_DATA_NODE_GET_SSA_NAME, struct lox_ir_data_get_ssa_name_node, NULL, NATIVE_LOX_ALLOCATOR()
     );
     get_a->ssa_name = CREATE_SSA_NAME(1, 1);
     struct lox_ir_data_get_ssa_name_node * get_b = ALLOC_LOX_IR_DATA(
-            LOX_IR_DATA_NODE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL, NATIVE_LOX_ALLOCATOR()
+            LOX_IR_DATA_NODE_GET_SSA_NAME, struct lox_ir_data_get_ssa_name_node, NULL, NATIVE_LOX_ALLOCATOR()
     );
     get_b->ssa_name = CREATE_SSA_NAME(2, 1);
     struct lox_ir_data_get_ssa_name_node * get_c = ALLOC_LOX_IR_DATA(
-            LOX_IR_DATA_NODE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL, NATIVE_LOX_ALLOCATOR()
+            LOX_IR_DATA_NODE_GET_SSA_NAME, struct lox_ir_data_get_ssa_name_node, NULL, NATIVE_LOX_ALLOCATOR()
     );
     get_c->ssa_name = CREATE_SSA_NAME(3, 1);
 
     //First tree: (a + b) + c
     struct lox_ir_data_binary_node * first_tree_add_a_b = ALLOC_LOX_IR_DATA(
-            LOX_IR_DATA_NODE_BINARY, struct ssa_data_binary_node, NULL, NATIVE_LOX_ALLOCATOR()
+            LOX_IR_DATA_NODE_BINARY, struct lox_ir_data_binary_node, NULL, NATIVE_LOX_ALLOCATOR()
     );
     first_tree_add_a_b->right = &get_b->data;
     first_tree_add_a_b->left = &get_a->data;
     first_tree_add_a_b->operator = OP_ADD;
     struct lox_ir_data_binary_node * first_tree_head_node_add_c = ALLOC_LOX_IR_DATA(
-            LOX_IR_DATA_NODE_BINARY, struct ssa_data_binary_node, NULL, NATIVE_LOX_ALLOCATOR()
+            LOX_IR_DATA_NODE_BINARY, struct lox_ir_data_binary_node, NULL, NATIVE_LOX_ALLOCATOR()
     );
     first_tree_head_node_add_c->right = &get_c->data;
     first_tree_head_node_add_c->left = &first_tree_add_a_b->data;
@@ -119,26 +119,26 @@ static struct lox_ir_data_node * create_add_data_node1() {
 //Returns: b + (a + c)
 static struct lox_ir_data_node * create_add_data_node2() {
     struct lox_ir_data_get_ssa_name_node * get_a = ALLOC_LOX_IR_DATA(
-            LOX_IR_DATA_NODE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL, NATIVE_LOX_ALLOCATOR()
+            LOX_IR_DATA_NODE_GET_SSA_NAME, struct lox_ir_data_get_ssa_name_node, NULL, NATIVE_LOX_ALLOCATOR()
     );
     get_a->ssa_name = CREATE_SSA_NAME(1, 1);
     struct lox_ir_data_get_ssa_name_node * get_b = ALLOC_LOX_IR_DATA(
-            LOX_IR_DATA_NODE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL, NATIVE_LOX_ALLOCATOR()
+            LOX_IR_DATA_NODE_GET_SSA_NAME, struct lox_ir_data_get_ssa_name_node, NULL, NATIVE_LOX_ALLOCATOR()
     );
     get_b->ssa_name = CREATE_SSA_NAME(2, 1);
     struct lox_ir_data_get_ssa_name_node * get_c = ALLOC_LOX_IR_DATA(
-            LOX_IR_DATA_NODE_GET_SSA_NAME, struct ssa_data_get_ssa_name_node, NULL, NATIVE_LOX_ALLOCATOR()
+            LOX_IR_DATA_NODE_GET_SSA_NAME, struct lox_ir_data_get_ssa_name_node, NULL, NATIVE_LOX_ALLOCATOR()
     );
     get_c->ssa_name = CREATE_SSA_NAME(3, 1);
 
     struct lox_ir_data_binary_node * second_tree_add_a_c = ALLOC_LOX_IR_DATA(
-            LOX_IR_DATA_NODE_BINARY, struct ssa_data_binary_node, NULL, NATIVE_LOX_ALLOCATOR()
+            LOX_IR_DATA_NODE_BINARY, struct lox_ir_data_binary_node, NULL, NATIVE_LOX_ALLOCATOR()
     );
     second_tree_add_a_c->right = &get_c->data;
     second_tree_add_a_c->left = &get_a->data;
     second_tree_add_a_c->operator = OP_ADD;
     struct lox_ir_data_binary_node * second_tree_head_node_add_b = ALLOC_LOX_IR_DATA(
-            LOX_IR_DATA_NODE_BINARY, struct ssa_data_binary_node, NULL, NATIVE_LOX_ALLOCATOR()
+            LOX_IR_DATA_NODE_BINARY, struct lox_ir_data_binary_node, NULL, NATIVE_LOX_ALLOCATOR()
     );
     second_tree_head_node_add_b->right = &second_tree_add_a_c->data;
     second_tree_head_node_add_b->left = &get_b->data;

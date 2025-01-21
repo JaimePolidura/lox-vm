@@ -43,18 +43,18 @@ struct ssa_name alloc_ssa_version_lox_ir(struct lox_ir * lox_ir, int local_numbe
 void remove_ssa_name_use_lox_ir(
     struct lox_ir * lox_ir,
     struct ssa_name ssa_name,
-    struct lox_ir_control_node * ssa_control_node
+    struct lox_ir_control_node * control_node
 ) {
     if(contains_u64_hash_table(&lox_ir->node_uses_by_ssa_name, ssa_name.u16)){
         struct u64_set * uses = get_u64_hash_table(&lox_ir->node_uses_by_ssa_name, ssa_name.u16);
-        remove_u64_set(uses, (uint64_t) ssa_control_node);
+        remove_u64_set(uses, (uint64_t) control_node);
     }
 }
 
 void add_ssa_name_use_lox_ir(
         struct lox_ir * lox_ir,
         struct ssa_name ssa_name,
-        struct lox_ir_control_node * ssa_control_node
+        struct lox_ir_control_node * control_node
 ) {
     if(!contains_u64_hash_table(&lox_ir->node_uses_by_ssa_name, ssa_name.u16)){
         struct u64_set * uses = LOX_MALLOC(LOX_IR_ALLOCATOR(lox_ir), sizeof(struct u64_set));
@@ -63,7 +63,7 @@ void add_ssa_name_use_lox_ir(
     }
 
     struct u64_set * uses = get_u64_hash_table(&lox_ir->node_uses_by_ssa_name, ssa_name.u16);
-    add_u64_set(uses, (uint64_t) ssa_control_node);
+    add_u64_set(uses, (uint64_t) control_node);
 }
 
 struct lox_ir_type * get_type_by_ssa_name_lox_ir(
@@ -77,27 +77,27 @@ struct lox_ir_type * get_type_by_ssa_name_lox_ir(
 
 void put_type_by_ssa_name_lox_ir(
         struct lox_ir * lox_ir,
-        struct lox_ir_block * ssa_block,
+        struct lox_ir_block * block,
         struct ssa_name ssa_name,
         struct lox_ir_type * new_type
 ) {
     if(new_type == NULL){
         return;
     }
-    if(!contains_u64_hash_table(&lox_ir->type_by_ssa_name_by_block, (uint64_t) ssa_block)){
+    if(!contains_u64_hash_table(&lox_ir->type_by_ssa_name_by_block, (uint64_t) block)){
         struct u64_hash_table * types_by_block = LOX_MALLOC(LOX_IR_ALLOCATOR(lox_ir), sizeof(struct u64_hash_table));
         init_u64_hash_table(types_by_block, LOX_IR_ALLOCATOR(lox_ir));
-        put_u64_hash_table(&lox_ir->type_by_ssa_name_by_block, (uint64_t) ssa_block, types_by_block);
+        put_u64_hash_table(&lox_ir->type_by_ssa_name_by_block, (uint64_t) block, types_by_block);
     }
 
-    struct u64_hash_table * types_by_block = get_u64_hash_table(&lox_ir->type_by_ssa_name_by_block, (uint64_t) ssa_block);
+    struct u64_hash_table * types_by_block = get_u64_hash_table(&lox_ir->type_by_ssa_name_by_block, (uint64_t) block);
     put_u64_hash_table(types_by_block, ssa_name.u16, new_type);
 
-    struct u64_hash_table_iterator ssa_type_by_ssa_name_by_block_ite;
-    init_u64_hash_table_iterator(&ssa_type_by_ssa_name_by_block_ite, lox_ir->type_by_ssa_name_by_block);
+    struct u64_hash_table_iterator type_by_ssa_name_by_block_ite;
+    init_u64_hash_table_iterator(&type_by_ssa_name_by_block_ite, lox_ir->type_by_ssa_name_by_block);
 
-    while (has_next_u64_hash_table_iterator(ssa_type_by_ssa_name_by_block_ite)) {
-        struct u64_hash_table_entry current_entry = next_u64_hash_table_iterator(&ssa_type_by_ssa_name_by_block_ite);
+    while (has_next_u64_hash_table_iterator(type_by_ssa_name_by_block_ite)) {
+        struct u64_hash_table_entry current_entry = next_u64_hash_table_iterator(&type_by_ssa_name_by_block_ite);
         struct u64_hash_table * current_types_by_ssa_name = current_entry.value;
 
         if (contains_u64_hash_table(current_types_by_ssa_name, ssa_name.u16)) {

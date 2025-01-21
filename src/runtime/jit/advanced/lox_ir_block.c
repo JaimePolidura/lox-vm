@@ -185,7 +185,7 @@ void add_before_control_node_lox_ir_block(
     before->prev = new;
 }
 
-bool is_emtpy_ssa_block(struct lox_ir_block * block) {
+bool is_emtpy_lox_ir_block(struct lox_ir_block * block) {
     return block->first == NULL && block->last == NULL;
 }
 
@@ -207,7 +207,7 @@ struct branch_removed remove_branch_lox_ir_block(
 
     struct u64_set blocks_removed = get_blocks_to_remove(branch_to_be_removed);
 
-    //We get the set of ssa names removed
+    //We get the set of jit names removed
     struct u64_set_iterator subgraph_blocks_to_remove_it;
     init_u64_set_iterator(&subgraph_blocks_to_remove_it, blocks_removed);
     struct u64_set ssa_name_definitinos_subgraph;
@@ -220,7 +220,7 @@ struct branch_removed remove_branch_lox_ir_block(
     branch_block->type_next = TYPE_NEXT_LOX_IR_BLOCK_SEQ;
     branch_block->next_as.next = branch_remains;
     remove_control_node_lox_ir_block(branch_block, branch_block->last); //The last is the jump_conditional control_node
-    if(is_emtpy_ssa_block(branch_block)){
+    if(is_emtpy_lox_ir_block(branch_block)){
         add_u64_set(&blocks_removed, (uint64_t) branch_block);
         replace_block_lox_ir_block(branch_block, branch_remains);
     }
@@ -391,14 +391,14 @@ static struct lox_ir_block_loop_info * create_loop_info_lox_ir_block(struct lox_
 }
 
 static bool create_loop_info_lox_ir_block_consumer(struct lox_ir_block * current_block, void * extra) {
-    struct lox_ir_block_loop_info * ssa_block_loop_info = extra;
+    struct lox_ir_block_loop_info * block_loop_info = extra;
 
     if(current_block->is_loop_condition){
         //Current block is the loop condtiion block that we want to scan. We want to keep scanning from it
         return true;
     }
 
-    if (current_block->loop_condition_block != ssa_block_loop_info->condition_block) {
+    if (current_block->loop_condition_block != block_loop_info->condition_block) {
         //Dont keep scanning from current_block
         return false;
     }
@@ -406,14 +406,14 @@ static bool create_loop_info_lox_ir_block_consumer(struct lox_ir_block * current
     for(struct lox_ir_control_node * current_control_node = current_block->first;; current_control_node = current_control_node->next) {
         if(current_control_node->type == LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME) {
             struct lox_ir_control_define_ssa_name_node * define_node = (struct lox_ir_control_define_ssa_name_node *) current_control_node;
-            add_u8_set(&ssa_block_loop_info->modified_local_numbers, define_node->ssa_name.value.local_number);
+            add_u8_set(&block_loop_info->modified_local_numbers, define_node->ssa_name.value.local_number);
         } else if(current_control_node->type == LOX_IR_CONTROL_NODE_SET_ARRAY_ELEMENT){
             struct lox_ir_control_set_array_element_node * set_array_element = (struct lox_ir_control_set_array_element_node *) current_control_node;
             struct lox_ir_data_node * array_instance = set_array_element->array;
 
             if (array_instance->type == LOX_IR_DATA_NODE_GET_SSA_NAME) {
                 struct lox_ir_data_get_ssa_name_node * get_array_instance = (struct lox_ir_data_get_ssa_name_node *) array_instance;
-                add_u8_set(&ssa_block_loop_info->modified_local_numbers, get_array_instance->ssa_name.value.local_number);
+                add_u8_set(&block_loop_info->modified_local_numbers, get_array_instance->ssa_name.value.local_number);
             }
         }
 

@@ -12,7 +12,7 @@ struct lox_ir create_lox_ir(
 
     struct lox_ir_block * first_block = create_lox_ir_no_phis(package, function, start_function_bytecode, nodes_allocator, options);
     struct phi_insertion_result phi_insertion_result = insert_lox_ir_phis(first_block, nodes_allocator);
-    struct phi_optimization_result optimization_result = optimize_ssa_ir_phis(first_block, &phi_insertion_result, nodes_allocator);
+    struct phi_optimization_result optimization_result = optimize_lox_ir_phis(first_block, &phi_insertion_result, nodes_allocator);
 
     return (struct lox_ir) {
         .max_version_allocated_per_local = phi_insertion_result.max_version_allocated_per_local,

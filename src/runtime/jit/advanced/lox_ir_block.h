@@ -28,7 +28,7 @@ struct lox_ir_block {
     //Set of local variable numbers that this block will use before assigning
     //Example: i = i + 1; print a; a = 12; b = 1; print b. use_before_assigment: {i, a}
     //This facilitates the insertion of phi functions in loop bodies. So before using a variable, we know what variables to copy.
-    //This is used only at ssa ir construction time.
+    //This is used only at jit ir construction time.
     struct u8_set use_before_assigment;
 
     //Number of nested loops of which the block belongs.
@@ -73,7 +73,7 @@ void add_last_control_node_lox_ir_block(struct lox_ir_block *block, struct lox_i
 void add_before_control_node_lox_ir_block(struct lox_ir_block *block, struct lox_ir_control_node * before, struct lox_ir_control_node * new);
 void add_after_control_node_lox_ir_block(struct lox_ir_block *block, struct lox_ir_control_node * after, struct lox_ir_control_node * new);
 void remove_control_node_lox_ir_block(struct lox_ir_block *lox_ir_block, struct lox_ir_control_node *node_to_remove);
-bool is_emtpy_ssa_block(struct lox_ir_block *);
+bool is_emtpy_lox_ir_block(struct lox_ir_block *block);
 //a dominates b
 bool dominates_lox_ir_block(struct lox_ir_block * a, struct lox_ir_block * b, struct lox_allocator *allocator);
 struct u64_set get_dominator_set_lox_ir_block(struct lox_ir_block *block, struct lox_allocator *allocator);
