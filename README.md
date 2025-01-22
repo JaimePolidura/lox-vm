@@ -18,11 +18,11 @@ An implementation of lox pending_bytecode interpreter described in "Crafting Int
 - When a function is called multiple times, the runtime will start recording runtime information like types, number of times that a branch is taken etc.
 - When enough runtime information is collected, the function will get compiled to assembly code.
 - The compiled can be divided into a series of phases:
-  - 1º Translation of the function bytecode to an internal IR (<b>ssa_creator.h</b>). The IR will have the SSA form. This IR will be composed of:
+  - 1º <b>IR Creation</b> Translation of the function bytecode to an internal IR (<b>ssa_creator.h</b>). The IR will have the SSA form. This IR will be composed of:
     - Blocks (<b>lox_ir_block.h</b>) Series of control node that will run without branches (sequentally).
     - Control (<b>ssa_control_node.h</b>) Instructions that represents control flow (statements). This nodes might contains data flow nodes.
     - Data (<b>lox_ir_data_node.h</b>) Instructions that represents data flow (expressions)
-  - 2º Once it is translated to SSA IR a series of optimizations will be done:
+  - 2º <b>Optimizations</b> Once it is translated to SSA IR a series of optimizations will be done:
     - Copy propagation
     - Common subexpression elimination
     - Constant propagation
@@ -31,7 +31,8 @@ An implementation of lox pending_bytecode interpreter described in "Crafting Int
     - Type propagation/analysis
     - Box/Unbox insertion
     - Range check elimination
-  - 3º Code gen
+  - 3º <b> Virtual register allocation </b>
+  - 4º <b> IR Lowering </b>
 - The machine code generated will take advantaje of the runtime information collected. The IR will contain guard nodes that will check if the conditions are hold, if they are not, the bytecode interpreter will run the function. For example the first node in a function can be used for checking if an argument has type number. 
 
 ## Examples
