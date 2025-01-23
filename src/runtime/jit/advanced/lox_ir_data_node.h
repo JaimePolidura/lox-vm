@@ -37,6 +37,8 @@ typedef enum {
     LOX_IR_DATA_NODE_BOX,
     //Intrudcued by phi resolution phase, this is not used in optimizations
     LOX_IR_DATA_NODE_GET_V_REGISTER,
+
+
 } lox_ir_data_node_type;
 
 #define ALLOC_LOX_IR_DATA(type, struct_type, bytecode, allocator) (struct_type *) allocate_lox_ir_data_node(type, sizeof(struct_type), bytecode, allocator)
@@ -252,5 +254,11 @@ struct lox_ir_data_unbox_node {
 
 struct lox_ir_data_get_v_register_node {
     struct lox_ir_data_node data;
-    v_register_t v_register;
+    struct v_register v_register;
+};
+
+struct lox_ir_data_load_node_node {
+    struct lox_ir_data_node data;
+    struct lox_ir_data_node * pointer;
+    uint16_t offset;
 };

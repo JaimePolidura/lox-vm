@@ -3,7 +3,6 @@
 #include "lox_ir_data_node.h"
 #include "lox_ir_guard.h"
 #include "runtime/threads/monitor.h"
-#include "runtime/jit/advanced/phi_resolution/v_register.h"
 
 //Control flow nodes used in SSA IR
 
@@ -153,5 +152,5 @@ struct lox_ir_control_guard_node {
 struct lox_ir_control_set_v_register_node {
     struct lox_ir_control_node control;
     struct lox_ir_data_node * value;
-    v_register_t v_register;
+    struct v_register v_register;
 };

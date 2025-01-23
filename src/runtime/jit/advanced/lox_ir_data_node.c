@@ -131,7 +131,8 @@ bool is_eq_lox_ir_data_node(struct lox_ir_data_node * a, struct lox_ir_data_node
         case LOX_IR_DATA_NODE_GET_V_REGISTER: {
             struct lox_ir_data_get_v_register_node * get_v_reg_a = (struct lox_ir_data_get_v_register_node *) a;
             struct lox_ir_data_get_v_register_node * get_v_reg_b = (struct lox_ir_data_get_v_register_node *) b;
-            return get_v_reg_a->v_register == get_v_reg_b->v_register;
+            return get_v_reg_a->v_register.reg_number == get_v_reg_b->v_register.reg_number &&
+                    get_v_reg_a->v_register.is_float_register == get_v_reg_b->v_register.is_float_register;
         }
         case LOX_IR_DATA_NODE_GUARD: {
             struct lox_ir_data_guard_node * a_guard = (struct lox_ir_data_guard_node *) a;
@@ -359,7 +360,7 @@ uint64_t hash_lox_ir_data_node(struct lox_ir_data_node * node) {
     switch (node->type) {
         case LOX_IR_DATA_NODE_GET_V_REGISTER: {
             struct lox_ir_data_get_v_register_node * get_v_reg = (struct lox_ir_data_get_v_register_node *) node;
-            return get_v_reg->v_register;
+            return mix_hash_not_commutative(get_v_reg->v_register.reg_number, (uint64_t) get_v_reg->v_register.is_float_register);
         }
         case LOX_IR_DATA_NODE_GUARD: {
             struct lox_ir_data_guard_node * guard = (struct lox_ir_data_guard_node *) node;

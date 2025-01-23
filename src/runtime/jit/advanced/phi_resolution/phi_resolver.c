@@ -2,7 +2,7 @@
 
 struct pr {
     struct u64_hash_table v_register_by_local_number;
-    v_register_t last_v_regiser_allocated;
+    uint16_t last_v_regiser_allocated;
 
     struct arena_lox_allocator ps_allocator;
     struct lox_ir * lox_ir;
@@ -13,14 +13,14 @@ static bool resolve_phi_block(struct lox_ir_block *, void *);
 static struct pr * alloc_phi_resolver(struct lox_ir *);
 static void free_phi_resolver(struct pr *);
 static void resolve_phi_control(struct pr *, struct lox_ir_control_node *);
-static v_register_t alloc_v_register(struct pr *);
+static struct v_register alloc_v_register(struct pr *, bool);
 static void replace_define_ssa_name_with_set_v_reg(struct pr*, struct lox_ir_control_define_ssa_name_node*);
 static void replace_get_ssa_name_with_get_v_reg(struct pr*, struct lox_ir_data_get_ssa_name_node*);
 static bool replace_phi_with_get_v_reg(struct pr*, struct lox_ir_data_phi_node*, struct lox_ir_control_define_ssa_name_node*);
 static bool resolve_phi_data(struct lox_ir_data_node*, void**, struct lox_ir_data_node*, void*);
 static bool all_predecessors_have_been_scanned(struct pr *, struct lox_ir_data_phi_node *);
 static bool is_define_phi_node(struct lox_ir_control_node *);
-static v_register_t get_v_reg_by_ssa_name(struct pr *, struct ssa_name);
+static struct v_register get_v_reg_by_ssa_name(struct pr *, struct ssa_name, bool is_float);
 
 void resolve_phi(struct lox_ir * lox_ir) {
     struct pr * phi_resolver = alloc_phi_resolver(lox_ir);
@@ -87,15 +87,17 @@ static bool resolve_phi_data(
 }
 
 static void replace_get_ssa_name_with_get_v_reg(struct pr * pr, struct lox_ir_data_get_ssa_name_node * get_ssa_name) {
-    v_register_t v_reg = get_v_reg_by_ssa_name(pr, get_ssa_name->ssa_name);
+    bool is_float = get_ssa_name->data.produced_type->type == LOX_IR_TYPE_F64;
+    struct v_register v_reg = get_v_reg_by_ssa_name(pr, get_ssa_name->ssa_name, is_float);
     get_ssa_name->data.type = LOX_IR_DATA_NODE_GET_V_REGISTER;
     struct lox_ir_data_get_v_register_node * get_v_reg = (struct lox_ir_data_get_v_register_node *) get_ssa_name;
     get_v_reg->v_register = v_reg;
 }
 
 static void replace_define_ssa_name_with_set_v_reg(struct pr * pr, struct lox_ir_control_define_ssa_name_node * define_ssa_name) {
+    bool is_float = define_ssa_name->value->produced_type->type == LOX_IR_TYPE_F64;
     struct lox_ir_data_node * value = define_ssa_name->value;
-    v_register_t new_v_reg = get_v_reg_by_ssa_name(pr, define_ssa_name->ssa_name);
+    struct v_register new_v_reg = get_v_reg_by_ssa_name(pr, define_ssa_name->ssa_name, is_float);
 
     define_ssa_name->control.type = LOX_IR_CONTROL_NODE_SET_V_REGISTER;
     struct lox_ir_control_set_v_register_node * set_v_reg = (struct lox_ir_control_set_v_register_node *) define_ssa_name;
@@ -103,8 +105,11 @@ static void replace_define_ssa_name_with_set_v_reg(struct pr * pr, struct lox_ir
     set_v_reg->value = value;
 }
 
-static v_register_t alloc_v_register(struct pr * pr) {
-    return pr->last_v_regiser_allocated++;
+static struct v_register alloc_v_register(struct pr * pr, bool is_float_reg) {
+    return (struct v_register) {
+        .reg_number = pr->last_v_regiser_allocated++,
+        .is_float_register = is_float_reg,
+    };
 }
 
 static bool is_define_phi_node(struct lox_ir_control_node * control_node) {
@@ -129,11 +134,12 @@ static void free_phi_resolver(struct pr * pr) {
     NATIVE_LOX_FREE(pr);
 }
 
-static v_register_t get_v_reg_by_ssa_name(struct pr * pr, struct ssa_name ssa_name) {
+static struct v_register get_v_reg_by_ssa_name(struct pr * pr, struct ssa_name ssa_name, bool is_float) {
     if (!contains_u64_hash_table(&pr->v_register_by_local_number, ssa_name.value.local_number)) {
-        v_register_t new_v_reg = alloc_v_register(pr);
-        put_u64_hash_table(&pr->v_register_by_local_number, ssa_name.value.local_number, (void *) new_v_reg);
+        struct v_register new_v_reg = alloc_v_register(pr, is_float);
+        put_u64_hash_table(&pr->v_register_by_local_number, ssa_name.value.local_number, (void *) TO_NUMBER_V_REGISTER(new_v_reg));
     }
 
-    return (v_register_t) get_u64_hash_table(&pr->v_register_by_local_number, ssa_name.value.local_number);
+    uint64_t v_reg_as_number = (uint64_t) get_u64_hash_table(&pr->v_register_by_local_number, ssa_name.value.local_number);
+    return FROM_NUMBER_V_REGISTER(v_reg_as_number);
 }
