@@ -32,10 +32,27 @@ typedef enum {
     LOW_LEVEL_LOX_IR_NODE_JUMP,
     LOW_LEVEL_LOX_IR_NODE_GROW_STACK,
     LOW_LEVEL_LOX_IR_NODE_SHRINK_STACK,
+    LOW_LEVEL_LOX_IR_NODE_PUSH_STACK,
+    LOW_LEVEL_LOX_IR_NODE_POP_STACK,
 } low_level_lox_ir_control_node_type;
 
 struct lox_level_lox_ir_node {
     low_level_lox_ir_control_node_type type;
+};
+
+struct low_level_lox_ir_push_stack {
+    struct lox_level_lox_ir_node node;
+    struct v_register to_push;
+};
+
+struct low_level_lox_ir_pop_stack {
+    struct lox_level_lox_ir_node node;
+    struct v_register to_pop;
+};
+
+struct low_level_lox_ir_function_call {
+    struct lox_level_lox_ir_node node;
+    struct operand function_call_address;
 };
 
 struct low_level_lox_ir_move {
@@ -60,6 +77,7 @@ struct low_level_lox_ir_unary {
 struct low_level_lox_ir_jump {
     struct lox_level_lox_ir_node node;
     struct operand jump_to;
+    bool is_conditional;
 };
 
 struct low_level_lox_ir_grow_stack {
