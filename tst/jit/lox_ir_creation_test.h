@@ -404,7 +404,7 @@ TEST(lox_ir_creation_phis_inserter_and_optimizer){
     ASSERT_TRUE(node_defines_ssa_name(a_condition_false->first, 3)); //a3 = 1;
     ASSERT_TRUE(node_defines_ssa_name(a_condition_false->first->next, 1)); //i1 = 1;
 
-    //Loop condition
+    //Loop jump_to_operand
     struct lox_ir_block * for_loop_condition_block = a_condition_false->next_as.next;
     ASSERT_TRUE(node_defines_ssa_name(for_loop_condition_block->first, 4)); //i4 = phi(i1, i3)
     struct lox_ir_control_define_ssa_name_node * define_i = (struct lox_ir_control_define_ssa_name_node *) for_loop_condition_block->first;

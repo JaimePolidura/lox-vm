@@ -92,7 +92,7 @@ bool perform_cse_data_node_consumer(
        current_data_node->type == LOX_IR_DATA_NODE_INITIALIZE_ARRAY) {
         return true;
     }
-    //We don't want to replace the main expression that is used in a loop condition
+    //We don't want to replace the main expression that is used in a loop jump_to_operand
     if (current_control_node->type == LOX_IR_CONTROL_NODE_CONDITIONAL_JUMP &&
         perform_cse_data_node->block->is_loop_condition &&
         current_data_node == GET_CONDITION_CONDITIONAL_JUMP_LOX_IR_NODE(current_control_node)) {

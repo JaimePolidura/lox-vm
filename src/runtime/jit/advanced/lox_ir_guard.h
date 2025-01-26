@@ -5,7 +5,7 @@
 
 typedef enum {
     LOX_IR_GUARD_TYPE_CHECK,
-    //This is like a typecheck but with the aditional condition that the struct instance shluld have a specific definition
+    //This is like a typecheck but with the aditional jump_to_operand that the struct instance shluld have a specific definition
     LOX_IR_GUARD_STRUCT_DEFINITION_TYPE_CHECK,
     //Same as LOX_IR_GUARD_STRUCT_DEFINITION_TYPE_CHECK but array type
     LOX_IR_GUARD_ARRAY_TYPE_CHECK,

@@ -2,6 +2,7 @@
 
 #include "lox_ir_data_node.h"
 #include "lox_ir_guard.h"
+#include "lox_ir_ll_operand.h"
 #include "runtime/threads/monitor.h"
 
 //Control flow nodes used in SSA IR
@@ -22,9 +23,19 @@ typedef enum {
     //Only used when inserting phi functions in the graph ir creation process
     //It will replace all the nodes with type LOX_IR_CONTORL_NODE_SET_LOCAL in the phi insertion proceess
     LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME,
-
     //Intrudcued by phi resolution phase, this is not used in optimizations
     LOX_IR_CONTROL_NODE_SET_V_REGISTER,
+    //Introduced by ir_lowerer
+    LOX_IR_CONTROL_NODE_LL_MOVE,
+    LOX_IR_CONTROL_NODE_LL_BINARY,
+    LOX_IR_CONTROL_NODE_LL_UNARY,
+    LOX_IR_CONTROL_NODE_LL_RETURN,
+    LOX_IR_CONTROL_NODE_LL_FUNCTION_CALL,
+    LOX_IR_CONTROL_NODE_LL_JUMP,
+    LOX_IR_CONTROL_NODE_LL_GROW_STACK,
+    LOX_IR_CONTROL_NODE_LL_SHRINK_STACK,
+    LOX_IR_CONTROL_NODE_LL_PUSH_STACK,
+    LOX_IR_CONTROL_NODE_LL_POP_STACK,
 } lox_ir_control_node_type;
 
 //Fordward reference, so we can use it without including it to avoid cyclical dependencies.
@@ -54,6 +65,8 @@ struct u64_set get_used_ssa_names_lox_ir_control(struct lox_ir_control_node *con
 struct u64_set get_children_lox_ir_control(struct lox_ir_control_node *control_node);
 void mark_as_escaped_lox_ir_control(struct lox_ir_control_node *node);
 bool is_marked_as_escaped_lox_ir_control(struct lox_ir_control_node *node);
+//void* is the function pointer, ... is array of struct lox_ir_ll_operand, int number of arguments
+struct lox_ir_control_ll_function_call* create_ll_function_call_lox_ir_control(struct lox_allocator*, struct lox_ir_block*, void*, int, ...);
 
 //OP_SET_LOCAL
 struct lox_ir_control_set_local_node {
@@ -153,4 +166,58 @@ struct lox_ir_control_set_v_register_node {
     struct lox_ir_control_node control;
     struct lox_ir_data_node * value;
     struct v_register v_register;
+};
+
+//These nodes are introdued by ir_lowerer after optimizations have been done
+
+struct lox_ir_control_ll_push_stack {
+    struct lox_ir_control_node node;
+    struct v_register to_push;
+};
+
+struct lox_ir_control_ll_pop_stack {
+    struct lox_ir_control_node node;
+    struct v_register to_pop;
+};
+
+struct lox_ir_control_ll_function_call {
+    struct lox_ir_control_node node;
+    void * function_call_address;
+    //Pointers to struct lox_ir_ll_operand
+    struct ptr_arraylist arguments;
+};
+
+struct lox_ir_control_ll_move {
+    struct lox_ir_control_node node;
+    struct lox_ir_ll_operand from;
+    struct lox_ir_ll_operand to;
+};
+
+struct lox_ir_control_ll_binary {
+    struct lox_ir_control_node node;
+    struct lox_ir_ll_operand left;
+    struct lox_ir_ll_operand right;
+    bytecode_t operator;
+};
+
+struct lox_ir_control_ll_unary {
+    struct lox_ir_control_node node;
+    struct lox_ir_ll_operand operand;
+    bytecode_t operator;
+};
+
+struct lox_ir_control_ll_jump {
+    struct lox_ir_control_node node;
+    struct lox_ir_ll_operand jump_to_operand;
+    bool is_conditional;
+};
+
+struct lox_ir_control_ll_grow_stack {
+    struct lox_ir_control_node node;
+    uint64_t to_grow;
+};
+
+struct lox_ir_control_ll_shrink_stack {
+    struct lox_ir_control_node node;
+    uint64_t to_shrink;
 };

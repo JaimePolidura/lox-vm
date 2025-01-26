@@ -6,22 +6,22 @@
 
 extern lox_value_t addition_lox(lox_value_t a, lox_value_t b);
 
-static int imm_imm_add_operation(struct jit_compiler *, struct operand, struct operand);
-static int imm_imm_sub_operation(struct jit_compiler *, struct operand, struct operand);
-static int add_operation(struct jit_compiler *,struct operand, struct operand);
+static int imm_imm_add_operation(struct jit_compiler *, struct lox_ir_ll_operand, struct lox_ir_ll_operand);
+static int imm_imm_sub_operation(struct jit_compiler *, struct lox_ir_ll_operand, struct lox_ir_ll_operand);
+static int add_operation(struct jit_compiler *, struct lox_ir_ll_operand, struct lox_ir_ll_operand);
 static void set_al_with_cmp_result(struct jit_compiler * jit_compiler, bytecode_t comparation_opcode);
-static int sub_operation(struct jit_compiler *, struct operand, struct operand);
-static int imm_imm_mul_operation(struct jit_compiler *, struct operand, struct operand);
-static int mul_operation(struct jit_compiler *, struct operand, struct operand);
-static int imm_imm_div_operation(struct jit_compiler *, struct operand, struct operand);
-static int div_operation(struct jit_compiler *, struct operand, struct operand);
-static int imm_imm_less_operation(struct jit_compiler *, struct operand, struct operand);
-static int less_operation(struct jit_compiler *, struct operand, struct operand);
+static int sub_operation(struct jit_compiler *, struct lox_ir_ll_operand, struct lox_ir_ll_operand);
+static int imm_imm_mul_operation(struct jit_compiler *, struct lox_ir_ll_operand, struct lox_ir_ll_operand);
+static int mul_operation(struct jit_compiler *, struct lox_ir_ll_operand, struct lox_ir_ll_operand);
+static int imm_imm_div_operation(struct jit_compiler *, struct lox_ir_ll_operand, struct lox_ir_ll_operand);
+static int div_operation(struct jit_compiler *, struct lox_ir_ll_operand, struct lox_ir_ll_operand);
+static int imm_imm_less_operation(struct jit_compiler *, struct lox_ir_ll_operand, struct lox_ir_ll_operand);
+static int less_operation(struct jit_compiler *, struct lox_ir_ll_operand, struct lox_ir_ll_operand);
 static void cast_to_lox_boolean(struct jit_compiler * jit_compiler, register_t register_casted_value);
-static int imm_imm_equal_operation(struct jit_compiler *,struct operand,struct operand);
-static int equal_operation(struct jit_compiler *,struct operand,struct operand);
-static int imm_imm_greater_operation(struct jit_compiler *,struct operand,struct operand);
-static int greater_operation(struct jit_compiler *,struct operand,struct operand);
+static int imm_imm_equal_operation(struct jit_compiler *, struct lox_ir_ll_operand, struct lox_ir_ll_operand);
+static int equal_operation(struct jit_compiler *, struct lox_ir_ll_operand, struct lox_ir_ll_operand);
+static int imm_imm_greater_operation(struct jit_compiler *, struct lox_ir_ll_operand, struct lox_ir_ll_operand);
+static int greater_operation(struct jit_compiler *, struct lox_ir_ll_operand, struct lox_ir_ll_operand);
 
 struct binary_operation binary_operations[] = {
         [OP_GREATER] = {imm_imm_greater_operation, greater_operation, greater_operation},
@@ -34,8 +34,8 @@ struct binary_operation binary_operations[] = {
 };
 
 static int greater_operation(struct jit_compiler * jit_compiler,
-                             struct operand a,
-                             struct operand b) {
+                             struct lox_ir_ll_operand a,
+                             struct lox_ir_ll_operand b) {
     emit_cmp(&jit_compiler->native_compiled_code, a, b);
     emit_setg_al(&jit_compiler->native_compiled_code);
     cast_to_lox_boolean(jit_compiler, a.as.reg);
@@ -43,22 +43,22 @@ static int greater_operation(struct jit_compiler * jit_compiler,
 }
 
 static int imm_imm_greater_operation(struct jit_compiler * jit_compiler,
-                                   struct operand a,
-                                   struct operand b
+                                   struct lox_ir_ll_operand a,
+                                   struct lox_ir_ll_operand b
 ) {
     return TO_LOX_VALUE_BOOL(a.as.immediate > b.as.immediate);
 }
 
 static int imm_imm_equal_operation(struct jit_compiler * jit_compiler,
-                                  struct operand a,
-                                  struct operand b
+                                  struct lox_ir_ll_operand a,
+                                  struct lox_ir_ll_operand b
 ) {
     return TO_LOX_VALUE_BOOL(a.as.immediate == b.as.immediate);
 }
 
 static int equal_operation(struct jit_compiler * jit_compiler,
-        struct operand a,
-        struct operand b) {
+        struct lox_ir_ll_operand a,
+        struct lox_ir_ll_operand b) {
     emit_cmp(&jit_compiler->native_compiled_code, a, b);
     emit_sete_al(&jit_compiler->native_compiled_code);
     cast_to_lox_boolean(jit_compiler, a.as.reg);
@@ -66,15 +66,15 @@ static int equal_operation(struct jit_compiler * jit_compiler,
 }
 
 static int imm_imm_less_operation(struct jit_compiler * jit_compiler,
-                                  struct operand a,
-                                  struct operand b
+                                  struct lox_ir_ll_operand a,
+                                  struct lox_ir_ll_operand b
 ) {
     return TO_LOX_VALUE_BOOL(a.as.immediate < b.as.immediate);
 }
 
 static int less_operation(struct jit_compiler * jit_compiler,
-                          struct operand a,
-                          struct operand b) {
+                          struct lox_ir_ll_operand a,
+                          struct lox_ir_ll_operand b) {
 
     emit_cmp(&jit_compiler->native_compiled_code, a, b);
     emit_setl_al(&jit_compiler->native_compiled_code);
@@ -84,16 +84,16 @@ static int less_operation(struct jit_compiler * jit_compiler,
 
 static int imm_imm_add_operation(
         struct jit_compiler * jit_compiler,
-        struct operand a,
-        struct operand b
+        struct lox_ir_ll_operand a,
+        struct lox_ir_ll_operand b
 ) {
     return a.as.immediate + b.as.immediate;
 }
 
 static int add_operation(
         struct jit_compiler * jit_compiler,
-        struct operand a,
-        struct operand b
+        struct lox_ir_ll_operand a,
+        struct lox_ir_ll_operand b
 ) {
     call_external_c_function(
             jit_compiler,
@@ -112,16 +112,16 @@ static int add_operation(
 
 static int imm_imm_sub_operation(
         struct jit_compiler * jit_compiler,
-        struct operand a,
-        struct operand b
+        struct lox_ir_ll_operand a,
+        struct lox_ir_ll_operand b
 ) {
     return a.as.immediate - b.as.immediate;
 }
 
 static int sub_operation(
         struct jit_compiler * jit_compiler,
-        struct operand a,
-        struct operand b
+        struct lox_ir_ll_operand a,
+        struct lox_ir_ll_operand b
 ) {
     emit_sub(&jit_compiler->native_compiled_code, a, b);
     return NO_RETURN_VALUE;
@@ -129,16 +129,16 @@ static int sub_operation(
 
 static int imm_imm_mul_operation(
         struct jit_compiler * jit_compiler,
-        struct operand a,
-        struct operand b
+        struct lox_ir_ll_operand a,
+        struct lox_ir_ll_operand b
 ) {
     return a.as.immediate * b.as.immediate;
 }
 
 static int mul_operation(
         struct jit_compiler * jit_compiler,
-        struct operand op_reg,
-        struct operand imm_reg
+        struct lox_ir_ll_operand op_reg,
+        struct lox_ir_ll_operand imm_reg
 ) {
     emit_imul(&jit_compiler->native_compiled_code, op_reg, imm_reg);
     return NO_RETURN_VALUE;
@@ -146,16 +146,16 @@ static int mul_operation(
 
 static int imm_imm_div_operation(
         struct jit_compiler * jit_compiler,
-        struct operand a,
-        struct operand b
+        struct lox_ir_ll_operand a,
+        struct lox_ir_ll_operand b
 ) {
     return a.as.immediate / b.as.immediate;
 }
 
 static int div_operation(
         struct jit_compiler * jit_compiler,
-        struct operand a,
-        struct operand b
+        struct lox_ir_ll_operand a,
+        struct lox_ir_ll_operand b
 ) {
     emit_mov(&jit_compiler->native_compiled_code, RAX_REGISTER_OPERAND, a);
     emit_idiv(&jit_compiler->native_compiled_code, b);

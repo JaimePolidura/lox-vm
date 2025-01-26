@@ -34,14 +34,14 @@ struct lox_ir_block {
     //Number of nested loops of which the block belongs.
     //If it is 0, it means that the block doest not belong to a loop body
     int nested_loop_body;
-    //Indicates if the current block belongs to the condition of a loop
+    //Indicates if the current block belongs to the jump_to_operand of a loop
     //If this is true, it means that another OP_LOOP control_node will point to this control_node
     bool is_loop_condition;
-    //Every block in a loop body will contain a pointer to the block condition.
-    //If a node is a loop condtiion (has is_loop_condition set to true), loop_condition_block will point to the outer loop block condition.
+    //Every block in a loop body will contain a pointer to the block jump_to_operand.
+    //If a node is a loop condtiion (has is_loop_condition set to true), loop_condition_block will point to the outer loop block jump_to_operand.
     struct lox_ir_block * loop_condition_block;
     //Contains global information of all the blocks that belongs to a loop body.
-    //Maintained per each loop condition block (is_loop_condition is set to true)
+    //Maintained per each loop jump_to_operand block (is_loop_condition is set to true)
     //Initialized lazily, Reseted (Set to null, when a block is modified using lox_ir_block methods)
     struct lox_ir_block_loop_info * loop_info;
 
@@ -72,6 +72,7 @@ void init_lox_ir_block(struct lox_ir_block *block, struct lox_allocator *allocat
 void add_last_control_node_lox_ir_block(struct lox_ir_block *block, struct lox_ir_control_node *node);
 void add_before_control_node_lox_ir_block(struct lox_ir_block *block, struct lox_ir_control_node * before, struct lox_ir_control_node * new);
 void add_after_control_node_lox_ir_block(struct lox_ir_block *block, struct lox_ir_control_node * after, struct lox_ir_control_node * new);
+void replace_control_node_lox_ir_block(struct lox_ir_block*, struct lox_ir_control_node* prev, struct lox_ir_control_node* new);
 void remove_control_node_lox_ir_block(struct lox_ir_block *lox_ir_block, struct lox_ir_control_node *node_to_remove);
 bool is_emtpy_lox_ir_block(struct lox_ir_block *block);
 //a dominates b

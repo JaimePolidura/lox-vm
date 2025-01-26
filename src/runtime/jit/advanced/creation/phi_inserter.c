@@ -63,7 +63,7 @@ struct phi_insertion_result insert_lox_ir_phis(
             case TYPE_NEXT_LOX_IR_BLOCK_LOOP:
                 struct lox_ir_block * to_jump_loop_block = block_to_evaluate->next_as.loop;
                 if(contains_u64_set(&inserter.loops_already_scanned, (uint64_t) to_jump_loop_block)){
-                    //OP_LOOP always points to the loop condition
+                    //OP_LOOP always points to the loop jump_to_operand
                     //If an assigment have ocurred inside the loop body, we will need to propagate outside the loop
                     push_pending_evaluate(&inserter, to_jump_loop_block->next_as.branch.false_branch, parent_versions);
                     inserter.rescanning_loop_body = false;

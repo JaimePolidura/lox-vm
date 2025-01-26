@@ -4,22 +4,22 @@
 
 #define NO_RETURN_VALUE -1
 
-static int reg_negate_operation(struct jit_compiler * jit_compiler, struct operand op);
-static int imm_negate_operation(struct jit_compiler * jit_compiler, struct operand op);
-static int imm_not_operation(struct jit_compiler * jit_compiler, struct operand imm);
-static int reg_not_operation(struct jit_compiler * jit_compiler, struct operand op);
+static int reg_negate_operation(struct jit_compiler * jit_compiler, struct lox_ir_ll_operand op);
+static int imm_negate_operation(struct jit_compiler * jit_compiler, struct lox_ir_ll_operand op);
+static int imm_not_operation(struct jit_compiler * jit_compiler, struct lox_ir_ll_operand imm);
+static int reg_not_operation(struct jit_compiler * jit_compiler, struct lox_ir_ll_operand op);
 
 struct single_operation single_operations[] = {
         [OP_NEGATE] = {imm_negate_operation, reg_negate_operation},
         [OP_NOT] = {imm_not_operation, reg_not_operation},
 };
 
-static int reg_negate_operation(struct jit_compiler * jit_compiler, struct operand op) {
+static int reg_negate_operation(struct jit_compiler * jit_compiler, struct lox_ir_ll_operand op) {
     emit_neg(&jit_compiler->native_compiled_code, op);
     return NO_RETURN_VALUE;
 }
 
-static int imm_negate_operation(struct jit_compiler * jit_compiler, struct operand op) {
+static int imm_negate_operation(struct jit_compiler * jit_compiler, struct lox_ir_ll_operand op) {
     return -op.as.immediate;
 }
 
@@ -28,7 +28,7 @@ static int imm_negate_operation(struct jit_compiler * jit_compiler, struct opera
 //value1 = value0 + ((TRUE - value0) + (FALSE - value0))
 //value1 = - value0 + TRUE + FALSE
 //value1 = (TRUE - value_node) + FALSE
-static int reg_not_operation(struct jit_compiler * jit_compiler, struct operand op) {
+static int reg_not_operation(struct jit_compiler * jit_compiler, struct lox_ir_ll_operand op) {
     register_t lox_boolean_value_reg = push_register_allocator(&jit_compiler->register_allocator);
     register_t value_to_negate = op.as.reg;
 
@@ -54,7 +54,7 @@ static int reg_not_operation(struct jit_compiler * jit_compiler, struct operand 
     return NO_RETURN_VALUE;
 }
 
-static int imm_not_operation(struct jit_compiler * jit_compiler, struct operand imm) {
+static int imm_not_operation(struct jit_compiler * jit_compiler, struct lox_ir_ll_operand imm) {
     lox_value_t lox_boolean = imm.as.immediate;
     return TO_LOX_VALUE_BOOL(!AS_BOOL(lox_boolean));
 }

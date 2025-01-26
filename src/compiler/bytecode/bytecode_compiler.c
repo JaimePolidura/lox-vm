@@ -548,7 +548,7 @@ static void return_statement(struct bytecode_compiler * compiler) {
 static void if_statement(struct bytecode_compiler * compiler) {
     consume(compiler, TOKEN_OPEN_PAREN, "Expect '(' after if.");
     expression(compiler);
-    consume(compiler, TOKEN_CLOSE_PAREN, "Expect ')' after condition.");
+    consume(compiler, TOKEN_CLOSE_PAREN, "Expect ')' after jump_to_operand.");
 
     int then_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
 
@@ -672,7 +672,7 @@ static void for_loop_initializer(struct bytecode_compiler * compiler) {
 static int for_loop_condition(struct bytecode_compiler * compiler) {
     expression(compiler);
 
-    consume(compiler, TOKEN_SEMICOLON, "Expect ';' after loop condition");
+    consume(compiler, TOKEN_SEMICOLON, "Expect ';' after loop jump_to_operand");
 
     int offset = emit_jump(compiler, OP_JUMP_IF_FALSE);
 

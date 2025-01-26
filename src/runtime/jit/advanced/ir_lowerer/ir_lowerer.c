@@ -28,8 +28,8 @@ lowerer_lox_ir_control_t lowerer_lox_ir_by_control_node[] = {
         [LOX_IR_CONTROL_NODE_DATA] = lowerer_lox_ir_control_data,
         [LOX_IR_CONTROL_NODE_RETURN] = lowerer_lox_ir_control_return,
         [LOX_IR_CONTROL_NODE_PRINT] = lowerer_lox_ir_control_print,
-        [LOX_IR_CONTROL_NODE_ENTER_MONITOR] = lowerer_lox_ir_control_exit_monitor,
-        [LOX_IR_CONTROL_NODE_EXIT_MONITOR] = lowerer_lox_ir_control_enter_monitor,
+        [LOX_IR_CONTROL_NODE_ENTER_MONITOR] = lowerer_lox_ir_control_exit_monitor, //Ok
+        [LOX_IR_CONTROL_NODE_EXIT_MONITOR] = lowerer_lox_ir_control_enter_monitor, //Ok
         [LOX_IR_CONTORL_NODE_SET_GLOBAL] = lowerer_lox_ir_control_set_global,
         [LOX_IR_CONTROL_NODE_SET_STRUCT_FIELD] = lowerer_lox_ir_control_set_struct_field,
         [LOX_IR_CONTROL_NODE_SET_ARRAY_ELEMENT] = lowerer_lox_ir_control_set_array_element,
@@ -82,36 +82,48 @@ static void lower_lox_ir_control(struct llil * llil, struct lox_ir_control_node 
 
 void lowerer_lox_ir_control_exit_monitor(struct llil * llil, struct lox_ir_control_node * control) {
     struct lox_ir_control_enter_monitor_node * enter_monitor_control_node = (struct lox_ir_control_enter_monitor_node *) control;
+    struct lox_ir_block * block = enter_monitor_control_node->control.block;
 
-    struct low_level_lox_ir_function_call * set_self_thread_waiting = create_function_call_low_level_lox_ir(
+    struct lox_ir_control_ll_function_call * set_self_thread_waiting = create_ll_function_call_lox_ir_control(
             &llil->llil_allocator.lox_allocator,
+            control->block,
             &set_self_thread_waiting,
             0
     );
 
-    struct low_level_lox_ir_function_call * enter_monitor = create_function_call_low_level_lox_ir(
+    struct lox_ir_control_ll_function_call * enter_monitor = create_ll_function_call_lox_ir_control(
             &llil->llil_allocator.lox_allocator,
+            control->block,
             &enter_monitor,
             1,
             IMMEDIATE_TO_OPERAND((uint64_t) enter_monitor_control_node->monitor)
     );
 
-    struct low_level_lox_ir_function_call * set_self_thread_runnable = create_function_call_low_level_lox_ir(
+    struct lox_ir_control_ll_function_call * set_self_thread_runnable = create_ll_function_call_lox_ir_control(
             &llil->llil_allocator.lox_allocator,
+            control->block,
             &set_self_thread_runnable,
             0
     );
+
+    replace_control_node_lox_ir_block(block, control, &set_self_thread_waiting->node);
+    add_after_control_node_lox_ir_block(block, &set_self_thread_waiting->node, &enter_monitor->node);
+    add_after_control_node_lox_ir_block(block, &enter_monitor->node, &set_self_thread_runnable->node);
 }
 
 void lowerer_lox_ir_control_enter_monitor(struct llil * llil, struct lox_ir_control_node * control) {
     struct lox_ir_control_exit_monitor_node * exit_monitor_control_node = (struct lox_ir_control_exit_monitor_node *) control;
+    struct lox_ir_block * block = exit_monitor_control_node->control.block;
 
-    struct low_level_lox_ir_function_call * exit_monitor = create_function_call_low_level_lox_ir(
+    struct lox_ir_control_ll_function_call * exit_monitor = create_ll_function_call_lox_ir_control(
             &llil->llil_allocator.lox_allocator,
+            control->block,
             &exit_monitor,
             1,
             IMMEDIATE_TO_OPERAND((uint64_t) exit_monitor_control_node->monitor)
     );
+
+    replace_control_node_lox_ir_block(block, control, &exit_monitor->node);
 }
 
 void lowerer_lox_ir_control_data(struct llil *, struct lox_ir_control_node * control) {

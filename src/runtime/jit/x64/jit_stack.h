@@ -26,7 +26,7 @@ struct jit_stack_item {
     union {
         uint64_t immediate;
         register_t reg;
-        struct operand displacement;
+        struct lox_ir_ll_operand displacement;
     } as;
     bool is_heap_allocated;
 };
@@ -36,7 +36,7 @@ struct jit_stack {
     struct jit_stack_item items[STACK_MAX];
 };
 
-void push_operand_jit_stack(struct jit_stack *, struct operand);
+void push_operand_jit_stack(struct jit_stack *, struct lox_ir_ll_operand);
 
 void push_immediate_jit_stack(struct jit_stack *, uint64_t number);
 void push_register_jit_stack(struct jit_stack *, register_t reg);

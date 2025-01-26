@@ -47,7 +47,7 @@ uint16_t call_external_c_function(
         struct jit_compiler * jit_compiler,
         jit_mode_t function_mode,
         int mode_switch_config,
-        struct operand function_address,
+        struct lox_ir_ll_operand function_address,
         int n_arguments,
         ... //Operands
         );

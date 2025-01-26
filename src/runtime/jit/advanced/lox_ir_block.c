@@ -129,6 +129,32 @@ void remove_control_node_lox_ir_block(
     }
 }
 
+void replace_control_node_lox_ir_block(
+        struct lox_ir_block * block,
+        struct lox_ir_control_node * prev,
+        struct lox_ir_control_node * new
+) {
+    record_removed_node_information_of_block(block, prev);
+    record_new_node_information_of_block(block, new);
+    reset_loop_info(block);
+
+    if (block->last == prev) {
+        block->last = new;
+    }
+    if (block->first == prev) {
+        block->first = new;
+    }
+
+    if (prev->prev != NULL) {
+        prev->prev->next = new;
+        new->prev = prev->prev;
+    }
+    if (prev->next != NULL) {
+        prev->next->prev = new;
+        new->next = prev->next;
+    }
+}
+
 void add_last_control_node_lox_ir_block(struct lox_ir_block * block, struct lox_ir_control_node * node) {
     record_new_node_information_of_block(block, node);
     reset_loop_info(block);

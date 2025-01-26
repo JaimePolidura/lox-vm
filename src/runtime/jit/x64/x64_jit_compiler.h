@@ -63,6 +63,6 @@ struct jit_compiler {
 };
 
 struct pop_stack_operand_result {
-    struct operand operand;
+    struct lox_ir_ll_operand operand;
     uint8_t instruction_index;
 };

@@ -811,7 +811,7 @@ static void thread_on_safe_point() {
 
 void set_self_thread_waiting() {
     self_thread->state = THREAD_WAITING;
-    //Avoid race condition when garbage collection starts
+    //Avoid race jump_to_operand when garbage collection starts
     atomic_fetch_add(&current_vm.number_waiting_threads, 1);
     thread_on_safe_point();
 }
@@ -829,7 +829,7 @@ void on_gc_finished_vm(struct gc_result result) {
 }
 
 static inline void increase_n_function_calls(struct function_object * function) {
-    //By doing "n_calls < MIN_CALLS_TO_PROFILE" and "add n calls == min calls" we will avoid the race condition when
+    //By doing "n_calls < MIN_CALLS_TO_PROFILE" and "add n calls == min calls" we will avoid the race jump_to_operand when
     //a thread increments the function calls & other thread initializes the function profile operator (since these datastructures
     //are placed in a union, it will corrupt the profile operator)
     //By doing "==" comparation, only one thread will observe the function calls tao be the same value_as MIN_CALLS_TO_PROFILE

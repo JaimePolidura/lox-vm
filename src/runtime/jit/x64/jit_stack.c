@@ -1,6 +1,6 @@
 #include "jit_stack.h"
 
-void push_operand_jit_stack(struct jit_stack * jit_stack, struct operand operand) {
+void push_operand_jit_stack(struct jit_stack * jit_stack, struct lox_ir_ll_operand operand) {
     switch (operand.type) {
         case IMMEDIATE_OPERAND:
             push_immediate_jit_stack(jit_stack, operand.as.immediate);

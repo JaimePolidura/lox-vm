@@ -603,7 +603,7 @@ static void pop(struct no_phis_inserter * inserter, struct pending_evaluate * to
     }
 }
 
-//Loop body is not added to the predecesors set of loop condition
+//Loop body is not added to the predecesors set of loop jump_to_operand
 static void loop(struct no_phis_inserter * inserter, struct pending_evaluate * to_evalute) {
     struct lox_ir_control_loop_jump_node * loop_jump_node = ALLOC_LOX_IR_CONTROL(
             LOX_IR_CONTROL_NODE_LOOP_JUMP, struct lox_ir_control_loop_jump_node, to_evalute->block, GET_NODES_ALLOCATOR(inserter)

@@ -4,9 +4,9 @@
 #include "registers.h"
 
 #define FUNCTION_TO_OPERAND(function) (IMMEDIATE_TO_OPERAND((uint64_t) &function))
-#define IMMEDIATE_TO_OPERAND(immediate) ((struct operand) {IMMEDIATE_OPERAND, immediate})
-#define REGISTER_TO_OPERAND(reg) ((struct operand) {REGISTER_OPERAND, reg})
-#define DISPLACEMENT_TO_OPERAND(reg, disp) ((struct operand) {.type = REGISTER_DISP_OPERAND, .as = { .reg_disp = {reg, disp} }})
+#define IMMEDIATE_TO_OPERAND(immediate) ((struct lox_ir_ll_operand) {IMMEDIATE_OPERAND, immediate})
+#define REGISTER_TO_OPERAND(reg) ((struct lox_ir_ll_operand) {REGISTER_OPERAND, reg})
+#define DISPLACEMENT_TO_OPERAND(reg, disp) ((struct lox_ir_ll_operand) {.type = REGISTER_DISP_OPERAND, .as = { .reg_disp = {reg, disp} }})
 
 #define RAX_REGISTER_OPERAND REGISTER_TO_OPERAND(RAX)
 #define RCX_REGISTER_OPERAND REGISTER_TO_OPERAND(RCX)
@@ -25,7 +25,7 @@
 #define R14_REGISTER_OPERAND REGISTER_TO_OPERAND(R14)
 #define R15_REGISTER_OPERAND REGISTER_TO_OPERAND(R15)
 
-struct operand {
+struct lox_ir_ll_operand {
     enum {
         IMMEDIATE_OPERAND,
         REGISTER_OPERAND,
