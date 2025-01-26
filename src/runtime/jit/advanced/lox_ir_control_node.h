@@ -31,7 +31,7 @@ typedef enum {
     LOX_IR_CONTROL_NODE_LL_UNARY,
     LOX_IR_CONTROL_NODE_LL_RETURN,
     LOX_IR_CONTROL_NODE_LL_FUNCTION_CALL,
-    LOX_IR_CONTROL_NODE_LL_JUMP,
+    LOX_IR_CONTROL_NODE_LL_CONDITIONAL_JUMP,
     LOX_IR_CONTROL_NODE_LL_GROW_STACK,
     LOX_IR_CONTROL_NODE_LL_SHRINK_STACK,
     LOX_IR_CONTROL_NODE_LL_PUSH_STACK,
@@ -65,8 +65,6 @@ struct u64_set get_used_ssa_names_lox_ir_control(struct lox_ir_control_node *con
 struct u64_set get_children_lox_ir_control(struct lox_ir_control_node *control_node);
 void mark_as_escaped_lox_ir_control(struct lox_ir_control_node *node);
 bool is_marked_as_escaped_lox_ir_control(struct lox_ir_control_node *node);
-//void* is the function pointer, ... is array of struct lox_ir_ll_operand, int number of arguments
-struct lox_ir_control_ll_function_call* create_ll_function_call_lox_ir_control(struct lox_allocator*, struct lox_ir_block*, void*, int, ...);
 
 //OP_SET_LOCAL
 struct lox_ir_control_set_local_node {
@@ -99,6 +97,7 @@ struct lox_ir_control_return_node {
     struct lox_ir_control_node control;
 
     struct lox_ir_data_node * data;
+    bool empty_return;
 };
 
 struct lox_ir_control_enter_monitor_node {
@@ -187,6 +186,12 @@ struct lox_ir_control_ll_function_call {
     struct ptr_arraylist arguments;
 };
 
+struct lox_ir_control_ll_return {
+    struct lox_ir_control_node node;
+    struct lox_ir_ll_operand to_return;
+    bool emtpy_return;
+};
+
 struct lox_ir_control_ll_move {
     struct lox_ir_control_node node;
     struct lox_ir_ll_operand from;
@@ -204,12 +209,6 @@ struct lox_ir_control_ll_unary {
     struct lox_ir_control_node node;
     struct lox_ir_ll_operand operand;
     bytecode_t operator;
-};
-
-struct lox_ir_control_ll_jump {
-    struct lox_ir_control_node node;
-    struct lox_ir_ll_operand jump_to_operand;
-    bool is_conditional;
 };
 
 struct lox_ir_control_ll_grow_stack {

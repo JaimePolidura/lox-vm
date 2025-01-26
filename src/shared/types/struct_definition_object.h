@@ -17,4 +17,5 @@ struct struct_definition_object {
 
 struct struct_definition_object * alloc_struct_definition_object();
 
-void init_struct_definition_object(struct struct_definition_object * struct_object);
+void init_struct_definition_object(struct struct_definition_object*);
+

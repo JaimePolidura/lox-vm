@@ -11,6 +11,7 @@
 #define IS_I64_LOX_IR_TYPE(type) ((type) == LOX_IR_TYPE_LOX_I64 || (type) == LOX_IR_TYPE_NATIVE_I64)
 #define IS_ARRAY_LOX_IR_TYPE(type) ((type) == LOX_IR_TYPE_NATIVE_ARRAY || (type) == LOX_IR_TYPE_LOX_ARRAY)
 #define IS_STRUCT_LOX_IR_TYPE(type) ((type) == LOX_IR_TYPE_NATIVE_STRUCT_INSTANCE || (type) == LOX_IR_TYPE_LOX_STRUCT_INSTANCE)
+#define IS_NIL_LOX_IR_TYPE(type) ((type) == LOX_IR_TYPE_LOX_NIL || (type) == LOX_IR_TYPE_NATIVE_NIL)
 
 //Dont change order
 typedef enum {

@@ -7,8 +7,9 @@
 
 
 struct lox_arraylist {
-    struct lox_allocator * allocator;
+    //Don't change order, values struct member should always go first, since this might be used by the jit
     lox_value_t * values;
+    struct lox_allocator * allocator;
     int capacity;
     int in_use;
 };

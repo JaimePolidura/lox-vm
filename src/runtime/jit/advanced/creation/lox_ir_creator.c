@@ -18,7 +18,7 @@ struct lox_ir create_lox_ir(
         .max_version_allocated_per_local = phi_insertion_result.max_version_allocated_per_local,
         .definitions_by_ssa_name = phi_insertion_result.ssa_definitions_by_ssa_name,
         .node_uses_by_ssa_name = optimization_result.node_uses_by_ssa_name,
-        .ssa_nodes_allocator_arena = nodes_allocator,
+        .nodes_allocator_arena = nodes_allocator,
         .first_block = first_block,
         .function = function,
     };

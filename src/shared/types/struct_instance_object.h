@@ -9,7 +9,7 @@
 
 struct struct_instance_object {
     struct object object;
-    struct lox_hash_table fields; //Contains struct heap_object *, which points to lox_hash_table
+    struct lox_hash_table fields;
     struct struct_definition_object * definition;
 };
 

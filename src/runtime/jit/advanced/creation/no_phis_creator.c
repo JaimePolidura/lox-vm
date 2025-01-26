@@ -72,6 +72,7 @@ static struct instruction_profile_data get_instruction_profile_data(struct no_ph
 static struct object * get_function(struct no_phis_inserter *, struct lox_ir_data_node * function_data_node);
 static void add_argument_guard(struct no_phis_inserter*, struct lox_ir_block*, struct type_profile_data, int);
 static struct lox_ir_data_guard_node * create_guard(struct no_phis_inserter *, struct lox_ir_data_node * source, struct bytecode_list *);
+static bool is_emty_return(struct lox_ir_data_node *);
 
 struct lox_ir_block * create_lox_ir_no_phis(
         struct package * package,
@@ -449,7 +450,7 @@ static void return_opcode(struct no_phis_inserter * inserter, struct pending_eva
             LOX_IR_CONTROL_NODE_RETURN, struct lox_ir_control_return_node, to_evalute->block, GET_NODES_ALLOCATOR(inserter)
     );
     struct lox_ir_data_node * return_value = pop_stack_list(&inserter->data_nodes_stack);
-
+    return_node->empty_return = is_emty_return(return_value);
     return_node->data = return_value;
 
     to_evalute->block->type_next = TYPE_NEXT_LOX_IR_BLOCK_NONE;
@@ -941,4 +942,9 @@ static struct lox_ir_data_guard_node * create_guard(
 
     return create_from_profile_lox_ir_data_guard_node(return_type_profile_data, source,
         GET_NODES_ALLOCATOR(inserter), LOX_IR_GUARD_FAIL_ACTION_TYPE_SWITCH_TO_INTERPRETER);
+}
+
+static bool is_emty_return(struct lox_ir_data_node * return_value) {
+    return return_value->type == LOX_IR_DATA_NODE_CONSTANT &&
+            IS_NIL_LOX_IR_TYPE(return_value->produced_type->type);
 }

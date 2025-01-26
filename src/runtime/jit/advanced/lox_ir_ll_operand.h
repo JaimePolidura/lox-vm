@@ -3,7 +3,8 @@
 #include "shared.h"
 #include "runtime/jit/advanced/phi_resolution/v_register.h"
 
-#define IMMEDIATE_TO_OPERAND(immediate) ((struct lox_ir_ll_operand) {LOX_IR_LL_OPERAND_IMMEDIATE, immediate})
+#define IMMEDIATE_TO_OPERAND(immediate) ((struct lox_ir_ll_operand) {LOX_IR_LL_OPERAND_IMMEDIATE, (immediate)})
+#define V_REG_TO_OPERAND(v_reg) ((struct lox_ir_ll_operand) {LOX_IR_LL_OPERAND_REGISTER, (v_reg)})
 
 typedef enum {
     LOX_IR_LL_OPERAND_REGISTER,

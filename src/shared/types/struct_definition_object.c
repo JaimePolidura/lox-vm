@@ -13,3 +13,11 @@ void init_struct_definition_object(struct struct_definition_object * struct_obje
     struct_object->name = NULL;
     init_object(&struct_object->object, OBJ_STRUCT_DEFINITION);
 }
+
+uint16_t offset_field_struct_definition_object(
+        struct struct_definition_object * definition,
+        char * field_name
+) {
+    int n_fields = definition->n_fields;
+
+}
