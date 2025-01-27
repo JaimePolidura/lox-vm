@@ -47,10 +47,23 @@ void emit_iadd_ll_lox_ir(
         struct lox_ir_ll_operand b
 );
 
+void emit_guard_ll_lox_ir(
+        struct lllil * lllil,
+        struct lox_ir_control_node * control,
+        struct lox_ir_guard guard
+);
+
+void emit_binary_ll_lox_ir(
+        struct lllil * lllil,
+        struct lox_ir_control_node * control,
+        struct lox_ir_ll_operand a,
+        struct lox_ir_ll_operand b,
+        bytecode_t binary_operator
+);
+
 void emit_range_check_ll_lox_ir(
-        struct lllil *lllil,
-        struct lox_ir_control_set_array_element_node *,
+        struct lllil *,
+        struct lox_ir_control_set_array_element_node * control,
         struct lox_ir_ll_operand instance,
         struct lox_ir_ll_operand index
 );
-

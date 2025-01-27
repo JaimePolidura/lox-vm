@@ -25,7 +25,7 @@ extern bool put_hash_table(struct lox_hash_table*, struct string_object*, lox_va
 lowerer_lox_ir_control_t lowerer_lox_ir_by_control_node[] = {
         [LOX_IR_CONTROL_NODE_DATA] = lower_lox_ir_control_data,
         [LOX_IR_CONTROL_NODE_RETURN] = lower_lox_ir_control_return,
-        [LOX_IR_CONTROL_NODE_PRINT] = lower_lox_ir_control_print, //TODO
+        [LOX_IR_CONTROL_NODE_PRINT] = lower_lox_ir_control_print,
         [LOX_IR_CONTROL_NODE_ENTER_MONITOR] = lower_lox_ir_control_exit_monitor,
         [LOX_IR_CONTROL_NODE_EXIT_MONITOR] = lower_lox_ir_control_enter_monitor,
         [LOX_IR_CONTORL_NODE_SET_GLOBAL] = lower_lox_ir_control_set_global,
@@ -33,7 +33,7 @@ lowerer_lox_ir_control_t lowerer_lox_ir_by_control_node[] = {
         [LOX_IR_CONTROL_NODE_SET_ARRAY_ELEMENT] = lower_lox_ir_control_set_array_element,
         [LOX_IR_CONTROL_NODE_LOOP_JUMP] = lower_lox_ir_control_loop,
         [LOX_IR_CONTROL_NODE_CONDITIONAL_JUMP] = lower_lox_ir_control_conditional_jump,
-        [LOX_IR_CONTROL_NODE_GUARD] = lower_lox_ir_control_guard, //TODO
+        [LOX_IR_CONTROL_NODE_GUARD] = lower_lox_ir_control_guard,
         [LOX_IR_CONTROL_NODE_SET_V_REGISTER] = lower_lox_ir_control_set_v_reg,
 };
 
@@ -77,7 +77,8 @@ void lower_lox_ir_control_print(struct lllil * lllil, struct lox_ir_control_node
     if (is_lox_lox_ir_type(print_node->data->produced_type->type)) {
         emit_function_call_ll_lox_ir(lllil, control, &print_lox_value, 1, to_print_data);
     } else {
-        //TODO
+        char * formatted = print_node->data->produced_type->type == LOX_IR_TYPE_F64 ? "%g" : "%llu";
+        emit_function_call_ll_lox_ir(lllil, control, &printf, 2, IMMEDIATE_TO_OPERAND((uint64_t) formatted), to_print_data);
     }
 }
 
@@ -202,21 +203,7 @@ void lower_lox_ir_control_conditional_jump(struct lllil * lllil, struct lox_ir_c
 void lower_lox_ir_control_guard(struct lllil * lllil, struct lox_ir_control_node * control) {
     struct lox_ir_control_guard_node * guard_node = (struct lox_ir_control_guard_node *) control;
     struct lox_ir_guard guard = guard_node->guard;
-
-    switch (guard.type) {
-        case LOX_IR_GUARD_TYPE_CHECK: {
-            break;
-        }
-        case LOX_IR_GUARD_STRUCT_DEFINITION_TYPE_CHECK: {
-            break;
-        }
-        case LOX_IR_GUARD_ARRAY_TYPE_CHECK: {
-            break;
-        }
-        case LOX_IR_GUARD_BOOLEAN_CHECK: {
-            break;
-        }
-    }
+    emit_guard_ll_lox_ir(lllil, control, guard);
 }
 
 void lower_lox_ir_control_set_v_reg(struct lllil * lllil, struct lox_ir_control_node * control) {

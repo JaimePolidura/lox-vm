@@ -126,6 +126,7 @@ struct lox_ir_control_set_struct_field_node {
 struct lox_ir_control_set_array_element_node {
     struct lox_ir_control_node control;
 
+    //TODO Add array elements, if the array does not escape, to improve range check code generation
     struct lox_ir_data_node * index;
     struct lox_ir_data_node * array;
     struct lox_ir_data_node * new_element_value;
@@ -184,6 +185,11 @@ struct lox_ir_control_ll_function_call {
     void * function_call_address;
     //Pointers to struct lox_ir_ll_operand
     struct ptr_arraylist arguments;
+};
+
+struct lox_ir_control_ll_conditional_function_call {
+    struct lox_ir_control_node node;
+    struct lox_ir_control_ll_function_call function_call;
 };
 
 struct lox_ir_control_ll_return {
