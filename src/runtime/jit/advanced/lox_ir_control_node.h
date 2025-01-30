@@ -204,19 +204,6 @@ struct lox_ir_control_ll_move {
     struct lox_ir_ll_operand to;
 };
 
-struct lox_ir_control_ll_binary {
-    struct lox_ir_control_node node;
-    struct lox_ir_ll_operand left;
-    struct lox_ir_ll_operand right;
-    bytecode_t operator;
-};
-
-struct lox_ir_control_ll_unary {
-    struct lox_ir_control_node node;
-    struct lox_ir_ll_operand operand;
-    bytecode_t operator;
-};
-
 struct lox_ir_control_ll_grow_stack {
     struct lox_ir_control_node node;
     uint64_t to_grow;
@@ -225,4 +212,25 @@ struct lox_ir_control_ll_grow_stack {
 struct lox_ir_control_ll_shrink_stack {
     struct lox_ir_control_node node;
     uint64_t to_shrink;
+};
+
+typedef enum {
+    UNARY_LL_LOX_IR_LOGICAL_NEGATION, //Logical negation operation
+} unary_operator_type_ll_lox_ir;
+
+struct lox_ir_control_ll_unary {
+    struct lox_ir_control_node node;
+    struct lox_ir_ll_operand operand;
+    unary_operator_type_ll_lox_ir operator;
+};
+
+typedef enum {
+    NONE,
+} binary_operator_type_ll_lox_ir;
+
+struct lox_ir_control_ll_binary {
+    struct lox_ir_control_node node;
+    struct lox_ir_ll_operand left;
+    struct lox_ir_ll_operand right;
+    binary_operator_type_ll_lox_ir operator;
 };

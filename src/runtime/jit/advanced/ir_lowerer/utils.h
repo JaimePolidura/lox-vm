@@ -6,6 +6,18 @@
 
 int get_offset_field_struct_definition_ll_lox_ir(struct struct_definition_object *definition, char *field_name);
 
+void emit_move_ll_lox_ir(
+        struct lllil *,
+        struct lox_ir_ll_operand a,
+        struct lox_ir_ll_operand b
+);
+
+void emit_isub_ll_lox_ir(
+        struct lllil *,
+        struct lox_ir_ll_operand a,
+        struct lox_ir_ll_operand b
+);
+
 //move base + offset, value
 void emit_store_at_offset_ll_lox_ir(
         struct lllil *,
@@ -42,7 +54,6 @@ void emit_imul_ll_lox_ir(
 //integer addition, a = a * b
 void emit_iadd_ll_lox_ir(
         struct lllil *lllil,
-        struct lox_ir_control_node *control_node,
         struct lox_ir_ll_operand a,
         struct lox_ir_ll_operand b
 );
@@ -53,12 +64,17 @@ void emit_guard_ll_lox_ir(
         struct lox_ir_guard guard
 );
 
+void emit_unary_ll_lox_ir(
+        struct lllil * lllil,
+        struct lox_ir_ll_operand a,
+        unary_operator_type_ll_lox_ir binary_operator
+);
+
 void emit_binary_ll_lox_ir(
         struct lllil * lllil,
-        struct lox_ir_control_node * control,
         struct lox_ir_ll_operand a,
         struct lox_ir_ll_operand b,
-        bytecode_t binary_operator
+        binary_operator_type_ll_lox_ir binary_operator
 );
 
 void emit_range_check_ll_lox_ir(

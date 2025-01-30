@@ -33,6 +33,8 @@ void resolve_phi(struct lox_ir * lox_ir) {
             resolve_phi_block
     );
 
+    lox_ir->last_v_reg_allocated = phi_resolver->last_v_regiser_allocated;
+
     free_phi_resolver(phi_resolver);
 }
 

@@ -30,6 +30,8 @@ struct lox_ir {
     struct function_object * function;
     //Set by type_propagation Key: block pointer, value: Hashtable of key ssa_name, value: lox_ir_type *.
     struct u64_hash_table type_by_ssa_name_by_block;
+
+    int last_v_reg_allocated;
 };
 
 //Removes the references in the struct lox_ir data structure to the ssa_name. It doest
