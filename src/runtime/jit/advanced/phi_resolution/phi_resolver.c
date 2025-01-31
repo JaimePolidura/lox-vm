@@ -13,7 +13,6 @@ static bool resolve_phi_block(struct lox_ir_block *, void *);
 static struct pr * alloc_phi_resolver(struct lox_ir *);
 static void free_phi_resolver(struct pr *);
 static void resolve_phi_control(struct pr *, struct lox_ir_control_node *);
-static struct v_register alloc_v_register(struct pr *, bool);
 static void replace_define_ssa_name_with_set_v_reg(struct pr*, struct lox_ir_control_define_ssa_name_node*);
 static void replace_get_ssa_name_with_get_v_reg(struct pr*, struct lox_ir_data_get_ssa_name_node*);
 static bool replace_phi_with_get_v_reg(struct pr*, struct lox_ir_data_phi_node*, struct lox_ir_control_define_ssa_name_node*);
@@ -107,13 +106,6 @@ static void replace_define_ssa_name_with_set_v_reg(struct pr * pr, struct lox_ir
     set_v_reg->value = value;
 }
 
-static struct v_register alloc_v_register(struct pr * pr, bool is_float_reg) {
-    return (struct v_register) {
-        .reg_number = pr->last_v_regiser_allocated++,
-        .is_float_register = is_float_reg,
-    };
-}
-
 static bool is_define_phi_node(struct lox_ir_control_node * control_node) {
     return control_node->type == LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME &&
            ((struct lox_ir_control_define_ssa_name_node *) control_node)->value->type == LOX_IR_DATA_NODE_PHI;
@@ -138,7 +130,7 @@ static void free_phi_resolver(struct pr * pr) {
 
 static struct v_register get_v_reg_by_ssa_name(struct pr * pr, struct ssa_name ssa_name, bool is_float) {
     if (!contains_u64_hash_table(&pr->v_register_by_local_number, ssa_name.value.local_number)) {
-        struct v_register new_v_reg = alloc_v_register(pr, is_float);
+        struct v_register new_v_reg = alloc_v_register_lox_ir(pr->lox_ir, is_float);
         put_u64_hash_table(&pr->v_register_by_local_number, ssa_name.value.local_number, (void *) TO_NUMBER_V_REGISTER(new_v_reg));
     }
 

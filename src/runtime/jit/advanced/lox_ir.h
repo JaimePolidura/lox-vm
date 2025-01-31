@@ -46,3 +46,5 @@ void remove_ssa_name_use_lox_ir(struct lox_ir *lox_ir, struct ssa_name ssa_name,
 
 struct lox_ir_type * get_type_by_ssa_name_lox_ir(struct lox_ir *lox_ir, struct lox_ir_block *block, struct ssa_name ssa_name);
 void put_type_by_ssa_name_lox_ir(struct lox_ir *lox_ir, struct lox_ir_block *block, struct ssa_name ssa_name, struct lox_ir_type *new_type);
+
+struct v_register alloc_v_register_lox_ir(struct lox_ir*, bool);

@@ -185,6 +185,9 @@ struct lox_ir_control_ll_function_call {
     void * function_call_address;
     //Pointers to struct lox_ir_ll_operand
     struct ptr_arraylist arguments;
+
+    bool has_return_value;
+    struct v_register return_value_v_reg;
 };
 
 struct lox_ir_control_ll_conditional_function_call {
@@ -217,6 +220,7 @@ struct lox_ir_control_ll_shrink_stack {
 typedef enum {
     UNARY_LL_LOX_IR_LOGICAL_NEGATION, //Logical negation operation
     UNARY_LL_LOX_IR_NUMBER_NEGATION, //ca2 Number negation operation
+    UNARY_LL_LOX_IR_F64_TO_I64_CAST,
 } unary_operator_type_ll_lox_ir;
 
 struct lox_ir_control_ll_unary {
@@ -227,6 +231,7 @@ struct lox_ir_control_ll_unary {
 
 typedef enum {
     BINARY_LL_LOX_IR_LOGICAL_XOR,
+    BINARY_LL_LOX_IR_LOGICAL_AND,
 } binary_operator_type_ll_lox_ir;
 
 struct lox_ir_control_ll_binary {

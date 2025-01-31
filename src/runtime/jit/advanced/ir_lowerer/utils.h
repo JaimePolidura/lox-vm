@@ -21,7 +21,6 @@ void emit_isub_ll_lox_ir(
 //move base + offset, value
 void emit_store_at_offset_ll_lox_ir(
         struct lllil *,
-        struct lox_ir_control_node *,
         struct lox_ir_ll_operand base,
         int offset,
         struct lox_ir_ll_operand value
@@ -30,14 +29,20 @@ void emit_store_at_offset_ll_lox_ir(
 //move lox_ir_ll_operand, base + offset
 struct lox_ir_ll_operand emit_load_at_offset_ll_lox_ir(
         struct lllil *,
-        struct lox_ir_control_node *,
         struct lox_ir_ll_operand base,
         int offset
 );
 
+void emit_function_call_with_return_value_ll_lox_ir(
+        struct lllil *lllil,
+        void * function_address,
+        struct v_register, //Return value register
+        int n_args,
+        ... //Arguments
+);
+
 void emit_function_call_ll_lox_ir(
         struct lllil *lllil,
-        struct lox_ir_control_node *control_node,
         void * function_address,
         int n_args,
         ... //Arguments

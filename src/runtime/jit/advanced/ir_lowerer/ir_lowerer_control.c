@@ -65,15 +65,15 @@ void lower_lox_ir_control_exit_monitor(struct lllil * lllil, struct lox_ir_contr
     struct lox_ir_block * block = enter_monitor_control_node->control.block;
 
     emit_function_call_ll_lox_ir(
-            lllil, control, &set_self_thread_waiting, 0
+            lllil, &set_self_thread_waiting, 0
     );
 
     emit_function_call_ll_lox_ir(
-            lllil, control, &enter_monitor, 1, IMMEDIATE_TO_OPERAND((uint64_t) enter_monitor_control_node->monitor)
+            lllil, &enter_monitor, 1, IMMEDIATE_TO_OPERAND((uint64_t) enter_monitor_control_node->monitor)
     );
 
     emit_function_call_ll_lox_ir(
-            lllil, control, &set_self_thread_runnable, 0
+            lllil, &set_self_thread_runnable, 0
     );
 }
 
@@ -82,7 +82,7 @@ void lower_lox_ir_control_enter_monitor(struct lllil * lllil, struct lox_ir_cont
     struct lox_ir_block * block = exit_monitor_control_node->control.block;
 
     emit_function_call_ll_lox_ir(
-            lllil, control, &exit_monitor, 1, IMMEDIATE_TO_OPERAND((uint64_t) exit_monitor_control_node->monitor)
+            lllil, &exit_monitor, 1, IMMEDIATE_TO_OPERAND((uint64_t) exit_monitor_control_node->monitor)
     );
 }
 
@@ -92,10 +92,10 @@ void lower_lox_ir_control_print(struct lllil * lllil, struct lox_ir_control_node
     struct lox_ir_block * block = control->block;
 
     if (is_lox_lox_ir_type(print_node->data->produced_type->type)) {
-        emit_function_call_ll_lox_ir(lllil, control, &print_lox_value, 1, to_print_data);
+        emit_function_call_ll_lox_ir(lllil, &print_lox_value, 1, to_print_data);
     } else {
         char * formatted = print_node->data->produced_type->type == LOX_IR_TYPE_F64 ? "%g" : "%llu";
-        emit_function_call_ll_lox_ir(lllil, control, &printf, 2, IMMEDIATE_TO_OPERAND((uint64_t) formatted), to_print_data);
+        emit_function_call_ll_lox_ir(lllil, &printf, 2, IMMEDIATE_TO_OPERAND((uint64_t) formatted), to_print_data);
     }
 }
 
@@ -127,7 +127,6 @@ void lower_lox_ir_control_set_global(struct lllil * lllil, struct lox_ir_control
 
     emit_function_call_ll_lox_ir(
             lllil,
-            control,
             &put_hash_table,
             3,
             IMMEDIATE_TO_OPERAND((uint64_t) &set_global_node->package->global_variables),
@@ -155,7 +154,7 @@ static void set_struct_field_escapes(struct lllil * lllil, struct lox_ir_control
     struct lox_ir_ll_operand instance = lower_lox_ir_data(lllil, set_struct_field->instance,
             LOX_IR_TYPE_NATIVE_STRUCT_INSTANCE);
     struct lox_ir_ll_operand instance_values_map = emit_load_at_offset_ll_lox_ir(
-            lllil, &set_struct_field->control, instance, offsetof(struct struct_instance_object, fields)
+            lllil, instance, offsetof(struct struct_instance_object, fields)
     );
 
     struct lox_ir_ll_operand new_instance_value = lower_lox_ir_data(lllil, set_struct_field->new_field_value,
@@ -163,7 +162,6 @@ static void set_struct_field_escapes(struct lllil * lllil, struct lox_ir_control
 
     emit_function_call_ll_lox_ir(
             lllil,
-            &set_struct_field->control,
             &put_hash_table,
             3,
             instance_values_map,
@@ -182,7 +180,7 @@ static void set_struct_field_doesnt_escape(struct lllil * lllil, struct lox_ir_c
     int new_value_offset = get_offset_field_struct_definition_ll_lox_ir(definition, set_struct_field_node->field_name->chars);
 
     emit_store_at_offset_ll_lox_ir(
-            lllil, &set_struct_field_node->control, instance, new_value_offset, new_field_value
+            lllil, instance, new_value_offset, new_field_value
     );
 }
 
@@ -203,9 +201,9 @@ void lower_lox_ir_control_set_array_element(struct lllil * lllil, struct lox_ir_
 
     if (index.type == LOX_IR_LL_OPERAND_IMMEDIATE) {
         emit_imul_ll_lox_ir(lllil, control, index, IMMEDIATE_TO_OPERAND(8));
-        emit_store_at_offset_ll_lox_ir(lllil, control, array_instance, 0, new_value);
+        emit_store_at_offset_ll_lox_ir(lllil, array_instance, 0, new_value);
     } else {
-        emit_store_at_offset_ll_lox_ir(lllil, control, array_instance, index.immedate * 8, new_value);
+        emit_store_at_offset_ll_lox_ir(lllil, array_instance, index.immedate * 8, new_value);
     }
 }
 
