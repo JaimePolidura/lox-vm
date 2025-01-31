@@ -221,6 +221,7 @@ typedef enum {
     UNARY_LL_LOX_IR_LOGICAL_NEGATION, //Logical negation operation
     UNARY_LL_LOX_IR_NUMBER_NEGATION, //ca2 Number negation operation
     UNARY_LL_LOX_IR_F64_TO_I64_CAST,
+    UNARY_LL_LOX_IR_I64_TO_F64_CAST,
 } unary_operator_type_ll_lox_ir;
 
 struct lox_ir_control_ll_unary {
@@ -232,6 +233,7 @@ struct lox_ir_control_ll_unary {
 typedef enum {
     BINARY_LL_LOX_IR_LOGICAL_XOR,
     BINARY_LL_LOX_IR_LOGICAL_AND,
+    BINARY_LL_LOX_IR_LOGICAL_OR,
 } binary_operator_type_ll_lox_ir;
 
 struct lox_ir_control_ll_binary {
