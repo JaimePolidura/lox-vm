@@ -72,9 +72,9 @@ void emit_unary_ll_lox_ir(
 
 void emit_binary_ll_lox_ir(
         struct lllil * lllil,
+        binary_operator_type_ll_lox_ir binary_operator,
         struct lox_ir_ll_operand a,
-        struct lox_ir_ll_operand b,
-        binary_operator_type_ll_lox_ir binary_operator
+        struct lox_ir_ll_operand b
 );
 
 void emit_range_check_ll_lox_ir(

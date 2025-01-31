@@ -216,6 +216,7 @@ struct lox_ir_control_ll_shrink_stack {
 
 typedef enum {
     UNARY_LL_LOX_IR_LOGICAL_NEGATION, //Logical negation operation
+    UNARY_LL_LOX_IR_NUMBER_NEGATION, //ca2 Number negation operation
 } unary_operator_type_ll_lox_ir;
 
 struct lox_ir_control_ll_unary {
@@ -225,7 +226,7 @@ struct lox_ir_control_ll_unary {
 };
 
 typedef enum {
-    NONE,
+    BINARY_LL_LOX_IR_LOGICAL_XOR,
 } binary_operator_type_ll_lox_ir;
 
 struct lox_ir_control_ll_binary {
