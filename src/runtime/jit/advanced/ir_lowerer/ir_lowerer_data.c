@@ -7,6 +7,7 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_constant(struct lllil*, stru
 static struct lox_ir_ll_operand lowerer_lox_ir_data_unary(struct lllil*, struct lox_ir_data_node*);
 static struct lox_ir_ll_operand lowerer_lox_ir_data_unbox(struct lllil*, struct lox_ir_data_node*);
 static struct lox_ir_ll_operand lowerer_lox_ir_data_box(struct lllil*, struct lox_ir_data_node*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field(struct lllil*, struct lox_ir_data_node*);
 
 static struct lox_ir_ll_operand emit_not_lox(struct lllil*, struct lox_ir_ll_operand);
 static struct lox_ir_ll_operand emit_not_native(struct lllil*, struct lox_ir_ll_operand);
@@ -27,11 +28,15 @@ static struct lox_ir_ll_operand emit_native_struct_instance_to_lox(struct lllil*
 static struct lox_ir_ll_operand emit_native_array_to_lox(struct lllil*, struct lox_ir_ll_operand);
 static struct lox_ir_ll_operand emit_native_struct_instance_to_lox(struct lllil*, struct lox_ir_ll_operand);
 static struct lox_ir_ll_operand emit_native_string_to_lox(struct lllil*, struct lox_ir_ll_operand);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field_escapes(struct lllil*, struct lox_ir_data_get_struct_field_node*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field_doest_not_escapes(struct lllil*, struct lox_ir_data_get_struct_field_node*);
+static bool is_struct_field_fp(struct lox_ir_data_node *, char * field_name);
 
 extern uint64_t any_to_native_cast_jit_runime(lox_value_t);
 extern void runtime_panic(char * format, ...);
 
 lowerer_lox_ir_data_t lowerer_lox_ir_by_data_node[] = {
+        [LOX_IR_DATA_NODE_GET_STRUCT_FIELD] = lowerer_lox_ir_data_get_struct_field,
         [LOX_IR_DATA_NODE_GET_V_REGISTER] = lowerer_lox_ir_data_get_v_register,
         [LOX_IR_DATA_NODE_GET_GLOBAL] = lowerer_lox_ir_data_get_global,
         [LOX_IR_DATA_NODE_CONSTANT] = lowerer_lox_ir_data_constant,
@@ -41,7 +46,6 @@ lowerer_lox_ir_data_t lowerer_lox_ir_by_data_node[] = {
 
         [LOX_IR_DATA_NODE_CALL] = NULL,
         [LOX_IR_DATA_NODE_BINARY] = NULL,
-        [LOX_IR_DATA_NODE_GET_STRUCT_FIELD] = NULL,
         [LOX_IR_DATA_NODE_INITIALIZE_STRUCT] = NULL,
         [LOX_IR_DATA_NODE_GET_ARRAY_ELEMENT] = NULL,
         [LOX_IR_DATA_NODE_INITIALIZE_ARRAY] = NULL,
@@ -70,6 +74,60 @@ struct lox_ir_ll_operand lower_lox_ir_data(
     struct lox_ir_ll_operand operand_result = lowerer_lox_ir_data(lllil, data_node);
 
     return operand_result;
+}
+
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field(
+        struct lllil * lllil,
+        struct lox_ir_data_node * data_node
+) {
+    struct lox_ir_data_get_struct_field_node  * get_struct_field = (struct lox_ir_data_get_struct_field_node *) data_node;
+
+    if(!get_struct_field->escapes) {
+        return lowerer_lox_ir_data_get_struct_field_doest_not_escapes(lllil, get_struct_field);
+    } else {
+        return lowerer_lox_ir_data_get_struct_field_escapes(lllil, get_struct_field);
+    }
+}
+
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field_doest_not_escapes(
+        struct lllil * lllil,
+        struct lox_ir_data_get_struct_field_node * get_struct_field
+) {
+    //If it escapes, it should produce a native pointer to struct instance
+    struct lox_ir_ll_operand struct_instance = lower_lox_ir_data(lllil, get_struct_field->instance,
+        LOX_IR_TYPE_UNKNOWN);
+
+    //TODO Guarantee that get_struct_field->instance produces a definition type
+    struct struct_definition_object * definition = get_struct_field->instance->produced_type->value.struct_instance->definition;
+    bool is_field_fp = is_struct_field_fp(get_struct_field->instance, get_struct_field->field_name->chars);
+
+    int field_offset = get_offset_field_struct_definition_ll_lox_ir(definition, get_struct_field->field_name->chars);
+
+    struct lox_ir_ll_operand get_struct_field_reg_result = V_REG_TO_OPERAND(alloc_v_register_lox_ir(lllil->lox_ir, is_field_fp));
+
+    emit_load_at_offset_ll_lox_ir(
+            lllil,
+            get_struct_field_reg_result,
+            struct_instance,
+            field_offset
+    );
+
+    return get_struct_field_reg_result;
+}
+
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field_escapes(
+        struct lllil * lllil,
+        struct lox_ir_data_get_struct_field_node * get_struct_field
+) {
+    struct lox_ir_ll_operand struct_instance = lower_lox_ir_data(lllil, get_struct_field->instance,
+        LOX_IR_TYPE_NATIVE_STRUCT_INSTANCE);
+
+    bool is_field_fp = is_struct_field_fp(get_struct_field->instance, get_struct_field->field_name->chars);
+    struct lox_ir_ll_operand get_struct_field_reg_result = V_REG_TO_OPERAND(alloc_v_register_lox_ir(lllil->lox_ir, is_field_fp));
+
+
+
+    return get_struct_field_reg_result;
 }
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_box(
@@ -455,4 +513,24 @@ static struct lox_ir_ll_operand emit_lox_object_ptr_to_native(
     );
 
     return input;
+}
+
+static bool is_struct_field_fp(
+        struct lox_ir_data_node * struct_instasnce_node,
+        char * field_name
+) {
+    if(struct_instasnce_node->produced_type->type != LOX_IR_TYPE_LOX_STRUCT_INSTANCE &&
+        struct_instasnce_node->produced_type->type != LOX_IR_TYPE_NATIVE_STRUCT_INSTANCE) {
+        return false;
+    }
+
+    struct struct_instance_lox_ir_type * struct_instance_type = struct_instasnce_node->produced_type->value.struct_instance;
+    struct struct_definition_object * definition = struct_instance_type->definition;
+
+    if (definition == NULL) {
+        return false;
+    }
+
+    struct lox_ir_type * field_value_type = get_u64_hash_table(&struct_instance_type->type_by_field_name, (uint64_t) field_name);
+    return field_value_type != NULL && field_value_type->type == LOX_IR_TYPE_F64;;
 }

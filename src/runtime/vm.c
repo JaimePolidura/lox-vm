@@ -292,12 +292,7 @@ static void define_global(struct call_frame * current_callframe) {
 
 static void get_global(struct call_frame * current_frame) {
     struct string_object * variable_name = AS_STRING_OBJECT(READ_CONSTANT(current_frame));
-    lox_value_t variable_value;
-    if(!get_hash_table(&self_thread->current_package->global_variables, variable_name, &variable_value)) {
-        runtime_panic("Undefined variable %s.", variable_name->chars);
-    }
-
-    push_stack_vm(variable_value);
+    push_stack_vm(get_hash_table(&self_thread->current_package->global_variables, variable_name));
 }
 
 static void set_global(struct call_frame * current_frame) {
@@ -514,12 +509,7 @@ static void get_struct_field(struct call_frame * call_frame) {
     struct struct_instance_object * instance = (struct struct_instance_object *) pop_and_check_object(OBJ_STRUCT_INSTANCE);
     struct string_object * field_name = (struct string_object *) AS_OBJECT(READ_CONSTANT(call_frame));
 
-    lox_value_t field_value;
-    if(!get_hash_table(&instance->fields, field_name, &field_value)) {
-        runtime_panic("Undefined field %s", field_name->chars);
-    }
-
-    push_stack_vm(field_value);
+    push_stack_vm(get_hash_table(&instance->fields, field_name));
 }
 
 static void set_struct_field(struct call_frame * call_frame) {

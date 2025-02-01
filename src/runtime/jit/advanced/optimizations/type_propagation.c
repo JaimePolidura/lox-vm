@@ -288,12 +288,12 @@ static struct lox_ir_type * get_type_data_node_recursive(
         }
         case LOX_IR_DATA_NODE_GET_STRUCT_FIELD: {
             struct lox_ir_data_get_struct_field_node * get_struct_field = (struct lox_ir_data_get_struct_field_node *) node;
-            struct lox_ir_data_node * instance_node = get_struct_field->instance_node;
+            struct lox_ir_data_node * instance_node = get_struct_field->instance;
             struct instruction_profile_data get_struct_field_profile_data = get_instruction_profile_data_function(
                     tp->lox_ir->function, get_struct_field->data.original_bytecode);
             struct type_profile_data get_struct_field_type_profile = get_struct_field_profile_data.as.struct_field.get_struct_field_profile;
 
-            struct lox_ir_type * type_struct_instance = get_type_data_node_recursive(to_evaluate, instance_node, &get_struct_field->instance_node);
+            struct lox_ir_type * type_struct_instance = get_type_data_node_recursive(to_evaluate, instance_node, &get_struct_field->instance);
 
             if(type_struct_instance->type == LOX_IR_TYPE_UNKNOWN){
                 return type_struct_instance;
@@ -302,11 +302,11 @@ static struct lox_ir_type * get_type_data_node_recursive(
             if (type_struct_instance->type != LOX_IR_TYPE_LOX_STRUCT_INSTANCE) {
                 struct lox_ir_data_node * guard_node = create_guard_get_struct_field(tp, instance_node, get_struct_field_type_profile);
                 if (guard_node != NULL) {
-                    get_struct_field->instance_node = guard_node;
+                    get_struct_field->instance = guard_node;
                     instance_node = guard_node;
                 }
 
-                type_struct_instance = get_type_data_node_recursive(to_evaluate, instance_node, &get_struct_field->instance_node);
+                type_struct_instance = get_type_data_node_recursive(to_evaluate, instance_node, &get_struct_field->instance);
             }
 
             instance_node->produced_type = type_struct_instance;

@@ -36,6 +36,7 @@ lowerer_lox_ir_control_t lowerer_lox_ir_by_control_node[] = {
         [LOX_IR_CONTROL_NODE_CONDITIONAL_JUMP] = lower_lox_ir_control_conditional_jump,
         [LOX_IR_CONTROL_NODE_GUARD] = lower_lox_ir_control_guard,
         [LOX_IR_CONTROL_NODE_SET_V_REGISTER] = lower_lox_ir_control_set_v_reg,
+
         [LOX_IR_CONTORL_NODE_SET_LOCAL] = NULL,
         [LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME] = NULL,
         [LOX_IR_CONTROL_NODE_LL_MOVE] = NULL,
@@ -141,7 +142,7 @@ static void set_struct_field_doesnt_escape(struct lllil*, struct lox_ir_control_
 void lower_lox_ir_control_set_struct_field(struct lllil * lllil, struct lox_ir_control_node * control) {
     struct lox_ir_control_set_struct_field_node * set_struct_field = (struct lox_ir_control_set_struct_field_node *) control;
 
-    if (!set_struct_field->escapes) {
+    if (set_struct_field->escapes) {
         set_struct_field_escapes(lllil, set_struct_field);
     } else {
         set_struct_field_doesnt_escape(lllil, set_struct_field);
@@ -153,9 +154,6 @@ static void set_struct_field_escapes(struct lllil * lllil, struct lox_ir_control
 
     struct lox_ir_ll_operand instance = lower_lox_ir_data(lllil, set_struct_field->instance,
             LOX_IR_TYPE_NATIVE_STRUCT_INSTANCE);
-    struct lox_ir_ll_operand instance_values_map = emit_load_at_offset_ll_lox_ir(
-            lllil, instance, offsetof(struct struct_instance_object, fields)
-    );
 
     struct lox_ir_ll_operand new_instance_value = lower_lox_ir_data(lllil, set_struct_field->new_field_value,
             LOX_IR_TYPE_LOX_ANY);
@@ -164,20 +162,21 @@ static void set_struct_field_escapes(struct lllil * lllil, struct lox_ir_control
             lllil,
             &put_hash_table,
             3,
-            instance_values_map,
+            instance,
             IMMEDIATE_TO_OPERAND((uint64_t) &set_struct_field->field_name),
             new_instance_value
     );
 }
 
-static void set_struct_field_doesnt_escape(struct lllil * lllil, struct lox_ir_control_set_struct_field_node * set_struct_field_node) {
-    struct struct_definition_object * definition = set_struct_field_node->instance->produced_type->value.struct_instance->definition;
+static void set_struct_field_doesnt_escape(struct lllil * lllil, struct lox_ir_control_set_struct_field_node * set_struct_field) {
+    struct struct_definition_object * definition = set_struct_field->instance->produced_type->value.struct_instance->definition;
 
-    struct lox_ir_ll_operand instance = lower_lox_ir_data(lllil, set_struct_field_node->instance,
-            LOX_IR_TYPE_NATIVE_STRUCT_INSTANCE);
-    struct lox_ir_ll_operand new_field_value = lower_lox_ir_data(lllil, set_struct_field_node->new_field_value,
+    //If it escapes, set_struct_field->instance should always produce pointer to values
+    struct lox_ir_ll_operand instance = lower_lox_ir_data(lllil, set_struct_field->instance,
             LOX_IR_TYPE_UNKNOWN);
-    int new_value_offset = get_offset_field_struct_definition_ll_lox_ir(definition, set_struct_field_node->field_name->chars);
+    struct lox_ir_ll_operand new_field_value = lower_lox_ir_data(lllil, set_struct_field->new_field_value,
+            LOX_IR_TYPE_UNKNOWN);
+    int new_value_offset = get_offset_field_struct_definition_ll_lox_ir(definition, set_struct_field->field_name->chars);
 
     emit_store_at_offset_ll_lox_ir(
             lllil, instance, new_value_offset, new_field_value

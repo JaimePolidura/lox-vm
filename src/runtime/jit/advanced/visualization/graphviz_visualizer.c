@@ -514,7 +514,7 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
         case LOX_IR_DATA_NODE_GET_STRUCT_FIELD: {
             struct lox_ir_data_get_struct_field_node * get_struct_field = (struct lox_ir_data_get_struct_field_node *) node;
             char * node_desc = dynamic_format_string("GetStructField %s", get_struct_field->field_name->chars);
-            int struct_instance_node_id = generate_data_node_graph(visualizer, get_struct_field->instance_node);
+            int struct_instance_node_id = generate_data_node_graph(visualizer, get_struct_field->instance);
             node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
             node_desc = maybe_add_escape_info_data_node(visualizer, node, node_desc);
 

@@ -197,7 +197,7 @@ bool is_eq_lox_ir_data_node(struct lox_ir_data_node * a, struct lox_ir_data_node
             struct lox_ir_data_get_struct_field_node * b_get_field = (struct lox_ir_data_get_struct_field_node *) b;
             return a_get_field->field_name->length == b_get_field->field_name->length &&
                    string_equals_ignore_case(a_get_field->field_name->chars, b_get_field->field_name->chars, a_get_field->field_name->length) &&
-                    is_eq_lox_ir_data_node(a_get_field->instance_node, b_get_field->instance_node, allocator);
+                    is_eq_lox_ir_data_node(a_get_field->instance, b_get_field->instance, allocator);
         }
         case LOX_IR_DATA_NODE_INITIALIZE_STRUCT: {
             struct lox_ir_data_initialize_struct_node * a_init_struct = (struct lox_ir_data_initialize_struct_node *) a;
@@ -420,7 +420,7 @@ uint64_t hash_lox_ir_data_node(struct lox_ir_data_node * node) {
         }
         case LOX_IR_DATA_NODE_GET_STRUCT_FIELD: {
             struct lox_ir_data_get_struct_field_node * get_struct_field = (struct lox_ir_data_get_struct_field_node *) node;
-            uint64_t instance_hash = hash_lox_ir_data_node(get_struct_field->instance_node);
+            uint64_t instance_hash = hash_lox_ir_data_node(get_struct_field->instance);
             uint64_t field_name_hash = get_struct_field->field_name->hash;
             return mix_hash_not_commutative(instance_hash, field_name_hash);
         }
@@ -588,7 +588,7 @@ struct u64_set get_children_lox_ir_data_node(struct lox_ir_data_node * node, str
         }
         case LOX_IR_DATA_NODE_GET_STRUCT_FIELD: {
             struct lox_ir_data_get_struct_field_node * get_struct_field = (struct lox_ir_data_get_struct_field_node *) node;
-            add_u64_set(&children, (uint64_t) &get_struct_field->instance_node);
+            add_u64_set(&children, (uint64_t) &get_struct_field->instance);
             break;
         }
         case LOX_IR_DATA_NODE_INITIALIZE_STRUCT: {
@@ -669,6 +669,10 @@ bool is_marked_as_escaped_lox_ir_data_node(struct lox_ir_data_node * data_node) 
             struct lox_ir_data_initialize_array_node * init_array = (struct lox_ir_data_initialize_array_node *) data_node;
             return init_array->escapes;
         }
+        case LOX_IR_DATA_NODE_GET_ARRAY_LENGTH: {
+            struct lox_ir_data_get_array_length * get_arr_length = (struct lox_ir_data_get_array_length *) data_node;
+            return get_arr_length->escapes;
+        }
         default:
             return false;
     }
@@ -676,21 +680,30 @@ bool is_marked_as_escaped_lox_ir_data_node(struct lox_ir_data_node * data_node) 
 
 void mark_as_escaped_lox_ir_data_node(struct lox_ir_data_node * data_node) {
     switch (data_node->type) {
+        case LOX_IR_DATA_NODE_GET_ARRAY_LENGTH: {
+            struct lox_ir_data_get_array_length * get_array_length = (struct lox_ir_data_get_array_length *) data_node;
+            get_array_length->escapes = true;
+            break;
+        }
         case LOX_IR_DATA_NODE_GET_STRUCT_FIELD: {
             struct lox_ir_data_get_struct_field_node * get_struct_field = (struct lox_ir_data_get_struct_field_node *) data_node;
             get_struct_field->escapes = true;
+            break;
         }
         case LOX_IR_DATA_NODE_INITIALIZE_STRUCT: {
             struct lox_ir_data_initialize_struct_node * init_struct = (struct lox_ir_data_initialize_struct_node *) data_node;
             init_struct->escapes = true;
+            break;
         }
         case LOX_IR_DATA_NODE_GET_ARRAY_ELEMENT: {
             struct lox_ir_data_get_array_element_node * get_arr_ele = (struct lox_ir_data_get_array_element_node *) data_node;
             get_arr_ele->escapes = true;
+            break;
         }
         case LOX_IR_DATA_NODE_INITIALIZE_ARRAY: {
             struct lox_ir_data_initialize_array_node * init_array = (struct lox_ir_data_initialize_array_node *) data_node;
             init_array->escapes = true;
+            break;
         }
     }
 }

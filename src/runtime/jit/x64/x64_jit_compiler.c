@@ -4,7 +4,7 @@ extern __thread struct vm_thread * self_thread;
 
 extern struct struct_instance_object * alloc_struct_instance_gc_alg(struct struct_definition_object *);
 extern struct array_object * alloc_array_gc_alg(int n_elements);
-extern bool get_hash_table(struct lox_hash_table * table, struct string_object * key, lox_value_t *value);
+extern lox_value_t get_hash_table(struct lox_hash_table * table, struct string_object * key);
 extern bool put_hash_table(struct lox_hash_table * table, struct string_object * key, lox_value_t value);
 extern struct call_frame * get_current_frame_vm_thread(struct vm_thread *);
 extern bool set_element_array(struct array_object * array, int index, lox_value_t value);

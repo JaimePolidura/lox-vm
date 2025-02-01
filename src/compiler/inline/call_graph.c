@@ -98,10 +98,10 @@ static void add_children(
 }
 
 static struct function_object * get_function_by_name(struct package * package, char * function_name_chars) {
-    lox_value_t function_lox_value;
     struct string_object * function_name = copy_chars_to_string_object(function_name_chars, strlen(function_name_chars));
 
-    if(!get_hash_table(&package->defined_functions, function_name, &function_lox_value)) {
+    lox_value_t function_lox_value = get_hash_table(&package->defined_functions, function_name);
+    if(function_lox_value == NIL_VALUE) {
         return NULL; //If not found, it might be a native function
     }
 

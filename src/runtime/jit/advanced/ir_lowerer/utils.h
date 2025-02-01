@@ -26,9 +26,10 @@ void emit_store_at_offset_ll_lox_ir(
         struct lox_ir_ll_operand value
 );
 
-//move lox_ir_ll_operand, base + offset
+//move value, base + offset
 struct lox_ir_ll_operand emit_load_at_offset_ll_lox_ir(
         struct lllil *,
+        struct lox_ir_ll_operand value,
         struct lox_ir_ll_operand base,
         int offset
 );

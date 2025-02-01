@@ -50,12 +50,12 @@ struct string_object * get_key_by_hash(struct lox_hash_table * table, uint32_t k
 }
 
 bool contains_hash_table(struct lox_hash_table * table, struct string_object * key){
-    return get_hash_table(table, key, NULL);
+    return get_hash_table(table, key) != NULL;
 }
 
-bool get_hash_table(struct lox_hash_table * table, struct string_object * key, lox_value_t *value){
+lox_value_t get_hash_table(struct lox_hash_table * table, struct string_object * key){
     if (table->size == 0) {
-        return false;
+        return NIL_VALUE;
     }
 
     lock_reader_rw_mutex(&table->rw_lock);
@@ -63,14 +63,10 @@ bool get_hash_table(struct lox_hash_table * table, struct string_object * key, l
     unlock_reader_rw_mutex(&table->rw_lock);
 
     if (entry->key == NULL) {
-        return false;
+        return NIL_VALUE;
     }
 
-    if(value != NULL){
-        *value = entry->value;
-    }
-
-    return true;
+    return entry->value;
 }
 
 bool put_if_absent_hash_table(struct lox_hash_table * table, struct string_object * key, lox_value_t value) {

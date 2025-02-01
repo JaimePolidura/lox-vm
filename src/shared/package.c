@@ -25,8 +25,7 @@ struct function_object * get_function_package(struct package * package, char * f
     struct function_object * function = NULL;
 
     if(contains_hash_table(&package->defined_functions, function_name_string_object)) {
-        lox_value_t value;
-        get_hash_table(&package->defined_functions, function_name_string_object, &value);
+        lox_value_t value = get_hash_table(&package->defined_functions, function_name_string_object);
         function = (struct function_object *) AS_OBJECT(value);
     }
 

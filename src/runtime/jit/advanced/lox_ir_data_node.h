@@ -136,6 +136,7 @@ struct lox_ir_data_binary_node {
 struct lox_ir_data_get_array_length {
     struct lox_ir_data_node data;
     struct lox_ir_data_node * instance;
+    bool escapes;
 };
 
 //OP_CONST, OP_FAST_CONST_8, OP_FAST_CONST_16, OP_CONST_1, OP_CONST_2
@@ -162,7 +163,7 @@ struct lox_ir_data_get_struct_field_node {
     struct lox_ir_data_node data;
 
     struct string_object * field_name;
-    struct lox_ir_data_node * instance_node;
+    struct lox_ir_data_node * instance;
     bool escapes;
 };
 

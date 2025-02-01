@@ -31,8 +31,8 @@ struct lox_hash_table {
 
 void for_each_value_hash_table(struct lox_hash_table * table, void * extra, lox_hashtable_consumer_t consumer);
 
-//Get the value_node of the associated key in the value_node parameter. Returns false if the element is not found
-bool get_hash_table(struct lox_hash_table * table, struct string_object * key, lox_value_t * value);
+//Get the value_node of the associated key. Returns NIL_VALUE if the element is not found
+lox_value_t get_hash_table(struct lox_hash_table * table, struct string_object * key);
 
 //Removes element from the table. Return true if the element was removed
 bool remove_hash_table(struct lox_hash_table * table, struct string_object * key);

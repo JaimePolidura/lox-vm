@@ -39,7 +39,7 @@ uint16_t call_external_c_function(
     struct function_object * compiling_function = jit_compiler->function_to_compile;
     struct u8_arraylist * native_code = &jit_compiler->native_compiled_code;
     struct lox_ir_ll_operand arguments[n_arguments];
-    VARARGS_TO_ARRAY(struct operand, arguments, n_arguments, ...);
+//    VARARGS_TO_ARRAY(struct operand, arguments, n_arguments, ...);
     uint16_t instruction_index = native_code->in_use;
     mode_t prev_mode = jit_compiler->current_mode;
 

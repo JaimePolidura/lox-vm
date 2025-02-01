@@ -282,7 +282,7 @@ static void get_struct_field(
     struct lox_ir_data_get_struct_field_node * get_struct_field_node = ALLOC_LOX_IR_DATA(
             LOX_IR_DATA_NODE_GET_STRUCT_FIELD, struct lox_ir_data_get_struct_field_node, to_evaluate->pending_bytecode, GET_NODES_ALLOCATOR(inserter)
     );
-    get_struct_field_node->instance_node = pop_stack_list(&inserter->data_nodes_stack);
+    get_struct_field_node->instance = pop_stack_list(&inserter->data_nodes_stack);
     get_struct_field_node->field_name = AS_STRING_OBJECT(READ_CONSTANT(function, to_evaluate->pending_bytecode));
 
     push_stack_list(&inserter->data_nodes_stack, get_struct_field_node);
@@ -337,11 +337,9 @@ static void get_global(
     struct string_object * global_variable_name = AS_STRING_OBJECT(READ_CONSTANT(function, to_evaluate->pending_bytecode));
     //If the global variable is constant, we will return a CONST_NODE instead of GET_GLOBAL control_node
     if(contains_trie(&global_variable_package->const_global_variables_names, global_variable_name->chars, global_variable_name->length)) {
-        lox_value_t constant_value;
-        get_hash_table(&global_variable_package->global_variables, global_variable_name, &constant_value);
+        lox_value_t constant_value = get_hash_table(&global_variable_package->global_variables, global_variable_name);
         struct lox_ir_data_constant_node * constant_node = create_lox_ir_const_node(constant_value, LOX_IR_TYPE_LOX_ANY,
-                                                                                    to_evaluate->pending_bytecode,
-                                                                                    GET_NODES_ALLOCATOR(inserter));
+                to_evaluate->pending_bytecode, GET_NODES_ALLOCATOR(inserter));
         push_stack_list(&inserter->data_nodes_stack, constant_node);
     } else { //Non constant global variable
         struct lox_ir_data_get_global_node * get_global_node = ALLOC_LOX_IR_DATA(
@@ -913,8 +911,7 @@ static struct object * get_function(struct no_phis_inserter * inserter, struct l
     }
 
     struct lox_ir_data_get_global_node * get_global = (struct lox_ir_data_get_global_node *) function_data_node;
-    lox_value_t function_lox_value;
-    get_hash_table(&get_global->package->global_variables, get_global->name, &function_lox_value);
+    lox_value_t function_lox_value = get_hash_table(&get_global->package->global_variables, get_global->name);
 
     if(!IS_OBJECT(function_lox_value)){
         return NULL;

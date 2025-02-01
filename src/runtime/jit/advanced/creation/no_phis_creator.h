@@ -1,6 +1,5 @@
 #pragma once
 
-#include "runtime/jit/advanced/utils/types.h"
 #include "runtime/jit/advanced/lox_ir_options.h"
 #include "runtime/jit/advanced/lox_ir_block.h"
 

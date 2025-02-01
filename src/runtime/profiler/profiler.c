@@ -49,8 +49,7 @@ static void profile_get_struct_field_type(struct function_object * function, int
         return;
     }
 
-    lox_value_t field_value;
-    get_hash_table(&instance->fields, field_name, &field_value);
+    lox_value_t field_value = get_hash_table(&instance->fields, field_name);
 
     profile_type(&instruction_profile->as.struct_field.get_struct_field_profile, field_value);
 }

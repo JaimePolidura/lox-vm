@@ -116,7 +116,6 @@ static bool perform_escape_analysis_data(
         }
         case LOX_IR_DATA_NODE_GET_GLOBAL:
             return true;
-        case LOX_IR_DATA_NODE_GET_ARRAY_LENGTH:
         case LOX_IR_DATA_NODE_CONSTANT:
         case LOX_IR_DATA_NODE_GET_LOCAL:
             return false;
@@ -133,10 +132,16 @@ static bool perform_escape_analysis_data(
 
             return escapes;
         }
+        case LOX_IR_DATA_NODE_GET_ARRAY_LENGTH: {
+            struct lox_ir_data_get_array_length * get_array_length = (struct lox_ir_data_get_array_length *) data_node;
+            save_usage_of_data_node(ea, &get_array_length->data, get_array_length->instance, &ea->data_uses_by_instance);
+            get_array_length->escapes = perform_escape_analysis_data(ea, control_node, get_array_length->instance);
+            return get_array_length->escapes;
+        }
         case LOX_IR_DATA_NODE_GET_STRUCT_FIELD: {
             struct lox_ir_data_get_struct_field_node * get_struct_field = (struct lox_ir_data_get_struct_field_node *) data_node;
-            save_usage_of_data_node(ea, &get_struct_field->data, get_struct_field->instance_node, &ea->data_uses_by_instance);
-            get_struct_field->escapes = perform_escape_analysis_data(ea, control_node, get_struct_field->instance_node);
+            save_usage_of_data_node(ea, &get_struct_field->data, get_struct_field->instance, &ea->data_uses_by_instance);
+            get_struct_field->escapes = perform_escape_analysis_data(ea, control_node, get_struct_field->instance);
             return get_struct_field->escapes;
         }
         case LOX_IR_DATA_NODE_GET_ARRAY_ELEMENT: {
@@ -228,6 +233,7 @@ static void mark_data_node_as_escaped(struct ea * ea, struct lox_ir_data_node * 
         }
         case LOX_IR_DATA_NODE_GET_STRUCT_FIELD:
         case LOX_IR_DATA_NODE_GET_ARRAY_ELEMENT:
+        case LOX_IR_DATA_NODE_GET_ARRAY_LENGTH:
         case LOX_IR_DATA_NODE_INITIALIZE_STRUCT:
         case LOX_IR_DATA_NODE_INITIALIZE_ARRAY: {
             mark_as_escaped_lox_ir_data_node(data_node);
@@ -235,7 +241,6 @@ static void mark_data_node_as_escaped(struct ea * ea, struct lox_ir_data_node * 
         }
         case LOX_IR_DATA_NODE_GET_GLOBAL:
         case LOX_IR_DATA_NODE_CONSTANT:
-        case LOX_IR_DATA_NODE_GET_ARRAY_LENGTH:
         case LOX_IR_DATA_NODE_PHI:
         case LOX_IR_DATA_NODE_UNBOX:
         case LOX_IR_DATA_NODE_BOX:
@@ -329,9 +334,13 @@ static bool control_node_escapes_inputs(struct ea * ea, struct lox_ir_control_no
 
 static struct lox_ir_data_node * get_instance_data_node(struct lox_ir_data_node * data_node) {
     switch (data_node->type) {
+        case LOX_IR_DATA_NODE_GET_ARRAY_LENGTH: {
+            struct lox_ir_data_get_array_length * get_array_length = (struct lox_ir_data_get_array_length *) data_node;
+            return get_array_length->instance;
+        }
         case LOX_IR_DATA_NODE_GET_STRUCT_FIELD: {
             struct lox_ir_data_get_struct_field_node * get_struct_field = (struct lox_ir_data_get_struct_field_node *) data_node;
-            return get_struct_field->instance_node;
+            return get_struct_field->instance;
         }
         case LOX_IR_DATA_NODE_GET_ARRAY_ELEMENT: {
             struct lox_ir_data_get_array_element_node * get_arr_ele = (struct lox_ir_data_get_array_element_node *) data_node;
@@ -442,7 +451,7 @@ static bool does_data_node_make_control_to_escape(struct ea * ea, struct lox_ir_
         }
         case LOX_IR_DATA_NODE_GET_STRUCT_FIELD: {
             struct lox_ir_data_get_struct_field_node * get_struct_field = (struct lox_ir_data_get_struct_field_node *) data_node;
-            struct lox_ir_data_node * instance_node = get_struct_field->instance_node;
+            struct lox_ir_data_node * instance_node = get_struct_field->instance;
             return does_data_node_make_control_to_escape(ea, instance_node);
         }
         case LOX_IR_DATA_NODE_GET_ARRAY_ELEMENT: {
