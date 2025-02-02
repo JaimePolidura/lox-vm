@@ -496,7 +496,7 @@ static void initialize_struct(struct call_frame * call_frame) {
     struct struct_instance_object * struct_instance = alloc_struct_instance_gc_alg(struct_definition);
     int n_fields = struct_definition->n_fields;
 
-    for(int i = 0; i < n_fields; i++) {
+    for (int i = 0; i < n_fields; i++) {
         struct string_object * field_name = struct_definition->field_names[struct_definition->n_fields - i - 1];
         lox_value_t value = pop_stack_vm();
         put_hash_table(&struct_instance->fields, field_name, value);

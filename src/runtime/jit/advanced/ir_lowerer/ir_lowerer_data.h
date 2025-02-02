@@ -9,7 +9,7 @@
 #include "shared/types/array_object.h"
 
 struct lox_ir_ll_operand lower_lox_ir_data(
-        struct lllil*,
+        struct lllil_control*,
         struct lox_ir_data_node *,
         lox_ir_type_t expected_type
 );

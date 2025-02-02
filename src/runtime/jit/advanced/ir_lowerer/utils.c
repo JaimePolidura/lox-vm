@@ -18,13 +18,13 @@ int get_offset_field_struct_definition_ll_lox_ir(
 }
 
 void emit_function_call_with_return_value_ll_lox_ir(
-        struct lllil *lllil,
+        struct lllil_control *lllil,
         void * function_address,
         struct v_register return_value_v_reg,
         int n_args,
         ... //Arguments
 ) {
-    struct lox_allocator * allocator = &lllil->lox_ir->nodes_allocator_arena->lox_allocator;
+    struct lox_allocator * allocator = &lllil->lllil->lox_ir->nodes_allocator_arena->lox_allocator;
 
     struct lox_ir_control_ll_function_call * func_call = ALLOC_LOX_IR_CONTROL( //TODO
             LOX_IR_CONTROL_NODE_LL_FUNCTION_CALL, struct lox_ir_control_ll_function_call, NULL, allocator
@@ -49,12 +49,12 @@ void emit_function_call_with_return_value_ll_lox_ir(
 }
 
 void emit_function_call_ll_lox_ir(
-        struct lllil * lllil,
+        struct lllil_control * lllil,
         void * function_address,
         int n_args,
         ... //Arguments
 ) {
-    struct lox_allocator * allocator = &lllil->lox_ir->nodes_allocator_arena->lox_allocator;
+    struct lox_allocator * allocator = &lllil->lllil->lox_ir->nodes_allocator_arena->lox_allocator;
 
     struct lox_ir_control_ll_function_call * func_call = ALLOC_LOX_IR_CONTROL( //TODO
             LOX_IR_CONTROL_NODE_LL_FUNCTION_CALL, struct lox_ir_control_ll_function_call, NULL, allocator

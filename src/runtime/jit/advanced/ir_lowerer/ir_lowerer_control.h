@@ -9,4 +9,4 @@
 #include "shared/types/struct_instance_object.h"
 #include "shared/types/array_object.h"
 
-void lower_lox_ir_control(struct lllil *, struct lox_ir_control_node *);
+void lower_lox_ir_control(struct lllil_control *);
