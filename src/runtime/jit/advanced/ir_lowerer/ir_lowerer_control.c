@@ -193,13 +193,13 @@ static void set_struct_field_doesnt_escape(struct lllil_control * lllil, struct 
 void lower_lox_ir_control_set_array_element(struct lllil_control * lllil) {
     struct lox_ir_control_node * control = lllil->control_node;
     struct lox_ir_control_set_array_element_node * set_array_element = (struct lox_ir_control_set_array_element_node *) control;
-    struct lox_ir_ll_operand array_instance = lower_lox_ir_data(lllil, set_array_element->array, LOX_IR_TYPE_NATIVE_ARRAY);
+    struct lox_ir_ll_operand array_instance = lower_lox_ir_data(lllil, set_array_element->array, LOX_IR_TYPE_UNKNOWN);
     struct lox_ir_ll_operand index = lower_lox_ir_data(lllil, set_array_element->index, LOX_IR_TYPE_NATIVE_I64);
     struct lox_ir_ll_operand new_value = lower_lox_ir_data(lllil, set_array_element->new_element_value, set_array_element->escapes ?
         LOX_IR_TYPE_LOX_ANY : LOX_IR_TYPE_UNKNOWN);
 
     if (set_array_element->requires_range_check) {
-        emit_range_check_ll_lox_ir(lllil, set_array_element, array_instance, index);
+        emit_range_check_ll_lox_ir(lllil, array_instance, index);
     }
 
     if (set_array_element->escapes) {

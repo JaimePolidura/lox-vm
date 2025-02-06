@@ -20,7 +20,7 @@ void free_low_level_lox_ir_lowerer(struct lllil * lllil) {
 uint16_t allocate_stack_slot_lllil(
         struct lllil * lllil,
         struct lox_ir_block * block,
-        size_t requireds_size
+        size_t required_size
 ) {
     if(!contains_u64_hash_table(&lllil->stack_slots_by_block, (uint64_t) block)){
         struct ptr_arraylist * stack_slots = alloc_ptr_arraylist(&lllil->lllil_allocator.lox_allocator);
@@ -28,7 +28,7 @@ uint16_t allocate_stack_slot_lllil(
     }
 
     struct ptr_arraylist * stack_slots = get_u64_hash_table(&lllil->stack_slots_by_block, (uint64_t) block);
-    append_ptr_arraylist(stack_slots, (void *) requireds_size);
+    append_ptr_arraylist(stack_slots, (void *) required_size);
 
     return stack_slots->in_use - 1;
 }

@@ -85,7 +85,6 @@ void emit_binary_ll_lox_ir(
 
 void emit_range_check_ll_lox_ir(
         struct lllil_control *,
-        struct lox_ir_control_set_array_element_node * control,
         struct lox_ir_ll_operand instance,
         struct lox_ir_ll_operand index
 );

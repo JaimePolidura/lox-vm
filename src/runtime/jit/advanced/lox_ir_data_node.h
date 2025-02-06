@@ -189,7 +189,7 @@ struct lox_ir_data_initialize_array_node {
 
     int n_elements;
     bool empty_initialization;
-    struct lox_ir_data_node ** elememnts_node;
+    struct lox_ir_data_node ** elememnts;
     bool escapes;
 };
 

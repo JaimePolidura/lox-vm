@@ -9,6 +9,9 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_unbox(struct lllil_control*,
 static struct lox_ir_ll_operand lowerer_lox_ir_data_box(struct lllil_control*, struct lox_ir_data_node*);
 static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field(struct lllil_control*, struct lox_ir_data_node*);
 static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_struct(struct lllil_control*, struct lox_ir_data_node*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_array(struct lllil_control*, struct lox_ir_data_node*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_element(struct lllil_control*, struct lox_ir_data_node*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_length(struct lllil_control*, struct lox_ir_data_node*);
 
 static struct lox_ir_ll_operand emit_not_lox(struct lllil_control*, struct lox_ir_ll_operand);
 static struct lox_ir_ll_operand emit_not_native(struct lllil_control*, struct lox_ir_ll_operand);
@@ -33,15 +36,26 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field_escapes(str
 static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field_doest_not_escape(struct lllil_control*, struct lox_ir_data_get_struct_field_node*);
 static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_struct_escapes(struct lllil_control*, struct lox_ir_data_initialize_struct_node*);
 static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_struct_does_not_escape(struct lllil_control*, struct lox_ir_data_initialize_struct_node*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_array_escapes(struct lllil_control*, struct lox_ir_data_initialize_array_node*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_array_does_not_escape(struct lllil_control*, struct lox_ir_data_initialize_array_node*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_element_does_not_escape(struct lllil_control*, struct lox_ir_data_get_array_element_node*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_element_escapes(struct lllil_control*, struct lox_ir_data_get_array_element_node*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_length_does_not_escape(struct lllil_control*, struct lox_ir_data_get_array_length*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_length_escapes(struct lllil_control*, struct lox_ir_data_get_array_length*);
+
 static bool is_struct_field_fp(struct lox_ir_data_node *, char * field_name);
 
 extern struct struct_instance_object * alloc_struct_instance_gc_alg(struct struct_definition_object*);
 extern uint64_t any_to_native_cast_jit_runime(lox_value_t);
 extern void runtime_panic(char * format, ...);
+struct array_object * alloc_array_gc_alg(int);
 
 lowerer_lox_ir_data_t lowerer_lox_ir_by_data_node[] = {
         [LOX_IR_DATA_NODE_INITIALIZE_STRUCT] = lowerer_lox_ir_data_initialize_struct,
+        [LOX_IR_DATA_NODE_GET_ARRAY_ELEMENT] = lowerer_lox_ir_data_get_array_element,
+        [LOX_IR_DATA_NODE_INITIALIZE_ARRAY] = lowerer_lox_ir_data_initialize_array,
         [LOX_IR_DATA_NODE_GET_STRUCT_FIELD] = lowerer_lox_ir_data_get_struct_field,
+        [LOX_IR_DATA_NODE_GET_ARRAY_LENGTH] = lowerer_lox_ir_data_get_array_length,
         [LOX_IR_DATA_NODE_GET_V_REGISTER] = lowerer_lox_ir_data_get_v_register,
         [LOX_IR_DATA_NODE_GET_GLOBAL] = lowerer_lox_ir_data_get_global,
         [LOX_IR_DATA_NODE_CONSTANT] = lowerer_lox_ir_data_constant,
@@ -51,9 +65,6 @@ lowerer_lox_ir_data_t lowerer_lox_ir_by_data_node[] = {
 
         [LOX_IR_DATA_NODE_CALL] = NULL,
         [LOX_IR_DATA_NODE_BINARY] = NULL,
-        [LOX_IR_DATA_NODE_GET_ARRAY_ELEMENT] = NULL,
-        [LOX_IR_DATA_NODE_INITIALIZE_ARRAY] = NULL,
-        [LOX_IR_DATA_NODE_GET_ARRAY_LENGTH] = NULL,
         [LOX_IR_DATA_NODE_GUARD] = NULL,
 
         [LOX_IR_DATA_NODE_GET_SSA_NAME] = NULL,
@@ -78,6 +89,191 @@ struct lox_ir_ll_operand lower_lox_ir_data(
     struct lox_ir_ll_operand operand_result = lowerer_lox_ir_data(lllil_control, data_node);
 
     return operand_result;
+}
+
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_length(
+        struct lllil_control * lllil_control,
+        struct lox_ir_data_node * data_node
+) {
+    struct lox_ir_data_get_array_length * get_length = (struct lox_ir_data_get_array_length *) data_node;
+
+    if (!get_length->escapes) {
+        return lowerer_lox_ir_data_get_array_length_does_not_escape(lllil_control, get_length);
+    } else {
+        return lowerer_lox_ir_data_get_array_length_escapes(lllil_control, get_length);
+    }
+}
+
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_length_escapes(
+        struct lllil_control * control,
+        struct lox_ir_data_get_array_length * get_arry_length
+) {
+    struct lox_ir_ll_operand array_length_address = lower_lox_ir_data(control, get_arry_length->instance,
+            LOX_IR_TYPE_NATIVE_ARRAY);
+
+    emit_isub_ll_lox_ir(
+            control,
+            array_length_address,
+            IMMEDIATE_TO_OPERAND(sizeof(int))
+    );
+
+    struct lox_ir_ll_operand array_length_value = alloc_new_v_register(control, false);
+
+    emit_load_at_offset_ll_lox_ir(
+            control,
+            array_length_value,
+            array_length_address,
+            0
+    );
+
+    return array_length_value;
+}
+
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_length_does_not_escape(
+        struct lllil_control * control,
+        struct lox_ir_data_get_array_length * get_arry_length
+) {
+    struct lox_ir_ll_operand array_length_address = lower_lox_ir_data(control, get_arry_length->instance,
+            LOX_IR_TYPE_NATIVE_ARRAY);
+
+    emit_iadd_ll_lox_ir(
+            control,
+            array_length_address,
+            IMMEDIATE_TO_OPERAND(offsetof(struct lox_arraylist, in_use))
+    );
+
+    struct lox_ir_ll_operand array_length_value = alloc_new_v_register(control, false);
+
+    emit_load_at_offset_ll_lox_ir(
+            control,
+            array_length_value,
+            array_length_address,
+            0
+    );
+
+    return array_length_value;
+}
+
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_element(
+        struct lllil_control * lllil_control,
+        struct lox_ir_data_node * data_node
+) {
+    struct lox_ir_data_get_array_element_node * get_arr_element = (struct lox_ir_data_get_array_element_node *) data_node;
+
+    if (!get_arr_element->escapes) {
+        lowerer_lox_ir_data_get_array_element_does_not_escape(lllil_control, get_arr_element);
+    } else {
+        lowerer_lox_ir_data_get_array_element_escapes(lllil_control, get_arr_element);
+    }
+}
+
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_element_does_not_escape(
+        struct lllil_control * lllil,
+        struct lox_ir_data_get_array_element_node * node
+) {
+    struct lox_ir_ll_operand instance = lower_lox_ir_data(lllil, node->index, LOX_IR_TYPE_NATIVE_ARRAY);
+    struct lox_ir_ll_operand index = lower_lox_ir_data(lllil, node->index, LOX_IR_TYPE_NATIVE_I64);
+
+    if(node->requires_range_check){
+        emit_range_check_ll_lox_ir(lllil, instance, index);
+    }
+
+    struct lox_ir_ll_operand array_element = alloc_new_v_register(lllil, false);
+
+    return array_element;
+}
+
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_element_escapes(
+        struct lllil_control * lllil,
+        struct lox_ir_data_get_array_element_node * node
+) {
+    struct lox_ir_ll_operand instance = lower_lox_ir_data(lllil, node->index, LOX_IR_TYPE_NATIVE_ARRAY);
+    struct lox_ir_ll_operand index = lower_lox_ir_data(lllil, node->index, LOX_IR_TYPE_NATIVE_I64);
+
+    if(node->requires_range_check){
+        emit_range_check_ll_lox_ir(lllil, instance, index);
+    }
+
+    struct lox_ir_ll_operand array_element = alloc_new_v_register(lllil, false);
+}
+
+static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_array(
+        struct lllil_control * lllil_control,
+        struct lox_ir_data_node * node
+) {
+    struct lox_ir_data_initialize_array_node * init_arr = (struct lox_ir_data_initialize_array_node *) node;
+    size_t array_size = init_arr->n_elements * sizeof(uint64_t);
+
+    if (!init_arr->escapes && array_size < 512) {
+        return lowerer_lox_ir_data_initialize_array_does_not_escape(lllil_control, init_arr);
+    } else {
+        return lowerer_lox_ir_data_initialize_array_escapes(lllil_control, init_arr);
+    }
+}
+
+static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_array_does_not_escape(
+        struct lllil_control * lllil,
+        struct lox_ir_data_initialize_array_node * init_array
+) {
+    size_t array_size = sizeof(int) + sizeof(uint64_t) * init_array->n_elements;
+    int stack_slot = allocate_stack_slot_lllil(lllil->lllil, lllil->control_node->block, array_size);
+
+    //Move array size
+    emit_move_ll_lox_ir(
+            lllil,
+            STACKSLOT_TO_OPERAND(stack_slot, 0),
+            IMMEDIATE_TO_OPERAND(array_size)
+    );
+
+    for (int i = 0; i < init_array->n_elements && !init_array->empty_initialization; i++) {
+        struct lox_ir_ll_operand array_element_reg = lower_lox_ir_data(lllil, init_array->elememnts[i],
+                LOX_IR_TYPE_UNKNOWN);
+        size_t element_field_offset = sizeof(int) + i * sizeof(uint64_t);
+
+        emit_move_ll_lox_ir(
+                lllil,
+                STACKSLOT_TO_OPERAND(stack_slot, element_field_offset),
+                array_element_reg
+        );
+    }
+
+    return STACKSLOT_TO_OPERAND(stack_slot, sizeof(int));
+}
+
+static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_array_escapes(
+        struct lllil_control * lllil_control,
+        struct lox_ir_data_initialize_array_node * init_array
+) {
+    struct lox_ir_ll_operand array_instance_operand = alloc_new_v_register(lllil_control, false);
+    int n_elements = init_array->n_elements;
+
+    emit_function_call_with_return_value_ll_lox_ir(
+            lllil_control,
+            alloc_array_gc_alg,
+            array_instance_operand.v_register,
+            1,
+            IMMEDIATE_TO_OPERAND((uint64_t) init_array->n_elements)
+    );
+
+    emit_iadd_ll_lox_ir(
+            lllil_control,
+            array_instance_operand,
+            IMMEDIATE_TO_OPERAND(sizeof(struct lox_arraylist))
+    );
+
+    for(int i = 0; i < n_elements && !init_array->empty_initialization; i++) {
+        struct lox_ir_ll_operand struct_element_reg = lower_lox_ir_data(lllil_control, init_array->elememnts[i],
+                LOX_IR_TYPE_UNKNOWN);
+
+        emit_store_at_offset_ll_lox_ir(
+                lllil_control,
+                array_instance_operand,
+                sizeof(uint64_t) * i,
+                struct_element_reg
+        );
+    }
+
+    return array_instance_operand;
 }
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_struct(
@@ -130,9 +326,23 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_struct_does_not_e
         struct lllil_control * lllil,
         struct lox_ir_data_initialize_struct_node * init_node
 ) {
-    struct lox_ir_ll_operand struct_instance_operand = alloc_new_v_register(lllil, false);
     struct struct_definition_object * definition = init_node->definition;
     size_t struct_size = sizeof(uint64_t) * definition->n_fields;
+    int stack_slot = allocate_stack_slot_lllil(lllil->lllil, lllil->control_node->block, struct_size);
+
+    for (int i = 0; i < definition->n_fields; i++) {
+        struct string_object * field_name = definition->field_names[definition->n_fields - i - 1];
+        struct lox_ir_ll_operand struct_element_reg = lower_lox_ir_data(lllil, init_node->fields_nodes[i], LOX_IR_TYPE_UNKNOWN);
+        size_t field_struct_field_offset = i * sizeof(uint64_t);
+
+        emit_move_ll_lox_ir(
+                lllil,
+                STACKSLOT_TO_OPERAND(stack_slot, field_struct_field_offset),
+                struct_element_reg
+        );
+    }
+
+    return STACKSLOT_TO_OPERAND(stack_slot, 0);
 }
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field(
