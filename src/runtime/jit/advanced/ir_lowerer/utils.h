@@ -14,6 +14,28 @@ void emit_move_ll_lox_ir(
 
 void emit_isub_ll_lox_ir(
         struct lllil_control *,
+        struct lox_ir_ll_operand result,
+        struct lox_ir_ll_operand a,
+        struct lox_ir_ll_operand b
+);
+
+void emit_fsub_ll_lox_ir(
+        struct lllil_control *,
+        struct lox_ir_ll_operand result,
+        struct lox_ir_ll_operand a,
+        struct lox_ir_ll_operand b
+);
+
+void emit_idiv_ll_lox_ir(
+        struct lllil_control *,
+        struct lox_ir_ll_operand result,
+        struct lox_ir_ll_operand a,
+        struct lox_ir_ll_operand b
+);
+
+void emit_fdiv_ll_lox_ir(
+        struct lllil_control *,
+        struct lox_ir_ll_operand result,
         struct lox_ir_ll_operand a,
         struct lox_ir_ll_operand b
 );
@@ -52,21 +74,36 @@ void emit_function_call_ll_lox_ir(
 //integer multiplication, a = a * b
 void emit_imul_ll_lox_ir(
         struct lllil_control *lllil,
-        struct lox_ir_control_node *control_node,
+        struct lox_ir_ll_operand result,
         struct lox_ir_ll_operand a,
         struct lox_ir_ll_operand b
 );
 
-//integer addition, a = a * b
+void emit_fmul_ll_lox_ir(
+        struct lllil_control *lllil,
+        struct lox_ir_ll_operand result,
+        struct lox_ir_ll_operand a,
+        struct lox_ir_ll_operand b
+);
+
+//integer addition, result = a * b
 void emit_iadd_ll_lox_ir(
         struct lllil_control *lllil,
+        struct lox_ir_ll_operand result,
         struct lox_ir_ll_operand a,
         struct lox_ir_ll_operand b
 );
 
-void emit_guard_ll_lox_ir(
+//result = a + b
+void emit_fadd_ll_lox_ir(
+        struct lllil_control *lllil,
+        struct lox_ir_ll_operand result,
+        struct lox_ir_ll_operand a,
+        struct lox_ir_ll_operand b
+);
+
+struct lox_ir_ll_operand emit_guard_ll_lox_ir(
         struct lllil_control * lllil,
-        struct lox_ir_control_node * control,
         struct lox_ir_guard guard
 );
 
@@ -87,4 +124,18 @@ void emit_range_check_ll_lox_ir(
         struct lllil_control *,
         struct lox_ir_ll_operand instance,
         struct lox_ir_ll_operand index
+);
+
+void emit_mod_ll_lox_ir(
+        struct lllil_control *,
+        struct lox_ir_ll_operand a,
+        struct lox_ir_ll_operand b
+);
+
+//result = a + b
+void emit_string_concat_ll_lox_ir(
+        struct lllil_control *,
+        struct lox_ir_ll_operand result,
+        struct lox_ir_ll_operand a,
+        struct lox_ir_ll_operand b
 );

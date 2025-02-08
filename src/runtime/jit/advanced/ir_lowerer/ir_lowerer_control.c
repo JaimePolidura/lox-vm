@@ -203,11 +203,11 @@ void lower_lox_ir_control_set_array_element(struct lllil_control * lllil) {
     }
 
     if (set_array_element->escapes) {
-        emit_iadd_ll_lox_ir(lllil, array_instance, IMMEDIATE_TO_OPERAND(offsetof(struct array_object, values)));
+        emit_iadd_ll_lox_ir(lllil, array_instance, array_instance, IMMEDIATE_TO_OPERAND(offsetof(struct array_object, values)));
     }
 
     if (index.type == LOX_IR_LL_OPERAND_IMMEDIATE) {
-        emit_imul_ll_lox_ir(lllil, control, index, IMMEDIATE_TO_OPERAND(8));
+        emit_imul_ll_lox_ir(lllil, index, index, IMMEDIATE_TO_OPERAND(8));
         emit_store_at_offset_ll_lox_ir(lllil, array_instance, 0, new_value);
     } else {
         emit_store_at_offset_ll_lox_ir(lllil, array_instance, index.immedate * 8, new_value);
@@ -228,7 +228,7 @@ void lower_lox_ir_control_guard(struct lllil_control * lllil) {
     struct lox_ir_control_node * control = lllil->control_node;
     struct lox_ir_control_guard_node * guard_node = (struct lox_ir_control_guard_node *) control;
     struct lox_ir_guard guard = guard_node->guard;
-    emit_guard_ll_lox_ir(lllil, control, guard);
+    emit_guard_ll_lox_ir(lllil, guard);
 }
 
 void lower_lox_ir_control_set_v_reg(struct lllil_control * lllil) {

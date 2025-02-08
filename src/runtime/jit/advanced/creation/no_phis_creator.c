@@ -299,10 +299,10 @@ static void initialize_array(struct no_phis_inserter * inserter, struct pending_
     initialize_array_node->empty_initialization = empty_initialization;
     initialize_array_node->n_elements = n_elements;
     if(!empty_initialization){
-        initialize_array_node->elememnts_node = LOX_MALLOC(GET_NODES_ALLOCATOR(inserter), sizeof(struct lox_ir_data_node *) * n_elements);
+        initialize_array_node->elememnts = LOX_MALLOC(GET_NODES_ALLOCATOR(inserter), sizeof(struct lox_ir_data_node *) * n_elements);
     }
     for(int i = n_elements - 1; i >= 0 && !empty_initialization; i--){
-        initialize_array_node->elememnts_node[i] = pop_stack_list(&inserter->data_nodes_stack);
+        initialize_array_node->elememnts[i] = pop_stack_list(&inserter->data_nodes_stack);
     }
 
     push_stack_list(&inserter->data_nodes_stack, initialize_array_node);

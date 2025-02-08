@@ -231,9 +231,12 @@ struct lox_ir_control_ll_unary {
 };
 
 typedef enum {
-    BINARY_LL_LOX_IR_LOGICAL_XOR,
-    BINARY_LL_LOX_IR_LOGICAL_AND,
-    BINARY_LL_LOX_IR_LOGICAL_OR,
+    BINARY_LL_LOX_IR_XOR,
+    BINARY_LL_LOX_IR_AND,
+    BINARY_LL_LOX_IR_OR,
+    BINARY_LL_LOX_IR_MOD,
+    BINARY_LL_LOX_IR_LEFT_SHIFT,
+    BINARY_LL_LOX_IR_RIGHT_SHIFT,
 } binary_operator_type_ll_lox_ir;
 
 struct lox_ir_control_ll_binary {
