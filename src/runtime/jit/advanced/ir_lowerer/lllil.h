@@ -17,7 +17,8 @@ struct lllil {
 
 struct lllil_control {
     struct lllil * lllil;
-    struct lox_ir_control_node * control_node;
+    struct lox_ir_control_node * control_node_to_lower;
+    struct lox_ir_control_node * last_node_lowered;
 };
 
 struct lllil * alloc_low_level_lox_ir_lowerer(struct lox_ir *);
@@ -25,3 +26,5 @@ void free_low_level_lox_ir_lowerer(struct lllil *);
 
 //Will return index to stack slot
 uint16_t allocate_stack_slot_lllil(struct lllil*, struct lox_ir_block*, size_t);
+
+void add_lowered_node_lllil_control(struct lllil_control*, struct lox_ir_control_node*);

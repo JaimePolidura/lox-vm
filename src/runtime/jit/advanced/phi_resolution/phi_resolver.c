@@ -52,7 +52,7 @@ static bool resolve_phi_block(struct lox_ir_block * block, void * extra) {
 }
 
 //This functino will return false, if we don't have enough information to keep scannning, for example when we dont know
-//all mappings to v_reg given a phi node, because we haven't scanned all predecessors blocks
+//all mappings to v_reg given a phi control, because we haven't scanned all predecessors blocks
 static void resolve_phi_control(struct pr * pr, struct lox_ir_control_node * control_node) {
     bool is_phi_node = is_define_phi_node(control_node);
 

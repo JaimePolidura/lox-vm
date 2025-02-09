@@ -12,7 +12,7 @@ struct phi_optimization_result {
     struct u64_hash_table node_uses_by_ssa_name;
 };
 
-//Removes innecesary phi functions. Like a1 = phi(a0), it will replace it with: a1 = a0. a0 will be represented with the control_node
+//Removes innecesary phi functions. Like a1 = phi(a0), it will replace it with: a1 = a0. a0 will be represented with the control_node_to_lower
 //Also extract phi nodes to jit names, for example: print phi(a0, a1) -> a2 = phi(a0, a1); print a2
 struct phi_optimization_result optimize_lox_ir_phis(
         struct lox_ir_block * start_block,

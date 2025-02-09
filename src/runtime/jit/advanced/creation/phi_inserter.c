@@ -141,8 +141,8 @@ static void insert_ssa_versions_in_control_node(
     );
 
     if (control_node->type == LOX_IR_CONTORL_NODE_SET_LOCAL) {
-        //set_local control_node and define_ssa_name have the same memory outlay, we do this, so we can change the control_node easily in the graph
-        //without creating any new control_node
+        //set_local control_node_to_lower and define_ssa_name have the same memory outlay, we do this, so we can change the control_node_to_lower easily in the graph
+        //without creating any new control_node_to_lower
         struct lox_ir_control_set_local_node * set_local = (struct lox_ir_control_set_local_node *) control_node;
         struct lox_ir_control_define_ssa_name_node * define_ssa_name = (struct lox_ir_control_define_ssa_name_node *) control_node;
         uint8_t local_number = (uint8_t) set_local->local_number;
@@ -187,7 +187,7 @@ static bool insert_phis_in_data_node_consumer(
         ){
             extract_get_local(inserter, parent_versions, control_node, block, local_number, parent_current_ptr);
         } else {
-            //We are going to replace the OP_GET_LOCAL control_node with a phi control_node
+            //We are going to replace the OP_GET_LOCAL control_node_to_lower with a phi control_node_to_lower
             struct lox_ir_data_phi_node * phi_node = ALLOC_LOX_IR_DATA(
                     LOX_IR_DATA_NODE_PHI, struct lox_ir_data_phi_node, current_node->original_bytecode, GET_NODES_ALLOCATOR(consumer_struct->inserter)
             );
@@ -196,8 +196,8 @@ static bool insert_phis_in_data_node_consumer(
             uint8_t version = get_version(parent_versions, get_local->local_number);
             add_u64_set(&phi_node->ssa_versions, version);
 
-            //Replace parent pointer to child control_node
-            //OP_GET_LOCAL will always be a child of another data control_node.
+            //Replace parent pointer to child control_node_to_lower
+            //OP_GET_LOCAL will always be a child of another data control_node_to_lower.
             *parent_current_ptr = &phi_node->data;
         }
     } else if (current_node->type == LOX_IR_DATA_NODE_PHI) {
@@ -279,7 +279,7 @@ static void extract_get_local(
         uint8_t local_number,
         void ** parent_to_extract_get_local_ptr
 ) {
-    //a0 in the example, will be a phi control_node
+    //a0 in the example, will be a phi control_node_to_lower
     struct lox_ir_data_phi_node * extracted_phi_node = ALLOC_LOX_IR_DATA(
             LOX_IR_DATA_NODE_PHI, struct lox_ir_data_phi_node, NULL, GET_NODES_ALLOCATOR(inserter)
     );
@@ -299,7 +299,7 @@ static void extract_get_local(
     put_u64_hash_table(&inserter->ssa_definitions_by_ssa_name, set_ssa_name.u16, extracted_set_local);
     add_u64_set(&to_extract_block->defined_ssa_names, set_ssa_name.u16);
 
-    //phi(a1) in the example, will be a define_ssa_node. Replace get_local control_node with phi control_node
+    //phi(a1) in the example, will be a define_ssa_node. Replace get_local control_node_to_lower with phi control_node_to_lower
     struct lox_ir_data_phi_node * new_get_local = ALLOC_LOX_IR_DATA(
             LOX_IR_DATA_NODE_PHI, struct lox_ir_data_phi_node, NULL, GET_NODES_ALLOCATOR(inserter)
     );
@@ -308,7 +308,7 @@ static void extract_get_local(
     add_u64_set(&new_get_local->ssa_versions, new_version_extracted);
     *parent_to_extract_get_local_ptr = &new_get_local->data;
 
-    //Insert the new control_node in the linkedlist of control_nodes
+    //Insert the new control_node_to_lower in the linkedlist of control_nodes
     extracted_set_local->control.next = control_node_to_extract;
     extracted_set_local->control.prev = control_node_to_extract->prev;
     if(control_node_to_extract->prev != NULL){

@@ -103,7 +103,7 @@ static bool try_move_up_loop_invariant_data_node(
         move_up_loop_invariant(consumer_struct->licm, parent_ptr, consumer_struct->control_node, current_data_node);
         push_stack_list(&consumer_struct->licm->pending, consumer_struct->control_node);
         consumer_struct->some_loop_invariant_moved = true;
-        //Dont keep scanning this node
+        //Dont keep scanning this control
         return false;
     }
 

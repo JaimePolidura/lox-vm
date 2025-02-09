@@ -131,7 +131,7 @@ bool is_eq_lox_ir_data_node(struct lox_ir_data_node * a, struct lox_ir_data_node
         case LOX_IR_DATA_NODE_GET_V_REGISTER: {
             struct lox_ir_data_get_v_register_node * get_v_reg_a = (struct lox_ir_data_get_v_register_node *) a;
             struct lox_ir_data_get_v_register_node * get_v_reg_b = (struct lox_ir_data_get_v_register_node *) b;
-            return get_v_reg_a->v_register.reg_number == get_v_reg_b->v_register.reg_number &&
+            return get_v_reg_a->v_register.number == get_v_reg_b->v_register.number &&
                     get_v_reg_a->v_register.is_float_register == get_v_reg_b->v_register.is_float_register;
         }
         case LOX_IR_DATA_NODE_GUARD: {
@@ -227,7 +227,7 @@ bool is_eq_lox_ir_data_node(struct lox_ir_data_node * a, struct lox_ir_data_node
             }
 
             for(int i = 0; i < a_init_array->n_elements && !a_init_array->empty_initialization; i++){
-                if(is_eq_lox_ir_data_node(a_init_array->elememnts_node[i], b_init_array->elememnts_node[i], allocator)){
+                if(is_eq_lox_ir_data_node(a_init_array->elememnts[i], b_init_array->elememnts[i], allocator)){
                     return false;
                 }
             }
@@ -290,7 +290,7 @@ static bool for_each_lox_ir_data_node_recursive(
         return true;
     }
     if(IS_FLAG_SET(options, LOX_IR_DATA_NODE_OPT_PRE_ORDER)){
-        //Keep scanning but not from this node anymmore
+        //Keep scanning but not from this control anymmore
         if(!consumer(parent_current, parent_current_ptr, current_node, extra)) {
             return true;
         }
@@ -360,7 +360,7 @@ uint64_t hash_lox_ir_data_node(struct lox_ir_data_node * node) {
     switch (node->type) {
         case LOX_IR_DATA_NODE_GET_V_REGISTER: {
             struct lox_ir_data_get_v_register_node * get_v_reg = (struct lox_ir_data_get_v_register_node *) node;
-            return mix_hash_not_commutative(get_v_reg->v_register.reg_number, (uint64_t) get_v_reg->v_register.is_float_register);
+            return mix_hash_not_commutative(get_v_reg->v_register.number, (uint64_t) get_v_reg->v_register.is_float_register);
         }
         case LOX_IR_DATA_NODE_GUARD: {
             struct lox_ir_data_guard_node * guard = (struct lox_ir_data_guard_node *) node;
@@ -442,7 +442,7 @@ uint64_t hash_lox_ir_data_node(struct lox_ir_data_node * node) {
             struct lox_ir_data_initialize_array_node * init_array = (struct lox_ir_data_initialize_array_node *) node;
             uint64_t hash = init_array->n_elements;
             for (int i = 0; i < init_array->n_elements && !init_array->empty_initialization; i++) {
-                hash = mix_hash_not_commutative(hash, hash_lox_ir_data_node(init_array->elememnts_node[i]));
+                hash = mix_hash_not_commutative(hash, hash_lox_ir_data_node(init_array->elememnts[i]));
             }
             return hash;
         }
@@ -607,7 +607,7 @@ struct u64_set get_children_lox_ir_data_node(struct lox_ir_data_node * node, str
         case LOX_IR_DATA_NODE_INITIALIZE_ARRAY: {
             struct lox_ir_data_initialize_array_node * init_array = (struct lox_ir_data_initialize_array_node *) node;
             for(int i = 0; i < init_array->n_elements && !init_array->empty_initialization; i++){
-                add_u64_set(&children, (uint64_t) &init_array->elememnts_node[i]);
+                add_u64_set(&children, (uint64_t) &init_array->elememnts[i]);
             }
             break;
         }

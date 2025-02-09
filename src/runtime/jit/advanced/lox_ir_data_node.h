@@ -46,13 +46,13 @@ typedef enum {
 //Represents expressions in CFG
 struct lox_ir_data_node {
     struct bytecode_list * original_bytecode;
-    //The type produced by this data node
+    //The type produced by this data control
     //This is added in type_propagation optimization process
     struct lox_ir_type * produced_type;
     lox_ir_data_node_type type;
 };
 
-//Start control_node is inclusive. The iteration order will be post order
+//Start control_node_to_lower is inclusive. The iteration order will be post order
 void * allocate_lox_ir_data_node(lox_ir_data_node_type type, size_t struct_size_bytes, struct bytecode_list *, struct lox_allocator *);
 void free_lox_ir_data_node(struct lox_ir_data_node *node_to_free);
 
@@ -69,7 +69,7 @@ typedef bool (*lox_ir_data_node_consumer_t)(
         struct lox_ir_data_node * child,
         void * extra
 );
-//Iterates all nodes. If the consumer return false, the node's children won't be scanned.
+//Iterates all nodes. If the consumer return false, the control's children won't be scanned.
 bool for_each_lox_ir_data_node(struct lox_ir_data_node*, void**, void*, long, lox_ir_data_node_consumer_t);
 
 struct lox_ir_data_constant_node * create_lox_ir_const_node(uint64_t, lox_ir_type_t, struct bytecode_list*, struct lox_allocator*);
@@ -81,7 +81,7 @@ uint64_t hash_lox_ir_data_node(struct lox_ir_data_node*);
 //Example: (a + b) == (b + a) Or ((a + b) + c) == (b + (a + c))
 bool is_eq_lox_ir_data_node(struct lox_ir_data_node*, struct lox_ir_data_node*, struct lox_allocator*);
 struct u64_set get_used_ssa_names_lox_ir_data_node(struct lox_ir_data_node*, struct lox_allocator*);
-//A terminator node is a node that has no children
+//A terminator control is a control that has no children
 bool is_terminator_lox_ir_data_node(struct lox_ir_data_node*);
 //Returns set of pointers to the fields of parent that contains the children pointer. Type: struct lox_ir_data_node **
 struct u64_set get_children_lox_ir_data_node(struct lox_ir_data_node*, struct lox_allocator*);

@@ -28,6 +28,7 @@ typedef enum {
     //Introduced by ir_lowerer
     LOX_IR_CONTROL_NODE_LL_MOVE,
     LOX_IR_CONTROL_NODE_LL_BINARY,
+    LOX_IR_CONTROL_NODE_LL_COMPARATION,
     LOX_IR_CONTROL_NODE_LL_UNARY,
     LOX_IR_CONTROL_NODE_LL_RETURN,
     LOX_IR_CONTROL_NODE_LL_FUNCTION_CALL,
@@ -36,6 +37,7 @@ typedef enum {
     LOX_IR_CONTROL_NODE_LL_SHRINK_STACK,
     LOX_IR_CONTROL_NODE_LL_PUSH_STACK,
     LOX_IR_CONTROL_NODE_LL_POP_STACK,
+    LOX_IR_CONTROL_NODE_LL_COND_FUNCTION_CALL,
 } lox_ir_control_node_type;
 
 //Fordward reference, so we can use it without including it to avoid cyclical dependencies.
@@ -145,11 +147,11 @@ struct lox_ir_control_conditional_jump_node {
     struct lox_ir_data_node * condition;
 };
 
-//This control_node will be only used when inserting phi functions in the graph ir creation process
+//This control_node_to_lower will be only used when inserting phi functions in the graph ir creation process
 //Will replace OP_SET_LOCAL
 //The memory outlay of lox_ir_control_define_ssa_name_node and lox_ir_control_set_local_node is the same. We create two
 //different struct definitions to note, the differences between the two process in the jit ir graph creation.
-//And the same memory outlay so we can replace the control_node in the graph easily, by just changing the control_node type
+//And the same memory outlay so we can replace the control_node_to_lower in the graph easily, by just changing the control_node_to_lower type
 struct lox_ir_control_define_ssa_name_node {
     struct lox_ir_control_node control;
 
@@ -171,17 +173,17 @@ struct lox_ir_control_set_v_register_node {
 //These nodes are introdued by ir_lowerer after optimizations have been done
 
 struct lox_ir_control_ll_push_stack {
-    struct lox_ir_control_node node;
+    struct lox_ir_control_node control;
     struct v_register to_push;
 };
 
 struct lox_ir_control_ll_pop_stack {
-    struct lox_ir_control_node node;
+    struct lox_ir_control_node control;
     struct v_register to_pop;
 };
 
 struct lox_ir_control_ll_function_call {
-    struct lox_ir_control_node node;
+    struct lox_ir_control_node control;
     void * function_call_address;
     //Pointers to struct lox_ir_ll_operand
     struct ptr_arraylist arguments;
@@ -190,30 +192,25 @@ struct lox_ir_control_ll_function_call {
     struct v_register return_value_v_reg;
 };
 
-struct lox_ir_control_ll_conditional_function_call {
-    struct lox_ir_control_node node;
-    struct lox_ir_control_ll_function_call function_call;
-};
-
 struct lox_ir_control_ll_return {
-    struct lox_ir_control_node node;
+    struct lox_ir_control_node control;
     struct lox_ir_ll_operand to_return;
     bool emtpy_return;
 };
 
 struct lox_ir_control_ll_move {
-    struct lox_ir_control_node node;
+    struct lox_ir_control_node control;
     struct lox_ir_ll_operand from;
     struct lox_ir_ll_operand to;
 };
 
 struct lox_ir_control_ll_grow_stack {
-    struct lox_ir_control_node node;
+    struct lox_ir_control_node control;
     uint64_t to_grow;
 };
 
 struct lox_ir_control_ll_shrink_stack {
-    struct lox_ir_control_node node;
+    struct lox_ir_control_node control;
     uint64_t to_shrink;
 };
 
@@ -225,7 +222,7 @@ typedef enum {
 } unary_operator_type_ll_lox_ir;
 
 struct lox_ir_control_ll_unary {
-    struct lox_ir_control_node node;
+    struct lox_ir_control_node control;
     struct lox_ir_ll_operand operand;
     unary_operator_type_ll_lox_ir operator;
 };
@@ -237,11 +234,41 @@ typedef enum {
     BINARY_LL_LOX_IR_MOD,
     BINARY_LL_LOX_IR_LEFT_SHIFT,
     BINARY_LL_LOX_IR_RIGHT_SHIFT,
+    BINARY_LL_LOX_IR_ISUB,
+    BINARY_LL_LOX_IR_FSUB,
+    BINARY_LL_LOX_IR_IADD,
+    BINARY_LL_LOX_IR_FADD,
+    BINARY_LL_LOX_IR_IMUL,
+    BINARY_LL_LOX_IR_FMUL,
+    BINARY_LL_LOX_IR_IDIV,
+    BINARY_LL_LOX_IR_FDIV,
 } binary_operator_type_ll_lox_ir;
 
 struct lox_ir_control_ll_binary {
-    struct lox_ir_control_node node;
+    struct lox_ir_control_node control;
     struct lox_ir_ll_operand left;
     struct lox_ir_ll_operand right;
     binary_operator_type_ll_lox_ir operator;
+};
+
+typedef enum {
+    COMPARATION_LL_LOX_IR_EQ,
+    COMPARATION_LL_LOX_IR_NOT_EQ,
+    COMPARATION_LL_LOX_IR_GREATER,
+    COMPARATION_LL_LOX_IR_LESS,
+    COMPARATION_LL_LOX_IR_IS_TRUE,
+    COMPARATION_LL_LOX_IR_IS_FALSE,
+} comparation_operator_type_ll_lox_ir;
+
+struct lox_ir_control_ll_comparation {
+    struct lox_ir_control_node control;
+    struct lox_ir_ll_operand left;
+    struct lox_ir_ll_operand right;
+    comparation_operator_type_ll_lox_ir operator;
+};
+
+struct lox_ir_control_ll_cond_function_call {
+    struct lox_ir_control_node control;
+    comparation_operator_type_ll_lox_ir condition;
+    struct lox_ir_control_ll_function_call call;
 };

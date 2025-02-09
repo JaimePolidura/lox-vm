@@ -53,17 +53,17 @@ lowerer_lox_ir_control_t lowerer_lox_ir_by_control_node[] = {
 
 //Main function, entry point
 void lower_lox_ir_control(struct lllil_control * lllil_control) {
-    struct lox_ir_control_node * control_node = lllil_control->control_node;
+    struct lox_ir_control_node * control_node = lllil_control->control_node_to_lower;
     lowerer_lox_ir_control_t lowerer_lox_ir_control = lowerer_lox_ir_by_control_node[control_node->type];
     if (lowerer_lox_ir_control == NULL) {
-        runtime_panic("Unexpected control node %i in ir_lowerer_control", control_node->type);
+        runtime_panic("Unexpected control control %i in ir_lowerer_control", control_node->type);
     }
 
     lowerer_lox_ir_control(lllil_control);
 }
 
 void lower_lox_ir_control_exit_monitor(struct lllil_control * lllil) {
-    struct lox_ir_control_node * control = lllil->control_node;
+    struct lox_ir_control_node * control = lllil->control_node_to_lower;
     struct lox_ir_control_enter_monitor_node * enter_monitor_control_node = (struct lox_ir_control_enter_monitor_node *) control;
     struct lox_ir_block * block = enter_monitor_control_node->control.block;
 
@@ -81,7 +81,7 @@ void lower_lox_ir_control_exit_monitor(struct lllil_control * lllil) {
 }
 
 void lower_lox_ir_control_enter_monitor(struct lllil_control * lllil) {
-    struct lox_ir_control_node * control = lllil->control_node;
+    struct lox_ir_control_node * control = lllil->control_node_to_lower;
     struct lox_ir_control_exit_monitor_node * exit_monitor_control_node = (struct lox_ir_control_exit_monitor_node *) control;
     struct lox_ir_block * block = exit_monitor_control_node->control.block;
 
@@ -91,7 +91,7 @@ void lower_lox_ir_control_enter_monitor(struct lllil_control * lllil) {
 }
 
 void lower_lox_ir_control_print(struct lllil_control * lllil) {
-    struct lox_ir_control_node * control = lllil->control_node;
+    struct lox_ir_control_node * control = lllil->control_node_to_lower;
     struct lox_ir_control_print_node * print_node = (struct lox_ir_control_print_node *) control;
     struct lox_ir_ll_operand to_print_data = lower_lox_ir_data(lllil, print_node->data, LOX_IR_TYPE_UNKNOWN);
     struct lox_ir_block * block = control->block;
@@ -105,13 +105,13 @@ void lower_lox_ir_control_print(struct lllil_control * lllil) {
 }
 
 void lower_lox_ir_control_data(struct lllil_control * lllil_control) {
-    struct lox_ir_control_node * control = lllil_control->control_node;
+    struct lox_ir_control_node * control = lllil_control->control_node_to_lower;
     struct lox_ir_control_data_node * data_node = (struct lox_ir_control_data_node *) control;
     lower_lox_ir_data(lllil_control, data_node->data, LOX_IR_TYPE_UNKNOWN);
 }
 
 void lower_lox_ir_control_return(struct lllil_control * lllil_control) {
-    struct lox_ir_control_node * control = lllil_control->control_node;
+    struct lox_ir_control_node * control = lllil_control->control_node_to_lower;
     struct lox_ir_control_return_node * return_node = (struct lox_ir_control_return_node *) control;
     struct lox_ir_block * block = control->block;
 
@@ -122,11 +122,11 @@ void lower_lox_ir_control_return(struct lllil_control * lllil_control) {
         low_level_return_node->to_return = lower_lox_ir_data(lllil_control, return_node->data, LOX_IR_TYPE_LOX_ANY);
     }
 
-    replace_control_node_lox_ir_block(block, control, &low_level_return_node->node);
+    replace_control_node_lox_ir_block(block, control, &low_level_return_node->control);
 }
 
 void lower_lox_ir_control_set_global(struct lllil_control * lllil) {
-    struct lox_ir_control_node * control_node = lllil->control_node;
+    struct lox_ir_control_node * control_node = lllil->control_node_to_lower;
     struct lox_ir_control_set_global_node * set_global_node = (struct lox_ir_control_set_global_node *) control_node;
     struct lox_ir_block * block = control_node->block;
 
@@ -146,7 +146,7 @@ static void set_struct_field_escapes(struct lllil_control*, struct lox_ir_contro
 static void set_struct_field_doesnt_escape(struct lllil_control*, struct lox_ir_control_set_struct_field_node*);
 
 void lower_lox_ir_control_set_struct_field(struct lllil_control * lllil) {
-    struct lox_ir_control_node * control_node = lllil->control_node;
+    struct lox_ir_control_node * control_node = lllil->control_node_to_lower;
     struct lox_ir_control_set_struct_field_node * set_struct_field = (struct lox_ir_control_set_struct_field_node *) control_node;
 
     if (set_struct_field->escapes) {
@@ -191,7 +191,7 @@ static void set_struct_field_doesnt_escape(struct lllil_control * lllil, struct 
 }
 
 void lower_lox_ir_control_set_array_element(struct lllil_control * lllil) {
-    struct lox_ir_control_node * control = lllil->control_node;
+    struct lox_ir_control_node * control = lllil->control_node_to_lower;
     struct lox_ir_control_set_array_element_node * set_array_element = (struct lox_ir_control_set_array_element_node *) control;
     struct lox_ir_ll_operand array_instance = lower_lox_ir_data(lllil, set_array_element->array, LOX_IR_TYPE_UNKNOWN);
     struct lox_ir_ll_operand index = lower_lox_ir_data(lllil, set_array_element->index, LOX_IR_TYPE_NATIVE_I64);
@@ -203,11 +203,12 @@ void lower_lox_ir_control_set_array_element(struct lllil_control * lllil) {
     }
 
     if (set_array_element->escapes) {
-        emit_iadd_ll_lox_ir(lllil, array_instance, array_instance, IMMEDIATE_TO_OPERAND(offsetof(struct array_object, values)));
+        emit_binary_ll_lox_ir(lllil, BINARY_LL_LOX_IR_IADD, array_instance, array_instance,
+                              IMMEDIATE_TO_OPERAND(offsetof(struct array_object, values)));
     }
 
     if (index.type == LOX_IR_LL_OPERAND_IMMEDIATE) {
-        emit_imul_ll_lox_ir(lllil, index, index, IMMEDIATE_TO_OPERAND(8));
+        emit_binary_ll_lox_ir(lllil, BINARY_LL_LOX_IR_IMUL, index, index, IMMEDIATE_TO_OPERAND(8));
         emit_store_at_offset_ll_lox_ir(lllil, array_instance, 0, new_value);
     } else {
         emit_store_at_offset_ll_lox_ir(lllil, array_instance, index.immedate * 8, new_value);
@@ -219,20 +220,21 @@ void lower_lox_ir_control_loop(struct lllil_control * lllil) {
 }
 
 void lower_lox_ir_control_conditional_jump(struct lllil_control * lllil) {
-    struct lox_ir_control_node * control_node = lllil->control_node;
+    struct lox_ir_control_node * control_node = lllil->control_node_to_lower;
     struct lox_ir_control_conditional_jump_node * cond_jump = (struct lox_ir_control_conditional_jump_node *) control_node;
     lower_lox_ir_data(lllil, cond_jump->condition, LOX_IR_TYPE_NATIVE_BOOLEAN);
 }
 
 void lower_lox_ir_control_guard(struct lllil_control * lllil) {
-    struct lox_ir_control_node * control = lllil->control_node;
+    struct lox_ir_control_node * control = lllil->control_node_to_lower;
     struct lox_ir_control_guard_node * guard_node = (struct lox_ir_control_guard_node *) control;
     struct lox_ir_guard guard = guard_node->guard;
-    emit_guard_ll_lox_ir(lllil, guard);
+    struct lox_ir_ll_operand guard_input = lower_lox_ir_data(lllil, guard_node->guard.value, LOX_IR_TYPE_UNKNOWN);
+    emit_guard_ll_lox_ir(lllil, guard_input, guard);
 }
 
 void lower_lox_ir_control_set_v_reg(struct lllil_control * lllil) {
-    struct lox_ir_control_node * control = lllil->control_node;
+    struct lox_ir_control_node * control = lllil->control_node_to_lower;
     struct lox_ir_control_set_v_register_node * set_v_reg = (struct lox_ir_control_set_v_register_node *) control;
 
     struct lox_ir_ll_operand new_value = lower_lox_ir_data(lllil, set_v_reg->value, LOX_IR_TYPE_UNKNOWN);
@@ -243,5 +245,5 @@ void lower_lox_ir_control_set_v_reg(struct lllil_control * lllil) {
     move->to = V_REG_TO_OPERAND(set_v_reg->v_register);
     move->from = new_value;
 
-    replace_control_node_lox_ir_block(control->block, control, &move->node);
+    replace_control_node_lox_ir_block(control->block, control, &move->control);
 }

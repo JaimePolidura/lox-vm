@@ -108,7 +108,8 @@ void put_type_by_ssa_name_lox_ir(
 
 struct v_register alloc_v_register_lox_ir(struct lox_ir * lox_ir, bool is_float_register) {
     return ((struct v_register) {
-            .reg_number = lox_ir->last_v_reg_allocated++,
-            .is_float_register = is_float_register,
+        .number = lox_ir->last_v_reg_allocated++,
+        .is_float_register = is_float_register,
+        .register_bit_size = 64,
     });
 }

@@ -35,10 +35,10 @@ struct lox_ir_block {
     //If it is 0, it means that the block doest not belong to a loop body
     int nested_loop_body;
     //Indicates if the current block belongs to the jump_to_operand of a loop
-    //If this is true, it means that another OP_LOOP control_node will point to this control_node
+    //If this is true, it means that another OP_LOOP control_node_to_lower will point to this control_node_to_lower
     bool is_loop_condition;
     //Every block in a loop body will contain a pointer to the block jump_to_operand.
-    //If a node is a loop condtiion (has is_loop_condition set to true), loop_condition_block will point to the outer loop block jump_to_operand.
+    //If a control is a loop condtiion (has is_loop_condition set to true), loop_condition_block will point to the outer loop block jump_to_operand.
     struct lox_ir_block * loop_condition_block;
     //Contains global information of all the blocks that belongs to a loop body.
     //Maintained per each loop jump_to_operand block (is_loop_condition is set to true)

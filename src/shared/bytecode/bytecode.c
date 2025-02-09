@@ -91,3 +91,7 @@ bool is_fwd_jump_bytecode_instruction(bytecode_t instruction) {
 bool is_bwd_jump_bytecode_instruction(bytecode_t instruction) {
     return instruction == OP_LOOP;
 }
+
+bool is_comparation_bytecode_instruction(bytecode_t instruction) {
+    return instruction == OP_EQUAL || instruction == OP_GREATER || instruction == OP_LESS;
+}

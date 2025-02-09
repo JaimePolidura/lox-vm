@@ -219,7 +219,7 @@ static void reduce_multiplication_strength_into_multiple_shifts(
         append_ptr_arraylist(&shift_nodes, binary);
     }
 
-    //Head node wil contain the new multiplication tree
+    //Head control wil contain the new multiplication tree
     struct lox_ir_data_binary_node * head_node = NULL;
     for(int i = 0; i < shift_nodes.in_use; i++){
         struct lox_ir_data_binary_node * shift_node = shift_nodes.values[i];

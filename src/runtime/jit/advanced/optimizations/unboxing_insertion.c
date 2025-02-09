@@ -119,7 +119,7 @@ static void perform_unboxing_insertion_data(
             (void**) children_field_ptr, data_node_requires_boxed_inputs);
     }
 
-    //Innecesary to add unbox/box node in conditional jump
+    //Innecesary to add unbox/box control in conditional jump
     if(parent == NULL && control_node->type == LOX_IR_CONTROL_NODE_CONDITIONAL_JUMP){
         return;
     }

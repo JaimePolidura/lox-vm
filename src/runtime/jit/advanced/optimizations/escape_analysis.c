@@ -433,7 +433,7 @@ static void save_usage_of_data_node(
     add_u64_set(usage_set, (uint64_t) node_uses_instance);
 }
 
-//This data node is used as an input in a control node
+//This data control is used as an input in a control control
 static bool does_data_node_make_control_to_escape(struct ea * ea, struct lox_ir_data_node * data_node) {
     switch (data_node->type) {
         case LOX_IR_DATA_NODE_GET_SSA_NAME: {

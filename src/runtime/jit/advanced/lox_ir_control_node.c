@@ -32,7 +32,7 @@ bool for_each_data_node_in_lox_ir_control(
         struct lox_ir_data_node * child = *child_parent_field_ptr;
 
         all_nodes_returned_keep_scanning &= for_each_lox_ir_data_node(child, (void **) child_parent_field_ptr, extra,
-                                                                      options, consumer);
+            options, consumer);
     }
 
     return all_nodes_returned_keep_scanning;
@@ -124,7 +124,7 @@ static bool get_used_ssa_names_lox_ir_control_consumer(
     union_u64_set(used_ssa_names, used_ssa_names_in_current_data_node);
     free_u64_set(&used_ssa_names_in_current_data_node);
 
-    //Don't keep scanning from this node, because we have already scanned al sub datanodes
+    //Don't keep scanning from this control, because we have already scanned al sub datanodes
     //in get_used_ssa_names_lox_ir_data_node()
     return false;
 }

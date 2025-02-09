@@ -335,7 +335,7 @@ static void get_global(
 ) {
     struct package * global_variable_package = peek_stack_list(&inserter->package_stack);
     struct string_object * global_variable_name = AS_STRING_OBJECT(READ_CONSTANT(function, to_evaluate->pending_bytecode));
-    //If the global variable is constant, we will return a CONST_NODE instead of GET_GLOBAL control_node
+    //If the global variable is constant, we will return a CONST_NODE instead of GET_GLOBAL control_node_to_lower
     if(contains_trie(&global_variable_package->const_global_variables_names, global_variable_name->chars, global_variable_name->length)) {
         lox_value_t constant_value = get_hash_table(&global_variable_package->global_variables, global_variable_name);
         struct lox_ir_data_constant_node * constant_node = create_lox_ir_const_node(constant_value, LOX_IR_TYPE_LOX_ANY,
@@ -777,7 +777,7 @@ static bool map_data_nodes_bytecodes_to_control_consumer(
     return true;
 }
 
-//This function will map the control control_node bytecode to the to_map_control control control_node
+//This function will map the control control_node_to_lower bytecode to the to_map_control control control_node_to_lower
 //Example: Given OP_CONST_1, OP_CONST_2, OP_ADD, OP_PRINT
 //The first 3 bytecodes will point to OP_PRINT
 static void map_data_nodes_bytecodes_to_control(

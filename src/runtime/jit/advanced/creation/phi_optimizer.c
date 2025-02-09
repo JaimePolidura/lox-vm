@@ -126,7 +126,7 @@ static void remove_innecesary_phi_function(
     );
     new_get_ssa_name->ssa_name = CREATE_SSA_NAME(phi_node->local_number, ssa_version);
 
-    //Replace control_node
+    //Replace control_node_to_lower
     *parent_child_ptr = (void *) new_get_ssa_name;
 }
 
@@ -182,7 +182,7 @@ static bool propagate_extracted_phi_in_data_node(
         struct lox_ir_data_phi_node * current_phi_node = (struct lox_ir_data_phi_node *) current;
 
         if (is_subset_u64_set(current_phi_node->ssa_versions, propagation_extracted_phi->versions_extracted)) {
-            //Remove propagation_extracted_phi->versions_extracted from current phi control_node
+            //Remove propagation_extracted_phi->versions_extracted from current phi control_node_to_lower
             difference_u64_set(&current_phi_node->ssa_versions, propagation_extracted_phi->versions_extracted);
 
             add_u64_set(&current_phi_node->ssa_versions, propagation_extracted_phi->to_extracted_version);

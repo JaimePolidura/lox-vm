@@ -4,12 +4,13 @@
 #include "lox_ir_type.h"
 
 typedef enum {
+    //Guard input's type is lox value
     LOX_IR_GUARD_TYPE_CHECK,
     //This is like a typecheck but with the aditional jump_to_operand that the struct instance shluld have a specific definition
     LOX_IR_GUARD_STRUCT_DEFINITION_TYPE_CHECK,
     //Same as LOX_IR_GUARD_STRUCT_DEFINITION_TYPE_CHECK but array type
     LOX_IR_GUARD_ARRAY_TYPE_CHECK,
-    //Used in branches
+    //Used in branches. Guard input type is NATIVE_BOOLEAN. It doesn't perform type checking
     LOX_IR_GUARD_BOOLEAN_CHECK
 } ssa_guard_type_t;
 
@@ -27,10 +28,12 @@ struct lox_ir_guard {
 
     union {
         //Used when type is set to LOX_IR_GUARD_TYPE_CHECK & LOX_IR_GUARD_ARRAY_TYPE_CHECK
+        //The type has lox binary format
         lox_ir_type_t type;
         //Used when type is set to LOX_IR_GUARD_STRUCT_DEFINITION_TYPE_CHECK
         struct struct_definition_object * struct_definition;
         //Used when type is set to LOX_IR_GUARD_BOOLEAN_CHECK
+        //The guard will fail if the guard's input doesn't match check_true value
         bool check_true;
     } value_to_compare;
 };

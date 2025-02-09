@@ -101,26 +101,26 @@ void remove_control_node_lox_ir_block(
     record_removed_node_information_of_block(lox_ir_block, node_to_remove);
     reset_loop_info(lox_ir_block);
 
-    //The block has only 1 control control_node
+    //The block has only 1 control control_node_to_lower
     if(lox_ir_block->first == lox_ir_block->last){
         lox_ir_block->first = lox_ir_block->last = NULL;
         return;
     }
-    //We are removing the first control_node
+    //We are removing the first control_node_to_lower
     if(lox_ir_block->first == node_to_remove) {
         lox_ir_block->first = node_to_remove->next;
     }
-    //We are removing the last control_node
+    //We are removing the last control_node_to_lower
     if(lox_ir_block->last == node_to_remove){
         lox_ir_block->last = node_to_remove->prev;
     }
-    //There is only one control_node remaining
+    //There is only one control_node_to_lower remaining
     if(lox_ir_block->last == lox_ir_block->first){
         lox_ir_block->first->next = NULL;
         lox_ir_block->first->prev = NULL;
         return;
     }
-    //Unlink the control_node from the control control_node linkedlist in a block
+    //Unlink the control_node_to_lower from the control control_node_to_lower linkedlist in a block
     if (node_to_remove->prev != NULL) {
         node_to_remove->prev->next = node_to_remove->next;
     }
@@ -245,7 +245,7 @@ struct branch_removed remove_branch_lox_ir_block(
 
     branch_block->type_next = TYPE_NEXT_LOX_IR_BLOCK_SEQ;
     branch_block->next_as.next = branch_remains;
-    remove_control_node_lox_ir_block(branch_block, branch_block->last); //The last is the jump_conditional control_node
+    remove_control_node_lox_ir_block(branch_block, branch_block->last); //The last is the jump_conditional control_node_to_lower
     if(is_emtpy_lox_ir_block(branch_block)){
         add_u64_set(&blocks_removed, (uint64_t) branch_block);
         replace_block_lox_ir_block(branch_block, branch_remains);
@@ -280,7 +280,7 @@ static struct u64_set get_blocks_to_remove(struct lox_ir_block * start_block) {
         struct u64_set_iterator current_block_predecesors_it;
         init_u64_set_iterator(&current_block_predecesors_it, current_block->predecesors);
 
-        //We check that the predecessors of the control_node that we are scanning, is contained the set of nodes that we want to
+        //We check that the predecessors of the control_node_to_lower that we are scanning, is contained the set of nodes that we want to
         //remove
         bool current_block_can_be_removed = true;
         while(has_next_u64_set_iterator(current_block_predecesors_it)){

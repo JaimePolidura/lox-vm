@@ -36,7 +36,7 @@ typedef enum {
     ESCAPE_ANALYSIS_PHASE_LOX_IR_GRAPHVIZ = 1 << 9,
     COPY_PROPAGATION_PHASE_LOX_IR_GRAPHVIZ = 1 << 10,
 
-    //Phi node resolution / Virtual registers allocation
+    //Phi control resolution / Virtual registers allocation
     PHI_RESOLUTION_PHASE_LOX_IR_GRAPHVIZ = 1 << 11,
 
     ALL_PHASE_LOX_IR_GRAPHVIZ = 1 << 63,

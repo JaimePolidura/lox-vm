@@ -35,7 +35,7 @@ bool lower_lox_ir_block(struct lox_ir_block * block, void * extra) {
 
     for (struct lox_ir_control_node * current = block->first;;current = current->next) {
         struct lllil_control lllil_control = (struct lllil_control) {
-            .control_node = current,
+            .control_node_to_lower = current,
             .lllil = lllil,
         };
 

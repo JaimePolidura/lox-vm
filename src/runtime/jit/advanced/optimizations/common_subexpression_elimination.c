@@ -8,7 +8,7 @@ struct cse {
     struct lox_ir * lox_ir;
 };
 
-//Struct to hold information when performing subsexpression elimination in a data node.
+//Struct to hold information when performing subsexpression elimination in a data control.
 //It is in the lox_ir_data_node method for_each_lox_ir_data_node
 struct perform_cse_data_node {
     struct cse * cse;
@@ -28,7 +28,7 @@ struct subexpression {
     struct ssa_name reusable_ssa_name;
 
     enum {
-        //The value resides in a node data flow graph. Exmaple: return phi(i0, i1)
+        //The value resides in a control data flow graph. Exmaple: return phi(i0, i1)
         //To be used it needs to be extracted to a jit name.
         NOT_REUSABLE_SUBEXPRESSION,
         //The value has been extracted to a jit name. Example: i2 = phi(i0, i1); return i2;
@@ -83,7 +83,7 @@ bool perform_cse_data_node_consumer(
     struct lox_ir_control_node * current_control_node = perform_cse_data_node->control_node;
     struct cse * cse = perform_cse_data_node->cse;
 
-    //These data node types won't be optimized
+    //These data control types won't be optimized
     if(current_data_node->type == LOX_IR_DATA_NODE_CALL ||
        current_data_node->type == LOX_IR_DATA_NODE_CONSTANT ||
        current_data_node->type == LOX_IR_DATA_NODE_GET_SSA_NAME ||
