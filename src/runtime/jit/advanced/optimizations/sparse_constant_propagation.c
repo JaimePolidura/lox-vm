@@ -480,7 +480,7 @@ static lox_value_t calculate_unary_lox(lox_value_t operand_value, lox_ir_unary_o
             return TO_LOX_VALUE_BOOL(!AS_BOOL(operand_value));
         }
         default:
-            runtime_panic("Unhandled unary operator type %i in calculate_unary() in scp.c", operator);
+            runtime_panic("Unhandled unary comparation_operator type %i in calculate_unary() in scp.c", operator);
     }
 }
 
@@ -512,7 +512,7 @@ static lox_value_t calculate_binary_lox(lox_value_t left, lox_value_t right, byt
         case OP_LESS: return TO_LOX_VALUE_BOOL(AS_NUMBER(left) < AS_NUMBER(right));
         case OP_EQUAL: return TO_LOX_VALUE_BOOL(left == right);
         case OP_ADD: return addition_lox(left, right);
-        default: runtime_panic("Unhandled binary operator %i in calculate_binary_lox() in scp.c", operator);
+        default: runtime_panic("Unhandled binary comparation_operator %i in calculate_binary_lox() in scp.c", operator);
     }
 }
 

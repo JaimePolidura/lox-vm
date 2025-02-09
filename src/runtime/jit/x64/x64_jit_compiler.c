@@ -1118,7 +1118,7 @@ static void binary_operation(
         record_compiled_bytecode(jit_compiler, b.instruction_index, instruction_length);
         result_operand = REGISTER_TO_OPERAND(result_reg);
 
-    } else { //1 register, 1 operator
+    } else { //1 register, 1 comparation_operator
         struct pop_stack_operand_result operand_reg = a.operand.type == REGISTER_OPERAND ? a : b;
         struct pop_stack_operand_result operand_imm = a.operand.type == REGISTER_OPERAND ? b : a;
 

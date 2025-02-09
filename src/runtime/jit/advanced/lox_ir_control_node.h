@@ -255,7 +255,9 @@ typedef enum {
     COMPARATION_LL_LOX_IR_EQ,
     COMPARATION_LL_LOX_IR_NOT_EQ,
     COMPARATION_LL_LOX_IR_GREATER,
+    COMPARATION_LL_LOX_IR_GREATER_EQ,
     COMPARATION_LL_LOX_IR_LESS,
+    COMPARATION_LL_LOX_IR_LESS_EQ,
     COMPARATION_LL_LOX_IR_IS_TRUE,
     COMPARATION_LL_LOX_IR_IS_FALSE,
 } comparation_operator_type_ll_lox_ir;
@@ -264,11 +266,14 @@ struct lox_ir_control_ll_comparation {
     struct lox_ir_control_node control;
     struct lox_ir_ll_operand left;
     struct lox_ir_ll_operand right;
-    comparation_operator_type_ll_lox_ir operator;
+    comparation_operator_type_ll_lox_ir comparation_operator;
 };
 
 struct lox_ir_control_ll_cond_function_call {
     struct lox_ir_control_node control;
     comparation_operator_type_ll_lox_ir condition;
-    struct lox_ir_control_ll_function_call call;
+
+    void * function_call_address;
+    //Pointers to struct lox_ir_ll_operand
+    struct ptr_arraylist arguments;
 };

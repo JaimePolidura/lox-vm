@@ -67,35 +67,34 @@ void emit_function_call_ll_lox_ir(
 
 void emit_unary_ll_lox_ir(
         struct lllil_control * lllil,
-        struct lox_ir_ll_operand a,
-        unary_operator_type_ll_lox_ir binary_operator
+        struct lox_ir_ll_operand operand,
+        unary_operator_type_ll_lox_ir operator
 );
 
 void emit_comparation_ll_lox_ir(
         struct lllil_control * lllil,
-        comparation_operator_type_ll_lox_ir comparation_type,
-        struct lox_ir_ll_operand a,
-        struct lox_ir_ll_operand b
+        comparation_operator_type_ll_lox_ir comparation_operator,
+        struct lox_ir_ll_operand left,
+        struct lox_ir_ll_operand right
 );
 
 void emit_binary_ll_lox_ir(
         struct lllil_control * lllil,
         binary_operator_type_ll_lox_ir binary_operator,
         struct lox_ir_ll_operand result,
-        struct lox_ir_ll_operand a,
-        struct lox_ir_ll_operand b
+        struct lox_ir_ll_operand left,
+        struct lox_ir_ll_operand right
+);
+
+struct lox_ir_ll_operand emit_get_array_length_ll_lox_ir(
+        struct lllil_control *,
+        struct lox_ir_ll_operand instance, //Expect type NATIVE_ARRAY_INSTANCE
+        bool escapes
 );
 
 void emit_range_check_ll_lox_ir(
         struct lllil_control *,
-        struct lox_ir_ll_operand instance,
-        struct lox_ir_ll_operand index
-);
-
-//result = a + b
-void emit_string_concat_ll_lox_ir(
-        struct lllil_control *,
-        struct lox_ir_ll_operand result,
-        struct lox_ir_ll_operand a,
-        struct lox_ir_ll_operand b
+        struct lox_ir_ll_operand instance, //Expect type NATIVE_ARRAY_INSTANCE
+        struct lox_ir_ll_operand index_to_access,
+        bool escapes
 );

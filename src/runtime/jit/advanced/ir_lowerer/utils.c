@@ -12,6 +12,7 @@ static void emit_guard_object_type_check(struct lllil_control*,struct lox_ir_ll_
 
 extern void guard_array_type_check_jit_runtime(lox_value_t);
 extern void switch_to_interpreter_jit_runime();
+extern void range_check_panic_jit_runime();
 
 int get_offset_field_struct_definition_ll_lox_ir(
         struct struct_definition_object * definition,
@@ -327,6 +328,85 @@ static void emit_guard_i64_type_check(
     );
 }
 
+void emit_unary_ll_lox_ir(
+        struct lllil_control * lllil,
+        struct lox_ir_ll_operand operand,
+        unary_operator_type_ll_lox_ir operator
+) {
+    struct lox_ir_control_ll_unary * unary = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_LL_UNARY,
+            struct lox_ir_control_ll_unary, NULL, LOX_IR_ALLOCATOR(lllil->lllil->lox_ir));
+    unary->operator = operator;
+    unary->operand = operand;
+
+    add_lowered_node_lllil_control(lllil, &unary->control);
+}
+
+void emit_binary_ll_lox_ir(
+        struct lllil_control * lllil,
+        binary_operator_type_ll_lox_ir binary_operator,
+        struct lox_ir_ll_operand result,
+        struct lox_ir_ll_operand left,
+        struct lox_ir_ll_operand right
+) {
+    struct lox_ir_control_ll_binary * binary = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_LL_BINARY,
+            struct lox_ir_control_ll_binary, NULL, LOX_IR_ALLOCATOR(lllil->lllil->lox_ir));
+    binary->operator = binary_operator;
+    binary->right = right;
+    binary->left = left;
+
+    add_lowered_node_lllil_control(lllil, &binary->control);
+}
+
+void emit_comparation_ll_lox_ir(
+        struct lllil_control * lllil,
+        comparation_operator_type_ll_lox_ir comparation_operator,
+        struct lox_ir_ll_operand left,
+        struct lox_ir_ll_operand right
+) {
+    struct lox_ir_control_ll_comparation * comparation = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_LL_COMPARATION,
+            struct lox_ir_control_ll_comparation, NULL, LOX_IR_ALLOCATOR(lllil->lllil->lox_ir));
+    comparation->comparation_operator = comparation_operator;
+    comparation->right = right;
+    comparation->left = left;
+
+    add_lowered_node_lllil_control(lllil, &comparation->control);
+}
+
+void emit_range_check_ll_lox_ir(
+        struct lllil_control * lllil,
+        struct lox_ir_ll_operand instance,
+        struct lox_ir_ll_operand index_to_access,
+        bool array_instance_escapes
+) {
+    //Firts check: index_to_access < 0
+    emit_comparation_ll_lox_ir(
+            lllil,
+            COMPARATION_LL_LOX_IR_LESS,
+            index_to_access,
+            IMMEDIATE_TO_OPERAND(0)
+    );
+    emit_conditional_function_call_ll_lox_ir(
+            lllil,
+            COMPARATION_LL_LOX_IR_IS_TRUE,
+            &range_check_panic_jit_runime,
+            0
+    );
+    //Second check index_to_access >= array_size
+    struct lox_ir_ll_operand array_size = emit_get_array_length_ll_lox_ir(lllil, instance, array_instance_escapes);
+    emit_comparation_ll_lox_ir(
+            lllil,
+            COMPARATION_LL_LOX_IR_GREATER_EQ,
+            array_size,
+            index_to_access
+    );
+    emit_conditional_function_call_ll_lox_ir(
+            lllil,
+            COMPARATION_LL_LOX_IR_IS_TRUE,
+            &range_check_panic_jit_runime,
+            0
+    );
+}
+
 //Implementation is the same as types.h's IS_NUMBER()
 static void emit_guard_f64_type_check(
         struct lllil_control * control,
@@ -379,6 +459,35 @@ static void emit_guard_boolean_check(
     );
 }
 
+void emit_conditional_function_call_ll_lox_ir(
+        struct lllil_control *lllil,
+        comparation_operator_type_ll_lox_ir condition,
+        void * function_address,
+        int n_args,
+        ... //Arguments
+) {
+    struct lox_allocator * allocator = &lllil->lllil->lox_ir->nodes_allocator_arena->lox_allocator;
+
+    struct lox_ir_control_ll_cond_function_call * cond_func_call = ALLOC_LOX_IR_CONTROL( //TODO
+            LOX_IR_CONTROL_NODE_LL_COND_FUNCTION_CALL, struct lox_ir_control_ll_cond_function_call, NULL, allocator
+    );
+    cond_func_call->condition = condition;
+    cond_func_call->function_call_address = function_address;
+    init_ptr_arraylist(&cond_func_call->arguments, allocator);
+
+    resize_ptr_arraylist(&cond_func_call->arguments, n_args);
+    struct lox_ir_ll_operand arguments[n_args];
+    VARARGS_TO_ARRAY(struct lox_ir_ll_operand, arguments, n_args, ...);
+    for (int i = 0; i < n_args; i++) {
+        struct lox_ir_ll_operand argument = arguments[i];
+        struct lox_ir_ll_operand * argument_ptr = LOX_MALLOC(allocator, sizeof(argument));
+        *argument_ptr = argument;
+        append_ptr_arraylist(&cond_func_call->arguments, argument_ptr);
+    }
+
+    add_lowered_node_lllil_control(lllil, &cond_func_call->control);
+}
+
 void emit_function_call_with_return_value_ll_lox_ir(
         struct lllil_control *lllil,
         void * function_address,
@@ -408,6 +517,7 @@ void emit_function_call_with_return_value_ll_lox_ir(
         append_ptr_arraylist(&func_call->arguments, argument_ptr);
     }
 
+    add_lowered_node_lllil_control(lllil, &func_call->control);
 }
 
 void emit_function_call_ll_lox_ir(
@@ -435,4 +545,71 @@ void emit_function_call_ll_lox_ir(
 
         append_ptr_arraylist(&func_call->arguments, argument_ptr);
     }
+
+    add_lowered_node_lllil_control(lllil, &func_call->control);
+}
+
+static struct lox_ir_ll_operand emit_get_array_length_ll_lox_ir_doesnt_escape(struct lllil_control*,
+        struct lox_ir_ll_operand);
+static struct lox_ir_ll_operand emit_get_array_length_ll_lox_ir_escapes(struct lllil_control*,
+        struct lox_ir_ll_operand);
+
+struct lox_ir_ll_operand emit_get_array_length_ll_lox_ir(
+        struct lllil_control * control,
+        struct lox_ir_ll_operand instance, //Expect type NATIVE_ARRAY_INSTANCE
+        bool escapes
+) {
+    if (!escapes) {
+        return emit_get_array_length_ll_lox_ir_doesnt_escape(control, instance);
+    } else {
+        return emit_get_array_length_ll_lox_ir_escapes(control, instance);
+    }
+}
+
+static struct lox_ir_ll_operand emit_get_array_length_ll_lox_ir_escapes(
+        struct lllil_control * control,
+        struct lox_ir_ll_operand instance //Expect type NATIVE_ARRAY_INSTANCE
+) {
+    emit_binary_ll_lox_ir(
+            control,
+            BINARY_LL_LOX_IR_ISUB,
+            instance,
+            instance,
+            IMMEDIATE_TO_OPERAND(sizeof(int))
+    );
+
+    struct lox_ir_ll_operand array_length_value = V_REG_TO_OPERAND(alloc_v_register_lox_ir(control->lllil->lox_ir, false));
+
+    emit_load_at_offset_ll_lox_ir(
+            control,
+            array_length_value,
+            instance,
+            0
+    );
+
+    return array_length_value;
+}
+
+static struct lox_ir_ll_operand emit_get_array_length_ll_lox_ir_doesnt_escape(
+        struct lllil_control * control,
+        struct lox_ir_ll_operand array_instance //Expect type NATIVE_ARRAY_INSTANCE
+) {
+    emit_binary_ll_lox_ir(
+            control,
+            BINARY_LL_LOX_IR_IADD,
+            array_instance,
+            array_instance,
+            IMMEDIATE_TO_OPERAND(offsetof(struct lox_arraylist, in_use))
+    );
+
+    struct lox_ir_ll_operand array_length_value = V_REG_TO_OPERAND(alloc_v_register_lox_ir(control->lllil->lox_ir, false));
+
+    emit_load_at_offset_ll_lox_ir(
+            control,
+            (array_length_value),
+            array_instance,
+            0
+    );
+
+    return array_length_value;
 }
