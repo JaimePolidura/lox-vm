@@ -249,6 +249,7 @@ struct lox_ir_control_ll_binary {
     struct lox_ir_ll_operand left;
     struct lox_ir_ll_operand right;
     binary_operator_type_ll_lox_ir operator;
+    struct lox_ir_ll_operand result;
 };
 
 typedef enum {

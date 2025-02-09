@@ -376,9 +376,9 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_element(
     struct lox_ir_data_get_array_element_node * get_arr_element = (struct lox_ir_data_get_array_element_node *) data_node;
 
     if (!get_arr_element->escapes) {
-        lowerer_lox_ir_data_get_array_element_does_not_escape(lllil_control, get_arr_element);
+        return lowerer_lox_ir_data_get_array_element_does_not_escape(lllil_control, get_arr_element);
     } else {
-        lowerer_lox_ir_data_get_array_element_escapes(lllil_control, get_arr_element);
+        return lowerer_lox_ir_data_get_array_element_escapes(lllil_control, get_arr_element);
     }
 }
 
@@ -392,10 +392,38 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_element_does_not_e
     if (node->requires_range_check) {
         emit_range_check_ll_lox_ir(lllil, instance, index, node->escapes);
     }
+    
+    if (index.type == LOX_IR_LL_OPERAND_IMMEDIATE) {
+        emit_load_at_offset_ll_lox_ir(
+                lllil,
+                instance,
+                instance,
+                sizeof(uint64_t) * index.immedate
+        );
+    } else {
+        emit_binary_ll_lox_ir(
+                lllil,
+                BINARY_LL_LOX_IR_IMUL,
+                index,
+                IMMEDIATE_TO_OPERAND(sizeof(uint64_t)),
+                index
+        );
+        emit_binary_ll_lox_ir(
+                lllil,
+                BINARY_LL_LOX_IR_IADD,
+                instance,
+                instance,
+                index
+        );
+        emit_load_at_offset_ll_lox_ir(
+                lllil,
+                instance,
+                instance,
+                0
+        );
+    }
 
-    struct lox_ir_ll_operand array_element = alloc_new_v_register(lllil, false);
-
-    return array_element;
+    return instance;
 }
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_element_escapes(
@@ -409,7 +437,39 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_element_escapes(
         emit_range_check_ll_lox_ir(lllil, instance, index, node->escapes);
     }
 
-    struct lox_ir_ll_operand array_element = alloc_new_v_register(lllil, false);
+    if (index.type == LOX_IR_LL_OPERAND_IMMEDIATE) {
+        emit_load_at_offset_ll_lox_ir(
+                lllil,
+                instance,
+                instance,
+                offsetof(struct array_object, values)
+                + offsetof(struct array_object, values)
+                + sizeof(uint64_t) * index.immedate
+        );
+    } else {
+        //Array element will contain the poniter value of the array values
+        emit_load_at_offset_ll_lox_ir(
+                lllil,
+                instance,
+                instance,
+                offsetof(struct array_object, values) + offsetof(struct array_object, values)
+        );
+        emit_binary_ll_lox_ir(
+                lllil,
+                BINARY_LL_LOX_IR_IMUL,
+                instance,
+                IMMEDIATE_TO_OPERAND(sizeof(uint64_t)),
+                index
+        );
+        emit_load_at_offset_ll_lox_ir(
+                lllil,
+                instance,
+                instance,
+                0
+        );
+    }
+
+    return instance;
 }
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_array(
@@ -606,7 +666,8 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field_escapes(
     struct lox_ir_ll_operand struct_instance = lower_lox_ir_data(lllil, get_struct_field->instance,
             LOX_IR_TYPE_UNKNOWN);
 
-    //TODO Guarantee that get_struct_field->instance produces a definition type
+    //We are guaranteed that struct operation nodes that escapes have a struct definition type. This is guaranteed in escape_analysis
+    //in phi node processing
     struct struct_definition_object * definition = get_struct_field->instance->produced_type->value.struct_instance->definition;
     bool is_field_fp = is_struct_field_fp(get_struct_field->instance, get_struct_field->field_name->chars);
 
@@ -663,7 +724,8 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_unbox(
         struct lllil_control * lllil,
         struct lox_ir_data_node * data_node
 ) {
-    //TODO Make the guarantee to be in a vregister not an immediate value,
+    //unboxing_insertion guarantees that box nodes won't have as input a const node, so when we call lower_lox_ir_data(unbox->to_unbox)
+    //it will be returned as a v register
     struct lox_ir_data_unbox_node * unbox = (struct lox_ir_data_unbox_node *) data_node;
     struct lox_ir_ll_operand to_unbox_input = lower_lox_ir_data(lllil, unbox->to_unbox, LOX_IR_TYPE_UNKNOWN);
 

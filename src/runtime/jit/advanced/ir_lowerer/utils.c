@@ -351,6 +351,7 @@ void emit_binary_ll_lox_ir(
     struct lox_ir_control_ll_binary * binary = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_LL_BINARY,
             struct lox_ir_control_ll_binary, NULL, LOX_IR_ALLOCATOR(lllil->lllil->lox_ir));
     binary->operator = binary_operator;
+    binary->result = result;
     binary->right = right;
     binary->left = left;
 

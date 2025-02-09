@@ -168,7 +168,7 @@ static bool perform_escape_analysis_data(
             struct lox_ir_data_initialize_array_node * init_array = (struct lox_ir_data_initialize_array_node *) data_node;
             bool escapes = false;
             for (int i = 0; i < init_array->n_elements && !init_array->empty_initialization; i++) {
-                struct lox_ir_data_node * array_element = init_array->elememnts_node[i];
+                struct lox_ir_data_node * array_element = init_array->elememnts[i];
 
                 if (is_data_node_type_too_complex_to_set_instance(array_element)) {
                     escapes = true;
@@ -183,9 +183,30 @@ static bool perform_escape_analysis_data(
             struct lox_ir_data_phi_node * phi = (struct lox_ir_data_phi_node *) data_node;
             bool escapes = false;
 
+            //If phi's ssa names references multiple struct definitions, we will mark all of them as escaped
+            struct u64_set struct_definitions_seen;
+            init_u64_set(&struct_definitions_seen, NATIVE_LOX_ALLOCATOR());
+
             FOR_EACH_SSA_NAME_IN_PHI_NODE(phi, ssa_version_in_phi) {
                 escapes |= does_ssa_name_escapes(ea, ssa_version_in_phi);
+
+                if (contains_u64_hash_table(&ea->instance_by_ssa_name, ssa_version_in_phi.u16)) {
+                    struct lox_ir_data_node * instance = get_u64_hash_table(&ea->instance_by_ssa_name, ssa_version_in_phi.u16);
+                    if(instance->type == LOX_IR_DATA_NODE_INITIALIZE_STRUCT){
+                        struct lox_ir_data_initialize_struct_node * init_struct = (struct lox_ir_data_initialize_struct_node *) instance;
+                        add_u64_set(&struct_definitions_seen, (uint64_t) init_struct->definition);
+                    }
+                }
             }
+
+            if (size_u64_set(struct_definitions_seen) > 1) {
+                escapes = true;
+                FOR_EACH_SSA_NAME_IN_PHI_NODE(phi, current_ssa_version_in_phi) {
+                    propagate_ssa_name_as_escaped(ea, current_ssa_version_in_phi);
+                }
+            }
+
+            free_u64_set(&struct_definitions_seen);
 
             return escapes;
         }

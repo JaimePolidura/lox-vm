@@ -118,6 +118,7 @@ void lower_lox_ir_control_return(struct lllil_control * lllil_control) {
     struct lox_ir_control_ll_return * low_level_return_node = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_LL_RETURN,
             struct lox_ir_control_ll_return, control->block, LOX_IR_ALLOCATOR(lllil_control->lllil->lox_ir));
     low_level_return_node->emtpy_return = return_node->empty_return;
+
     if (!return_node->empty_return) {
         low_level_return_node->to_return = lower_lox_ir_data(lllil_control, return_node->data, LOX_IR_TYPE_LOX_ANY);
     }
@@ -199,7 +200,7 @@ void lower_lox_ir_control_set_array_element(struct lllil_control * lllil) {
         LOX_IR_TYPE_LOX_ANY : LOX_IR_TYPE_UNKNOWN);
 
     if (set_array_element->requires_range_check) {
-        emit_range_check_ll_lox_ir(lllil, array_instance, index);
+        emit_range_check_ll_lox_ir(lllil, array_instance, index, set_array_element->escapes);
     }
 
     if (set_array_element->escapes) {
