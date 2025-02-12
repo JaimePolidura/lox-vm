@@ -32,11 +32,6 @@ typedef enum {
     LOX_IR_CONTROL_NODE_LL_UNARY,
     LOX_IR_CONTROL_NODE_LL_RETURN,
     LOX_IR_CONTROL_NODE_LL_FUNCTION_CALL,
-    LOX_IR_CONTROL_NODE_LL_CONDITIONAL_JUMP,
-    LOX_IR_CONTROL_NODE_LL_GROW_STACK,
-    LOX_IR_CONTROL_NODE_LL_SHRINK_STACK,
-    LOX_IR_CONTROL_NODE_LL_PUSH_STACK,
-    LOX_IR_CONTROL_NODE_LL_POP_STACK,
     LOX_IR_CONTROL_NODE_LL_COND_FUNCTION_CALL,
 } lox_ir_control_node_type;
 
@@ -172,19 +167,10 @@ struct lox_ir_control_set_v_register_node {
 
 //These nodes are introdued by ir_lowerer after optimizations have been done
 
-struct lox_ir_control_ll_push_stack {
-    struct lox_ir_control_node control;
-    struct v_register to_push;
-};
-
-struct lox_ir_control_ll_pop_stack {
-    struct lox_ir_control_node control;
-    struct v_register to_pop;
-};
-
 struct lox_ir_control_ll_function_call {
     struct lox_ir_control_node control;
     void * function_call_address;
+
     //Pointers to struct lox_ir_ll_operand
     struct ptr_arraylist arguments;
 
@@ -195,23 +181,13 @@ struct lox_ir_control_ll_function_call {
 struct lox_ir_control_ll_return {
     struct lox_ir_control_node control;
     struct lox_ir_ll_operand to_return;
-    bool emtpy_return;
+    bool empty_return;
 };
 
 struct lox_ir_control_ll_move {
     struct lox_ir_control_node control;
     struct lox_ir_ll_operand from;
     struct lox_ir_ll_operand to;
-};
-
-struct lox_ir_control_ll_grow_stack {
-    struct lox_ir_control_node control;
-    uint64_t to_grow;
-};
-
-struct lox_ir_control_ll_shrink_stack {
-    struct lox_ir_control_node control;
-    uint64_t to_shrink;
 };
 
 typedef enum {

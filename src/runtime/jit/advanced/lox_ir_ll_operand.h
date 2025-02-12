@@ -22,7 +22,7 @@ struct lox_ir_ll_operand {
 
     union {
         struct v_register v_register;
-        uint64_t immedate;
+        int64_t immedate;
         struct {
             uint64_t slot_index;
             uint64_t offset;

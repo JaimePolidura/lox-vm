@@ -45,10 +45,6 @@ lowerer_lox_ir_control_t lowerer_lox_ir_by_control_node[] = {
         [LOX_IR_CONTROL_NODE_LL_RETURN] = NULL,
         [LOX_IR_CONTROL_NODE_LL_FUNCTION_CALL] = NULL,
         [LOX_IR_CONTROL_NODE_LL_CONDITIONAL_JUMP] = NULL,
-        [LOX_IR_CONTROL_NODE_LL_GROW_STACK] = NULL,
-        [LOX_IR_CONTROL_NODE_LL_SHRINK_STACK] = NULL,
-        [LOX_IR_CONTROL_NODE_LL_PUSH_STACK] = NULL,
-        [LOX_IR_CONTROL_NODE_LL_POP_STACK] = NULL,
 };
 
 //Main function, entry point
@@ -117,7 +113,7 @@ void lower_lox_ir_control_return(struct lllil_control * lllil_control) {
 
     struct lox_ir_control_ll_return * low_level_return_node = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_LL_RETURN,
             struct lox_ir_control_ll_return, control->block, LOX_IR_ALLOCATOR(lllil_control->lllil->lox_ir));
-    low_level_return_node->emtpy_return = return_node->empty_return;
+    low_level_return_node->empty_return = return_node->empty_return;
 
     if (!return_node->empty_return) {
         low_level_return_node->to_return = lower_lox_ir_data(lllil_control, return_node->data, LOX_IR_TYPE_LOX_ANY);

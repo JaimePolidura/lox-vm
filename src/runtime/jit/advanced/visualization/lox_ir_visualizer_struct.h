@@ -53,7 +53,16 @@ struct lox_ir_visualizer {
     struct u64_hash_table block_generated_graph_by_block;
     //Stores struct edge_graph_generated
     struct u64_set blocks_edges_generated;
-    int next_block_id; //This is used in lox_ir_file_visualizer as well
+    int next_block_id;
     int next_control_node_id;
     int next_data_node_id;
+
+    //These properties are only used in lox_ir_file_visualizer:
+    int next_label_id;
+    struct u64_hash_table labels_id_by_block;
 };
+
+static void add_new_line_lox_ir_visualizer(struct lox_ir_visualizer * visualizer, char * to_append) {
+    fprintf(visualizer->file, to_append);
+    fprintf(visualizer->file, "\n");
+}

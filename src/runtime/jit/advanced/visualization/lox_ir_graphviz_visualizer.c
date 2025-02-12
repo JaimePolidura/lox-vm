@@ -35,7 +35,6 @@ static char * unary_operator_to_string(lox_ir_unary_operator_type_t);
 static char * binary_operator_to_string(bytecode_t);
 static char * guard_node_to_string(struct lox_ir_guard);
 
-void add_new_line_graphviz_file(struct lox_ir_visualizer *, char * to_append);
 void add_block_graphviz_file(struct lox_ir_visualizer *, int);
 void add_data_node_graphviz_file(struct lox_ir_visualizer *, char *, int);
 void add_control_node_graphviz_file(struct lox_ir_visualizer *, char *, int);
@@ -53,10 +52,10 @@ void link_block_block_label_node_graphviz_file(struct lox_ir_visualizer *, char 
 void link_block_block_node_graphviz_file(struct lox_ir_visualizer *, struct block_graph_generated, struct block_graph_generated);
 
 void generate_graph_visualization_lox_ir(struct lox_ir_visualizer * lox_ir_visualizer, struct lox_ir_block * first_block) {
-    add_new_line_graphviz_file(lox_ir_visualizer, "digraph G {");
-    add_new_line_graphviz_file(lox_ir_visualizer, "\trankdir=TB;");
+    add_new_line_lox_ir_visualizer(lox_ir_visualizer, "digraph G {");
+    add_new_line_lox_ir_visualizer(lox_ir_visualizer, "\trankdir=TB;");
     generate_blocks_graph(lox_ir_visualizer, first_block);
-    add_new_line_graphviz_file(lox_ir_visualizer, "}");
+    add_new_line_lox_ir_visualizer(lox_ir_visualizer, "}");
 }
 
 static struct block_graph_generated generate_blocks_graph(struct lox_ir_visualizer * visualizer, struct lox_ir_block * first_block) {
@@ -124,7 +123,7 @@ static struct block_graph_generated generate_block_graph(struct lox_ir_visualize
         prev_node_id = control_node_id;
     }
 
-    add_new_line_graphviz_file(visualizer, "\t}");
+    add_new_line_lox_ir_visualizer(visualizer, "\t}");
 
     struct block_graph_generated block_graph_generated = (struct block_graph_generated) {
         .value = { first_control_node_id, last_control_node_id }
@@ -524,25 +523,25 @@ void link_block_block_node_graphviz_file(
 
 void link_data_data_label_node_graphviz_file(struct lox_ir_visualizer * visualizer, char * label, int from, int to) {
     char * link_node_text = dynamic_format_string("\t\tdata_%i -> data_%i [label=\"%s\"];", from, to, label);
-    add_new_line_graphviz_file(visualizer, dynamic_format_string(link_node_text));
+    add_new_line_lox_ir_visualizer(visualizer, dynamic_format_string(link_node_text));
     free(link_node_text);
 }
 
 void link_data_data_node_graphviz_file(struct lox_ir_visualizer * visualizer, int from, int to) {
     char * link_node_text = dynamic_format_string("\t\tdata_%i -> data_%i;", from, to);
-    add_new_line_graphviz_file(visualizer, dynamic_format_string(link_node_text));
+    add_new_line_lox_ir_visualizer(visualizer, dynamic_format_string(link_node_text));
     free(link_node_text);
 }
 
 void link_control_data_node_graphviz_file(struct lox_ir_visualizer * visualizer, int from, int to) {
     char * link_node_text = dynamic_format_string("\t\tcontrol_%i -> data_%i;", from, to);
-    add_new_line_graphviz_file(visualizer, dynamic_format_string(link_node_text));
+    add_new_line_lox_ir_visualizer(visualizer, dynamic_format_string(link_node_text));
     free(link_node_text);
 }
 
 void link_control_data_node_label_graphviz_file(struct lox_ir_visualizer * visualizer, char * label, int from, int to) {
     char * link_node_text = dynamic_format_string("\t\tcontrol_%i -> data_%i [label=\"%s\"];", from, to, label);
-    add_new_line_graphviz_file(visualizer, dynamic_format_string(link_node_text));
+    add_new_line_lox_ir_visualizer(visualizer, dynamic_format_string(link_node_text));
     free(link_node_text);
 }
 
@@ -551,7 +550,7 @@ void link_control_control_label_node_graphviz_file(struct lox_ir_visualizer * vi
 
     if(!contains_u64_set(&visualizer->blocks_edges_generated, edge.u64_value)){
         char * link_node_text = dynamic_format_string("\t\tcontrol_%i -> control_%i [penwidth=3, label=\"%s\"];", from, to, label);
-        add_new_line_graphviz_file(visualizer, dynamic_format_string(link_node_text));
+        add_new_line_lox_ir_visualizer(visualizer, dynamic_format_string(link_node_text));
         free(link_node_text);
         add_u64_set(&visualizer->blocks_edges_generated, edge.u64_value);
     }
@@ -562,7 +561,7 @@ void link_control_control_node_graphviz_file(struct lox_ir_visualizer * visualiz
 
     if(!contains_u64_set(&visualizer->blocks_edges_generated, edge.u64_value)){
         char * link_node_text = dynamic_format_string("\t\tcontrol_%i -> control_%i [penwidth=3];", from, to);
-        add_new_line_graphviz_file(visualizer, dynamic_format_string(link_node_text));
+        add_new_line_lox_ir_visualizer(visualizer, dynamic_format_string(link_node_text));
         free(link_node_text);
         add_u64_set(&visualizer->blocks_edges_generated, edge.u64_value);
     }
@@ -606,11 +605,6 @@ void add_block_graphviz_file(struct lox_ir_visualizer * visualizer, int block_id
 
     fprintf(visualizer->file, "\t\tstyle=filled;\n");
     fprintf(visualizer->file, "\t\tcolor=lightgrey;\n");
-}
-
-void add_new_line_graphviz_file(struct lox_ir_visualizer * visualizer, char * to_append) {
-    fprintf(visualizer->file, to_append);
-    fprintf(visualizer->file, "\n");
 }
 
 static char * binary_operator_to_string(bytecode_t bytecode) {
