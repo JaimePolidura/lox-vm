@@ -1,6 +1,6 @@
 #pragma once
 
-#include "runtime/jit/advanced/visualization/graphviz_visualizer.h"
+#include "runtime/jit/advanced/visualization/lox_ir_visualizer.h"
 #include "runtime/jit/advanced/creation/no_phis_creator.h"
 #include "runtime/jit/advanced/creation/phi_inserter.h"
 #include "runtime/jit/advanced/creation/lox_ir_creator.h"
@@ -50,10 +50,10 @@ TEST(lox_ir_creation_pr) {
     init_function_profile_data(function);
 
     //Observe the generated graph IR
-    generate_lox_ir_graphviz_graph(
+    visualize_lox_ir(
             package,
             function,
-            PHI_RESOLUTION_PHASE_LOX_IR_GRAPHVIZ,
+            PHI_RESOLUTION_PHASE_LOX_IR_VISUALIZATION,
             DEFAULT_GRAPHVIZ_OPT | DISPLAY_TYPE_INFO_OPT | DISPLAY_ESCAPE_INFO_OPT,
             LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
@@ -106,10 +106,10 @@ TEST(lox_ir_creation_ea) {
     init_function_profile_data(function);
 
     //Observe the generated graph IR
-    generate_lox_ir_graphviz_graph(
+    visualize_lox_ir(
             package,
             function,
-            ESCAPE_ANALYSIS_PHASE_LOX_IR_GRAPHVIZ,
+            ESCAPE_ANALYSIS_PHASE_LOX_IR_VISUALIZATION,
             DEFAULT_GRAPHVIZ_OPT | DISPLAY_TYPE_INFO_OPT | DISPLAY_ESCAPE_INFO_OPT,
             LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
@@ -133,10 +133,10 @@ TEST(lox_ir_creation_ta){
     init_function_profile_data(function);
 
     //Observe the generated graph IR
-    generate_lox_ir_graphviz_graph(
+    visualize_lox_ir(
             package,
             function,
-            UNBOXING_INSERTION_PHASE_LOX_IR_GRAPHVIZ,
+            UNBOXING_INSERTION_PHASE_LOX_IR_VISUALIZATION,
             DEFAULT_GRAPHVIZ_OPT | DISPLAY_TYPE_INFO_OPT,
             LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
@@ -157,10 +157,10 @@ TEST(lox_ir_creation_cp) {
     init_function_profile_data(function);
 
     //Observe the generated graph IR
-    generate_lox_ir_graphviz_graph(
+    visualize_lox_ir(
             package,
             function,
-            COPY_PROPAGATION_PHASE_LOX_IR_GRAPHVIZ,
+            COPY_PROPAGATION_PHASE_LOX_IR_VISUALIZATION,
             DEFAULT_GRAPHVIZ_OPT,
             LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
@@ -179,10 +179,10 @@ TEST(lox_ir_creation_pg) {
     init_function_profile_data(function);
 
     //Observe the generated graph IR
-    generate_lox_ir_graphviz_graph(
+    visualize_lox_ir(
             package,
             function,
-            ALL_PHASE_LOX_IR_GRAPHVIZ,
+            ALL_PHASE_LOX_IR_VISUALIZATION,
             NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT,
             LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
@@ -214,10 +214,10 @@ TEST(lox_ir_creation_licm) {
     init_function_profile_data(function);
 
     //Observe the generated graph IR
-    generate_lox_ir_graphviz_graph(
+    visualize_lox_ir(
             package,
             function,
-            NO_PHIS_PHASE_LOX_IR_GRAPHVIZ,
+            NO_PHIS_PHASE_LOX_IR_VISUALIZATION,
             NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT,
             LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
@@ -237,10 +237,10 @@ TEST(lox_ir_creation_sr){
     init_function_profile_data(function);
 
     //Observe the generated graph IR
-    generate_lox_ir_graphviz_graph(
+    visualize_lox_ir(
             package,
             function,
-            STRENGTH_REDUCTION_PHASE_LOX_IR_GRAPHVIZ,
+            STRENGTH_REDUCTION_PHASE_LOX_IR_VISUALIZATION,
             NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT,
             LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
@@ -268,10 +268,10 @@ TEST(lox_ir_creation_cse){
     init_function_profile_data(function);
 
     //Observe the generated graph IR
-    generate_lox_ir_graphviz_graph(
+    visualize_lox_ir(
             package,
             function,
-            COMMON_SUBEXPRESSION_ELIMINATION_PHASE_LOX_IR_GRAPHVIZ,
+            COMMON_SUBEXPRESSION_ELIMINATION_PHASE_LOX_IR_VISUALIZATION,
             NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT,
             LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
@@ -292,10 +292,10 @@ TEST(lox_ir_creation_nested_loop){
     init_function_profile_data(function);
 
     //Observe the generated graph IR
-    generate_lox_ir_graphviz_graph(
+    visualize_lox_ir(
             package,
             function,
-            PHIS_INSERTED_PHASE_LOX_IR_GRAPHVIZ,
+            PHIS_INSERTED_PHASE_LOX_IR_VISUALIZATION,
             NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT,
             LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"

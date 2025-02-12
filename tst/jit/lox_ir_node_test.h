@@ -1,6 +1,6 @@
 #pragma once
 
-#include "runtime/jit/advanced/visualization/graphviz_visualizer.h"
+#include "runtime/jit/advanced/visualization/lox_ir_graphviz_visualizer.h"
 #include "runtime/jit/advanced/creation/no_phis_creator.h"
 #include "runtime/jit/advanced/creation/phi_inserter.h"
 #include "runtime/jit/advanced/creation/lox_ir_creator.h"

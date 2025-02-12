@@ -272,8 +272,8 @@ static struct lox_ir_type * get_type_data_node_recursive(
             }
 
             for (int i = 0; i < init_array->n_elements && !init_array->empty_initialization; i++) {
-                struct lox_ir_data_node * array_element_type = init_array->elememnts_node[i];
-                array_element_type->produced_type = get_type_data_node_recursive(to_evaluate, array_element_type, &init_array->elememnts_node[i]);
+                struct lox_ir_data_node * array_element_type = init_array->elememnts[i];
+                array_element_type->produced_type = get_type_data_node_recursive(to_evaluate, array_element_type, &init_array->elememnts[i]);
 
                 if(type == NULL){
                     type = array_element_type->produced_type;

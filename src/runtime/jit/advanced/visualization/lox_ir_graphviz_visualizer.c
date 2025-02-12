@@ -1,25 +1,6 @@
-#include "graphviz_visualizer.h"
+#include "lox_ir_graphviz_visualizer.h"
 
 extern void runtime_panic(char * format, ...);
-
-struct graphviz_visualizer {
-    FILE * file;
-
-    long graphviz_options;
-    long options;
-    struct lox_ir lox_ir;
-    struct function_object * function;
-    //Set of pointers of struct lox_ir_block visited
-    struct u64_set blocks_graph_generated;
-    //Last control control_node_to_lower graph id by block pointer
-    struct u64_hash_table block_generated_graph_by_block;
-    //Stores struct edge_graph_generated
-    struct u64_set blocks_edges_generated;
-
-    int next_block_id;
-    int next_control_node_id;
-    int next_data_node_id;
-};
 
 struct edge_graph_generated {
     //We use a union so that we can store this struct in blocks_edges_generated as u64 easily
@@ -43,189 +24,42 @@ struct block_graph_generated {
     };
 };
 
-static void generate_graph_and_write(struct graphviz_visualizer *, struct lox_ir_block *);
-static struct block_graph_generated generate_block_graph(struct graphviz_visualizer *, struct lox_ir_block *);
-static int generate_control_node_graph(struct graphviz_visualizer *, struct lox_ir_control_node *);
-static int generate_data_node_graph(struct graphviz_visualizer *, struct lox_ir_data_node *);
-static struct block_graph_generated generate_blocks_graph(struct graphviz_visualizer *, struct lox_ir_block * first);
-static char * maybe_add_type_info_data_node(struct graphviz_visualizer*, struct lox_ir_data_node*, char*);
-static char * maybe_add_escape_info_data_node(struct graphviz_visualizer *visualizer, struct lox_ir_data_node *data_node, char *label);
+static struct block_graph_generated generate_block_graph(struct lox_ir_visualizer*, struct lox_ir_block *);
+static int generate_control_node_graph(struct lox_ir_visualizer*, struct lox_ir_control_node *);
+static int generate_data_node_graph(struct lox_ir_visualizer*, struct lox_ir_data_node *);
+static struct block_graph_generated generate_blocks_graph(struct lox_ir_visualizer *, struct lox_ir_block * first);
+static char * maybe_add_type_info_data_node(struct lox_ir_visualizer*, struct lox_ir_data_node*, char*);
+static char * maybe_add_escape_info_data_node(struct lox_ir_visualizer*, struct lox_ir_data_node *data_node, char *label);
 
 static char * unary_operator_to_string(lox_ir_unary_operator_type_t);
 static char * binary_operator_to_string(bytecode_t);
 static char * guard_node_to_string(struct lox_ir_guard);
 
-struct graphviz_visualizer create_graphviz_visualizer(char *, struct arena_lox_allocator *, struct function_object *);
-void add_new_line_graphviz_file(struct graphviz_visualizer *, char * to_append);
-void add_block_graphviz_file(struct graphviz_visualizer *, int);
-void add_data_node_graphviz_file(struct graphviz_visualizer *, char *, int);
-void add_control_node_graphviz_file(struct graphviz_visualizer *, char *, int);
-void add_guard_control_node_graphviz_file(struct graphviz_visualizer *, struct lox_ir_control_guard_node *, int control_node_id);
-void add_guard_data_node_graphviz_file(struct graphviz_visualizer *, struct lox_ir_data_guard_node *, int data_node_id);
-void add_start_control_node_graphviz_file(struct graphviz_visualizer *);
+void add_new_line_graphviz_file(struct lox_ir_visualizer *, char * to_append);
+void add_block_graphviz_file(struct lox_ir_visualizer *, int);
+void add_data_node_graphviz_file(struct lox_ir_visualizer *, char *, int);
+void add_control_node_graphviz_file(struct lox_ir_visualizer *, char *, int);
+void add_guard_control_node_graphviz_file(struct lox_ir_visualizer *, struct lox_ir_control_guard_node *, int control_node_id);
+void add_guard_data_node_graphviz_file(struct lox_ir_visualizer *, struct lox_ir_data_guard_node *, int data_node_id);
+void add_start_control_node_graphviz_file(struct lox_ir_visualizer *);
 
-void link_data_data_node_graphviz_file(struct graphviz_visualizer *, int from, int to);
-void link_data_data_label_node_graphviz_file(struct graphviz_visualizer *, char *, int from, int to);
-void link_control_data_node_graphviz_file(struct graphviz_visualizer *, int from, int to);
-void link_control_data_node_label_graphviz_file(struct graphviz_visualizer *, char *, int from, int to);
-void link_control_control_node_graphviz_file(struct graphviz_visualizer *, int from, int to);
-void link_control_control_label_node_graphviz_file(struct graphviz_visualizer *, char *, int from, int to);
-void link_block_block_label_node_graphviz_file(struct graphviz_visualizer *, char *, struct block_graph_generated, struct block_graph_generated);
-void link_block_block_node_graphviz_file(struct graphviz_visualizer *, struct block_graph_generated, struct block_graph_generated);
+void link_data_data_node_graphviz_file(struct lox_ir_visualizer *, int from, int to);
+void link_data_data_label_node_graphviz_file(struct lox_ir_visualizer *, char *, int from, int to);
+void link_control_data_node_graphviz_file(struct lox_ir_visualizer *, int from, int to);
+void link_control_data_node_label_graphviz_file(struct lox_ir_visualizer *, char *, int from, int to);
+void link_control_control_node_graphviz_file(struct lox_ir_visualizer *, int from, int to);
+void link_control_control_label_node_graphviz_file(struct lox_ir_visualizer *, char *, int from, int to);
+void link_block_block_label_node_graphviz_file(struct lox_ir_visualizer *, char *, struct block_graph_generated, struct block_graph_generated);
+void link_block_block_node_graphviz_file(struct lox_ir_visualizer *, struct block_graph_generated, struct block_graph_generated);
 
-void generate_lox_ir_graphviz_graph(
-        struct package * package,
-        struct function_object * function,
-        phase_lox_ir_graphviz_t phase,
-        long graphviz_options,
-        long options,
-        char * path
-) {
-    struct arena arena;
-    init_arena(&arena);
-    struct arena_lox_allocator node_allocator = to_lox_allocator_arena(arena);
-    struct graphviz_visualizer graphviz_visualizer = create_graphviz_visualizer(path, &node_allocator, function);
-    graphviz_visualizer.graphviz_options = graphviz_options;
-    graphviz_visualizer.options = options;
-
-    switch (phase) {
-        case NO_PHIS_PHASE_LOX_IR_GRAPHVIZ: {
-            struct lox_ir_block * block = create_lox_ir_no_phis(package, function,
-                    create_bytecode_list(function->chunk, &node_allocator.lox_allocator), &node_allocator, options);
-
-            generate_graph_and_write(&graphviz_visualizer, block);
-            break;
-        }
-        case PHIS_INSERTED_PHASE_LOX_IR_GRAPHVIZ: {
-            struct lox_ir_block * block = create_lox_ir_no_phis(package, function,
-                    create_bytecode_list(function->chunk, &node_allocator.lox_allocator), &node_allocator, options);
-            insert_lox_ir_phis(block, &node_allocator);
-
-            generate_graph_and_write(&graphviz_visualizer, block);
-            break;
-        }
-        case PHIS_OPTIMIZED_PHASE_LOX_IR_GRAPHVIZ: {
-            struct lox_ir_block * block = create_lox_ir_no_phis(package, function,
-                    create_bytecode_list(function->chunk, &node_allocator.lox_allocator), &node_allocator, options);
-            struct phi_insertion_result phi_insertion_result = insert_lox_ir_phis(block, &node_allocator);
-            optimize_lox_ir_phis(block, &phi_insertion_result, &node_allocator);
-
-            generate_graph_and_write(&graphviz_visualizer, block);
-            break;
-        }
-        case SPARSE_CONSTANT_PROPAGATION_PHASE_LOX_IR_GRAPHVIZ: {
-            struct lox_ir lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
-                    &node_allocator.lox_allocator), graphviz_visualizer.options);
-            perform_sparse_constant_propagation(&lox_ir);
-            graphviz_visualizer.lox_ir = lox_ir;
-
-            generate_graph_and_write(&graphviz_visualizer, lox_ir.first_block);
-            break;
-        }
-        case COMMON_SUBEXPRESSION_ELIMINATION_PHASE_LOX_IR_GRAPHVIZ: {
-            struct lox_ir lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
-                    &node_allocator.lox_allocator), graphviz_visualizer.options);
-
-            perform_common_subexpression_elimination(&lox_ir);
-            graphviz_visualizer.lox_ir = lox_ir;
-
-            generate_graph_and_write(&graphviz_visualizer, lox_ir.first_block);
-            break;
-        }
-        case STRENGTH_REDUCTION_PHASE_LOX_IR_GRAPHVIZ: {
-            struct lox_ir lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
-                    &node_allocator.lox_allocator), graphviz_visualizer.options);
-            perform_type_propagation(&lox_ir);
-            perform_strength_reduction(&lox_ir);
-            graphviz_visualizer.lox_ir = lox_ir;
-
-            generate_graph_and_write(&graphviz_visualizer, lox_ir.first_block);
-            break;
-        }
-        case LOOP_INVARIANT_CODE_MOTION_PHASE_LOX_IR_GRAPHVIZ: {
-            struct lox_ir lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
-                    &node_allocator.lox_allocator), graphviz_visualizer.options);
-            perform_loop_invariant_code_motion(&lox_ir);
-            graphviz_visualizer.lox_ir = lox_ir;
-
-            generate_graph_and_write(&graphviz_visualizer, lox_ir.first_block);
-            break;
-        }
-        case COPY_PROPAGATION_PHASE_LOX_IR_GRAPHVIZ: {
-            struct lox_ir lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
-                    &node_allocator.lox_allocator), graphviz_visualizer.options);
-            perform_copy_propagation(&lox_ir);
-            graphviz_visualizer.lox_ir = lox_ir;
-
-            generate_graph_and_write(&graphviz_visualizer, lox_ir.first_block);
-            break;
-        }
-        case TYPE_PROPAGATION_PHASE_LOX_IR_GRAPHVIZ: {
-            struct lox_ir lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
-                    &node_allocator.lox_allocator), graphviz_visualizer.options);
-            perform_type_propagation(&lox_ir);
-            graphviz_visualizer.lox_ir = lox_ir;
-
-            generate_graph_and_write(&graphviz_visualizer, lox_ir.first_block);
-            break;
-        }
-        case UNBOXING_INSERTION_PHASE_LOX_IR_GRAPHVIZ: {
-            struct lox_ir lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
-                    &node_allocator.lox_allocator), graphviz_visualizer.options);
-            perform_type_propagation(&lox_ir);
-            perform_unboxing_insertion(&lox_ir);
-            graphviz_visualizer.lox_ir = lox_ir;
-
-            generate_graph_and_write(&graphviz_visualizer, lox_ir.first_block);
-            break;
-        }
-        case ESCAPE_ANALYSIS_PHASE_LOX_IR_GRAPHVIZ: {
-            struct lox_ir lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
-                    &node_allocator.lox_allocator), graphviz_visualizer.options);
-            perform_type_propagation(&lox_ir);
-            perform_escape_analysis(&lox_ir);
-            graphviz_visualizer.lox_ir = lox_ir;
-
-            generate_graph_and_write(&graphviz_visualizer, lox_ir.first_block);
-            break;
-        }
-        case PHI_RESOLUTION_PHASE_LOX_IR_GRAPHVIZ: {
-            struct lox_ir lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
-                    &node_allocator.lox_allocator), graphviz_visualizer.options);
-            graphviz_visualizer.lox_ir = lox_ir;
-
-            resolve_phi(&lox_ir);
-
-            generate_graph_and_write(&graphviz_visualizer, lox_ir.first_block);
-            break;
-        }
-        case ALL_PHASE_LOX_IR_GRAPHVIZ: {
-            struct lox_ir lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
-                    &node_allocator.lox_allocator), graphviz_visualizer.options);
-            perform_sparse_constant_propagation(&lox_ir);
-            perform_common_subexpression_elimination(&lox_ir);
-            perform_loop_invariant_code_motion(&lox_ir);
-            perform_type_propagation(&lox_ir);
-            perform_strength_reduction(&lox_ir);
-            perform_copy_propagation(&lox_ir);
-            perform_unboxing_insertion(&lox_ir);
-
-            graphviz_visualizer.lox_ir = lox_ir;
-
-            generate_graph_and_write(&graphviz_visualizer, lox_ir.first_block);
-            break;
-        }
-    }
+void generate_graph_visualization_lox_ir(struct lox_ir_visualizer * lox_ir_visualizer, struct lox_ir_block * first_block) {
+    add_new_line_graphviz_file(lox_ir_visualizer, "digraph G {");
+    add_new_line_graphviz_file(lox_ir_visualizer, "\trankdir=TB;");
+    generate_blocks_graph(lox_ir_visualizer, first_block);
+    add_new_line_graphviz_file(lox_ir_visualizer, "}");
 }
 
-static void generate_graph_and_write(struct graphviz_visualizer * graphviz_visualizer, struct lox_ir_block * first_block) {
-    add_new_line_graphviz_file(graphviz_visualizer, "digraph G {");
-    add_new_line_graphviz_file(graphviz_visualizer, "\trankdir=TB;");
-    generate_blocks_graph(graphviz_visualizer, first_block);
-    add_new_line_graphviz_file(graphviz_visualizer, "}");
-}
-
-static struct block_graph_generated generate_blocks_graph(struct graphviz_visualizer * visualizer, struct lox_ir_block * first_block) {
+static struct block_graph_generated generate_blocks_graph(struct lox_ir_visualizer * visualizer, struct lox_ir_block * first_block) {
     struct block_graph_generated first_block_graph_data = generate_block_graph(visualizer, first_block);
 
     switch (first_block->type_next) {
@@ -255,7 +89,7 @@ static struct block_graph_generated generate_blocks_graph(struct graphviz_visual
     return first_block_graph_data;
 }
 
-static struct block_graph_generated generate_block_graph(struct graphviz_visualizer * visualizer, struct lox_ir_block * block) {
+static struct block_graph_generated generate_block_graph(struct lox_ir_visualizer * visualizer, struct lox_ir_block * block) {
     if(contains_u64_set(&visualizer->blocks_graph_generated, (uint64_t) block)) {
         uint64_t block_generated_graph_by_block_u64 = (uint64_t) get_u64_hash_table(&visualizer->block_generated_graph_by_block, (uint64_t) block);
         return (struct block_graph_generated) {.u64_value = block_generated_graph_by_block_u64};
@@ -301,7 +135,7 @@ static struct block_graph_generated generate_block_graph(struct graphviz_visuali
     return block_graph_generated;
 }
 
-static int generate_control_node_graph(struct graphviz_visualizer * visualizer, struct lox_ir_control_node * node) {
+static int generate_control_node_graph(struct lox_ir_visualizer * visualizer, struct lox_ir_control_node * node) {
     int self_control_node_id = visualizer->next_control_node_id++;
     switch (node->type) {
         case LOX_IR_CONTROL_NODE_SET_V_REGISTER: {
@@ -457,7 +291,7 @@ static int generate_control_node_graph(struct graphviz_visualizer * visualizer, 
     return self_control_node_id;
 }
 
-static int generate_data_node_graph(struct graphviz_visualizer * visualizer, struct lox_ir_data_node * node) {
+static int generate_data_node_graph(struct lox_ir_visualizer * visualizer, struct lox_ir_data_node * node) {
     int self_data_node_id = visualizer->next_data_node_id++;
 
     switch (node->type) {
@@ -588,7 +422,7 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             for (int i = 0; i < initialize_array->n_elements && !initialize_array->empty_initialization; i++) {
-                int array_element_node_id = generate_data_node_graph(visualizer, initialize_array->elememnts_node[i]);
+                int array_element_node_id = generate_data_node_graph(visualizer, initialize_array->elememnts[i]);
                 link_data_data_node_graphviz_file(visualizer, self_data_node_id, array_element_node_id);
             }
             free(node_desc);
@@ -672,7 +506,7 @@ static int generate_data_node_graph(struct graphviz_visualizer * visualizer, str
 }
 
 void link_block_block_label_node_graphviz_file(
-        struct graphviz_visualizer * visualizer,
+        struct lox_ir_visualizer * visualizer,
         char * label,
         struct block_graph_generated from,
         struct block_graph_generated to
@@ -681,38 +515,38 @@ void link_block_block_label_node_graphviz_file(
 }
 
 void link_block_block_node_graphviz_file(
-        struct graphviz_visualizer * visualizer,
+        struct lox_ir_visualizer * visualizer,
         struct block_graph_generated from,
         struct block_graph_generated to
 ) {
     link_control_control_node_graphviz_file(visualizer, from.value.last_control_node_id, to.value.first_control_node_id);
 }
 
-void link_data_data_label_node_graphviz_file(struct graphviz_visualizer * visualizer, char * label, int from, int to) {
+void link_data_data_label_node_graphviz_file(struct lox_ir_visualizer * visualizer, char * label, int from, int to) {
     char * link_node_text = dynamic_format_string("\t\tdata_%i -> data_%i [label=\"%s\"];", from, to, label);
     add_new_line_graphviz_file(visualizer, dynamic_format_string(link_node_text));
     free(link_node_text);
 }
 
-void link_data_data_node_graphviz_file(struct graphviz_visualizer * visualizer, int from, int to) {
+void link_data_data_node_graphviz_file(struct lox_ir_visualizer * visualizer, int from, int to) {
     char * link_node_text = dynamic_format_string("\t\tdata_%i -> data_%i;", from, to);
     add_new_line_graphviz_file(visualizer, dynamic_format_string(link_node_text));
     free(link_node_text);
 }
 
-void link_control_data_node_graphviz_file(struct graphviz_visualizer * visualizer, int from, int to) {
+void link_control_data_node_graphviz_file(struct lox_ir_visualizer * visualizer, int from, int to) {
     char * link_node_text = dynamic_format_string("\t\tcontrol_%i -> data_%i;", from, to);
     add_new_line_graphviz_file(visualizer, dynamic_format_string(link_node_text));
     free(link_node_text);
 }
 
-void link_control_data_node_label_graphviz_file(struct graphviz_visualizer * visualizer, char * label, int from, int to) {
+void link_control_data_node_label_graphviz_file(struct lox_ir_visualizer * visualizer, char * label, int from, int to) {
     char * link_node_text = dynamic_format_string("\t\tcontrol_%i -> data_%i [label=\"%s\"];", from, to, label);
     add_new_line_graphviz_file(visualizer, dynamic_format_string(link_node_text));
     free(link_node_text);
 }
 
-void link_control_control_label_node_graphviz_file(struct graphviz_visualizer * visualizer, char * label, int from, int to) {
+void link_control_control_label_node_graphviz_file(struct lox_ir_visualizer * visualizer, char * label, int from, int to) {
     struct edge_graph_generated edge = (struct edge_graph_generated) {.value = {from, to}};
 
     if(!contains_u64_set(&visualizer->blocks_edges_generated, edge.u64_value)){
@@ -723,7 +557,7 @@ void link_control_control_label_node_graphviz_file(struct graphviz_visualizer * 
     }
 }
 
-void link_control_control_node_graphviz_file(struct graphviz_visualizer * visualizer, int from, int to) {
+void link_control_control_node_graphviz_file(struct lox_ir_visualizer * visualizer, int from, int to) {
     struct edge_graph_generated edge = (struct edge_graph_generated) {.value = {from, to}};
 
     if(!contains_u64_set(&visualizer->blocks_edges_generated, edge.u64_value)){
@@ -734,12 +568,12 @@ void link_control_control_node_graphviz_file(struct graphviz_visualizer * visual
     }
 }
 
-void add_start_control_node_graphviz_file(struct graphviz_visualizer * visualizer) {
+void add_start_control_node_graphviz_file(struct lox_ir_visualizer * visualizer) {
     int start_control_node_id = visualizer->next_control_node_id++;
     fprintf(visualizer->file, "\t\tcontrol_%i [label=\"START\", style=filled, fillcolor=blue, shape=rectangle];\n", start_control_node_id);
 }
 
-void add_guard_control_node_graphviz_file(struct graphviz_visualizer * visualizer, struct lox_ir_control_guard_node * guard_node, int control_node_id) {
+void add_guard_control_node_graphviz_file(struct lox_ir_visualizer * visualizer, struct lox_ir_control_guard_node * guard_node, int control_node_id) {
     char * guard_desc = guard_node_to_string(guard_node->guard);
     char * node_desc = dynamic_format_string("Guard %s\n", guard_desc);
     fprintf(visualizer->file, "\t\tcontrol_%i [label=\"%s\", style=filled, fillcolor=orange, shape=rectangle];\n", control_node_id, node_desc);
@@ -747,7 +581,7 @@ void add_guard_control_node_graphviz_file(struct graphviz_visualizer * visualize
     free(guard_desc);
 }
 
-void add_guard_data_node_graphviz_file(struct graphviz_visualizer * visualizer, struct lox_ir_data_guard_node * guard_node, int data_node_id) {
+void add_guard_data_node_graphviz_file(struct lox_ir_visualizer * visualizer, struct lox_ir_data_guard_node * guard_node, int data_node_id) {
     char * guard_desc = guard_node_to_string(guard_node->guard);
     char * node_desc = dynamic_format_string("Guard %s\n", guard_desc);
     fprintf(visualizer->file, "\t\tdata_%i [label=\"%s\", style=filled, fillcolor=orange];\n", data_node_id, node_desc);
@@ -755,15 +589,15 @@ void add_guard_data_node_graphviz_file(struct graphviz_visualizer * visualizer, 
     free(guard_desc);
 }
 
-void add_control_node_graphviz_file(struct graphviz_visualizer * visualizer, char * name, int control_node_id) {
+void add_control_node_graphviz_file(struct lox_ir_visualizer * visualizer, char * name, int control_node_id) {
     fprintf(visualizer->file, "\t\tcontrol_%i [label=\"%s\", style=filled, fillcolor=yellow, shape=rectangle];\n", control_node_id, name);
 }
 
-void add_data_node_graphviz_file(struct graphviz_visualizer * visualizer, char * name, int data_node_id) {
+void add_data_node_graphviz_file(struct lox_ir_visualizer * visualizer, char * name, int data_node_id) {
     fprintf(visualizer->file, "\t\tdata_%i [label=\"%s\", style=filled, fillcolor=green];\n", data_node_id, name);
 }
 
-void add_block_graphviz_file(struct graphviz_visualizer * visualizer, int block_id) {
+void add_block_graphviz_file(struct lox_ir_visualizer * visualizer, int block_id) {
     if((visualizer->graphviz_options & NOT_DISPLAY_BLOCKS_GRAPHVIZ_OPT) != 0){
         fprintf(visualizer->file, "\tsubgraph block_%i{\n", block_id);
     } else {
@@ -774,39 +608,9 @@ void add_block_graphviz_file(struct graphviz_visualizer * visualizer, int block_
     fprintf(visualizer->file, "\t\tcolor=lightgrey;\n");
 }
 
-void add_new_line_graphviz_file(struct graphviz_visualizer * visualizer, char * to_append) {
+void add_new_line_graphviz_file(struct lox_ir_visualizer * visualizer, char * to_append) {
     fprintf(visualizer->file, to_append);
     fprintf(visualizer->file, "\n");
-}
-
-struct graphviz_visualizer create_graphviz_visualizer(
-        char * path,
-        struct arena_lox_allocator * arena_lox_allocator,
-        struct function_object * function
-) {
-    FILE * file = fopen(path, "a");
-    if (file == NULL) {
-        runtime_panic("Cannot open/create file!");
-        exit(-1);
-    }
-
-    struct u64_hash_table last_block_control_node_by_block;
-    init_u64_hash_table(&last_block_control_node_by_block, &arena_lox_allocator->lox_allocator);
-    struct u64_set visited_blocks;
-    init_u64_set(&visited_blocks, &arena_lox_allocator->lox_allocator);
-    struct u64_set blocks_edges_generated;
-    init_u64_set(&blocks_edges_generated, &arena_lox_allocator->lox_allocator);
-
-    return (struct graphviz_visualizer) {
-        .block_generated_graph_by_block = last_block_control_node_by_block,
-        .blocks_edges_generated = blocks_edges_generated,
-        .blocks_graph_generated = visited_blocks,
-        .next_control_node_id = 0,
-        .next_data_node_id = 0,
-        .function = function,
-        .next_block_id = 0,
-        .file = file,
-    };
 }
 
 static char * binary_operator_to_string(bytecode_t bytecode) {
@@ -868,7 +672,7 @@ static char * guard_node_to_string(struct lox_ir_guard guard) {
 }
 
 static char * maybe_add_escape_info_data_node(
-        struct graphviz_visualizer * visualizer,
+        struct lox_ir_visualizer * visualizer,
         struct lox_ir_data_node * data_node,
         char * label
 ) {
@@ -881,7 +685,7 @@ static char * maybe_add_escape_info_data_node(
 }
 
 static char * maybe_add_type_info_data_node(
-        struct graphviz_visualizer * visualizer,
+        struct lox_ir_visualizer * visualizer,
         struct lox_ir_data_node * data_node,
         char * label
 ) {

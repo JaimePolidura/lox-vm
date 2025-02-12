@@ -392,7 +392,7 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_element_does_not_e
     if (node->requires_range_check) {
         emit_range_check_ll_lox_ir(lllil, instance, index, node->escapes);
     }
-    
+
     if (index.type == LOX_IR_LL_OPERAND_IMMEDIATE) {
         emit_load_at_offset_ll_lox_ir(
                 lllil,
