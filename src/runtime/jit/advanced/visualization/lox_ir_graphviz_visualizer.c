@@ -34,6 +34,13 @@ static char * maybe_add_escape_info_data_node(struct lox_ir_visualizer*, struct 
 static char * unary_operator_to_string(lox_ir_unary_operator_type_t);
 static char * binary_operator_to_string(bytecode_t);
 static char * guard_node_to_string(struct lox_ir_guard);
+static char * operand_to_string(struct lox_ir_ll_operand);
+static char * register_size_to_string(uint64_t);
+static char * ll_comparation_type_to_string(comparation_operator_type_ll_lox_ir);
+static char * ll_unary_operator_to_string(unary_operator_type_ll_lox_ir);
+static char * ll_binary_operator_to_string(binary_operator_type_ll_lox_ir);
+static char * ll_operand_to_string(struct lox_ir_ll_operand);
+static char * ll_func_call_to_string(struct lox_ir_control_ll_function_call*);
 
 void add_block_graphviz_file(struct lox_ir_visualizer *, int);
 void add_data_node_graphviz_file(struct lox_ir_visualizer *, char *, int);
@@ -284,6 +291,69 @@ static int generate_control_node_graph(struct lox_ir_visualizer * visualizer, st
         case LOX_IR_CONTROL_NODE_LOOP_JUMP: {
             add_control_node_graphviz_file(visualizer, "Loop", self_control_node_id);
             break;
+        }
+        case LOX_IR_CONTROL_NODE_LL_COND_FUNCTION_CALL: {
+            struct lox_ir_control_ll_cond_function_call * cond_func_call = (struct lox_ir_control_ll_cond_function_call *) node;
+            char * condition_type = ll_comparation_type_to_string(cond_func_call->condition);
+            char * call_string = ll_func_call_to_string(cond_func_call->call);
+
+            char * node_desc = dynamic_format_string("\tCondCall %s, %s", condition_type, call_string);
+            add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
+            break;
+        }
+        case LOX_IR_CONTROL_NODE_LL_FUNCTION_CALL: {
+            struct lox_ir_control_ll_function_call * func_call = (struct lox_ir_control_ll_function_call *) node;
+            char * call_string = ll_func_call_to_string(func_call);
+
+            char * node_desc = dynamic_format_string("Call %s", call_string);
+            add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
+            break;
+        }
+        case LOX_IR_CONTROL_NODE_LL_COMPARATION: {
+            struct lox_ir_control_ll_comparation * comparation = (struct lox_ir_control_ll_comparation *) node;
+            char * comparation_type = ll_comparation_type_to_string(comparation->comparation_operator);
+            char * right = ll_operand_to_string(comparation->right);
+            char * left = ll_operand_to_string(comparation->left);
+
+            char * node_desc = dynamic_format_string("\tCmp %s, %s, %s", comparation_type, left, right);
+            add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
+            break;
+        }
+        case LOX_IR_CONTROL_NODE_LL_RETURN: {
+            struct lox_ir_control_ll_return * ret = (struct lox_ir_control_ll_return *) node;
+            char * operator_returned_string = !ret->empty_return ? ll_operand_to_string(ret->to_return) : "";
+
+            char * node_desc = dynamic_format_string("\tRet %s", operator_returned_string);
+            add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
+            break;
+        }
+        case LOX_IR_CONTROL_NODE_LL_BINARY: {
+            struct lox_ir_control_ll_binary * binary = (struct lox_ir_control_ll_binary *) node;
+            char * operator_string = ll_binary_operator_to_string(binary->operator);
+            char * result_string = ll_operand_to_string(binary->result);
+            char * right_string = ll_operand_to_string(binary->right);
+            char * left_string = ll_operand_to_string(binary->left);
+
+            char * node_desc = dynamic_format_string("%s %s, %s, %s", operator_string, result_string,left_string, right_string);
+            add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
+            break;
+        }
+        case LOX_IR_CONTROL_NODE_LL_UNARY: {
+            struct lox_ir_control_ll_unary * unary = (struct lox_ir_control_ll_unary *) node;
+            char * operator_string = ll_unary_operator_to_string(unary->operator);
+            char * operand_string = ll_operand_to_string(unary->operand);
+            char * node_desc = dynamic_format_string("\t%s %s", operator_string, operand_string);
+
+            add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
+            break;
+        }
+        case LOX_IR_CONTROL_NODE_LL_MOVE: {
+            struct lox_ir_control_ll_move * move = (struct lox_ir_control_ll_move *) node;
+            char * from = ll_operand_to_string(move->from);
+            char * to = ll_operand_to_string(move->to);
+
+            char * node_desc = dynamic_format_string("Move %s, %s", to, from);
+            add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
         }
     }
 
@@ -687,5 +757,123 @@ static char * maybe_add_type_info_data_node(
         return dynamic_format_string("%s\nType: %s", label, to_string_lox_ir_type(data_node->produced_type->type));
     } else {
         return label;
+    }
+}
+
+static char * ll_func_call_to_string(
+        struct lox_ir_control_ll_function_call * func_call
+) {
+    struct string_builder function_call_string_builder;
+    init_string_builder(&function_call_string_builder, NATIVE_LOX_ALLOCATOR());
+
+    append_string_builder(&function_call_string_builder, func_call->function_name);
+    append_string_builder(&function_call_string_builder, "(");
+
+    for(int i = 0; i < func_call->arguments.in_use; i++){
+        struct lox_ir_ll_operand * argument = func_call->arguments.values[i];
+        char * argument_string = ll_operand_to_string(*argument);
+
+        append_string_builder(&function_call_string_builder, argument_string);
+        if (i + 1 < func_call->arguments.in_use) {
+            append_string_builder(&function_call_string_builder, ", ");
+        }
+    }
+
+    append_string_builder(&function_call_string_builder, ")");
+
+    if (func_call->has_return_value) {
+        char * return_reg = ll_operand_to_string(V_REG_TO_OPERAND(func_call->return_value_v_reg));
+        append_first_string_builder(&function_call_string_builder, dynamic_format_string("%s = ", return_reg));
+    }
+
+    return to_string_string_builder(&function_call_string_builder, NATIVE_LOX_ALLOCATOR());
+}
+
+static char * ll_operand_to_string(struct lox_ir_ll_operand operand) {
+    switch (operand.type) {
+        case LOX_IR_LL_OPERAND_IMMEDIATE: {
+            char * operator_prefix = operand.immedate < 0 ? "-" : "";
+            return dynamic_format_string("%s%ll", operator_prefix, operand.immedate);
+        }
+        case LOX_IR_LL_OPERAND_FLAGS: return "flags";
+        case LOX_IR_LL_OPERAND_REGISTER: {
+            char * reg_size_string = register_size_to_string(operand.v_register.register_bit_size);
+            char * fp_reg_string = operand.v_register.is_float_register ? "#" : "";
+            return dynamic_format_string("v%s%i %s", operand.v_register.number, fp_reg_string, reg_size_string);
+        }
+        case LOX_IR_LL_OPERAND_MEMORY_ADDRESS: {
+            char * address_string = ll_operand_to_string(*operand.memory_address.address);
+            if (operand.memory_address.offset > 0) {
+                return dynamic_format_string("[%s %llu]", address_string, operand.memory_address.offset);
+            } else {
+                return address_string;
+            }
+        }
+        case LOX_IR_LL_OPERAND_STACK_SLOT: {
+            char * stack_slot_string = dynamic_format_string("StackSlot(%i)", operand.stack_slot.slot_index);
+
+            if(operand.stack_slot.offset > 0) {
+                return dynamic_format_string("[%s %llu]", stack_slot_string, operand.memory_address.offset);
+            } else {
+                return stack_slot_string;
+            }
+        }
+    }
+}
+
+static char * register_size_to_string(uint64_t reg_size) {
+    if(reg_size == 64){
+        return "";
+    } else if(reg_size == 32) {
+        return "DWORD";
+    } else if(reg_size == 16) {
+        return "WORD";
+    } else if(reg_size == 8) {
+        return "BYTE";
+    } else {
+        //TODO Panic
+    }
+}
+
+static char * ll_unary_operator_to_string(unary_operator_type_ll_lox_ir operator_type) {
+    switch (operator_type) {
+        case UNARY_LL_LOX_IR_LOGICAL_NEGATION: return "not";
+        case UNARY_LL_LOX_IR_NUMBER_NEGATION: return "neg";
+        case UNARY_LL_LOX_IR_F64_TO_I64_CAST: return "fp2int";
+        case UNARY_LL_LOX_IR_I64_TO_F64_CAST: return "int2fp";
+        default: //TODO Panic
+    }
+}
+
+static char * ll_comparation_type_to_string(comparation_operator_type_ll_lox_ir comparation_type) {
+    switch (comparation_type) {
+        case COMPARATION_LL_LOX_IR_EQ: return "==";
+        case COMPARATION_LL_LOX_IR_NOT_EQ: return "!=";
+        case COMPARATION_LL_LOX_IR_GREATER: return ">";
+        case COMPARATION_LL_LOX_IR_GREATER_EQ: return ">=";
+        case COMPARATION_LL_LOX_IR_LESS: return "<";
+        case COMPARATION_LL_LOX_IR_LESS_EQ: return "<=";
+        case COMPARATION_LL_LOX_IR_IS_TRUE: return "is true";
+        case COMPARATION_LL_LOX_IR_IS_FALSE: return "is false";
+        default: return NULL; //TODO Panic
+    }
+}
+
+static char * ll_binary_operator_to_string(binary_operator_type_ll_lox_ir binary_operator) {
+    switch (binary_operator) {
+        case BINARY_LL_LOX_IR_XOR: return "xor";
+        case BINARY_LL_LOX_IR_AND: return "and";
+        case BINARY_LL_LOX_IR_OR: return "or";
+        case BINARY_LL_LOX_IR_MOD: return "mod";
+        case BINARY_LL_LOX_IR_LEFT_SHIFT: return "<<";
+        case BINARY_LL_LOX_IR_RIGHT_SHIFT: return ">>";
+        case BINARY_LL_LOX_IR_ISUB: return "isub";
+        case BINARY_LL_LOX_IR_FSUB: return "fsub";
+        case BINARY_LL_LOX_IR_IADD: return "iadd";
+        case BINARY_LL_LOX_IR_FADD: return "fadd";
+        case BINARY_LL_LOX_IR_IMUL: return "imul";
+        case BINARY_LL_LOX_IR_FMUL: return "fmul";
+        case BINARY_LL_LOX_IR_IDIV: return "idiv";
+        case BINARY_LL_LOX_IR_FDIV: return "fdiv";
     }
 }

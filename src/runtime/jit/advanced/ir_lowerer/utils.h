@@ -46,6 +46,7 @@ void emit_conditional_function_call_ll_lox_ir(
         struct lllil_control *lllil,
         comparation_operator_type_ll_lox_ir condition,
         void * function_address,
+        char * function_name,
         int n_args,
         ... //Arguments
 );
@@ -53,6 +54,7 @@ void emit_conditional_function_call_ll_lox_ir(
 void emit_function_call_with_return_value_ll_lox_ir(
         struct lllil_control *lllil,
         void * function_address,
+        char * function_name,
         struct v_register, //Return value register
         int n_args,
         ... //Arguments
@@ -61,6 +63,7 @@ void emit_function_call_with_return_value_ll_lox_ir(
 void emit_function_call_ll_lox_ir(
         struct lllil_control *lllil,
         void * function_address,
+        char * function_name,
         int n_args,
         ... //Arguments
 );

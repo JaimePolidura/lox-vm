@@ -60,6 +60,8 @@ struct lox_ir_visualizer {
     //These properties are only used in lox_ir_file_visualizer:
     int next_label_id;
     struct u64_hash_table labels_id_by_block;
+    //Stored pointer to
+    struct ptr_arraylist pend_cond_func_calls_to_add;
 };
 
 static void add_new_line_lox_ir_visualizer(struct lox_ir_visualizer * visualizer, char * to_append) {

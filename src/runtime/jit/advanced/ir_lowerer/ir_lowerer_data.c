@@ -207,6 +207,7 @@ static struct lox_ir_ll_operand emit_lox_generic_binary(
     emit_function_call_with_return_value_ll_lox_ir(
             control,
             addition_lox,
+            "addition_lox",
             return_value,
             2,
             left,
@@ -525,6 +526,7 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_array_escapes(
     emit_function_call_with_return_value_ll_lox_ir(
             lllil_control,
             alloc_array_gc_alg,
+            "alloc_array_gc_alg",
             array_instance_operand.v_register,
             1,
             IMMEDIATE_TO_OPERAND((uint64_t) init_array->n_elements)
@@ -576,6 +578,7 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_struct_escapes(
     emit_function_call_with_return_value_ll_lox_ir(
             lllil,
             alloc_struct_instance_gc_alg,
+            "alloc_struct_instance_gc_alg",
             struct_instance_operand.v_register,
             1,
             IMMEDIATE_TO_OPERAND((uint64_t) init_node->definition)
@@ -589,6 +592,7 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_struct_escapes(
         emit_function_call_ll_lox_ir(
                 lllil,
                 put_hash_table,
+                "put_hash_table",
                 3,
                 struct_instance_operand,
                 field_name,
@@ -649,6 +653,7 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field_doest_not_e
     emit_function_call_with_return_value_ll_lox_ir(
             lllil,
             get_hash_table,
+            "get_hash_table",
             get_struct_field_reg_result.v_register,
             2,
             struct_instance,
@@ -769,6 +774,7 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_global(
     emit_function_call_with_return_value_ll_lox_ir(
             lllil,
             &get_hash_table,
+            "get_hash_table",
             global_v_register,
             2,
             IMMEDIATE_TO_OPERAND((uint64_t) &get_global->package->global_variables),
@@ -895,6 +901,7 @@ static struct lox_ir_ll_operand emit_lox_any_to_native_cast(
     emit_function_call_with_return_value_ll_lox_ir(
             lllil,
             &any_to_native_cast_jit_runime,
+            "any_to_native_cast_jit_runime",
             return_value_vreg,
             1,
             input

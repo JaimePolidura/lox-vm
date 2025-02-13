@@ -144,6 +144,7 @@ static void emit_guard_struct_definition_type_check(
             control,
             COMPARATION_LL_LOX_IR_NOT_EQ,
             &switch_to_interpreter_jit_runime,
+            "switch_to_interpreter_jit_runime",
             0
     );
 
@@ -165,6 +166,7 @@ static void emit_guard_struct_definition_type_check(
             control,
             COMPARATION_LL_LOX_IR_NOT_EQ,
             &switch_to_interpreter_jit_runime,
+            "switch_to_interpreter_jit_runime",
             0
     );
 }
@@ -180,6 +182,7 @@ static void emit_guard_array_type_check(
     emit_function_call_ll_lox_ir(
             control,
             &guard_array_type_check_jit_runtime,
+            "guard_array_type_check_jit_runtime",
             0
     );
 }
@@ -246,6 +249,7 @@ static void emit_guard_object_type_check(
             control,
             COMPARATION_LL_LOX_IR_NOT_EQ,
             &switch_to_interpreter_jit_runime,
+            "switch_to_interpreter_jit_runime",
             0
     );
 }
@@ -266,6 +270,7 @@ static void emit_guard_nil_type_check(
             control,
             COMPARATION_LL_LOX_IR_NOT_EQ,
             &switch_to_interpreter_jit_runime,
+            "switch_to_interpreter_jit_runime",
             0
     );
 }
@@ -296,6 +301,7 @@ static void emit_guard_bool_type_check(
             control,
             COMPARATION_LL_LOX_IR_NOT_EQ,
             &switch_to_interpreter_jit_runime,
+            "switch_to_interpreter_jit_runime",
             0
     );
 }
@@ -324,6 +330,7 @@ static void emit_guard_i64_type_check(
             control,
             COMPARATION_LL_LOX_IR_NOT_EQ,
             &switch_to_interpreter_jit_runime,
+            "switch_to_interpreter_jit_runime",
             0
     );
 }
@@ -390,6 +397,7 @@ void emit_range_check_ll_lox_ir(
             lllil,
             COMPARATION_LL_LOX_IR_IS_TRUE,
             &range_check_panic_jit_runime,
+            "range_check_panic_jit_runime",
             0
     );
     //Second check index_to_access >= array_size
@@ -404,6 +412,7 @@ void emit_range_check_ll_lox_ir(
             lllil,
             COMPARATION_LL_LOX_IR_IS_TRUE,
             &range_check_panic_jit_runime,
+            "range_check_panic_jit_runime",
             0
     );
 }
@@ -434,6 +443,7 @@ static void emit_guard_f64_type_check(
             control,
             COMPARATION_LL_LOX_IR_IS_FALSE,
             &switch_to_interpreter_jit_runime,
+            "switch_to_interpreter_jit_runime",
             0
     );
 }
@@ -456,6 +466,7 @@ static void emit_guard_boolean_check(
             control,
             COMPARATION_LL_LOX_IR_IS_FALSE,
             switch_to_interpreter_jit_runime,
+            "switch_to_interpreter_jit_runime",
             0
     );
 }
@@ -464,26 +475,34 @@ void emit_conditional_function_call_ll_lox_ir(
         struct lllil_control *lllil,
         comparation_operator_type_ll_lox_ir condition,
         void * function_address,
+        char * function_name,
         int n_args,
         ... //Arguments
 ) {
     struct lox_allocator * allocator = &lllil->lllil->lox_ir->nodes_allocator_arena->lox_allocator;
 
-    struct lox_ir_control_ll_cond_function_call * cond_func_call = ALLOC_LOX_IR_CONTROL( //TODO
+    struct lox_ir_control_ll_cond_function_call * cond_func_call = ALLOC_LOX_IR_CONTROL(
             LOX_IR_CONTROL_NODE_LL_COND_FUNCTION_CALL, struct lox_ir_control_ll_cond_function_call, NULL, allocator
     );
-    cond_func_call->condition = condition;
-    cond_func_call->function_call_address = function_address;
-    init_ptr_arraylist(&cond_func_call->arguments, allocator);
+    //Only used to store data, not as a "real" node in the IR
+    struct lox_ir_control_ll_function_call * func_call = ALLOC_LOX_IR_CONTROL(
+            LOX_IR_CONTROL_NODE_LL_FUNCTION_CALL, struct lox_ir_control_ll_function_call, NULL, allocator
+    );
 
-    resize_ptr_arraylist(&cond_func_call->arguments, n_args);
+    cond_func_call->condition = condition;
+    cond_func_call->call->function_name = function_name;
+    cond_func_call->call = func_call;
+    cond_func_call->call->function_call_address = function_address;
+    init_ptr_arraylist(&cond_func_call->call->arguments, allocator);
+
+    resize_ptr_arraylist(&cond_func_call->call->arguments, n_args);
     struct lox_ir_ll_operand arguments[n_args];
     VARARGS_TO_ARRAY(struct lox_ir_ll_operand, arguments, n_args, ...);
     for (int i = 0; i < n_args; i++) {
         struct lox_ir_ll_operand argument = arguments[i];
         struct lox_ir_ll_operand * argument_ptr = LOX_MALLOC(allocator, sizeof(argument));
         *argument_ptr = argument;
-        append_ptr_arraylist(&cond_func_call->arguments, argument_ptr);
+        append_ptr_arraylist(&cond_func_call->call->arguments, argument_ptr);
     }
 
     add_lowered_node_lllil_control(lllil, &cond_func_call->control);
@@ -492,6 +511,7 @@ void emit_conditional_function_call_ll_lox_ir(
 void emit_function_call_with_return_value_ll_lox_ir(
         struct lllil_control *lllil,
         void * function_address,
+        char * function_name,
         struct v_register return_value_v_reg,
         int n_args,
         ... //Arguments
@@ -505,6 +525,7 @@ void emit_function_call_with_return_value_ll_lox_ir(
     init_ptr_arraylist(&func_call->arguments, allocator);
     resize_ptr_arraylist(&func_call->arguments, n_args);
     func_call->has_return_value = true;
+    func_call->function_name = function_name;
     func_call->return_value_v_reg = return_value_v_reg;
 
     struct lox_ir_ll_operand arguments[n_args];
@@ -524,6 +545,7 @@ void emit_function_call_with_return_value_ll_lox_ir(
 void emit_function_call_ll_lox_ir(
         struct lllil_control * lllil,
         void * function_address,
+        char * function_name,
         int n_args,
         ... //Arguments
 ) {
@@ -533,6 +555,7 @@ void emit_function_call_ll_lox_ir(
             LOX_IR_CONTROL_NODE_LL_FUNCTION_CALL, struct lox_ir_control_ll_function_call, NULL, allocator
     );
     func_call->function_call_address = function_address;
+    func_call->function_name = function_name;
     init_ptr_arraylist(&func_call->arguments, allocator);
     resize_ptr_arraylist(&func_call->arguments, n_args);
 

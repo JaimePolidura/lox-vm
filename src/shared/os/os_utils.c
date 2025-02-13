@@ -48,25 +48,3 @@ void sleep_ms(uint64_t ms) {
     usleep(ms * 1000);
 #endif
 }
-
-char * get_function_name_by_ptr(void * function_address) {
-#ifdef _WIN32
-    HANDLE process = GetCurrentProcess();
-    SymInitialize(process, NULL, TRUE);
-
-    BYTE symbol_buffer [sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)];
-    SYMBOL_INFO * symbol = (SYMBOL_INFO *) symbol_buffer;
-    symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
-    symbol->MaxNameLen = MAX_SYM_NAME;
-
-    SymFromAddr(process, (DWORD64) function_address, NULL, symbol);
-
-    SymCleanup(process);
-
-    return symbol->Name;
-#else
-    Dl_info info;
-    dladdr((void *) function_address, &info);
-    return info.dli_sname;
-#endif
-}

@@ -19,6 +19,7 @@ void init_string_builder(struct string_builder *, struct lox_allocator *);
 void free_string_builder(struct string_builder *);
 
 void append_string_builder(struct string_builder *, char *);
+void append_first_string_builder(struct string_builder *string_builder, char *string);
 void append_with_length_string_builder(struct string_builder *, char *, int);
 void remove_last_string_builder(struct string_builder *);
 

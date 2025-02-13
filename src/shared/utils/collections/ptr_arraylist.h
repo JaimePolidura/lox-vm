@@ -18,3 +18,4 @@ void free_ptr_arraylist(struct ptr_arraylist *);
 //Returns the index where it has been added
 uint16_t append_ptr_arraylist(struct ptr_arraylist *, void * value);
 void resize_ptr_arraylist(struct ptr_arraylist *, int new_size);
+void clear_ptr_arraylist(struct ptr_arraylist *);

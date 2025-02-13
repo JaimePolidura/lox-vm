@@ -822,7 +822,7 @@ static inline void increase_n_function_calls(struct function_object * function) 
     //By doing "n_calls < MIN_CALLS_TO_PROFILE" and "add n calls == min calls" we will avoid the race jump_to_operand when
     //a thread increments the function calls & other thread initializes the function profile comparation_operator (since these datastructures
     //are placed in a union, it will corrupt the profile comparation_operator)
-    //By doing "==" comparation, only one thread will observe the function calls tao be the same value_as MIN_CALLS_TO_PROFILE
+    //By doing "==" condition, only one thread will observe the function calls tao be the same value_as MIN_CALLS_TO_PROFILE
     //In this way only one function profile comparation_operator will get allocated
     if (atomic_load(&function->state_as.not_profiling.n_calls) < MIN_CALLS_TO_PROFILE &&
         atomic_fetch_add(&function->state_as.not_profiling.n_calls, 1) == MIN_CALLS_TO_PROFILE) {

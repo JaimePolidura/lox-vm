@@ -18,6 +18,22 @@ void free_string_builder(struct string_builder * string_builder) {
     LOX_FREE(string_builder->allocator, current_node);
 }
 
+void append_first_string_builder(struct string_builder * string_builder, char * string) {
+    struct string_builder_node * new_node = LOX_MALLOC(string_builder->allocator, sizeof(struct string_builder_node));
+    new_node->length = strlen(string);
+    new_node->chars = string;
+    new_node->next = NULL;
+
+    if (string_builder->first != NULL) {
+        new_node->next = string_builder->first;
+        string_builder->first = new_node;
+    }
+    if (string_builder->first == NULL) {
+        string_builder->first = new_node;
+        string_builder->last = new_node;
+    }
+}
+
 void append_string_builder(struct string_builder * string_builder, char * string) {
     append_with_length_string_builder(string_builder, string, strlen(string));
 }

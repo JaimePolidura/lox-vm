@@ -15,7 +15,7 @@
  *
  * RAX used for:
  * - Storing the division result,
- * - Storing in low bytes AL the boolean result of a comparation
+ * - Storing in low bytes AL the boolean result of a condition
  * - Storing the return value_node of external C function calls
  *
  * RCX used for storing the previous RSP register

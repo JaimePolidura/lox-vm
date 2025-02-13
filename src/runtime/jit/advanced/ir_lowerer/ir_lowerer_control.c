@@ -44,7 +44,6 @@ lowerer_lox_ir_control_t lowerer_lox_ir_by_control_node[] = {
         [LOX_IR_CONTROL_NODE_LL_UNARY] = NULL,
         [LOX_IR_CONTROL_NODE_LL_RETURN] = NULL,
         [LOX_IR_CONTROL_NODE_LL_FUNCTION_CALL] = NULL,
-        [LOX_IR_CONTROL_NODE_LL_CONDITIONAL_JUMP] = NULL,
 };
 
 //Main function, entry point
@@ -64,15 +63,15 @@ void lower_lox_ir_control_exit_monitor(struct lllil_control * lllil) {
     struct lox_ir_block * block = enter_monitor_control_node->control.block;
 
     emit_function_call_ll_lox_ir(
-            lllil, &set_self_thread_waiting, 0
+            lllil, &set_self_thread_waiting, "set_self_thread_waiting", 0
     );
 
     emit_function_call_ll_lox_ir(
-            lllil, &enter_monitor, 1, IMMEDIATE_TO_OPERAND((uint64_t) enter_monitor_control_node->monitor)
+            lllil, &enter_monitor, "enter_monitor", 1, IMMEDIATE_TO_OPERAND((uint64_t) enter_monitor_control_node->monitor)
     );
 
     emit_function_call_ll_lox_ir(
-            lllil, &set_self_thread_runnable, 0
+            lllil, &set_self_thread_runnable, "set_self_thread_runnable", 0
     );
 }
 
@@ -82,7 +81,7 @@ void lower_lox_ir_control_enter_monitor(struct lllil_control * lllil) {
     struct lox_ir_block * block = exit_monitor_control_node->control.block;
 
     emit_function_call_ll_lox_ir(
-            lllil, &exit_monitor, 1, IMMEDIATE_TO_OPERAND((uint64_t) exit_monitor_control_node->monitor)
+            lllil, &exit_monitor, "exit_monitor", 1, IMMEDIATE_TO_OPERAND((uint64_t) exit_monitor_control_node->monitor)
     );
 }
 
@@ -93,10 +92,10 @@ void lower_lox_ir_control_print(struct lllil_control * lllil) {
     struct lox_ir_block * block = control->block;
 
     if (is_lox_lox_ir_type(print_node->data->produced_type->type)) {
-        emit_function_call_ll_lox_ir(lllil, &print_lox_value, 1, to_print_data);
+        emit_function_call_ll_lox_ir(lllil, &print_lox_value, "print_lox_value", 1, to_print_data);
     } else {
         char * formatted = print_node->data->produced_type->type == LOX_IR_TYPE_F64 ? "%g" : "%llu";
-        emit_function_call_ll_lox_ir(lllil, &printf, 2, IMMEDIATE_TO_OPERAND((uint64_t) formatted), to_print_data);
+        emit_function_call_ll_lox_ir(lllil, &printf, "printf", 2, IMMEDIATE_TO_OPERAND((uint64_t) formatted), to_print_data);
     }
 }
 
@@ -132,6 +131,7 @@ void lower_lox_ir_control_set_global(struct lllil_control * lllil) {
     emit_function_call_ll_lox_ir(
             lllil,
             &put_hash_table,
+            "put_hash_table",
             3,
             IMMEDIATE_TO_OPERAND((uint64_t) &set_global_node->package->global_variables),
             IMMEDIATE_TO_OPERAND((uint64_t) &set_global_node->name),
@@ -165,6 +165,7 @@ static void set_struct_field_escapes(struct lllil_control * lllil, struct lox_ir
     emit_function_call_ll_lox_ir(
             lllil,
             &put_hash_table,
+            "put_hash_table",
             3,
             instance,
             IMMEDIATE_TO_OPERAND((uint64_t) &set_struct_field->field_name),

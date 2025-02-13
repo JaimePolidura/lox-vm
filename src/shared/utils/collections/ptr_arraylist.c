@@ -36,3 +36,10 @@ void resize_ptr_arraylist(struct ptr_arraylist * array, int new_size) {
         array->capacity = new_size;
     }
 }
+
+void clear_ptr_arraylist(struct ptr_arraylist * ptr_arraylist) {
+    ptr_arraylist->capacity = 0;
+    ptr_arraylist->in_use = 0;
+    LOX_FREE(ptr_arraylist->allocator, ptr_arraylist->values);
+    ptr_arraylist->values = NULL;
+}

@@ -167,13 +167,31 @@ struct lox_ir_control_set_v_register_node {
 
 //These nodes are introdued by ir_lowerer after optimizations have been done
 
+typedef enum {
+    COMPARATION_LL_LOX_IR_EQ,
+    COMPARATION_LL_LOX_IR_NOT_EQ,
+    COMPARATION_LL_LOX_IR_GREATER,
+    COMPARATION_LL_LOX_IR_GREATER_EQ,
+    COMPARATION_LL_LOX_IR_LESS,
+    COMPARATION_LL_LOX_IR_LESS_EQ,
+    COMPARATION_LL_LOX_IR_IS_TRUE,
+    COMPARATION_LL_LOX_IR_IS_FALSE,
+} comparation_operator_type_ll_lox_ir;
+
+struct lox_ir_control_ll_cond_function_call {
+    struct lox_ir_control_node control;
+    comparation_operator_type_ll_lox_ir condition;
+    //We only use this node as a way to store the function address and arguments, not as a real node in the IR
+    struct lox_ir_control_ll_function_call * call;
+};
+
 struct lox_ir_control_ll_function_call {
     struct lox_ir_control_node control;
     void * function_call_address;
-
+    //Only used for debugging purposes
+    char * function_name;
     //Pointers to struct lox_ir_ll_operand
     struct ptr_arraylist arguments;
-
     bool has_return_value;
     struct v_register return_value_v_reg;
 };
@@ -228,29 +246,9 @@ struct lox_ir_control_ll_binary {
     struct lox_ir_ll_operand result;
 };
 
-typedef enum {
-    COMPARATION_LL_LOX_IR_EQ,
-    COMPARATION_LL_LOX_IR_NOT_EQ,
-    COMPARATION_LL_LOX_IR_GREATER,
-    COMPARATION_LL_LOX_IR_GREATER_EQ,
-    COMPARATION_LL_LOX_IR_LESS,
-    COMPARATION_LL_LOX_IR_LESS_EQ,
-    COMPARATION_LL_LOX_IR_IS_TRUE,
-    COMPARATION_LL_LOX_IR_IS_FALSE,
-} comparation_operator_type_ll_lox_ir;
-
 struct lox_ir_control_ll_comparation {
     struct lox_ir_control_node control;
     struct lox_ir_ll_operand left;
     struct lox_ir_ll_operand right;
     comparation_operator_type_ll_lox_ir comparation_operator;
-};
-
-struct lox_ir_control_ll_cond_function_call {
-    struct lox_ir_control_node control;
-    comparation_operator_type_ll_lox_ir condition;
-
-    void * function_call_address;
-    //Pointers to struct lox_ir_ll_operand
-    struct ptr_arraylist arguments;
 };
