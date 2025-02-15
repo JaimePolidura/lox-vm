@@ -70,7 +70,10 @@ struct lox_ir_block * alloc_lox_ir_block(struct lox_allocator *allocator);
 void init_lox_ir_block(struct lox_ir_block *block, struct lox_allocator *allocator);
 
 void add_last_control_node_lox_ir_block(struct lox_ir_block *block, struct lox_ir_control_node *node);
+void add_first_control_node_lox_ir_block(struct lox_ir_block *block, struct lox_ir_control_node *node);
+//If before is NULL, the node will be added as the last node in the block
 void add_before_control_node_lox_ir_block(struct lox_ir_block *block, struct lox_ir_control_node * before, struct lox_ir_control_node * new);
+//If after is NULL, the node will be added as the first node in the block
 void add_after_control_node_lox_ir_block(struct lox_ir_block *block, struct lox_ir_control_node * after, struct lox_ir_control_node * new);
 void replace_control_node_lox_ir_block(struct lox_ir_block*, struct lox_ir_control_node* prev, struct lox_ir_control_node* new);
 void remove_control_node_lox_ir_block(struct lox_ir_block *lox_ir_block, struct lox_ir_control_node *node_to_remove);

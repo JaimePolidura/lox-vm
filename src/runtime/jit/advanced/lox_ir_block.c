@@ -170,6 +170,24 @@ void add_last_control_node_lox_ir_block(struct lox_ir_block * block, struct lox_
     block->last = node;
 }
 
+void add_first_control_node_lox_ir_block(
+        struct lox_ir_block * block,
+        struct lox_ir_control_node * node
+) {
+    record_new_node_information_of_block(block, node);
+    reset_loop_info(block);
+
+    if(block->last == NULL){
+        block->last = node;
+    }
+    if(block->first != NULL) {
+        block->first->prev = node;
+        node->next = block->first;
+    }
+
+    block->first = node;
+}
+
 void add_after_control_node_lox_ir_block(
         struct lox_ir_block * block,
         struct lox_ir_control_node * after,
@@ -178,22 +196,24 @@ void add_after_control_node_lox_ir_block(
     record_new_node_information_of_block(block, new);
     reset_loop_info(block);
 
+    if(after == NULL){
+        add_first_control_node_lox_ir_block(block, new);
+        return;
+    }
+
     if(block->first == NULL){
         block->first = new;
     }
     if (block->last == after) {
         block->last = new;
     }
-    if (after != NULL && after->next != NULL) {
+    if (after->next != NULL) {
         new->next = after->next;
         after->next->prev = new;
     }
 
     new->prev = after;
-
-    if (after != NULL) {
-        after->next = new;
-    }
+    after->next = new;
 }
 
 void add_before_control_node_lox_ir_block(
@@ -203,6 +223,11 @@ void add_before_control_node_lox_ir_block(
 ) {
     record_new_node_information_of_block(block, new);
     reset_loop_info(block);
+
+    if (before == NULL) {
+        add_last_control_node_lox_ir_block(block, new);
+        return;
+    }
 
     if(block->first == before){
         block->first = new;

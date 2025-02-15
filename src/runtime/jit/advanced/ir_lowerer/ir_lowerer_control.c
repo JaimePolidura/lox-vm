@@ -118,7 +118,7 @@ void lower_lox_ir_control_return(struct lllil_control * lllil_control) {
         low_level_return_node->to_return = lower_lox_ir_data(lllil_control, return_node->data, LOX_IR_TYPE_LOX_ANY);
     }
 
-    replace_control_node_lox_ir_block(block, control, &low_level_return_node->control);
+    add_lowered_node_lllil_control(lllil_control, &low_level_return_node->control);
 }
 
 void lower_lox_ir_control_set_global(struct lllil_control * lllil) {

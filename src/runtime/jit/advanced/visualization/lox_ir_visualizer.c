@@ -145,15 +145,20 @@ void visualize_lox_ir(
             break;
         }
         case ALL_PHASE_LOX_IR_VISUALIZATION: {
+            //IR Creation
             struct lox_ir lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
                     &node_allocator.lox_allocator), graphviz_visualizer.options);
+            //Optimizations
             perform_sparse_constant_propagation(&lox_ir);
-            perform_common_subexpression_elimination(&lox_ir);
             perform_loop_invariant_code_motion(&lox_ir);
             perform_type_propagation(&lox_ir);
             perform_strength_reduction(&lox_ir);
-            perform_copy_propagation(&lox_ir);
             perform_unboxing_insertion(&lox_ir);
+            perform_common_subexpression_elimination(&lox_ir);
+            perform_copy_propagation(&lox_ir);
+            //Code emition
+            resolve_phi(&lox_ir);
+            lower_lox_ir(&lox_ir);
 
             graphviz_visualizer.lox_ir = lox_ir;
 

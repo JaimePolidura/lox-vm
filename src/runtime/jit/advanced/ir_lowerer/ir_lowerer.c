@@ -13,7 +13,7 @@ struct lox_level_lox_ir_node * lower_lox_ir(struct lox_ir * lox_ir) {
             lox_ir->first_block,
             NATIVE_LOX_ALLOCATOR(),
             lllil,
-            LOX_IR_BLOCK_OPT_NOT_REPEATED,
+            LOX_IR_BLOCK_OPT_REPEATED,
             lower_lox_ir_block
     );
 
@@ -32,20 +32,22 @@ bool lower_lox_ir_block(struct lox_ir_block * block, void * extra) {
 
     merge_predecessors_stack_slots(lllil, block);
 
+    struct lllil_control lllil_control = (struct lllil_control) {
+            .control_node_to_lower = NULL,
+            .last_node_lowered = NULL,
+            .lllil = lllil,
+    };
+
     for (struct lox_ir_control_node * current = block->first;;current = current->next) {
         if (is_lowered_type_lox_ir_control(current)) {
             continue;
         }
 
-        struct lllil_control lllil_control = (struct lllil_control) {
-            .control_node_to_lower = current,
-            .last_node_lowered = NULL,
-            .lllil = lllil,
-        };
+        lllil_control.control_node_to_lower = current;
 
-        remove_control_node_lox_ir_block(block, current);
         lower_lox_ir_control(&lllil_control);
-        
+        remove_control_node_lox_ir_block(block, current);
+
         if (current->next == NULL) {
             break;
         }
