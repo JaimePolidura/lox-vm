@@ -54,6 +54,35 @@ bool is_terminator_lox_ir_data_node(struct lox_ir_data_node * node) {
     }
 }
 
+bool get_used_v_registers_ox_ir_data_node_consumer(
+        struct lox_ir_data_node * _,
+        void ** __,
+        struct lox_ir_data_node * data_node,
+        void * extra
+) {
+    struct u64_set * used_v_registers = extra;
+    if(data_node->type == LOX_IR_DATA_NODE_GET_V_REGISTER){
+        struct lox_ir_data_get_v_register_node * get_v_reg = (struct lox_ir_data_get_v_register_node *) data_node;
+        add_u64_set(used_v_registers, get_v_reg->v_register.number);
+    }
+    return true;
+}
+
+struct u64_set get_used_v_registers_lox_ir_data_node(struct lox_ir_data_node * data_node, struct lox_allocator * allocator) {
+    struct u64_set used_v_registers;
+    init_u64_set(&used_v_registers, allocator);
+
+    for_each_lox_ir_data_node(
+            data_node,
+            NULL,
+            &used_v_registers,
+            LOX_IR_DATA_NODE_OPT_POST_ORDER,
+            get_used_v_registers_ox_ir_data_node_consumer
+    );
+
+    return used_v_registers;
+}
+
 bool get_used_ssa_names_lox_ir_data_node_consumer(
         struct lox_ir_data_node * _,
         void ** __,

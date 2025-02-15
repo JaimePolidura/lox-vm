@@ -66,6 +66,36 @@ void add_ssa_name_use_lox_ir(
     add_u64_set(uses, (uint64_t) control_node);
 }
 
+void add_v_register_use_lox_ir(
+        struct lox_ir * lox_ir,
+        int v_reg,
+        struct lox_ir_control_node * control_node
+) {
+    if(!contains_u64_hash_table(&lox_ir->node_uses_by_v_reg, v_reg)){
+        struct u64_set * uses = LOX_MALLOC(LOX_IR_ALLOCATOR(lox_ir), sizeof(struct u64_set));
+        init_u64_set(uses, LOX_IR_ALLOCATOR(lox_ir));
+        put_u64_hash_table(&lox_ir->node_uses_by_v_reg, v_reg, uses);
+    }
+
+    struct u64_set * uses = get_u64_hash_table(&lox_ir->node_uses_by_v_reg, v_reg);
+    add_u64_set(uses, (uint64_t) control_node);
+}
+
+void add_v_register_definition_lox_ir(
+        struct lox_ir * lox_ir,
+        int v_reg,
+        struct lox_ir_control_node * control
+) {
+    if(!contains_u64_hash_table(&lox_ir->definitions_by_v_reg, v_reg)){
+        struct u64_set * uses = LOX_MALLOC(LOX_IR_ALLOCATOR(lox_ir), sizeof(struct u64_set));
+        init_u64_set(uses, LOX_IR_ALLOCATOR(lox_ir));
+        put_u64_hash_table(&lox_ir->definitions_by_v_reg, v_reg, uses);
+    }
+
+    struct u64_set * uses = get_u64_hash_table(&lox_ir->definitions_by_v_reg, v_reg);
+    add_u64_set(uses, (uint64_t) control);
+}
+
 struct lox_ir_type * get_type_by_ssa_name_lox_ir(
         struct lox_ir * lox_ir,
         struct lox_ir_block * block,

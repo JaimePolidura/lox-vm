@@ -15,13 +15,18 @@ struct pr {
     struct lox_ir * lox_ir;
 };
 
+struct pr_control {
+    struct pr * pr;
+    struct lox_ir_control_node * current_control;
+};
+
 static bool resolve_phi_block(struct lox_ir_block *, void *);
 
 static struct pr * alloc_phi_resolver(struct lox_ir *);
 static void free_phi_resolver(struct pr *);
 static void resolve_phi_control(struct pr *, struct lox_ir_control_node *);
 static void replace_define_ssa_name_with_set_v_reg(struct pr*, struct lox_ir_control_define_ssa_name_node*);
-static void replace_get_ssa_name_with_get_v_reg(struct pr*, struct lox_ir_data_get_ssa_name_node*);
+static void replace_get_ssa_name_with_get_v_reg(struct pr_control*, struct lox_ir_data_get_ssa_name_node*);
 static bool replace_phi_with_get_v_reg(struct pr*, struct lox_ir_data_phi_node*, struct lox_ir_control_define_ssa_name_node*);
 static bool resolve_phi_data(struct lox_ir_data_node*, void**, struct lox_ir_data_node*, void*);
 static bool all_predecessors_have_been_scanned(struct pr *, struct lox_ir_data_phi_node *);
@@ -63,9 +68,14 @@ static bool resolve_phi_block(struct lox_ir_block * block, void * extra) {
 static void resolve_phi_control(struct pr * pr, struct lox_ir_control_node * control_node) {
     bool is_phi_node = is_define_phi_node(control_node);
 
+    struct pr_control pr_control = (struct pr_control) {
+        .current_control = control_node,
+        .pr = pr,
+    };
+
     for_each_data_node_in_lox_ir_control(
             control_node,
-            pr,
+            &pr_control,
             LOX_IR_DATA_NODE_OPT_ANY_ORDER,
             resolve_phi_data
     );
@@ -81,25 +91,26 @@ static bool resolve_phi_data(
         struct lox_ir_data_node * data_node,
         void * extra
 ) {
-    struct pr * pr = extra;
+    struct pr_control * pr_control = extra;
 
     if (data_node->type == LOX_IR_DATA_NODE_PHI) {
         struct lox_ir_data_node ** parent_ptr = (struct lox_ir_data_node **) parent_field_ptr;
         struct lox_ir_control_define_ssa_name_node * define_ssa_name = container_of(parent_ptr, struct lox_ir_control_define_ssa_name_node, value);
         remove_control_node_lox_ir_block(define_ssa_name->control.block, &define_ssa_name->control);
     } else if (data_node->type == LOX_IR_DATA_NODE_GET_SSA_NAME) {
-        replace_get_ssa_name_with_get_v_reg(pr, (struct lox_ir_data_get_ssa_name_node *) data_node);
+        replace_get_ssa_name_with_get_v_reg(pr_control, (struct lox_ir_data_get_ssa_name_node *) data_node);
     }
 
     return true;
 }
 
-static void replace_get_ssa_name_with_get_v_reg(struct pr * pr, struct lox_ir_data_get_ssa_name_node * get_ssa_name) {
+static void replace_get_ssa_name_with_get_v_reg(struct pr_control * pr_control, struct lox_ir_data_get_ssa_name_node * get_ssa_name) {
     bool is_float = get_ssa_name->data.produced_type->type == LOX_IR_TYPE_F64;
-    struct v_register v_reg = get_v_reg_by_ssa_name(pr, get_ssa_name->ssa_name, is_float);
+    struct v_register v_reg = get_v_reg_by_ssa_name(pr_control->pr, get_ssa_name->ssa_name, is_float);
     get_ssa_name->data.type = LOX_IR_DATA_NODE_GET_V_REGISTER;
     struct lox_ir_data_get_v_register_node * get_v_reg = (struct lox_ir_data_get_v_register_node *) get_ssa_name;
     get_v_reg->v_register = v_reg;
+    add_v_register_use_lox_ir(pr_control->pr->lox_ir, v_reg.number, pr_control->current_control);
 }
 
 static void replace_define_ssa_name_with_set_v_reg(struct pr * pr, struct lox_ir_control_define_ssa_name_node * define_ssa_name) {
@@ -111,6 +122,8 @@ static void replace_define_ssa_name_with_set_v_reg(struct pr * pr, struct lox_ir
     struct lox_ir_control_set_v_register_node * set_v_reg = (struct lox_ir_control_set_v_register_node *) define_ssa_name;
     set_v_reg->v_register = new_v_reg;
     set_v_reg->value = value;
+
+    add_v_register_definition_lox_ir(pr->lox_ir, new_v_reg.number, &set_v_reg->control);
 }
 
 static bool is_define_phi_node(struct lox_ir_control_node * control_node) {

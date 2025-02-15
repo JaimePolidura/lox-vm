@@ -32,6 +32,10 @@ struct lox_ir {
     struct u64_hash_table type_by_ssa_name_by_block;
 
     int last_v_reg_allocated;
+    //key: v register number, value: u64_set of pointers to control_nodes
+    struct u64_hash_table definitions_by_v_reg;
+    //key: v register number, value: u64_set of pointers control_nodes
+    struct u64_hash_table node_uses_by_v_reg;
 };
 
 //Removes the references in the struct lox_ir data structure to the ssa_name. It doest
@@ -48,3 +52,5 @@ struct lox_ir_type * get_type_by_ssa_name_lox_ir(struct lox_ir *lox_ir, struct l
 void put_type_by_ssa_name_lox_ir(struct lox_ir *lox_ir, struct lox_ir_block *block, struct ssa_name ssa_name, struct lox_ir_type *new_type);
 
 struct v_register alloc_v_register_lox_ir(struct lox_ir*, bool);
+void add_v_register_use_lox_ir(struct lox_ir *lox_ir, int, struct lox_ir_control_node*);
+void add_v_register_definition_lox_ir(struct lox_ir *lox_ir, int, struct lox_ir_control_node*);

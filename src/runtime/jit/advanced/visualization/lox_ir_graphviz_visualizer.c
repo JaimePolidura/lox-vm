@@ -794,13 +794,13 @@ static char * ll_operand_to_string(struct lox_ir_ll_operand operand) {
     switch (operand.type) {
         case LOX_IR_LL_OPERAND_IMMEDIATE: {
             char * operator_prefix = operand.immedate < 0 ? "-" : "";
-            return dynamic_format_string("%s%ll", operator_prefix, operand.immedate);
+            return dynamic_format_string("%s%lli", operator_prefix, operand.immedate);
         }
         case LOX_IR_LL_OPERAND_FLAGS: return "flags";
         case LOX_IR_LL_OPERAND_REGISTER: {
             char * reg_size_string = register_size_to_string(operand.v_register.register_bit_size);
             char * fp_reg_string = operand.v_register.is_float_register ? "#" : "";
-            return dynamic_format_string("v%s%i %s", operand.v_register.number, fp_reg_string, reg_size_string);
+            return dynamic_format_string("v%s%i%s", fp_reg_string, operand.v_register.number, reg_size_string);
         }
         case LOX_IR_LL_OPERAND_MEMORY_ADDRESS: {
             char * address_string = ll_operand_to_string(*operand.memory_address.address);
@@ -826,11 +826,11 @@ static char * register_size_to_string(uint64_t reg_size) {
     if(reg_size == 64){
         return "";
     } else if(reg_size == 32) {
-        return "DWORD";
+        return " DWORD";
     } else if(reg_size == 16) {
-        return "WORD";
+        return " WORD";
     } else if(reg_size == 8) {
-        return "BYTE";
+        return " BYTE";
     } else {
         //TODO Panic
     }

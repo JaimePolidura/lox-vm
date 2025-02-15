@@ -81,6 +81,7 @@ uint64_t hash_lox_ir_data_node(struct lox_ir_data_node*);
 //Example: (a + b) == (b + a) Or ((a + b) + c) == (b + (a + c))
 bool is_eq_lox_ir_data_node(struct lox_ir_data_node*, struct lox_ir_data_node*, struct lox_allocator*);
 struct u64_set get_used_ssa_names_lox_ir_data_node(struct lox_ir_data_node*, struct lox_allocator*);
+struct u64_set get_used_v_registers_lox_ir_data_node(struct lox_ir_data_node*, struct lox_allocator*);
 //A terminator control is a control that has no children
 bool is_terminator_lox_ir_data_node(struct lox_ir_data_node*);
 //Returns set of pointers to the fields of parent that contains the children pointer. Type: struct lox_ir_data_node **
