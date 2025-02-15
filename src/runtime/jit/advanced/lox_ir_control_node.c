@@ -173,3 +173,13 @@ void mark_as_escaped_lox_ir_control(struct lox_ir_control_node * node) {
         }
     }
 }
+
+bool is_lowered_type_lox_ir_control(struct lox_ir_control_node *node) {
+    return node->type == LOX_IR_CONTROL_NODE_LL_MOVE
+        || node->type == LOX_IR_CONTROL_NODE_LL_BINARY
+        || node->type == LOX_IR_CONTROL_NODE_LL_COMPARATION
+        || node->type == LOX_IR_CONTROL_NODE_LL_UNARY
+        || node->type == LOX_IR_CONTROL_NODE_LL_RETURN
+        || node->type == LOX_IR_CONTROL_NODE_LL_FUNCTION_CALL
+        || node->type == LOX_IR_CONTROL_NODE_LL_COND_FUNCTION_CALL;
+}

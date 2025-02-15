@@ -147,8 +147,9 @@ static void insert_ssa_versions_in_control_node(
         struct lox_ir_control_define_ssa_name_node * define_ssa_name = (struct lox_ir_control_define_ssa_name_node *) control_node;
         uint8_t local_number = (uint8_t) set_local->local_number;
 
-        uint8_t new_version = allocate_new_version(&inserter->max_version_allocated_per_local, local_number);
+        define_ssa_name->value = set_local->new_local_value;
         define_ssa_name->control.type = LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME;
+        uint8_t new_version = allocate_new_version(&inserter->max_version_allocated_per_local, local_number);
         struct ssa_name ssa_name = CREATE_SSA_NAME(local_number, new_version);
         define_ssa_name->ssa_name = ssa_name;
 

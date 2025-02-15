@@ -143,10 +143,11 @@ static struct block_graph_generated generate_block_graph(struct lox_ir_visualize
 
 static int generate_control_node_graph(struct lox_ir_visualizer * visualizer, struct lox_ir_control_node * node) {
     int self_control_node_id = visualizer->next_control_node_id++;
+
     switch (node->type) {
         case LOX_IR_CONTROL_NODE_SET_V_REGISTER: {
             struct lox_ir_control_set_v_register_node * set_v_reg = (struct lox_ir_control_set_v_register_node *) node;
-            char * node_desc = dynamic_format_string("Set VRegister %i", set_v_reg->v_register);
+            char * node_desc = dynamic_format_string("Set VRegister %i", set_v_reg->v_register.number);
             add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
             if(!IS_FLAG_SET(visualizer->graphviz_options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
                 int data_node_id = generate_data_node_graph(visualizer, set_v_reg->value);
@@ -562,7 +563,7 @@ static int generate_data_node_graph(struct lox_ir_visualizer * visualizer, struc
         }
         case LOX_IR_DATA_NODE_GET_V_REGISTER: {
             struct lox_ir_data_get_v_register_node * get_v_reg = (struct lox_ir_data_get_v_register_node *) node;
-            char * node_desc = dynamic_format_string("GetVRegister %i", get_v_reg->v_register);
+            char * node_desc = dynamic_format_string("GetVRegister %i", get_v_reg->v_register.number);
             node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);

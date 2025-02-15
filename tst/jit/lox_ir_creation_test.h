@@ -16,6 +16,32 @@ static bool node_uses_phi_versions(struct lox_ir_data_node * start_node, int n_e
 static bool node_defines_ssa_name(struct lox_ir_control_node *, int version);
 static void run(struct compilation_result);
 
+TEST(lox_ir_lowerer_ptr) {
+    struct compilation_result compilation = compile_standalone(
+            "fun function() {"
+            "   for(var i = 0; i < 10; i = i + 1) {"
+            "       print i;"
+            "   }"
+            "}"
+    );
+
+    struct package * package = compilation.compiled_package;
+
+    //Set global variables
+    struct function_object * function = get_function_package(package, "function");
+    init_function_profile_data(function);
+
+    //Observe the generated graph IR
+    visualize_lox_ir(
+            package,
+            function,
+            LOWERING_LOX_IR_VISUALIZATION,
+            DEFAULT_GRAPHVIZ_OPT,
+            LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
+            "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
+    );
+}
+
 TEST(lox_ir_creation_pr) {
 //    struct compilation_result compilation = compile_standalone(
 //            "fun function() {"

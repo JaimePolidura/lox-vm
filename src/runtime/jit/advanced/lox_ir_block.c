@@ -178,16 +178,22 @@ void add_after_control_node_lox_ir_block(
     record_new_node_information_of_block(block, new);
     reset_loop_info(block);
 
+    if(block->first == NULL){
+        block->first = new;
+    }
     if (block->last == after) {
         block->last = new;
     }
-    if (after->next != NULL) {
+    if (after != NULL && after->next != NULL) {
         new->next = after->next;
         after->next->prev = new;
     }
 
     new->prev = after;
-    after->next = new;
+
+    if (after != NULL) {
+        after->next = new;
+    }
 }
 
 void add_before_control_node_lox_ir_block(

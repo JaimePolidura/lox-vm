@@ -62,12 +62,16 @@ struct u64_set get_used_ssa_names_lox_ir_control(struct lox_ir_control_node *con
 struct u64_set get_children_lox_ir_control(struct lox_ir_control_node *control_node);
 void mark_as_escaped_lox_ir_control(struct lox_ir_control_node *node);
 bool is_marked_as_escaped_lox_ir_control(struct lox_ir_control_node *node);
+bool is_lowered_type_lox_ir_control(struct lox_ir_control_node *node);
 
 //OP_SET_LOCAL
 struct lox_ir_control_set_local_node {
     struct lox_ir_control_node control;
     uint32_t local_number; //Same size as ssa_name
     struct lox_ir_data_node * new_local_value;
+    //Padding to make define_ssa_name and set_local_node have the same memory size, so that it can be replaced without creating a new node
+    // in phi_inserter.h
+    uint8_t padding[8];
 };
 
 struct lox_ir_control_data_node {
@@ -150,8 +154,11 @@ struct lox_ir_control_conditional_jump_node {
 struct lox_ir_control_define_ssa_name_node {
     struct lox_ir_control_node control;
 
-    struct ssa_name ssa_name;
     struct lox_ir_data_node * value;
+    struct ssa_name ssa_name;
+    //Padding to make define_ssa_name and set_v_reg have the same memory size, so that it can be replaced without creating a new node
+    // in phi_resolver.h
+    uint8_t padding[8];
 };
 
 struct lox_ir_control_guard_node {

@@ -11,6 +11,7 @@
 #include "runtime/jit/advanced/optimizations/type_propagation.h"
 #include "runtime/jit/advanced/optimizations/escape_analysis.h"
 #include "runtime/jit/advanced/phi_resolution/phi_resolver.h"
+#include "runtime/jit/advanced/ir_lowerer/ir_lowerer.h"
 
 #include "runtime/jit/advanced/creation/no_phis_creator.h"
 #include "runtime/jit/advanced/creation/phi_inserter.h"
@@ -22,6 +23,5 @@
 #include "shared/package.h"
 #include "shared.h"
 
-//All visualization phases from NO_PHIS_PHASE_LOX_IR_VISUALIZATION to PHI_RESOLUTION_PHASE_LOX_IR_VISUALIZATION (inclusive)
 //will generate a graph in graphviz format
 void generate_graph_visualization_lox_ir(struct lox_ir_visualizer *, struct lox_ir_block * first_block);

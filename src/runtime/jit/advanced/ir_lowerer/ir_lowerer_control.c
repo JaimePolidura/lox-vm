@@ -243,5 +243,5 @@ void lower_lox_ir_control_set_v_reg(struct lllil_control * lllil) {
     move->to = V_REG_TO_OPERAND(set_v_reg->v_register);
     move->from = new_value;
 
-    replace_control_node_lox_ir_block(control->block, control, &move->control);
+    add_lowered_node_lllil_control(lllil, &move->control);
 }

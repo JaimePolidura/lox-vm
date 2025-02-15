@@ -26,7 +26,6 @@ bool lower_lox_ir_block(struct lox_ir_block * block, void * extra) {
     struct lllil * lllil = extra;
 
     add_u64_set(&lllil->processed_blocks, (uint64_t) block);
-
     if (!all_predecessors_have_been_scanned(lllil, block)) {
         return false;
     }
@@ -34,14 +33,20 @@ bool lower_lox_ir_block(struct lox_ir_block * block, void * extra) {
     merge_predecessors_stack_slots(lllil, block);
 
     for (struct lox_ir_control_node * current = block->first;;current = current->next) {
+        if (is_lowered_type_lox_ir_control(current)) {
+            continue;
+        }
+
         struct lllil_control lllil_control = (struct lllil_control) {
             .control_node_to_lower = current,
+            .last_node_lowered = NULL,
             .lllil = lllil,
         };
 
+        remove_control_node_lox_ir_block(block, current);
         lower_lox_ir_control(&lllil_control);
-
-        if (current == block->last) {
+        
+        if (current->next == NULL) {
             break;
         }
     }

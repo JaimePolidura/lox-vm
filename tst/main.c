@@ -53,6 +53,7 @@ int main() {
     lox_ir_data_node_hash_outer();
 #endif
 #ifdef RUN_LOX_IR_CREATION_TEST
+    lox_ir_lowerer_ptr_outer();
 //    lox_ir_creation_pr_outer();
 //    lox_ir_creation_ea_outer();
 //    lox_ir_creation_ta_outer();
