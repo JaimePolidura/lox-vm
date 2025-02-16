@@ -36,7 +36,7 @@ TEST(lox_ir_lowerer_ptr) {
             package,
             function,
             LOWERING_LOX_IR_VISUALIZATION,
-            DEFAULT_GRAPHVIZ_OPT,
+            DISPLAY_TYPE_INFO_OPT,
             LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
     );

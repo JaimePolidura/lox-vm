@@ -842,6 +842,8 @@ static char * ll_unary_operator_to_string(unary_operator_type_ll_lox_ir operator
         case UNARY_LL_LOX_IR_NUMBER_NEGATION: return "neg";
         case UNARY_LL_LOX_IR_F64_TO_I64_CAST: return "fp2int";
         case UNARY_LL_LOX_IR_I64_TO_F64_CAST: return "int2fp";
+        case UNARY_LL_LOX_IR_INC: return "inc";
+        case UNARY_LL_LOX_IR_DEC: return "dec";
         default: //TODO Panic
     }
 }

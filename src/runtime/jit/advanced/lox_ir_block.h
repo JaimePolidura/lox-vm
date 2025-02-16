@@ -89,7 +89,7 @@ enum {
     LOX_IR_BLOCK_OPT_REPEATED = 1 << 1, //A block can be called only once
 };
 //If the callback returns false, the next blocks from the current block won't be scanned.
-void for_each_lox_ir_block(struct lox_ir_block *start_block, struct lox_allocator *allocator, void * extra, long options, lox_ir_block_consumer_t consumer);
+void for_each_lox_ir_block(struct lox_ir_block*,struct lox_allocator*,void*,long,lox_ir_block_consumer_t);
 
 //Replaces references to old_block of the predecessors of old_block to point to new_block
 //Example: A -> B -> C. replace_block_lox_ir_block(old_block = B, new_block = C), the result: A -> C

@@ -14,6 +14,8 @@ void lower_lox_ir_control_conditional_jump(struct lllil_control*);
 void lower_lox_ir_control_guard(struct lllil_control*);
 void lower_lox_ir_control_set_v_reg(struct lllil_control*);
 
+static bool is_redundant_register_move(struct lox_ir_ll_operand, struct lox_ir_control_set_v_register_node*);
+
 extern void enter_monitor(struct monitor * monitor);
 extern void exit_monitor(struct monitor * monitor);
 extern void set_self_thread_runnable();
@@ -237,11 +239,17 @@ void lower_lox_ir_control_set_v_reg(struct lllil_control * lllil) {
 
     struct lox_ir_ll_operand new_value = lower_lox_ir_data(lllil, set_v_reg->value, LOX_IR_TYPE_UNKNOWN);
 
-    struct lox_ir_control_ll_move * move = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_LL_MOVE,
-            struct lox_ir_control_ll_move, control->block, LOX_IR_ALLOCATOR(lllil->lllil->lox_ir));
+    if (!is_redundant_register_move(new_value, set_v_reg)) {
+        struct lox_ir_control_ll_move * move = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_LL_MOVE,
+                struct lox_ir_control_ll_move, control->block, LOX_IR_ALLOCATOR(lllil->lllil->lox_ir));
+        move->to = V_REG_TO_OPERAND(set_v_reg->v_register);
+        move->from = new_value;
 
-    move->to = V_REG_TO_OPERAND(set_v_reg->v_register);
-    move->from = new_value;
+        add_lowered_node_lllil_control(lllil, &move->control);
+    }
+}
 
-    add_lowered_node_lllil_control(lllil, &move->control);
+static bool is_redundant_register_move(struct lox_ir_ll_operand operand, struct lox_ir_control_set_v_register_node * set_v_reg) {
+    return operand.type == LOX_IR_LL_OPERAND_REGISTER
+        && operand.v_register.number == set_v_reg->v_register.number;
 }

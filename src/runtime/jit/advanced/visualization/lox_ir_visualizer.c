@@ -126,6 +126,7 @@ void visualize_lox_ir(
             graphviz_visualizer.lox_ir = lox_ir;
             perform_type_propagation(&lox_ir);
             perform_unboxing_insertion(&lox_ir);
+            perform_copy_propagation(&lox_ir);
             resolve_phi(&lox_ir);
 
             generate_graph_visualization_lox_ir(&graphviz_visualizer, lox_ir.first_block);
@@ -134,9 +135,9 @@ void visualize_lox_ir(
         case LOWERING_LOX_IR_VISUALIZATION: {
             struct lox_ir lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
                     &node_allocator.lox_allocator), graphviz_visualizer.options);
-
             perform_type_propagation(&lox_ir);
             perform_unboxing_insertion(&lox_ir);
+            perform_copy_propagation(&lox_ir);
             resolve_phi(&lox_ir);
             lower_lox_ir(&lox_ir);
 

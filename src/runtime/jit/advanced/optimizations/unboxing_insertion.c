@@ -133,7 +133,7 @@ static void perform_unboxing_insertion_data(
     if (data_node_should_produce_boxed_output && data_node_produces_unboxed_output) {
         insert_box_node(ui, data_node, parent_data_node_ptr);
     }
-    if(data_node_produces_boxed_output && is_lox_lox_ir_type(data_node->produced_type->type)){
+    if(data_node_produces_boxed_output || is_lox_lox_ir_type(data_node->produced_type->type)){
         data_node->produced_type->type = lox_type_to_native_lox_ir_type(data_node->produced_type->type);
     }
 }

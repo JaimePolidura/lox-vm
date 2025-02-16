@@ -243,13 +243,16 @@ lox_ir_type_t binary_to_lox_ir_type(bytecode_t operator, lox_ir_type_t left, lox
             bool some_f64 = left == LOX_IR_TYPE_F64 || right == LOX_IR_TYPE_F64;
             bool some_any = left == LOX_IR_TYPE_LOX_ANY || right == LOX_IR_TYPE_LOX_ANY;
             bool some_lox = is_lox_lox_ir_type(left) || is_lox_lox_ir_type(right);
+            bool both_native_i64 = left == LOX_IR_TYPE_NATIVE_I64 && right == LOX_IR_TYPE_NATIVE_I64;
 
             if (some_string) {
                 return return_lox_as_default ? LOX_IR_TYPE_LOX_STRING : LOX_IR_TYPE_NATIVE_STRING;
             } else if (some_any) {
                 return LOX_IR_TYPE_LOX_ANY;
-            } else if(some_f64){
+            } else if(some_f64) {
                 return LOX_IR_TYPE_F64;
+            } else if (both_native_i64) {
+                return LOX_IR_TYPE_NATIVE_I64;
             } else {
                 return return_lox_as_default ? LOX_IR_TYPE_LOX_I64 : LOX_IR_TYPE_NATIVE_I64;
             }

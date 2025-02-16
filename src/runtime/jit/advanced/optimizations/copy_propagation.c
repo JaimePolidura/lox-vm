@@ -289,7 +289,7 @@ static struct pending_to_cp * create_pending_v_register(struct cp * cp, int v_re
 
 static struct u64_set * get_definitions(struct cp * cp, struct pending_to_cp * pending_to_cp) {
     if (pending_to_cp->is_ssa_name) {
-        struct lox_ir_control_node * definition = get_u64_hash_table(&cp->lox_ir->node_uses_by_ssa_name, pending_to_cp->ssa_name.u16);
+        struct lox_ir_control_node * definition = get_u64_hash_table(&cp->lox_ir->definitions_by_ssa_name, pending_to_cp->ssa_name.u16);
         struct u64_set * single_definition_set = LOX_MALLOC(&cp->cp_allocator.lox_allocator, sizeof(struct u64_set));
         init_u64_set(single_definition_set, &cp->cp_allocator.lox_allocator);
         add_u64_set(single_definition_set, (uint64_t) definition);

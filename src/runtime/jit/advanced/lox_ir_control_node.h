@@ -220,6 +220,8 @@ typedef enum {
     UNARY_LL_LOX_IR_NUMBER_NEGATION, //ca2 Number negation operation
     UNARY_LL_LOX_IR_F64_TO_I64_CAST,
     UNARY_LL_LOX_IR_I64_TO_F64_CAST,
+    UNARY_LL_LOX_IR_INC, //Only works for native i64
+    UNARY_LL_LOX_IR_DEC, //Only works for native i64
 } unary_operator_type_ll_lox_ir;
 
 struct lox_ir_control_ll_unary {
