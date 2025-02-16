@@ -95,6 +95,8 @@ void mark_as_escaped_lox_ir_data_node(struct lox_ir_data_node*);
 struct lox_ir_data_get_local_node {
     struct lox_ir_data_node data;
     int local_number;
+    //Same size as get_v_register so that it can be replaced easily in the graph ir
+    uint8_t padding[8];
 };
 
 //OP_CALL
@@ -232,6 +234,8 @@ struct lox_ir_data_phi_node {
 struct lox_ir_data_get_ssa_name_node {
     struct lox_ir_data_node data;
     struct ssa_name ssa_name;
+    //Same size as get_v_register so that it can be replaced easily in the graph ir
+    uint8_t padding[8];
 };
 
 struct lox_ir_data_guard_node {

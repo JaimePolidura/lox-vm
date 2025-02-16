@@ -24,6 +24,7 @@
 #include "shared.h"
 
 //Entry point to visualize the lox ir graph
+//This might leak heap memory, So use it only once
 void visualize_lox_ir(
         struct package * package,
         struct function_object * function,

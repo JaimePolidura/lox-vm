@@ -195,7 +195,6 @@ static int generate_control_node_graph(struct lox_ir_visualizer * visualizer, st
             char * node_desc = dynamic_format_string("EnterMonitor %i\\n0x", enter_monitor->monitor_number, enter_monitor->monitor);
 
             add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
-            free(node_desc);
             break;
         }
         case LOX_IR_CONTROL_NODE_EXIT_MONITOR: {
@@ -203,7 +202,6 @@ static int generate_control_node_graph(struct lox_ir_visualizer * visualizer, st
             char * node_desc = dynamic_format_string("ExitMonitor %i\\n0x", exit_monitor->monitor_number, exit_monitor->monitor);
 
             add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
-            free(node_desc);
             break;
         }
         case LOX_IR_CONTORL_NODE_SET_GLOBAL: {
@@ -213,7 +211,6 @@ static int generate_control_node_graph(struct lox_ir_visualizer * visualizer, st
             char * node_desc = dynamic_format_string("SetGlobal\\npackage: %s\\nname: %s", package_name, global_name);
 
             add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
-            free(node_desc);
             if(!IS_FLAG_SET(visualizer->graphviz_options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
                 int global_value_data_node_id = generate_data_node_graph(visualizer, set_global->value_node);
                 link_control_data_node_graphviz_file(visualizer, self_control_node_id, global_value_data_node_id);
@@ -226,7 +223,6 @@ static int generate_control_node_graph(struct lox_ir_visualizer * visualizer, st
             char * node_desc = dynamic_format_string("SetLocal %s", local_name);
 
             add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
-            free(node_desc);
             if(!IS_FLAG_SET(visualizer->graphviz_options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
                 int local_value_data_node_id = generate_data_node_graph(visualizer, set_local->new_local_value);
                 link_control_data_node_graphviz_file(visualizer, self_control_node_id, local_value_data_node_id);
@@ -238,7 +234,6 @@ static int generate_control_node_graph(struct lox_ir_visualizer * visualizer, st
             char * node_desc = dynamic_format_string("SetStructField %s", set_struct_field->field_name->chars);
 
             add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
-            free(node_desc);
             if(!IS_FLAG_SET(visualizer->graphviz_options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
                 int field_value_data_node_id = generate_data_node_graph(visualizer, set_struct_field->new_field_value);
                 int struct_instance_data_node_id = generate_data_node_graph(visualizer, set_struct_field->instance);
@@ -252,7 +247,6 @@ static int generate_control_node_graph(struct lox_ir_visualizer * visualizer, st
             char * node_desc = dynamic_format_string("SetArrayElement");
 
             add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
-            free(node_desc);
             if(!IS_FLAG_SET(visualizer->graphviz_options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
                 int array_element_data_node_id = generate_data_node_graph(visualizer, set_array_element->new_element_value);
                 int array_instance_data_node_id = generate_data_node_graph(visualizer, set_array_element->array);
@@ -268,7 +262,6 @@ static int generate_control_node_graph(struct lox_ir_visualizer * visualizer, st
             char * node_desc = dynamic_format_string("ConditionalJump");
             
             add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
-            free(node_desc);
             if(!IS_FLAG_SET(visualizer->graphviz_options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
                 int condition_data_node_id = generate_data_node_graph(visualizer, cond_jump->condition);
                 link_control_data_node_graphviz_file(visualizer, self_control_node_id, condition_data_node_id);
@@ -281,7 +274,6 @@ static int generate_control_node_graph(struct lox_ir_visualizer * visualizer, st
             char * node_desc = dynamic_format_string("DefineSSA %s %i", local_name, define_ssa_name->ssa_name.value.version);
 
             add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
-            free(node_desc);
             long b = NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT;
             if(!IS_FLAG_SET(visualizer->graphviz_options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
                 int ssa_name_value_data_node_id = generate_data_node_graph(visualizer, define_ssa_name->value);
@@ -316,7 +308,7 @@ static int generate_control_node_graph(struct lox_ir_visualizer * visualizer, st
             char * right = ll_operand_to_string(comparation->right);
             char * left = ll_operand_to_string(comparation->left);
 
-            char * node_desc = dynamic_format_string("\tCmp %s, %s, %s", comparation_type, left, right);
+            char * node_desc = dynamic_format_string("\tCmp %s, %s, %s",left, right, comparation_type);
             add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
             break;
         }
@@ -374,7 +366,6 @@ static int generate_data_node_graph(struct lox_ir_visualizer * visualizer, struc
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             link_data_data_node_graphviz_file(visualizer, self_data_node_id, guard_value_node_id);
-            free(node_desc);
             break;
         }
         case LOX_IR_DATA_NODE_UNARY: {
@@ -385,7 +376,6 @@ static int generate_data_node_graph(struct lox_ir_visualizer * visualizer, struc
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             link_data_data_node_graphviz_file(visualizer, self_data_node_id, unary_value_node_id);
-            free(node_desc);
             break;
         }
         case LOX_IR_DATA_NODE_BINARY: {
@@ -398,7 +388,6 @@ static int generate_data_node_graph(struct lox_ir_visualizer * visualizer, struc
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             link_data_data_node_graphviz_file(visualizer, self_data_node_id, left_node_id);
             link_data_data_node_graphviz_file(visualizer, self_data_node_id, right_node_id);
-            free(node_desc);
             break;
         }
         case LOX_IR_DATA_NODE_CALL: {
@@ -412,7 +401,6 @@ static int generate_data_node_graph(struct lox_ir_visualizer * visualizer, struc
                 int function_arg_node_id = generate_data_node_graph(visualizer, call->arguments[i]);
                 link_data_data_node_graphviz_file(visualizer, self_data_node_id, function_arg_node_id);
             }
-            free(node_desc);
             break;
         }
         case LOX_IR_DATA_NODE_GET_STRUCT_FIELD: {
@@ -424,7 +412,6 @@ static int generate_data_node_graph(struct lox_ir_visualizer * visualizer, struc
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             link_data_data_node_graphviz_file(visualizer, self_data_node_id, struct_instance_node_id);
-            free(node_desc);
             break;
         }
         case LOX_IR_DATA_NODE_INITIALIZE_STRUCT: {
@@ -438,7 +425,6 @@ static int generate_data_node_graph(struct lox_ir_visualizer * visualizer, struc
                 int struct_field_node_id = generate_data_node_graph(visualizer, initialize_struct->fields_nodes[i]);
                 link_data_data_node_graphviz_file(visualizer, self_data_node_id, struct_field_node_id);
             }
-            free(node_desc);
             break;
         }
         case LOX_IR_DATA_NODE_GET_ARRAY_LENGTH: {
@@ -470,7 +456,6 @@ static int generate_data_node_graph(struct lox_ir_visualizer * visualizer, struc
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             int unboxed_value_node_id = generate_data_node_graph(visualizer, unbox->to_unbox);
             link_data_data_node_graphviz_file(visualizer, self_data_node_id, unboxed_value_node_id);
-            free(node_desc);
             break;
         }
         case LOX_IR_DATA_NODE_BOX: {
@@ -481,7 +466,6 @@ static int generate_data_node_graph(struct lox_ir_visualizer * visualizer, struc
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             int boxed_value_node_id = generate_data_node_graph(visualizer, box->to_box);
             link_data_data_node_graphviz_file(visualizer, self_data_node_id, boxed_value_node_id);
-            free(node_desc);
             break;
         }
         case LOX_IR_DATA_NODE_INITIALIZE_ARRAY: {
@@ -495,7 +479,6 @@ static int generate_data_node_graph(struct lox_ir_visualizer * visualizer, struc
                 int array_element_node_id = generate_data_node_graph(visualizer, initialize_array->elememnts[i]);
                 link_data_data_node_graphviz_file(visualizer, self_data_node_id, array_element_node_id);
             }
-            free(node_desc);
             break;
         }
         case LOX_IR_DATA_NODE_PHI: {
@@ -520,7 +503,6 @@ static int generate_data_node_graph(struct lox_ir_visualizer * visualizer, struc
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             free_string_builder(&node_desc_string_builder);
-            free(node_desc);
             break;
         }
         case LOX_IR_DATA_NODE_CONSTANT: {
@@ -537,7 +519,6 @@ static int generate_data_node_graph(struct lox_ir_visualizer * visualizer, struc
             node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
-            free(node_desc);
             break;
         }
         case LOX_IR_DATA_NODE_GET_GLOBAL: {
@@ -548,7 +529,6 @@ static int generate_data_node_graph(struct lox_ir_visualizer * visualizer, struc
             node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
-            free(node_desc);
             break;
         }
         case LOX_IR_DATA_NODE_GET_SSA_NAME: {
@@ -558,7 +538,6 @@ static int generate_data_node_graph(struct lox_ir_visualizer * visualizer, struc
             node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
-            free(node_desc);
             break;
         }
         case LOX_IR_DATA_NODE_GET_V_REGISTER: {
@@ -567,7 +546,6 @@ static int generate_data_node_graph(struct lox_ir_visualizer * visualizer, struc
             node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
-            free(node_desc);
             break;
         }
     }
@@ -595,25 +573,21 @@ void link_block_block_node_graphviz_file(
 void link_data_data_label_node_graphviz_file(struct lox_ir_visualizer * visualizer, char * label, int from, int to) {
     char * link_node_text = dynamic_format_string("\t\tdata_%i -> data_%i [label=\"%s\"];", from, to, label);
     add_new_line_lox_ir_visualizer(visualizer, dynamic_format_string(link_node_text));
-    free(link_node_text);
 }
 
 void link_data_data_node_graphviz_file(struct lox_ir_visualizer * visualizer, int from, int to) {
     char * link_node_text = dynamic_format_string("\t\tdata_%i -> data_%i;", from, to);
     add_new_line_lox_ir_visualizer(visualizer, dynamic_format_string(link_node_text));
-    free(link_node_text);
 }
 
 void link_control_data_node_graphviz_file(struct lox_ir_visualizer * visualizer, int from, int to) {
     char * link_node_text = dynamic_format_string("\t\tcontrol_%i -> data_%i;", from, to);
     add_new_line_lox_ir_visualizer(visualizer, dynamic_format_string(link_node_text));
-    free(link_node_text);
 }
 
 void link_control_data_node_label_graphviz_file(struct lox_ir_visualizer * visualizer, char * label, int from, int to) {
     char * link_node_text = dynamic_format_string("\t\tcontrol_%i -> data_%i [label=\"%s\"];", from, to, label);
     add_new_line_lox_ir_visualizer(visualizer, dynamic_format_string(link_node_text));
-    free(link_node_text);
 }
 
 void link_control_control_label_node_graphviz_file(struct lox_ir_visualizer * visualizer, char * label, int from, int to) {
@@ -622,7 +596,6 @@ void link_control_control_label_node_graphviz_file(struct lox_ir_visualizer * vi
     if(!contains_u64_set(&visualizer->blocks_edges_generated, edge.u64_value)){
         char * link_node_text = dynamic_format_string("\t\tcontrol_%i -> control_%i [penwidth=3, label=\"%s\"];", from, to, label);
         add_new_line_lox_ir_visualizer(visualizer, dynamic_format_string(link_node_text));
-        free(link_node_text);
         add_u64_set(&visualizer->blocks_edges_generated, edge.u64_value);
     }
 }
@@ -633,7 +606,6 @@ void link_control_control_node_graphviz_file(struct lox_ir_visualizer * visualiz
     if(!contains_u64_set(&visualizer->blocks_edges_generated, edge.u64_value)){
         char * link_node_text = dynamic_format_string("\t\tcontrol_%i -> control_%i [penwidth=3];", from, to);
         add_new_line_lox_ir_visualizer(visualizer, dynamic_format_string(link_node_text));
-        free(link_node_text);
         add_u64_set(&visualizer->blocks_edges_generated, edge.u64_value);
     }
 }
@@ -647,16 +619,12 @@ void add_guard_control_node_graphviz_file(struct lox_ir_visualizer * visualizer,
     char * guard_desc = guard_node_to_string(guard_node->guard);
     char * node_desc = dynamic_format_string("Guard %s\n", guard_desc);
     fprintf(visualizer->file, "\t\tcontrol_%i [label=\"%s\", style=filled, fillcolor=orange, shape=rectangle];\n", control_node_id, node_desc);
-    free(node_desc);
-    free(guard_desc);
 }
 
 void add_guard_data_node_graphviz_file(struct lox_ir_visualizer * visualizer, struct lox_ir_data_guard_node * guard_node, int data_node_id) {
     char * guard_desc = guard_node_to_string(guard_node->guard);
     char * node_desc = dynamic_format_string("Guard %s\n", guard_desc);
     fprintf(visualizer->file, "\t\tdata_%i [label=\"%s\", style=filled, fillcolor=orange];\n", data_node_id, node_desc);
-    free(node_desc);
-    free(guard_desc);
 }
 
 void add_control_node_graphviz_file(struct lox_ir_visualizer * visualizer, char * name, int control_node_id) {

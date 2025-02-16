@@ -1,15 +1,7 @@
 #include "phi_resolver.h"
 
-#define TO_NUMBER_V_REGISTER(v_reg) ((v_reg).number << 32 | (uint8_t) (v_reg).is_float_register)
-#define FROM_NUMBER_V_REGISTER(v_reg_number) ((struct v_register) { \
-    .is_float_register = (bool) ((v_reg_number) & 0x01), \
-    .number = (v_reg_number) >> 32, \
-    .register_bit_size = 64, \
-})
-
 struct pr {
     struct u64_hash_table v_register_by_local_number;
-    uint16_t last_v_regiser_allocated;
 
     struct arena_lox_allocator ps_allocator;
     struct lox_ir * lox_ir;
@@ -43,8 +35,6 @@ void resolve_phi(struct lox_ir * lox_ir) {
             LOX_IR_BLOCK_OPT_REPEATED,
             resolve_phi_block
     );
-
-    lox_ir->last_v_reg_allocated = phi_resolver->last_v_regiser_allocated;
 
     free_phi_resolver(phi_resolver);
 }
@@ -137,8 +127,12 @@ static struct pr * alloc_phi_resolver(struct lox_ir * lox_ir) {
     init_arena(&arena);
     pr->lox_ir = lox_ir;
     pr->ps_allocator = to_lox_allocator_arena(arena);
-    pr->last_v_regiser_allocated = 0;
     init_u64_hash_table(&pr->v_register_by_local_number, &pr->ps_allocator.lox_allocator);
+
+    lox_ir->last_v_reg_allocated = lox_ir->function->n_arguments;
+    for (int i = 0; i < lox_ir->function->n_arguments; i++) {
+        put_u64_hash_table(&pr->v_register_by_local_number, i + 1, (void *) i);
+    }
 
     return pr;
 }
@@ -151,9 +145,11 @@ static void free_phi_resolver(struct pr * pr) {
 static struct v_register get_v_reg_by_ssa_name(struct pr * pr, struct ssa_name ssa_name, bool is_float) {
     if (!contains_u64_hash_table(&pr->v_register_by_local_number, ssa_name.value.local_number)) {
         struct v_register new_v_reg = alloc_v_register_lox_ir(pr->lox_ir, is_float);
-        put_u64_hash_table(&pr->v_register_by_local_number, ssa_name.value.local_number, (void *) TO_NUMBER_V_REGISTER(new_v_reg));
+        put_u64_hash_table(&pr->v_register_by_local_number, ssa_name.value.local_number, (void *) new_v_reg.number);
     }
 
     uint64_t v_reg_as_number = (uint64_t) get_u64_hash_table(&pr->v_register_by_local_number, ssa_name.value.local_number);
-    return FROM_NUMBER_V_REGISTER(v_reg_as_number);
+    struct v_register v_register = CREATE_V_REG_BY_NUMBER(v_reg_as_number);
+    v_register.is_float_register = is_float;
+    return v_register;
 }
