@@ -133,8 +133,8 @@ static void remove_death_branch(struct scp * scp, struct lox_ir_control_node * b
     bool branch_condition_folded = AS_BOOL(GET_CONST_VALUE_LOX_IR_NODE(cond_jump->condition));
     bool remove_true_branch = !branch_condition_folded;
 
-    struct branch_removed branch_removed = remove_branch_lox_ir_block(branch_node->block, remove_true_branch,
-                                                                      GET_SCP_ALLOCATOR(scp));
+    struct branch_removed branch_removed = remove_block_branch_lox_ir(scp->lox_ir, branch_node->block, remove_true_branch,
+            GET_SCP_ALLOCATOR(scp));
 
     FOR_EACH_U64_SET_VALUE(branch_removed.ssa_name_definitions_removed, removed_ssa_definition_u64) {
         struct ssa_name removed_ssa_definition = CREATE_SSA_NAME_FROM_U64(removed_ssa_definition_u64);

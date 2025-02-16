@@ -76,12 +76,13 @@ void add_before_control_node_lox_ir_block(struct lox_ir_block *block, struct lox
 //If after is NULL, the node will be added as the first node in the block
 void add_after_control_node_lox_ir_block(struct lox_ir_block *block, struct lox_ir_control_node * after, struct lox_ir_control_node * new);
 void replace_control_node_lox_ir_block(struct lox_ir_block*, struct lox_ir_control_node* prev, struct lox_ir_control_node* new);
-void remove_control_node_lox_ir_block(struct lox_ir_block *lox_ir_block, struct lox_ir_control_node *node_to_remove);
 bool is_emtpy_lox_ir_block(struct lox_ir_block *block);
-//a dominates b
-bool dominates_lox_ir_block(struct lox_ir_block * a, struct lox_ir_block * b, struct lox_allocator *allocator);
-struct u64_set get_dominator_set_lox_ir_block(struct lox_ir_block *block, struct lox_allocator *allocator);
 struct lox_ir_block_loop_info * get_loop_info_lox_ir_block(struct lox_ir_block *block, struct lox_allocator *allocator);
+//These methods are only used by lox_ir:
+void record_removed_node_information_of_block(struct lox_ir_block*,struct lox_ir_control_node*);
+void reset_loop_info(struct lox_ir_block*);
+//Returns set of pointers to struct lox_ir_block*
+struct u64_set get_successors_lox_ir_block(struct lox_ir_block*, struct lox_allocator*);
 
 typedef bool (*lox_ir_block_consumer_t)(struct lox_ir_block *, void *);
 enum {
@@ -94,11 +95,5 @@ void for_each_lox_ir_block(struct lox_ir_block*,struct lox_allocator*,void*,long
 //Replaces references to old_block of the predecessors of old_block to point to new_block
 //Example: A -> B -> C. replace_block_lox_ir_block(old_block = B, new_block = C), the result: A -> C
 void replace_block_lox_ir_block(struct lox_ir_block * old_block, struct lox_ir_block * new_block);
-//Removes a true/false branch/block and the subsequent children of the branch/block to remove (subgraph)
-struct branch_removed {
-    struct u64_set ssa_name_definitions_removed;
-    struct u64_set blocks_removed;
-};
-struct branch_removed remove_branch_lox_ir_block(struct lox_ir_block * branch_block, bool true_branch, struct lox_allocator *lox_allocator);
 
 type_next_lox_ir_block_t get_type_next_lox_ir_block(struct lox_ir_control_node *node);

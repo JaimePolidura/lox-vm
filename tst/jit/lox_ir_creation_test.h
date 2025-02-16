@@ -19,8 +19,9 @@ static void run(struct compilation_result);
 TEST(lox_ir_lowerer_ptr) {
     struct compilation_result compilation = compile_standalone(
             "fun function() {"
-            "   for(var i = 0; i < 10; i = i + 1) {"
-            "       print i;"
+            "   var a = 1;"
+            "   if(1 > 2) {"
+            "       print a;"
             "   }"
             "}"
     );
@@ -43,24 +44,6 @@ TEST(lox_ir_lowerer_ptr) {
 }
 
 TEST(lox_ir_creation_pr) {
-//    struct compilation_result compilation = compile_standalone(
-//            "fun function() {"
-//            "   var a = 1;"
-//            "   var b = 2;"
-//            "   if(a > b) {"
-//            "       a = 3;"
-//            "       if(b > 5) {"
-//            "           b = 2;"
-//            "       }"
-//            "       print b;"
-//            "   } else {"
-//            "       b = 3;"
-//            "   }"
-//            "   print a;"
-//            "   print b;"
-//            "}"
-//    );
-
     struct compilation_result compilation = compile_standalone(
             "fun function() {"
             "   for(var i = 0; i < 10; i = i + 1) {"

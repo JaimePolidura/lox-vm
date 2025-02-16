@@ -108,7 +108,7 @@ bool perform_cse_data_node_consumer(
                                    &cse->cse_allocator.lox_allocator)){
             return true;
         }
-        if(!dominates_lox_ir_block(subexpression_to_reuse->block, perform_cse_data_node->block,
+        if(!dominates_block_lox_ir(cse->lox_ir, subexpression_to_reuse->block, perform_cse_data_node->block,
                                    &cse->cse_allocator.lox_allocator)){
             return true;
         }

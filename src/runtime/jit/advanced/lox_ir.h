@@ -38,6 +38,25 @@ struct lox_ir {
     struct u64_hash_table node_uses_by_v_reg;
 };
 
+//Removes control node from block. If the control node to remove is the only one in the block, the block will get removed
+//from the lox ir graph
+void remove_block_control_node_lox_ir(struct lox_ir*, struct lox_ir_block*, struct lox_ir_control_node*);
+//Removes block from lox ir graph. Expect:
+// - the block to be removed is not the last one in the lox ir
+// - if the set size of successors size is more than 1, the set size of predecessors is 1 and vice versa, both sets size
+//  cannot exceed 1 at the same time
+// - if the block to remove is the first block of lox ir, the successors set size shouldn't exceeed 1
+void remove_only_block_lox_ir(struct lox_ir*, struct lox_ir_block*);
+//Removes a true/false branch/block and the subsequent children of the branch/block to remove (subgraph)
+struct branch_removed {
+    struct u64_set ssa_name_definitions_removed;
+    struct u64_set blocks_removed;
+};
+struct branch_removed remove_block_branch_lox_ir(struct lox_ir*, struct lox_ir_block*, bool, struct lox_allocator*);
+//a dominates b
+bool dominates_block_lox_ir(struct lox_ir*, struct lox_ir_block*, struct lox_ir_block*, struct lox_allocator*);
+struct u64_set get_block_dominator_set_lox_ir(struct lox_ir*, struct lox_ir_block*, struct lox_allocator*);
+
 //Removes the references in the struct lox_ir data structure to the ssa_name. It doest
 //remove the nodes that uses the jit name
 void remove_names_references_lox_ir(struct lox_ir *lox_ir, struct u64_set removed_ssa_names);

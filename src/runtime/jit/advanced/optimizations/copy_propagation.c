@@ -98,7 +98,7 @@ static void remove_unused_definition(struct cp * cp, struct pending_to_cp * pend
 
 static void remove_unused_v_register_definition(struct cp *cp, struct lox_ir_control_set_v_register_node *definition_to_remove) {
     remove_u64_hash_table(&cp->lox_ir->definitions_by_v_reg, definition_to_remove->v_register.number);
-    remove_control_node_lox_ir_block(definition_to_remove->control.block, &definition_to_remove->control);
+    remove_block_control_node_lox_ir(cp->lox_ir, definition_to_remove->control.block, &definition_to_remove->control);
 
     struct u64_set used_v_registers_in_definition = get_used_v_registers_lox_ir_data_node(definition_to_remove->value,
             &cp->cp_allocator.lox_allocator);
@@ -113,7 +113,7 @@ static void remove_unused_v_register_definition(struct cp *cp, struct lox_ir_con
 
 static void remove_unused_ssa_name_definition(struct cp * cp, struct lox_ir_control_define_ssa_name_node * definition_to_remove) {
     remove_u64_hash_table(&cp->lox_ir->definitions_by_ssa_name, definition_to_remove->ssa_name.u16);
-    remove_control_node_lox_ir_block(definition_to_remove->control.block, &definition_to_remove->control);
+    remove_block_control_node_lox_ir(cp->lox_ir, definition_to_remove->control.block, &definition_to_remove->control);
 
     struct u64_set used_ssa_names_in_definition = get_used_ssa_names_lox_ir_data_node(definition_to_remove->value,
             &cp->cp_allocator.lox_allocator);
@@ -159,7 +159,7 @@ static void replace_redudant_copy(
     struct lox_ir_control_node * definition = (struct lox_ir_control_node *) get_first_value_u64_set(*get_definitions(cp, pending_to_cp));
     struct lox_ir_data_node * redundant_copy_value = get_definition_value(pending_to_cp, definition);
 
-    remove_control_node_lox_ir_block(definition->block, definition);
+    remove_block_control_node_lox_ir(cp->lox_ir, definition->block, definition);
 
     if (pending_to_cp->is_ssa_name) {
         replace_redudant_copy_ssa_name(cp, (struct lox_ir_control_define_ssa_name_node *) definition, copy_dst);
@@ -224,8 +224,6 @@ static void replace_redudant_copy_ssa_name(
 
     remove_u64_hash_table(&cp->lox_ir->definitions_by_ssa_name, copy_src_control->ssa_name.u16);
     remove_u64_hash_table(&cp->lox_ir->node_uses_by_ssa_name, copy_src_control->ssa_name.u16);
-
-    remove_control_node_lox_ir_block(copy_src_control->control.block, &copy_src_control->control);
 
     struct u64_set copy_src_control_used_ssa_names = get_used_ssa_names_lox_ir_data_node(
             copy_src_control->value, NATIVE_LOX_ALLOCATOR()

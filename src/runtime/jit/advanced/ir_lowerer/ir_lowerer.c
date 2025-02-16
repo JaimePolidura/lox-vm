@@ -38,7 +38,7 @@ bool lower_lox_ir_block(struct lox_ir_block * block, void * extra) {
             .lllil = lllil,
     };
 
-    for (struct lox_ir_control_node * current = block->first;;current = current->next) {
+    for (struct lox_ir_control_node * current = block->first; current != NULL; current = current->next) {
         if (is_lowered_type_lox_ir_control(current)) {
             continue;
         }
@@ -46,11 +46,7 @@ bool lower_lox_ir_block(struct lox_ir_block * block, void * extra) {
         lllil_control.control_node_to_lower = current;
 
         lower_lox_ir_control(&lllil_control);
-        remove_control_node_lox_ir_block(block, current);
-
-        if (current->next == NULL) {
-            break;
-        }
+        remove_block_control_node_lox_ir(lllil->lox_ir, block, current);
     }
 
     return true;

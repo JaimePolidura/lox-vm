@@ -56,22 +56,25 @@ TEST(lox_ir_block_dominates){
     add_u64_set(&h->predecesors, (uint64_t) g);
     add_u64_set(&h->predecesors, (uint64_t) f);
 
-    ASSERT_TRUE(dominates_lox_ir_block(a, b, NATIVE_LOX_ALLOCATOR()));
-    ASSERT_TRUE(dominates_lox_ir_block(a, c, NATIVE_LOX_ALLOCATOR()));
-    ASSERT_TRUE(dominates_lox_ir_block(a, d, NATIVE_LOX_ALLOCATOR()));
-    ASSERT_TRUE(dominates_lox_ir_block(a, e, NATIVE_LOX_ALLOCATOR()));
-    ASSERT_TRUE(dominates_lox_ir_block(a, f, NATIVE_LOX_ALLOCATOR()));
-    ASSERT_TRUE(dominates_lox_ir_block(a, g, NATIVE_LOX_ALLOCATOR()));
-    ASSERT_TRUE(dominates_lox_ir_block(a, h, NATIVE_LOX_ALLOCATOR()));
+    //Unused in dominates_block_lox_ir
+    struct lox_ir * lox_ir = NULL;
 
-    ASSERT_TRUE(dominates_lox_ir_block(b, d, NATIVE_LOX_ALLOCATOR()));
-    ASSERT_TRUE(dominates_lox_ir_block(b, e, NATIVE_LOX_ALLOCATOR()));
-    ASSERT_TRUE(dominates_lox_ir_block(b, g, NATIVE_LOX_ALLOCATOR()));
-    ASSERT_TRUE(dominates_lox_ir_block(b, e, NATIVE_LOX_ALLOCATOR()));
-    ASSERT_FALSE(dominates_lox_ir_block(b, h, NATIVE_LOX_ALLOCATOR()));
+    ASSERT_TRUE(dominates_block_lox_ir(lox_ir, a, b, NATIVE_LOX_ALLOCATOR()));
+    ASSERT_TRUE(dominates_block_lox_ir(lox_ir, a, c, NATIVE_LOX_ALLOCATOR()));
+    ASSERT_TRUE(dominates_block_lox_ir(lox_ir, a, d, NATIVE_LOX_ALLOCATOR()));
+    ASSERT_TRUE(dominates_block_lox_ir(lox_ir, a, e, NATIVE_LOX_ALLOCATOR()));
+    ASSERT_TRUE(dominates_block_lox_ir(lox_ir, a, f, NATIVE_LOX_ALLOCATOR()));
+    ASSERT_TRUE(dominates_block_lox_ir(lox_ir, a, g, NATIVE_LOX_ALLOCATOR()));
+    ASSERT_TRUE(dominates_block_lox_ir(lox_ir, a, h, NATIVE_LOX_ALLOCATOR()));
 
-    ASSERT_TRUE(dominates_lox_ir_block(c, f, NATIVE_LOX_ALLOCATOR()))
-    ASSERT_FALSE(dominates_lox_ir_block(f, h, NATIVE_LOX_ALLOCATOR()))
+    ASSERT_TRUE(dominates_block_lox_ir(lox_ir, b, d, NATIVE_LOX_ALLOCATOR()));
+    ASSERT_TRUE(dominates_block_lox_ir(lox_ir, b, e, NATIVE_LOX_ALLOCATOR()));
+    ASSERT_TRUE(dominates_block_lox_ir(lox_ir, b, g, NATIVE_LOX_ALLOCATOR()));
+    ASSERT_TRUE(dominates_block_lox_ir(lox_ir, b, e, NATIVE_LOX_ALLOCATOR()));
+    ASSERT_FALSE(dominates_block_lox_ir(lox_ir, b, h, NATIVE_LOX_ALLOCATOR()));
+
+    ASSERT_TRUE(dominates_block_lox_ir(lox_ir, c, f, NATIVE_LOX_ALLOCATOR()))
+    ASSERT_FALSE(dominates_block_lox_ir(lox_ir, f, h, NATIVE_LOX_ALLOCATOR()))
 }
 
 //((a + b) + c) == (b + (a + c))
