@@ -88,7 +88,10 @@ static bool can_be_replaced(
         struct lox_ir_control_node * use
 ) {
     bool belongs_to_code_motion = definition->control.block->nested_loop_body < use->block->nested_loop_body;
-    bool definitions_is_phi = definition->value->type == LOX_IR_DATA_NODE_PHI;
+    bool definitions_is_phi = definition->value->type == LOX_IR_DATA_NODE_PHI
+            || (definition->value->type == LOX_IR_DATA_NODE_UNBOX && ((struct lox_ir_data_unbox_node *) definition->value)->to_unbox->type == LOX_IR_DATA_NODE_PHI)
+            || (definition->value->type == LOX_IR_DATA_NODE_BOX && ((struct lox_ir_data_box_node *) definition->value)->to_box->type == LOX_IR_DATA_NODE_PHI);
+
     bool use_defines_phi = use->type == LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME &&
                            ((struct lox_ir_control_define_ssa_name_node *) use)->value->type == LOX_IR_DATA_NODE_PHI;
     return !belongs_to_code_motion && !definitions_is_phi && !use_defines_phi;

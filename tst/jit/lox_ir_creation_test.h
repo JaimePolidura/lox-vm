@@ -38,7 +38,7 @@ TEST(lox_ir_lowerer_ptr) {
     visualize_lox_ir(
             package,
             function,
-            PHI_RESOLUTION_PHASE_LOX_IR_VISUALIZATION,
+            LOWERING_LOX_IR_VISUALIZATION,
             DISPLAY_TYPE_INFO_OPT,
             LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
