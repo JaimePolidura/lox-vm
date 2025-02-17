@@ -137,7 +137,7 @@ void visualize_lox_ir(
                     &node_allocator.lox_allocator), graphviz_visualizer.options);
             perform_type_propagation(&lox_ir);
             perform_unboxing_insertion(&lox_ir);
-            perform_copy_propagation(&lox_ir);
+            //perform_copy_propagation(&lox_ir);
             resolve_phi(&lox_ir);
             lower_lox_ir(&lox_ir);
 
@@ -174,7 +174,7 @@ static struct lox_ir_visualizer create_graphviz_visualizer(
         struct arena_lox_allocator * arena_lox_allocator,
         struct function_object * function
 ) {
-    FILE * file = fopen(path, "a");
+    FILE * file = fopen(path, "wa");
     if (file == NULL) {
         runtime_panic("Cannot open/create file!");
         exit(-1);

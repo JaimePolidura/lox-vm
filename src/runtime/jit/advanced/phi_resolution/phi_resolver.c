@@ -77,15 +77,14 @@ static void resolve_phi_control(struct pr * pr, struct lox_ir_control_node * con
 
 static bool resolve_phi_data(
         struct lox_ir_data_node * _,
-        void ** parent_field_ptr,
+        void ** __,
         struct lox_ir_data_node * data_node,
         void * extra
 ) {
     struct pr_control * pr_control = extra;
 
     if (data_node->type == LOX_IR_DATA_NODE_PHI) {
-        struct lox_ir_data_node ** parent_ptr = (struct lox_ir_data_node **) parent_field_ptr;
-        struct lox_ir_control_define_ssa_name_node * define_ssa_name = container_of(parent_ptr, struct lox_ir_control_define_ssa_name_node, value);
+        struct lox_ir_control_define_ssa_name_node * define_ssa_name = (struct lox_ir_control_define_ssa_name_node *) pr_control->current_control;
         remove_block_control_node_lox_ir(pr_control->pr->lox_ir, define_ssa_name->control.block, &define_ssa_name->control);
     } else if (data_node->type == LOX_IR_DATA_NODE_GET_SSA_NAME) {
         replace_get_ssa_name_with_get_v_reg(pr_control, (struct lox_ir_data_get_ssa_name_node *) data_node);

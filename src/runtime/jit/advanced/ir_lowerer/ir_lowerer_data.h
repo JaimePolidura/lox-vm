@@ -11,5 +11,7 @@
 struct lox_ir_ll_operand lower_lox_ir_data(
         struct lllil_control*,
         struct lox_ir_data_node *,
-        lox_ir_type_t expected_type
+        lox_ir_type_t expected_type,
+        //If NULL, lower_lox_ir_data() will store the result in a new register
+        struct v_register * result
 );

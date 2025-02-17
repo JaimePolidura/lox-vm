@@ -62,7 +62,7 @@ void emit_store_at_offset_ll_lox_ir(
         int offset,
         struct lox_ir_ll_operand value
 ) {
-    emit_move_ll_lox_ir(lllil_control, ADDRESS_TO_OPERAND(base, offset), value);
+    emit_move_ll_lox_ir(lllil_control, ADDRESS_TO_OPERAND(base.v_register, offset), value);
 }
 
 //move value, base + offset
@@ -72,7 +72,7 @@ void emit_load_at_offset_ll_lox_ir(
         struct lox_ir_ll_operand base,
         int offset
 ) {
-    emit_move_ll_lox_ir(lllil_control, value, ADDRESS_TO_OPERAND(base, offset));
+    emit_move_ll_lox_ir(lllil_control, value, ADDRESS_TO_OPERAND(base.v_register, offset));
 }
 
 void emit_move_ll_lox_ir(
@@ -401,7 +401,8 @@ void emit_range_check_ll_lox_ir(
             0
     );
     //Second check index_to_access >= array_size
-    struct lox_ir_ll_operand array_size = emit_get_array_length_ll_lox_ir(lllil, instance, array_instance_escapes);
+    struct lox_ir_ll_operand array_size = emit_get_array_length_ll_lox_ir(lllil, instance,
+            array_instance_escapes, alloc_v_register_lox_ir(lllil->lllil->lox_ir, false));
     emit_comparation_ll_lox_ir(
             lllil,
             COMPARATION_LL_LOX_IR_GREATER_EQ,
@@ -574,25 +575,27 @@ void emit_function_call_ll_lox_ir(
 }
 
 static struct lox_ir_ll_operand emit_get_array_length_ll_lox_ir_doesnt_escape(struct lllil_control*,
-        struct lox_ir_ll_operand);
+        struct lox_ir_ll_operand, struct v_register);
 static struct lox_ir_ll_operand emit_get_array_length_ll_lox_ir_escapes(struct lllil_control*,
-        struct lox_ir_ll_operand);
+        struct lox_ir_ll_operand, struct v_register);
 
 struct lox_ir_ll_operand emit_get_array_length_ll_lox_ir(
         struct lllil_control * control,
         struct lox_ir_ll_operand instance, //Expect type NATIVE_ARRAY_INSTANCE
-        bool escapes
+        bool escapes,
+        struct v_register result
 ) {
     if (!escapes) {
-        return emit_get_array_length_ll_lox_ir_doesnt_escape(control, instance);
+        return emit_get_array_length_ll_lox_ir_doesnt_escape(control, instance, result);
     } else {
-        return emit_get_array_length_ll_lox_ir_escapes(control, instance);
+        return emit_get_array_length_ll_lox_ir_escapes(control, instance, result);
     }
 }
 
 static struct lox_ir_ll_operand emit_get_array_length_ll_lox_ir_escapes(
         struct lllil_control * control,
-        struct lox_ir_ll_operand instance //Expect type NATIVE_ARRAY_INSTANCE
+        struct lox_ir_ll_operand instance, //Expect type NATIVE_ARRAY_INSTANCE
+        struct v_register result
 ) {
     emit_binary_ll_lox_ir(
             control,
@@ -602,7 +605,7 @@ static struct lox_ir_ll_operand emit_get_array_length_ll_lox_ir_escapes(
             IMMEDIATE_TO_OPERAND(sizeof(int))
     );
 
-    struct lox_ir_ll_operand array_length_value = V_REG_TO_OPERAND(alloc_v_register_lox_ir(control->lllil->lox_ir, false));
+    struct lox_ir_ll_operand array_length_value = V_REG_TO_OPERAND(result);
 
     emit_load_at_offset_ll_lox_ir(
             control,
@@ -616,7 +619,8 @@ static struct lox_ir_ll_operand emit_get_array_length_ll_lox_ir_escapes(
 
 static struct lox_ir_ll_operand emit_get_array_length_ll_lox_ir_doesnt_escape(
         struct lllil_control * control,
-        struct lox_ir_ll_operand array_instance //Expect type NATIVE_ARRAY_INSTANCE
+        struct lox_ir_ll_operand array_instance, //Expect type NATIVE_ARRAY_INSTANCE
+        struct v_register result
 ) {
     emit_binary_ll_lox_ir(
             control,
@@ -626,7 +630,7 @@ static struct lox_ir_ll_operand emit_get_array_length_ll_lox_ir_doesnt_escape(
             IMMEDIATE_TO_OPERAND(offsetof(struct lox_arraylist, in_use))
     );
 
-    struct lox_ir_ll_operand array_length_value = V_REG_TO_OPERAND(alloc_v_register_lox_ir(control->lllil->lox_ir, false));
+    struct lox_ir_ll_operand array_length_value = V_REG_TO_OPERAND(result);
 
     emit_load_at_offset_ll_lox_ir(
             control,

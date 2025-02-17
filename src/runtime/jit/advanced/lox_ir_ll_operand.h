@@ -28,7 +28,7 @@ struct lox_ir_ll_operand {
             uint64_t offset;
         } stack_slot;
         struct {
-            struct lox_ir_ll_operand * address;
+            struct v_register address;
             uint64_t offset;
         } memory_address;
     };

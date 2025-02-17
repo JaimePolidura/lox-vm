@@ -1,26 +1,26 @@
 #include "ir_lowerer_data.h"
 
-typedef struct lox_ir_ll_operand(* lowerer_lox_ir_data_t)(struct lllil_control*, struct lox_ir_data_node*);
-static struct lox_ir_ll_operand lowerer_lox_ir_data_get_v_register(struct lllil_control*, struct lox_ir_data_node*);
-static struct lox_ir_ll_operand lowerer_lox_ir_data_get_global(struct lllil_control*, struct lox_ir_data_node*);
-static struct lox_ir_ll_operand lowerer_lox_ir_data_constant(struct lllil_control*, struct lox_ir_data_node*);
-static struct lox_ir_ll_operand lowerer_lox_ir_data_unary(struct lllil_control*, struct lox_ir_data_node*);
-static struct lox_ir_ll_operand lowerer_lox_ir_data_unbox(struct lllil_control*, struct lox_ir_data_node*);
-static struct lox_ir_ll_operand lowerer_lox_ir_data_box(struct lllil_control*, struct lox_ir_data_node*);
-static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field(struct lllil_control*, struct lox_ir_data_node*);
-static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_struct(struct lllil_control*, struct lox_ir_data_node*);
-static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_array(struct lllil_control*, struct lox_ir_data_node*);
-static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_element(struct lllil_control*, struct lox_ir_data_node*);
-static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_length(struct lllil_control*, struct lox_ir_data_node*);
-static struct lox_ir_ll_operand lowerer_lox_ir_data_guard(struct lllil_control*, struct lox_ir_data_node*);
-static struct lox_ir_ll_operand lowerer_lox_ir_data_binary(struct lllil_control*, struct lox_ir_data_node*);
+typedef struct lox_ir_ll_operand(* lowerer_lox_ir_data_t)(struct lllil_control*, struct lox_ir_data_node*, struct v_register*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_v_register(struct lllil_control*, struct lox_ir_data_node*, struct v_register*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_global(struct lllil_control*, struct lox_ir_data_node*, struct v_register*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_constant(struct lllil_control*, struct lox_ir_data_node*, struct v_register*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_unary(struct lllil_control*, struct lox_ir_data_node*, struct v_register*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_unbox(struct lllil_control*, struct lox_ir_data_node*, struct v_register*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_box(struct lllil_control*, struct lox_ir_data_node*, struct v_register*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field(struct lllil_control*, struct lox_ir_data_node*, struct v_register*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_struct(struct lllil_control*, struct lox_ir_data_node*, struct v_register*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_array(struct lllil_control*, struct lox_ir_data_node*, struct v_register*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_element(struct lllil_control*, struct lox_ir_data_node*, struct v_register*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_length(struct lllil_control*, struct lox_ir_data_node*, struct v_register*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_guard(struct lllil_control*, struct lox_ir_data_node*, struct v_register*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_binary(struct lllil_control*, struct lox_ir_data_node*, struct v_register*);
 
 static struct lox_ir_ll_operand emit_not_lox(struct lllil_control*, struct lox_ir_ll_operand);
 static struct lox_ir_ll_operand emit_not_native(struct lllil_control*, struct lox_ir_ll_operand);
 static struct lox_ir_ll_operand emit_negate_lox(struct lllil_control*, struct lox_ir_ll_operand);
 static struct lox_ir_ll_operand emit_negate_native(struct lllil_control*, struct lox_ir_data_node*, struct lox_ir_ll_operand);
 static struct lox_ir_ll_operand alloc_new_v_register(struct lllil_control *lllil, bool is_float);
-static struct lox_ir_ll_operand emit_lox_any_to_native_cast(struct lllil_control*, struct lox_ir_ll_operand);
+static struct lox_ir_ll_operand emit_lox_any_to_native_cast(struct lllil_control*, struct lox_ir_ll_operand, struct v_register*);
 static struct lox_ir_ll_operand emit_lox_number_to_native_i64_cast(struct lllil_control*, struct lox_ir_ll_operand);
 static struct lox_ir_ll_operand emit_lox_boolean_to_native(struct lllil_control*, struct lox_ir_ll_operand);
 static struct lox_ir_ll_operand emit_lox_string_to_native(struct lllil_control*, struct lox_ir_ll_operand);
@@ -33,22 +33,23 @@ static struct lox_ir_ll_operand emit_native_struct_instance_to_lox(struct lllil_
 static struct lox_ir_ll_operand emit_native_array_to_lox(struct lllil_control*, struct lox_ir_ll_operand);
 static struct lox_ir_ll_operand emit_native_struct_instance_to_lox(struct lllil_control*, struct lox_ir_ll_operand);
 static struct lox_ir_ll_operand emit_native_string_to_lox(struct lllil_control*, struct lox_ir_ll_operand);
-static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field_escapes(struct lllil_control*, struct lox_ir_data_get_struct_field_node*);
-static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field_doest_not_escape(struct lllil_control*, struct lox_ir_data_get_struct_field_node*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field_escapes(struct lllil_control*, struct lox_ir_data_get_struct_field_node*, struct v_register*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field_doest_not_escape(struct lllil_control*, struct lox_ir_data_get_struct_field_node*, struct v_register*);
 static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_struct_escapes(struct lllil_control*, struct lox_ir_data_initialize_struct_node*);
 static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_struct_does_not_escape(struct lllil_control*, struct lox_ir_data_initialize_struct_node*);
-static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_array_escapes(struct lllil_control*, struct lox_ir_data_initialize_array_node*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_array_escapes(struct lllil_control*, struct lox_ir_data_initialize_array_node*, struct v_register*);
 static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_array_does_not_escape(struct lllil_control*, struct lox_ir_data_initialize_array_node*);
-static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_element_does_not_escape(struct lllil_control*, struct lox_ir_data_get_array_element_node*);
-static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_element_escapes(struct lllil_control*, struct lox_ir_data_get_array_element_node*);
-static struct lox_ir_ll_operand emit_binary_sub(struct lllil_control*, lox_ir_type_t, struct lox_ir_ll_operand, struct lox_ir_ll_operand, struct lox_ir_data_binary_node*);
-static struct lox_ir_ll_operand emit_binary_add(struct lllil_control*,lox_ir_type_t, struct lox_ir_ll_operand,struct lox_ir_ll_operand,lox_ir_type_t,lox_ir_type_t,struct lox_ir_data_binary_node*);
-static struct lox_ir_ll_operand emit_binary_div(struct lllil_control*, lox_ir_type_t, struct lox_ir_ll_operand, struct lox_ir_ll_operand);
-static struct lox_ir_ll_operand emit_binary_mul(struct lllil_control*, lox_ir_type_t, struct lox_ir_ll_operand, struct lox_ir_ll_operand);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_element_does_not_escape(struct lllil_control*, struct lox_ir_data_get_array_element_node*, struct v_register*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_element_escapes(struct lllil_control*, struct lox_ir_data_get_array_element_node*, struct v_register*);
+static struct lox_ir_ll_operand emit_binary_sub(struct lllil_control*, lox_ir_type_t, struct lox_ir_ll_operand, struct lox_ir_ll_operand, struct lox_ir_data_binary_node*, struct v_register*);
+static struct lox_ir_ll_operand emit_binary_add(struct lllil_control*,lox_ir_type_t, struct lox_ir_ll_operand,
+        struct lox_ir_ll_operand,lox_ir_type_t,lox_ir_type_t,struct lox_ir_data_binary_node*, struct v_register*);
+static struct lox_ir_ll_operand emit_binary_div(struct lllil_control*, lox_ir_type_t, struct lox_ir_ll_operand, struct lox_ir_ll_operand, struct v_register*);
+static struct lox_ir_ll_operand emit_binary_mul(struct lllil_control*, lox_ir_type_t, struct lox_ir_ll_operand, struct lox_ir_ll_operand, struct v_register*);
 static struct lox_ir_ll_operand emit_binary_and(struct lllil_control*, struct lox_ir_ll_operand, struct lox_ir_ll_operand);
-static struct lox_ir_ll_operand emit_binary_op(struct lllil_control*, binary_operator_type_ll_lox_ir, struct lox_ir_ll_operand, struct lox_ir_ll_operand);
-static struct lox_ir_ll_operand emit_lox_generic_binary(struct lllil_control*, bytecode_t, struct lox_ir_ll_operand, struct lox_ir_ll_operand);
-static void emit_string_concat(struct lllil_control*,struct lox_ir_ll_operand,struct lox_ir_ll_operand,struct lox_ir_ll_operand,lox_ir_type_t,lox_ir_type_t);
+static struct lox_ir_ll_operand emit_binary_op(struct lllil_control*, binary_operator_type_ll_lox_ir, struct lox_ir_ll_operand, struct lox_ir_ll_operand, struct v_register*);
+static struct lox_ir_ll_operand emit_lox_generic_binary(struct lllil_control*, bytecode_t, struct lox_ir_ll_operand, struct lox_ir_ll_operand, struct v_register*);
+static void emit_string_concat(struct lllil_control*,struct lox_ir_ll_operand,struct lox_ir_ll_operand,struct lox_ir_ll_operand,lox_ir_type_t,lox_ir_type_t,lox_ir_type_t);
 static bool is_binary_inc(struct lox_ir_data_binary_node *);
 static bool is_binary_dec(struct lox_ir_data_binary_node *);
 
@@ -59,7 +60,9 @@ extern struct struct_instance_object * alloc_struct_instance_gc_alg(struct struc
 extern void runtime_panic(char * format, ...);
 extern uint64_t any_to_native_cast_jit_runime(lox_value_t);
 extern struct array_object * alloc_array_gc_alg(int);
-lox_value_t addition_lox(lox_value_t a, lox_value_t b);
+extern void * string_concatenate_jit_runime(void*,void*,lox_ir_type_t,lox_ir_type_t,lox_ir_type_t);
+
+extern lox_value_t addition_lox(lox_value_t a, lox_value_t b);
 
 lowerer_lox_ir_data_t lowerer_lox_ir_by_data_node[] = {
         [LOX_IR_DATA_NODE_INITIALIZE_STRUCT] = lowerer_lox_ir_data_initialize_struct,
@@ -76,7 +79,7 @@ lowerer_lox_ir_data_t lowerer_lox_ir_by_data_node[] = {
         [LOX_IR_DATA_NODE_UNBOX] = lowerer_lox_ir_data_unbox,
         [LOX_IR_DATA_NODE_BOX] = lowerer_lox_ir_data_box,
 
-        //I will do this when I have a copiler which works on functions
+        //TOOD I will do this when I have a working compiler
         [LOX_IR_DATA_NODE_CALL] = NULL,
 
         [LOX_IR_DATA_NODE_GET_SSA_NAME] = NULL,
@@ -90,7 +93,8 @@ lowerer_lox_ir_data_t lowerer_lox_ir_by_data_node[] = {
 struct lox_ir_ll_operand lower_lox_ir_data(
         struct lllil_control * lllil_control,
         struct lox_ir_data_node * data_node,
-        lox_ir_type_t expected_type
+        lox_ir_type_t expected_type,
+        struct v_register * result
 ) {
     lowerer_lox_ir_data_t lowerer_lox_ir_data = lowerer_lox_ir_by_data_node[data_node->type];
 
@@ -98,45 +102,46 @@ struct lox_ir_ll_operand lower_lox_ir_data(
         runtime_panic("Unexpected data control %i in ir_lowerer_data", data_node->type);
     }
 
-    struct lox_ir_ll_operand operand_result = lowerer_lox_ir_data(lllil_control, data_node);
+    struct lox_ir_ll_operand operand_result = lowerer_lox_ir_data(lllil_control, data_node, result);
 
     return operand_result;
 }
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_binary(
         struct lllil_control * control,
-        struct lox_ir_data_node * data_node
+        struct lox_ir_data_node * data_node,
+        struct v_register * result
 ) {
     struct lox_ir_data_binary_node * binary = (struct lox_ir_data_binary_node *) data_node;
     lox_ir_type_t binary_produced_type = binary->data.produced_type->type;
     lox_ir_type_t operands_required_type = get_required_binary_operand_types(binary);
-    struct lox_ir_ll_operand right = lower_lox_ir_data(control, binary->right, operands_required_type);
-    struct lox_ir_ll_operand left = lower_lox_ir_data(control, binary->left, operands_required_type);
+    struct lox_ir_ll_operand right = lower_lox_ir_data(control, binary->right, operands_required_type, NULL);
+    struct lox_ir_ll_operand left = lower_lox_ir_data(control, binary->left, operands_required_type, NULL);
 
     if (binary_produced_type == LOX_IR_TYPE_LOX_ANY && !is_comparation_bytecode_instruction(binary->operator)) {
-        return emit_lox_generic_binary(control, binary->operator, left, right);
+        return emit_lox_generic_binary(control, binary->operator, left, right, result);
     }
 
     switch (binary->operator) {
         case OP_ADD:
             return emit_binary_add(control, binary_produced_type, left, right, binary->left->produced_type->type,
-                binary->right->produced_type->type, binary);
+                binary->right->produced_type->type, binary, result);
         case OP_SUB:
-            return emit_binary_sub(control, binary_produced_type, left, right, binary);
+            return emit_binary_sub(control, binary_produced_type, left, right, binary, result);
         case OP_MUL:
-            return emit_binary_mul(control, binary_produced_type, left, right);
+            return emit_binary_mul(control, binary_produced_type, left, right, result);
         case OP_DIV:
-            return emit_binary_div(control, binary_produced_type, left, right);
+            return emit_binary_div(control, binary_produced_type, left, right, result);
         case OP_MODULO:
-            return emit_binary_op(control, BINARY_LL_LOX_IR_MOD, left, right);
+            return emit_binary_op(control, BINARY_LL_LOX_IR_MOD, left, right, result);
         case OP_BINARY_OP_AND:
-            return emit_binary_op(control, BINARY_LL_LOX_IR_AND, left, right);
+            return emit_binary_op(control, BINARY_LL_LOX_IR_AND, left, right, result);
         case OP_BINARY_OP_OR:
-            return emit_binary_op(control, BINARY_LL_LOX_IR_OR, left, right);
+            return emit_binary_op(control, BINARY_LL_LOX_IR_OR, left, right, result);
         case OP_LEFT_SHIFT:
-            return emit_binary_op(control, BINARY_LL_LOX_IR_LEFT_SHIFT, left, right);
+            return emit_binary_op(control, BINARY_LL_LOX_IR_LEFT_SHIFT, left, right, result);
         case OP_RIGHT_SHIFT:
-            return emit_binary_op(control, BINARY_LL_LOX_IR_RIGHT_SHIFT, left, right);
+            return emit_binary_op(control, BINARY_LL_LOX_IR_RIGHT_SHIFT, left, right, result);
         case OP_GREATER:
             emit_comparation_ll_lox_ir(control, COMPARATION_LL_LOX_IR_GREATER, left, right);
             return FLAGS_OPERAND();
@@ -198,13 +203,15 @@ static struct lox_ir_ll_operand emit_lox_generic_binary(
         struct lllil_control * control,
         bytecode_t operator,
         struct lox_ir_ll_operand left,
-        struct lox_ir_ll_operand right
+        struct lox_ir_ll_operand right,
+        struct v_register * result
 ) {
     if(operator != OP_ADD){
         //TODO Panic
     }
 
-    struct v_register return_value = alloc_v_register_lox_ir(control->lllil->lox_ir, false);
+    struct v_register return_value = result != NULL ?
+            *result : alloc_v_register_lox_ir(control->lllil->lox_ir, false);
 
     emit_function_call_with_return_value_ll_lox_ir(
             control,
@@ -223,9 +230,12 @@ static struct lox_ir_ll_operand emit_binary_op(
         struct lllil_control * control,
         binary_operator_type_ll_lox_ir op,
         struct lox_ir_ll_operand left,
-        struct lox_ir_ll_operand right
+        struct lox_ir_ll_operand right,
+        struct v_register * expected_result
 ) {
-    struct lox_ir_ll_operand result = alloc_new_v_register(control, false);
+    struct lox_ir_ll_operand result = expected_result == NULL ?
+            alloc_new_v_register(control, false) : V_REG_TO_OPERAND(*expected_result);
+
     emit_binary_ll_lox_ir(control, op, result, left, right);
     return result;
 }
@@ -253,13 +263,15 @@ static struct lox_ir_ll_operand emit_binary_sub(
         lox_ir_type_t type_to_produce,
         struct lox_ir_ll_operand left_operand,
         struct lox_ir_ll_operand right_operand,
-        struct lox_ir_data_binary_node * binary
+        struct lox_ir_data_binary_node * binary,
+        struct v_register * expected_result
 ) {
     bool is_fp = type_to_produce == LOX_IR_TYPE_F64;
     bool is_lox_i64 = type_to_produce == LOX_IR_TYPE_LOX_I64;
     bool is_native_i64 = type_to_produce == LOX_IR_TYPE_NATIVE_I64;
 
-    struct lox_ir_ll_operand result = alloc_new_v_register(control, is_fp);
+    struct lox_ir_ll_operand result = expected_result == NULL ?
+            alloc_new_v_register(control, is_fp) : V_REG_TO_OPERAND(*expected_result);
 
     if (is_native_i64 && is_binary_dec(binary)) {
         emit_unary_ll_lox_ir(control, left_operand.type == LOX_IR_LL_OPERAND_IMMEDIATE ? right_operand : left_operand,
@@ -281,10 +293,12 @@ static struct lox_ir_ll_operand emit_binary_div(
         struct lllil_control * control,
         lox_ir_type_t type_to_produce,
         struct lox_ir_ll_operand left,
-        struct lox_ir_ll_operand right
+        struct lox_ir_ll_operand right,
+        struct v_register * expected_result
 ) {
     bool is_fp = type_to_produce == LOX_IR_TYPE_F64;
-    struct lox_ir_ll_operand result = alloc_new_v_register(control, is_fp);
+    struct lox_ir_ll_operand result = expected_result != NULL ?
+            V_REG_TO_OPERAND(*expected_result) : alloc_new_v_register(control, is_fp);
 
     emit_binary_ll_lox_ir(
             control,
@@ -301,10 +315,12 @@ static struct lox_ir_ll_operand emit_binary_mul(
         struct lllil_control * control,
         lox_ir_type_t type_to_produce,
         struct lox_ir_ll_operand left,
-        struct lox_ir_ll_operand right
+        struct lox_ir_ll_operand right,
+        struct v_register * expected_result
 ) {
     bool is_fp = type_to_produce == LOX_IR_TYPE_F64;
-    struct lox_ir_ll_operand result = alloc_new_v_register(control, is_fp);
+    struct lox_ir_ll_operand result = expected_result != NULL ?
+            V_REG_TO_OPERAND(*expected_result) : alloc_new_v_register(control, is_fp);
 
     emit_binary_ll_lox_ir(
             control,
@@ -324,16 +340,18 @@ static struct lox_ir_ll_operand emit_binary_add(
         struct lox_ir_ll_operand right,
         lox_ir_type_t left_type,
         lox_ir_type_t right_type,
-        struct lox_ir_data_binary_node * binary
+        struct lox_ir_data_binary_node * binary,
+        struct v_register * expected_result
 ) {
-    bool is_string = type_to_produce == IS_STRING_LOX_IR_TYPE(type_to_produce);
+    bool is_string = IS_STRING_LOX_IR_TYPE(type_to_produce);
     bool is_fp = type_to_produce == LOX_IR_TYPE_F64;
     bool is_i64 = type_to_produce == LOX_IR_TYPE_NATIVE_I64;
 
-    struct lox_ir_ll_operand result = alloc_new_v_register(control, is_fp);
+    struct lox_ir_ll_operand result = expected_result != NULL ?
+            V_REG_TO_OPERAND(*expected_result) : alloc_new_v_register(control, is_fp);
 
     if (is_string) {
-        emit_string_concat(control, result, left, right, left_type, right_type);
+        emit_string_concat(control, result, left, right, left_type, right_type, type_to_produce);
     } else if (is_fp) {
         emit_binary_ll_lox_ir(control, BINARY_LL_LOX_IR_FADD, result, left, right);
     } else if (is_i64 && is_binary_inc(binary)){
@@ -351,18 +369,32 @@ static void emit_string_concat(
         struct lox_ir_ll_operand left,
         struct lox_ir_ll_operand right,
         lox_ir_type_t type_left,
-        lox_ir_type_t type_right
+        lox_ir_type_t type_right,
+        lox_ir_type_t type_to_produce
 ) {
-    //TODO
+    //TODO Optimize by inlining specializing string concatenation code
+    emit_function_call_with_return_value_ll_lox_ir(
+            control,
+            &string_concatenate_jit_runime,
+            "string_concatenate_jit_runime",
+            result.v_register,
+            5,
+            left,
+            right,
+            IMMEDIATE_TO_OPERAND(type_left),
+            IMMEDIATE_TO_OPERAND(type_right),
+            IMMEDIATE_TO_OPERAND(type_to_produce)
+    );
 }
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_guard(
         struct lllil_control * lllil_control,
-        struct lox_ir_data_node * data_node
+        struct lox_ir_data_node * data_node,
+        struct v_register * result
 ) {
     struct lox_ir_data_guard_node * guard_node = (struct lox_ir_data_guard_node *) data_node;
     struct lox_ir_ll_operand guard_input = lower_lox_ir_data(lllil_control, guard_node->guard.value,
-            LOX_IR_TYPE_UNKNOWN);
+            LOX_IR_TYPE_UNKNOWN, result);
 
     return emit_guard_ll_lox_ir(
             lllil_control,
@@ -373,35 +405,41 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_guard(
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_length(
         struct lllil_control * control,
-        struct lox_ir_data_node * data_node
+        struct lox_ir_data_node * data_node,
+        struct v_register * expected_result
 ) {
     struct lox_ir_data_get_array_length * get_length = (struct lox_ir_data_get_array_length *) data_node;
 
     struct lox_ir_ll_operand array_instance = lower_lox_ir_data(control, get_length->instance,
-            LOX_IR_TYPE_NATIVE_ARRAY);
+            LOX_IR_TYPE_NATIVE_ARRAY, expected_result);
 
-    return emit_get_array_length_ll_lox_ir(control, array_instance, get_length->escapes);
+    struct v_register result = expected_result != NULL ?
+            *expected_result : alloc_v_register_lox_ir(control->lllil->lox_ir, false);
+
+    return emit_get_array_length_ll_lox_ir(control, array_instance, get_length->escapes, result);
 }
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_element(
         struct lllil_control * lllil_control,
-        struct lox_ir_data_node * data_node
+        struct lox_ir_data_node * data_node,
+        struct v_register * result
 ) {
     struct lox_ir_data_get_array_element_node * get_arr_element = (struct lox_ir_data_get_array_element_node *) data_node;
 
     if (!get_arr_element->escapes) {
-        return lowerer_lox_ir_data_get_array_element_does_not_escape(lllil_control, get_arr_element);
+        return lowerer_lox_ir_data_get_array_element_does_not_escape(lllil_control, get_arr_element, result);
     } else {
-        return lowerer_lox_ir_data_get_array_element_escapes(lllil_control, get_arr_element);
+        return lowerer_lox_ir_data_get_array_element_escapes(lllil_control, get_arr_element, result);
     }
 }
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_element_does_not_escape(
         struct lllil_control * lllil,
-        struct lox_ir_data_get_array_element_node * node
+        struct lox_ir_data_get_array_element_node * node,
+        struct v_register * result
 ) {
-    struct lox_ir_ll_operand instance = lower_lox_ir_data(lllil, node->index, LOX_IR_TYPE_NATIVE_ARRAY);
-    struct lox_ir_ll_operand index = lower_lox_ir_data(lllil, node->index, LOX_IR_TYPE_NATIVE_I64);
+    struct lox_ir_ll_operand instance = lower_lox_ir_data(lllil, node->index, LOX_IR_TYPE_NATIVE_ARRAY, result);
+    struct lox_ir_ll_operand index = lower_lox_ir_data(lllil, node->index, LOX_IR_TYPE_NATIVE_I64, NULL);
 
     if (node->requires_range_check) {
         emit_range_check_ll_lox_ir(lllil, instance, index, node->escapes);
@@ -442,10 +480,11 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_element_does_not_e
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_element_escapes(
         struct lllil_control * lllil,
-        struct lox_ir_data_get_array_element_node * node
+        struct lox_ir_data_get_array_element_node * node,
+        struct v_register * result
 ) {
-    struct lox_ir_ll_operand instance = lower_lox_ir_data(lllil, node->index, LOX_IR_TYPE_NATIVE_ARRAY);
-    struct lox_ir_ll_operand index = lower_lox_ir_data(lllil, node->index, LOX_IR_TYPE_NATIVE_I64);
+    struct lox_ir_ll_operand instance = lower_lox_ir_data(lllil, node->index, LOX_IR_TYPE_NATIVE_ARRAY, result);
+    struct lox_ir_ll_operand index = lower_lox_ir_data(lllil, node->index, LOX_IR_TYPE_NATIVE_I64, NULL);
 
     if (node->requires_range_check) {
         emit_range_check_ll_lox_ir(lllil, instance, index, node->escapes);
@@ -488,7 +527,8 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_element_escapes(
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_array(
         struct lllil_control * lllil_control,
-        struct lox_ir_data_node * node
+        struct lox_ir_data_node * node,
+        struct v_register * result
 ) {
     struct lox_ir_data_initialize_array_node * init_arr = (struct lox_ir_data_initialize_array_node *) node;
     size_t array_size = init_arr->n_elements * sizeof(uint64_t);
@@ -496,7 +536,7 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_array(
     if (!init_arr->escapes && array_size < 512) {
         return lowerer_lox_ir_data_initialize_array_does_not_escape(lllil_control, init_arr);
     } else {
-        return lowerer_lox_ir_data_initialize_array_escapes(lllil_control, init_arr);
+        return lowerer_lox_ir_data_initialize_array_escapes(lllil_control, init_arr, result);
     }
 }
 
@@ -516,7 +556,7 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_array_does_not_es
 
     for (int i = 0; i < init_array->n_elements && !init_array->empty_initialization; i++) {
         struct lox_ir_ll_operand array_element_reg = lower_lox_ir_data(lllil, init_array->elememnts[i],
-                LOX_IR_TYPE_UNKNOWN);
+                LOX_IR_TYPE_UNKNOWN, NULL);
         size_t element_field_offset = sizeof(int) + i * sizeof(uint64_t);
 
         emit_move_ll_lox_ir(
@@ -531,9 +571,11 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_array_does_not_es
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_array_escapes(
         struct lllil_control * lllil_control,
-        struct lox_ir_data_initialize_array_node * init_array
+        struct lox_ir_data_initialize_array_node * init_array,
+        struct v_register * result
 ) {
-    struct lox_ir_ll_operand array_instance_operand = alloc_new_v_register(lllil_control, false);
+    struct lox_ir_ll_operand array_instance_operand = result != NULL ?
+            V_REG_TO_OPERAND(*result) : alloc_new_v_register(lllil_control, false);
     int n_elements = init_array->n_elements;
 
     emit_function_call_with_return_value_ll_lox_ir(
@@ -555,7 +597,7 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_array_escapes(
 
     for(int i = 0; i < n_elements && !init_array->empty_initialization; i++) {
         struct lox_ir_ll_operand struct_element_reg = lower_lox_ir_data(lllil_control, init_array->elememnts[i],
-                LOX_IR_TYPE_UNKNOWN);
+                LOX_IR_TYPE_UNKNOWN, NULL);
 
         emit_store_at_offset_ll_lox_ir(
                 lllil_control,
@@ -570,7 +612,8 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_array_escapes(
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_struct(
         struct lllil_control * lllil,
-        struct lox_ir_data_node * data_node
+        struct lox_ir_data_node * data_node,
+        struct v_register * result
 ) {
     struct lox_ir_data_initialize_struct_node * init_struct = (struct lox_ir_data_initialize_struct_node *) data_node;
 
@@ -600,7 +643,8 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_struct_escapes(
     for (int i = 0; i < init_node->definition->n_fields; i++) {
         struct string_object * field_name = definition->field_names[definition->n_fields - i - 1];
 
-        struct lox_ir_ll_operand struct_element_reg = lower_lox_ir_data(lllil, init_node->fields_nodes[i], LOX_IR_TYPE_UNKNOWN);
+        struct lox_ir_ll_operand struct_element_reg = lower_lox_ir_data(lllil, init_node->fields_nodes[i],
+                LOX_IR_TYPE_UNKNOWN, NULL);
 
         emit_function_call_ll_lox_ir(
                 lllil,
@@ -626,7 +670,8 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_struct_does_not_e
 
     for (int i = 0; i < definition->n_fields; i++) {
         struct string_object * field_name = definition->field_names[definition->n_fields - i - 1];
-        struct lox_ir_ll_operand struct_element_reg = lower_lox_ir_data(lllil, init_node->fields_nodes[i], LOX_IR_TYPE_UNKNOWN);
+        struct lox_ir_ll_operand struct_element_reg = lower_lox_ir_data(lllil, init_node->fields_nodes[i],
+                LOX_IR_TYPE_UNKNOWN, NULL);
         size_t field_struct_field_offset = i * sizeof(uint64_t);
 
         emit_move_ll_lox_ir(
@@ -641,27 +686,29 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_struct_does_not_e
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field(
         struct lllil_control * lllil,
-        struct lox_ir_data_node * data_node
+        struct lox_ir_data_node * data_node,
+        struct v_register * result
 ) {
     struct lox_ir_data_get_struct_field_node  * get_struct_field = (struct lox_ir_data_get_struct_field_node *) data_node;
 
     if(!get_struct_field->escapes) {
-        return lowerer_lox_ir_data_get_struct_field_doest_not_escape(lllil, get_struct_field);
+        return lowerer_lox_ir_data_get_struct_field_doest_not_escape(lllil, get_struct_field, result);
     } else {
-        return lowerer_lox_ir_data_get_struct_field_escapes(lllil, get_struct_field);
+        return lowerer_lox_ir_data_get_struct_field_escapes(lllil, get_struct_field, result);
     }
 }
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field_doest_not_escape(
         struct lllil_control * lllil,
-        struct lox_ir_data_get_struct_field_node * get_struct_field
+        struct lox_ir_data_get_struct_field_node * get_struct_field,
+        struct v_register * result
 ) {
     struct lox_ir_ll_operand struct_instance = lower_lox_ir_data(lllil, get_struct_field->instance,
-            LOX_IR_TYPE_NATIVE_STRUCT_INSTANCE);
+            LOX_IR_TYPE_NATIVE_STRUCT_INSTANCE, NULL);
 
     bool is_field_fp = is_struct_field_fp(get_struct_field->instance, get_struct_field->field_name->chars);
-    struct lox_ir_ll_operand get_struct_field_reg_result = V_REG_TO_OPERAND(
-            alloc_v_register_lox_ir(lllil->lllil->lox_ir, is_field_fp));
+    struct lox_ir_ll_operand get_struct_field_reg_result = result != NULL ?
+            V_REG_TO_OPERAND(result) : V_REG_TO_OPERAND(alloc_v_register_lox_ir(lllil->lllil->lox_ir, is_field_fp));
 
     emit_function_call_with_return_value_ll_lox_ir(
             lllil,
@@ -678,11 +725,12 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field_doest_not_e
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field_escapes(
         struct lllil_control * lllil,
-        struct lox_ir_data_get_struct_field_node * get_struct_field
+        struct lox_ir_data_get_struct_field_node * get_struct_field,
+        struct v_register * result
 ) {
     //If it escapes, it should produce a native pointer to struct instance
     struct lox_ir_ll_operand struct_instance = lower_lox_ir_data(lllil, get_struct_field->instance,
-            LOX_IR_TYPE_UNKNOWN);
+            LOX_IR_TYPE_UNKNOWN, NULL);
 
     //We are guaranteed that struct operation nodes that escapes have a struct definition type. This is guaranteed in escape_analysis
     //in phi node processing
@@ -691,8 +739,8 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field_escapes(
 
     int field_offset = get_offset_field_struct_definition_ll_lox_ir(definition, get_struct_field->field_name->chars);
 
-    struct lox_ir_ll_operand get_struct_field_reg_result = V_REG_TO_OPERAND(alloc_v_register_lox_ir(
-            lllil->lllil->lox_ir, is_field_fp));
+    struct lox_ir_ll_operand get_struct_field_reg_result = result != NULL ?
+            V_REG_TO_OPERAND(*result) : V_REG_TO_OPERAND(alloc_v_register_lox_ir(lllil->lllil->lox_ir, is_field_fp));
 
     emit_load_at_offset_ll_lox_ir(
             lllil,
@@ -706,14 +754,16 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field_escapes(
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_box(
         struct lllil_control * lllil,
-        struct lox_ir_data_node * data_node
+        struct lox_ir_data_node * data_node,
+        struct v_register * result
 ) {
     struct lox_ir_data_box_node * box = (struct lox_ir_data_box_node *) data_node;
-    struct lox_ir_ll_operand to_unbox_input = lower_lox_ir_data(lllil, box->to_box, LOX_IR_TYPE_UNKNOWN);
+    struct lox_ir_ll_operand to_unbox_input = lower_lox_ir_data(lllil, box->to_box, LOX_IR_TYPE_UNKNOWN, result);
 
     switch (box->to_box->produced_type->type) {
         case LOX_IR_TYPE_NATIVE_NIL: {
-            struct lox_ir_ll_operand nil_value_reg = V_REG_TO_OPERAND(alloc_v_register_lox_ir(lllil->lllil->lox_ir, false));
+            struct lox_ir_ll_operand nil_value_reg = result != NULL ?
+                    V_REG_TO_OPERAND(*result) : V_REG_TO_OPERAND(alloc_v_register_lox_ir(lllil->lllil->lox_ir, false));
             emit_move_ll_lox_ir(lllil, nil_value_reg, IMMEDIATE_TO_OPERAND((uint64_t) NIL_VALUE));
             return nil_value_reg;
         }
@@ -740,24 +790,26 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_box(
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_unbox(
         struct lllil_control * lllil,
-        struct lox_ir_data_node * data_node
+        struct lox_ir_data_node * data_node,
+        struct v_register * result
 ) {
     //unboxing_insertion guarantees that box nodes won't have as input a const node, so when we call lower_lox_ir_data(unbox->to_unbox)
     //it will be returned as a v register
     struct lox_ir_data_unbox_node * unbox = (struct lox_ir_data_unbox_node *) data_node;
-    struct lox_ir_ll_operand to_unbox_input = lower_lox_ir_data(lllil, unbox->to_unbox, LOX_IR_TYPE_UNKNOWN);
+    struct lox_ir_ll_operand to_unbox_input = lower_lox_ir_data(lllil, unbox->to_unbox, LOX_IR_TYPE_UNKNOWN, result);
 
     switch (unbox->to_unbox->produced_type->type) {
         case LOX_IR_TYPE_F64: {
             return to_unbox_input;
         }
         case LOX_IR_TYPE_LOX_NIL: {
-            struct lox_ir_ll_operand nil_value_reg = V_REG_TO_OPERAND(alloc_v_register_lox_ir(lllil->lllil->lox_ir, false));
+            struct lox_ir_ll_operand nil_value_reg = result != NULL ?
+                    V_REG_TO_OPERAND(*result) : V_REG_TO_OPERAND(alloc_v_register_lox_ir(lllil->lllil->lox_ir, false));
             emit_move_ll_lox_ir(lllil, nil_value_reg, IMMEDIATE_TO_OPERAND((uint64_t) NULL));
             return nil_value_reg;
         }
         case LOX_IR_TYPE_LOX_ANY: {
-            return emit_lox_any_to_native_cast(lllil, to_unbox_input);
+            return emit_lox_any_to_native_cast(lllil, to_unbox_input, result);
         }
         case LOX_IR_TYPE_LOX_I64: {
             return emit_lox_number_to_native_i64_cast(lllil, to_unbox_input);
@@ -779,10 +831,12 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_unbox(
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_get_global(
         struct lllil_control * lllil,
-        struct lox_ir_data_node * data_node
+        struct lox_ir_data_node * data_node,
+        struct v_register * result
 ) {
     struct lox_ir_data_get_global_node * get_global = (struct lox_ir_data_get_global_node *) data_node;
-    struct v_register global_v_register = alloc_v_register_lox_ir(lllil->lllil->lox_ir, false);
+    struct v_register global_v_register = result != NULL ?
+            *result : alloc_v_register_lox_ir(lllil->lllil->lox_ir, false);
 
     emit_function_call_with_return_value_ll_lox_ir(
             lllil,
@@ -799,7 +853,8 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_global(
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_get_v_register(
         struct lllil_control * lllil,
-        struct lox_ir_data_node * node
+        struct lox_ir_data_node * node,
+        struct v_register * result
 ) {
     struct lox_ir_data_get_v_register_node * get_v_reg = (struct lox_ir_data_get_v_register_node *) node;
     return V_REG_TO_OPERAND(get_v_reg->v_register);
@@ -807,7 +862,8 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_v_register(
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_constant(
         struct lllil_control * lllil,
-        struct lox_ir_data_node * node
+        struct lox_ir_data_node * node,
+        struct v_register * result
 ) {
     struct lox_ir_data_constant_node * const_node = (struct lox_ir_data_constant_node *) node;
     return IMMEDIATE_TO_OPERAND(const_node->value);
@@ -815,12 +871,13 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_constant(
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_unary(
         struct lllil_control * lllil,
-        struct lox_ir_data_node * data
+        struct lox_ir_data_node * data,
+        struct v_register * result
 ) {
     struct lox_ir_data_unary_node * unary = (struct lox_ir_data_unary_node *) data;
     struct lox_ir_data_node * unary_operand_node = unary->operand;
     //This is guaranteed to be a vregister not an immediate value, if const propagation has run
-    struct lox_ir_ll_operand unary_operand = lower_lox_ir_data(lllil, unary_operand_node, LOX_IR_TYPE_UNKNOWN);
+    struct lox_ir_ll_operand unary_operand = lower_lox_ir_data(lllil, unary_operand_node, LOX_IR_TYPE_UNKNOWN, result);
     bool unary_operand_is_lox = is_lox_lox_ir_type(unary->operand->produced_type->type);
 
     if (unary->operator == UNARY_OPERATION_TYPE_NOT && unary_operand_is_lox) {
@@ -832,8 +889,6 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_unary(
     } else {
         return emit_negate_native(lllil, unary_operand_node, unary_operand);
     }
-
-    return unary_operand;
 }
 
 //True value_node:  0x7ffc000000000003
@@ -907,9 +962,10 @@ static struct lox_ir_ll_operand alloc_new_v_register(struct lllil_control * llli
 
 static struct lox_ir_ll_operand emit_lox_any_to_native_cast(
         struct lllil_control *lllil,
-        struct lox_ir_ll_operand input //Expect v_register
+        struct lox_ir_ll_operand input, //Expect v_register
+        struct v_register * result
 ) {
-    struct v_register return_value_vreg = alloc_v_register_lox_ir(lllil->lllil->lox_ir, false);
+    struct v_register return_value_vreg = result != NULL ? *result : alloc_v_register_lox_ir(lllil->lllil->lox_ir, false);
 
     emit_function_call_with_return_value_ll_lox_ir(
             lllil,

@@ -18,11 +18,13 @@ static void run(struct compilation_result);
 
 TEST(lox_ir_lowerer_ptr) {
     struct compilation_result compilation = compile_standalone(
-            "fun function(a, b, c) {"
-                "var d = a + b;"
-                "var e = c + i;"
-                "print d;"
-                "print e;"
+            "fun function(a, b) {"
+            "   var mensaje = \"a\";"
+            "   for(var i = 0; i < 10; i = i + 1){"
+            "       mensaje = mensaje + i;"
+            "       print mensaje;"
+            "   }"
+            "   return mensaje;"
             "}"
     );
 
