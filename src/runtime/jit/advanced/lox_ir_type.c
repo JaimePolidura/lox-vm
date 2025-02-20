@@ -283,3 +283,27 @@ bool is_same_format_lox_ir_type(lox_ir_type_t left, lox_ir_type_t right) {
     return (is_lox_lox_ir_type(left) && is_lox_lox_ir_type(right)) ||
            (is_native_lox_ir_type(left) && is_native_lox_ir_type(right));
 }
+
+bool is_format_equivalent_lox_ir_type(lox_ir_type_t left, lox_ir_type_t right) {
+    if (left == right) {
+        return true;
+    }
+
+    switch (left) {
+        case LOX_IR_TYPE_F64: return right == LOX_IR_TYPE_F64;
+        case LOX_IR_TYPE_NATIVE_I64: return right == LOX_IR_TYPE_LOX_I64;
+        case LOX_IR_TYPE_UNKNOWN: return true;
+        case LOX_IR_TYPE_LOX_ANY: return true;
+        case LOX_IR_TYPE_NATIVE_STRING: return right == LOX_IR_TYPE_LOX_STRING;
+        case LOX_IR_TYPE_NATIVE_BOOLEAN: return right == LOX_IR_TYPE_LOX_BOOLEAN;
+        case LOX_IR_TYPE_NATIVE_NIL: return right == LOX_IR_TYPE_LOX_NIL;
+        case LOX_IR_TYPE_NATIVE_ARRAY: return right == LOX_IR_TYPE_LOX_ARRAY;
+        case LOX_IR_TYPE_NATIVE_STRUCT_INSTANCE: return right == LOX_IR_TYPE_LOX_STRUCT_INSTANCE;
+        case LOX_IR_TYPE_LOX_I64: return right == LOX_IR_TYPE_NATIVE_I64;
+        case LOX_IR_TYPE_LOX_STRING: return right == LOX_IR_TYPE_NATIVE_STRING;
+        case LOX_IR_TYPE_LOX_BOOLEAN: return right == LOX_IR_TYPE_NATIVE_BOOLEAN;
+        case LOX_IR_TYPE_LOX_NIL: return right == LOX_IR_TYPE_NATIVE_NIL;
+        case LOX_IR_TYPE_LOX_ARRAY: return right == LOX_IR_TYPE_NATIVE_ARRAY;
+        case LOX_IR_TYPE_LOX_STRUCT_INSTANCE: return right == LOX_IR_TYPE_NATIVE_STRUCT_INSTANCE;
+    }
+}

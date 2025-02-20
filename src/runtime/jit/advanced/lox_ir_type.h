@@ -72,3 +72,4 @@ lox_ir_type_t lox_type_to_native_lox_ir_type(lox_ir_type_t lox_type);
 lox_ir_type_t native_type_to_lox_ir_type(lox_ir_type_t native_type);
 char * to_string_lox_ir_type(lox_ir_type_t type);
 bool is_same_format_lox_ir_type(lox_ir_type_t left, lox_ir_type_t right);
+bool is_format_equivalent_lox_ir_type(lox_ir_type_t left, lox_ir_type_t right);

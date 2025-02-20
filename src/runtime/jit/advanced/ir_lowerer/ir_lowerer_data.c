@@ -20,7 +20,7 @@ static struct lox_ir_ll_operand emit_not_native(struct lllil_control*, struct lo
 static struct lox_ir_ll_operand emit_negate_lox(struct lllil_control*, struct lox_ir_ll_operand);
 static struct lox_ir_ll_operand emit_negate_native(struct lllil_control*, struct lox_ir_data_node*, struct lox_ir_ll_operand);
 static struct lox_ir_ll_operand alloc_new_v_register(struct lllil_control *lllil, bool is_float);
-static struct lox_ir_ll_operand emit_lox_any_to_native_cast(struct lllil_control*, struct lox_ir_ll_operand, struct v_register*);
+static struct lox_ir_ll_operand emit_lox_any_to_native_cast(struct lllil_control*, struct lox_ir_ll_operand);
 static struct lox_ir_ll_operand emit_lox_number_to_native_i64_cast(struct lllil_control*, struct lox_ir_ll_operand);
 static struct lox_ir_ll_operand emit_lox_boolean_to_native(struct lllil_control*, struct lox_ir_ll_operand);
 static struct lox_ir_ll_operand emit_lox_string_to_native(struct lllil_control*, struct lox_ir_ll_operand);
@@ -52,6 +52,9 @@ static struct lox_ir_ll_operand emit_lox_generic_binary(struct lllil_control*, b
 static void emit_string_concat(struct lllil_control*,struct lox_ir_ll_operand,struct lox_ir_ll_operand,struct lox_ir_ll_operand,lox_ir_type_t,lox_ir_type_t,lox_ir_type_t);
 static bool is_binary_inc(struct lox_ir_data_binary_node *);
 static bool is_binary_dec(struct lox_ir_data_binary_node *);
+static void cast_to_expected_type(struct lllil_control*, struct lox_ir_ll_operand, lox_ir_type_t, lox_ir_type_t);
+static void emit_native_to_lox(struct lllil_control*,struct lox_ir_ll_operand,lox_ir_type_t,lox_ir_type_t);
+static void emit_lox_to_native(struct lllil_control*,struct lox_ir_ll_operand,lox_ir_type_t,lox_ir_type_t);
 
 static bool is_struct_field_fp(struct lox_ir_data_node *, char * field_name);
 static lox_ir_type_t get_required_binary_operand_types(struct lox_ir_data_binary_node *binary_node);
@@ -104,7 +107,38 @@ struct lox_ir_ll_operand lower_lox_ir_data(
 
     struct lox_ir_ll_operand operand_result = lowerer_lox_ir_data(lllil_control, data_node, result);
 
+    if (expected_type != LOX_IR_TYPE_UNKNOWN) {
+        cast_to_expected_type(lllil_control, operand_result, expected_type, data_node->produced_type->type);
+    }
+
     return operand_result;
+}
+
+static void cast_to_expected_type(
+        struct lllil_control * control,
+        struct lox_ir_ll_operand to_cast,
+        lox_ir_type_t desired_type,
+        lox_ir_type_t actual_type
+) {
+    if(desired_type == actual_type){
+        return;
+    }
+    //If both types have lox format, we won't cast anything
+    if((is_lox_lox_ir_type(desired_type) || desired_type == LOX_IR_TYPE_F64)
+        && (is_lox_lox_ir_type(actual_type) || desired_type == LOX_IR_TYPE_F64)){
+        return;
+    }
+    //If both types have native format, we won't cast anything
+    if((is_native_lox_ir_type(desired_type) || desired_type == LOX_IR_TYPE_F64)
+       && (is_native_lox_ir_type(actual_type) || desired_type == LOX_IR_TYPE_F64)){
+        return;
+    }
+    //At this point one type has lox format and the other one have native format
+    if (is_lox_lox_ir_type(desired_type)) {
+        emit_native_to_lox(control, to_cast, actual_type, desired_type);
+    } else {
+        emit_lox_to_native(control, to_cast, actual_type, desired_type);
+    }
 }
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_binary(
@@ -760,32 +794,12 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_box(
     struct lox_ir_data_box_node * box = (struct lox_ir_data_box_node *) data_node;
     struct lox_ir_ll_operand to_unbox_input = lower_lox_ir_data(lllil, box->to_box, LOX_IR_TYPE_UNKNOWN, result);
 
-    switch (box->to_box->produced_type->type) {
-        case LOX_IR_TYPE_NATIVE_NIL: {
-            struct lox_ir_ll_operand nil_value_reg = result != NULL ?
-                    V_REG_TO_OPERAND(*result) : V_REG_TO_OPERAND(alloc_v_register_lox_ir(lllil->lllil->lox_ir, false));
-            emit_move_ll_lox_ir(lllil, nil_value_reg, IMMEDIATE_TO_OPERAND((uint64_t) NIL_VALUE));
-            return nil_value_reg;
-        }
-        case LOX_IR_TYPE_F64: {
-            return to_unbox_input;
-        }
-        case LOX_IR_TYPE_NATIVE_I64: {
-            return emit_native_i64_to_lox_number(lllil, to_unbox_input);
-        }
-        case LOX_IR_TYPE_NATIVE_BOOLEAN: {
-            return emit_native_bool_to_lox_bool(lllil, to_unbox_input);
-        }
-        case LOX_IR_TYPE_NATIVE_STRING: {
-            return emit_native_string_to_lox(lllil, to_unbox_input);
-        }
-        case LOX_IR_TYPE_NATIVE_ARRAY: {
-            return emit_native_array_to_lox(lllil, to_unbox_input);
-        }
-        case LOX_IR_TYPE_NATIVE_STRUCT_INSTANCE: {
-            return emit_native_struct_instance_to_lox(lllil, to_unbox_input);
-        }
-    }
+    lox_ir_type_t actual_type = box->to_box->produced_type->type;
+    lox_ir_type_t desired_type = LOX_IR_TYPE_LOX_ANY;
+
+    emit_native_to_lox(lllil, to_unbox_input, actual_type, desired_type);
+
+    return to_unbox_input;
 }
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_unbox(
@@ -797,36 +811,8 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_unbox(
     //it will be returned as a v register
     struct lox_ir_data_unbox_node * unbox = (struct lox_ir_data_unbox_node *) data_node;
     struct lox_ir_ll_operand to_unbox_input = lower_lox_ir_data(lllil, unbox->to_unbox, LOX_IR_TYPE_UNKNOWN, result);
-
-    switch (unbox->to_unbox->produced_type->type) {
-        case LOX_IR_TYPE_F64: {
-            return to_unbox_input;
-        }
-        case LOX_IR_TYPE_LOX_NIL: {
-            struct lox_ir_ll_operand nil_value_reg = result != NULL ?
-                    V_REG_TO_OPERAND(*result) : V_REG_TO_OPERAND(alloc_v_register_lox_ir(lllil->lllil->lox_ir, false));
-            emit_move_ll_lox_ir(lllil, nil_value_reg, IMMEDIATE_TO_OPERAND((uint64_t) NULL));
-            return nil_value_reg;
-        }
-        case LOX_IR_TYPE_LOX_ANY: {
-            return emit_lox_any_to_native_cast(lllil, to_unbox_input, result);
-        }
-        case LOX_IR_TYPE_LOX_I64: {
-            return emit_lox_number_to_native_i64_cast(lllil, to_unbox_input);
-        }
-        case LOX_IR_TYPE_LOX_BOOLEAN: {
-            return emit_lox_boolean_to_native(lllil, to_unbox_input);
-        }
-        case LOX_IR_TYPE_LOX_STRING: {
-            return emit_lox_string_to_native(lllil, to_unbox_input);
-        }
-        case LOX_IR_TYPE_LOX_ARRAY: {
-            return emit_lox_array_to_native(lllil, to_unbox_input);
-        }
-        case LOX_IR_TYPE_LOX_STRUCT_INSTANCE: {
-            return emit_lox_struct_instance_to_native(lllil, to_unbox_input);
-        }
-    }
+    emit_lox_to_native(lllil, to_unbox_input, unbox->to_unbox->produced_type->type, LOX_IR_TYPE_LOX_ANY);
+    return to_unbox_input;
 }
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_get_global(
@@ -962,21 +948,18 @@ static struct lox_ir_ll_operand alloc_new_v_register(struct lllil_control * llli
 
 static struct lox_ir_ll_operand emit_lox_any_to_native_cast(
         struct lllil_control *lllil,
-        struct lox_ir_ll_operand input, //Expect v_register
-        struct v_register * result
+        struct lox_ir_ll_operand input //Expect v_register
 ) {
-    struct v_register return_value_vreg = result != NULL ? *result : alloc_v_register_lox_ir(lllil->lllil->lox_ir, false);
-
     emit_function_call_with_return_value_ll_lox_ir(
             lllil,
             &any_to_native_cast_jit_runime,
             "any_to_native_cast_jit_runime",
-            return_value_vreg,
+            input.v_register,
             1,
             input
     );
 
-    return V_REG_TO_OPERAND(return_value_vreg);
+    return input;
 }
 
 static struct lox_ir_ll_operand emit_native_i64_to_lox_number(
@@ -1181,4 +1164,62 @@ static bool is_binary_dec(struct lox_ir_data_binary_node * binary) {
            && binary->data.produced_type->type == LOX_IR_TYPE_NATIVE_I64
            && (binary->left->type == LOX_IR_DATA_NODE_CONSTANT || binary->right->type == LOX_IR_DATA_NODE_CONSTANT)
            && (GET_CONST_VALUE_LOX_IR_NODE(binary->left) == 1 || GET_CONST_VALUE_LOX_IR_NODE(binary->right) == 1);
+}
+
+static void emit_lox_to_native(
+        struct lllil_control * lllil,
+        struct lox_ir_ll_operand to_cast,
+        lox_ir_type_t actual_type, //Has lox format
+        lox_ir_type_t desired_type //Has native format
+) {
+    // LOX_IR_TYPE_F64,     LOX_IR_TYPE_NATIVE_I64 -> Cast f64 to i64
+    // LOX_IR_TYPE_LOX_I64, LOX_IR_TYPE_NATIVE_I64 -> Cast f64 to i64
+    // LOX_IR_TYPE_LOX_I64, LOX_IR_TYPE_F64 -> Don't do anything
+    if (actual_type == LOX_IR_TYPE_F64 && desired_type == LOX_IR_TYPE_NATIVE_I64) {
+        emit_unary_ll_lox_ir(lllil, to_cast, UNARY_LL_LOX_IR_F64_TO_I64_CAST);
+    } else if (actual_type == LOX_IR_TYPE_LOX_I64 && desired_type == LOX_IR_TYPE_NATIVE_I64) {
+        emit_unary_ll_lox_ir(lllil, to_cast, UNARY_LL_LOX_IR_F64_TO_I64_CAST);
+    } else if (actual_type == LOX_IR_TYPE_LOX_I64 && desired_type == LOX_IR_TYPE_F64) {
+        return;
+    }
+
+    if(!is_format_equivalent_lox_ir_type(actual_type, desired_type)){
+        //TODO Runtime panic
+    }
+
+    switch (actual_type) {
+        case LOX_IR_TYPE_LOX_ANY: emit_lox_any_to_native_cast(lllil, to_cast); break;
+        case LOX_IR_TYPE_LOX_I64: emit_lox_number_to_native_i64_cast(lllil, to_cast); break;
+        case LOX_IR_TYPE_LOX_BOOLEAN: emit_lox_boolean_to_native(lllil, to_cast); break;
+        case LOX_IR_TYPE_LOX_STRING: emit_lox_string_to_native(lllil, to_cast); break;
+        case LOX_IR_TYPE_LOX_ARRAY: emit_lox_array_to_native(lllil, to_cast); break;
+        case LOX_IR_TYPE_LOX_STRUCT_INSTANCE: emit_lox_struct_instance_to_native(lllil, to_cast); break;
+        default: //TODO Runtime panic
+    }
+}
+
+static void emit_native_to_lox(
+        struct lllil_control * lllil,
+        struct lox_ir_ll_operand to_cast,
+        lox_ir_type_t actual_type,
+        lox_ir_type_t desired_type
+) {
+    switch (actual_type) {
+        case LOX_IR_TYPE_NATIVE_NIL: break; //TODO runtime panic
+        case LOX_IR_TYPE_F64: {
+            //TODO Extract to method
+            if (actual_type == LOX_IR_TYPE_NATIVE_I64 && desired_type == LOX_IR_TYPE_LOX_I64) {
+                emit_unary_ll_lox_ir(lllil, to_cast, UNARY_LL_LOX_IR_I64_TO_F64_CAST);
+            }
+            if (actual_type == LOX_IR_TYPE_F64 && desired_type == LOX_IR_TYPE_LOX_I64) {
+                emit_unary_ll_lox_ir(lllil, to_cast, UNARY_LL_LOX_IR_F64_TO_I64_CAST);
+            }
+            break;
+        }
+        case LOX_IR_TYPE_NATIVE_STRUCT_INSTANCE: emit_native_struct_instance_to_lox(lllil, to_cast); break;
+        case LOX_IR_TYPE_NATIVE_BOOLEAN: emit_native_bool_to_lox_bool(lllil, to_cast); break;
+        case LOX_IR_TYPE_NATIVE_I64: emit_native_i64_to_lox_number(lllil, to_cast); break;
+        case LOX_IR_TYPE_NATIVE_STRING: emit_native_string_to_lox(lllil, to_cast); break;
+        case LOX_IR_TYPE_NATIVE_ARRAY: emit_native_array_to_lox(lllil, to_cast); break;
+    }
 }
