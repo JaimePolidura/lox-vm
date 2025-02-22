@@ -121,8 +121,7 @@ static bool perform_escape_analysis_data(
             return false;
         case LOX_IR_DATA_NODE_UNARY:
         case LOX_IR_DATA_NODE_GUARD:
-        case LOX_IR_DATA_NODE_UNBOX:
-        case LOX_IR_DATA_NODE_BOX:
+        case LOX_IR_DATA_NODE_CAST:
         case LOX_IR_DATA_NODE_BINARY: {
             bool escapes = false;
             FOR_EACH_U64_SET_VALUE(get_children_lox_ir_data_node(data_node, &ea->ea_allocator.lox_allocator), child_ptr_u64) {
@@ -263,8 +262,7 @@ static void mark_data_node_as_escaped(struct ea * ea, struct lox_ir_data_node * 
         case LOX_IR_DATA_NODE_GET_GLOBAL:
         case LOX_IR_DATA_NODE_CONSTANT:
         case LOX_IR_DATA_NODE_PHI:
-        case LOX_IR_DATA_NODE_UNBOX:
-        case LOX_IR_DATA_NODE_BOX:
+        case LOX_IR_DATA_NODE_CAST:
         case LOX_IR_DATA_NODE_GET_LOCAL:
             break;
     }
@@ -486,8 +484,7 @@ static bool does_data_node_make_control_to_escape(struct ea * ea, struct lox_ir_
         case LOX_IR_DATA_NODE_INITIALIZE_ARRAY: {
             return true;
         }
-        case LOX_IR_DATA_NODE_UNBOX:
-        case LOX_IR_DATA_NODE_BOX:
+        case LOX_IR_DATA_NODE_CAST:
         case LOX_IR_DATA_NODE_BINARY:
         case LOX_IR_DATA_NODE_CONSTANT:
         case LOX_IR_DATA_NODE_GET_LOCAL:

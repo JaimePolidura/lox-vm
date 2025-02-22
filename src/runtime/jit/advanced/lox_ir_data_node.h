@@ -33,8 +33,7 @@ typedef enum {
     //It will replace all the nodes with type LOX_IR_DATA_NODE_GET_LOCAL in the phi insertion proceess
     LOX_IR_DATA_NODE_PHI,
     LOX_IR_DATA_NODE_GET_SSA_NAME,
-    LOX_IR_DATA_NODE_UNBOX,
-    LOX_IR_DATA_NODE_BOX,
+    LOX_IR_DATA_NODE_CAST,
     //Intrudcued by phi resolution phase, this is not used in optimizations
     LOX_IR_DATA_NODE_GET_V_REGISTER,
 } lox_ir_data_node_type;
@@ -127,7 +126,7 @@ struct lox_ir_data_get_global_node {
     struct string_object * name;
 };
 
-//OP_ADD, OP_SUB, OP_MUL, OP_DIV, OP_EQUAL, OP_LESS, OP_GREATER
+//ADD SUB MUL DIV GREATER LESS EQUAL BINARY_OP_AND BINARY_OP_OR LEFT_SHIFT RIGHT_SHIFT MODULO
 struct lox_ir_data_binary_node {
     struct lox_ir_data_node data;
 
@@ -246,14 +245,9 @@ struct lox_ir_data_guard_node {
 struct lox_ir_data_guard_node * create_from_profile_lox_ir_data_guard_node(struct type_profile_data, struct lox_ir_data_node*,
         struct lox_allocator *, lox_ir_guard_action_on_check_failed);
 
-struct lox_ir_data_box_node {
+struct lox_ir_data_cast_node {
     struct lox_ir_data_node data;
-    struct lox_ir_data_node * to_box;
-};
-
-struct lox_ir_data_unbox_node {
-    struct lox_ir_data_node data;
-    struct lox_ir_data_node * to_unbox;
+    struct lox_ir_data_node * to_cast;
 };
 
 struct lox_ir_data_get_v_register_node {

@@ -50,6 +50,7 @@ bool is_terminator_lox_ir_data_node(struct lox_ir_data_node * node) {
         case LOX_IR_DATA_NODE_GET_ARRAY_ELEMENT:
         case LOX_IR_DATA_NODE_INITIALIZE_ARRAY:
         case LOX_IR_DATA_NODE_GET_ARRAY_LENGTH:
+        case LOX_IR_DATA_NODE_CAST:
             return false;
     }
 }
@@ -289,6 +290,11 @@ bool is_eq_lox_ir_data_node(struct lox_ir_data_node * a, struct lox_ir_data_node
             struct u64_set left_operands_flatted_out = flat_out_binary_operand_nodes(a, allocator);
             return check_equivalence_flatted_out(left_operands_flatted_out, rigth_operands_flatted_out, allocator);
         }
+        case LOX_IR_DATA_NODE_CAST: {
+            struct lox_ir_data_cast_node * a_cast = (struct lox_ir_data_cast_node *) a;
+            struct lox_ir_data_cast_node * b_cast = (struct lox_ir_data_cast_node *) b;
+            return is_eq_lox_ir_data_node(a_cast->to_cast, b_cast->to_cast, allocator);
+        }
         default: return false;
     }
 }
@@ -475,6 +481,11 @@ uint64_t hash_lox_ir_data_node(struct lox_ir_data_node * node) {
             }
             return hash;
         }
+        case LOX_IR_DATA_NODE_CAST: {
+            struct lox_ir_data_cast_node * cast = (struct lox_ir_data_cast_node *) node;
+            uint64_t hash = cast->to_cast->produced_type->type;
+            return mix_hash_not_commutative(hash, hash_lox_ir_data_node(cast->to_cast));
+        }
         default:
             runtime_panic("Illegal code path in hash_expression(struct lox_ir_data_node *)");
     }
@@ -650,14 +661,9 @@ struct u64_set get_children_lox_ir_data_node(struct lox_ir_data_node * node, str
             add_u64_set(&children, (uint64_t) &guard->guard.value);
             break;
         }
-        case LOX_IR_DATA_NODE_UNBOX: {
-            struct lox_ir_data_unbox_node * unbox = (struct lox_ir_data_unbox_node *) node;
-            add_u64_set(&children, (uint64_t) &unbox->to_unbox);
-            break;
-        }
-        case LOX_IR_DATA_NODE_BOX: {
-            struct lox_ir_data_box_node * box = (struct lox_ir_data_box_node *) node;
-            add_u64_set(&children, (uint64_t) &box->to_box);
+        case LOX_IR_DATA_NODE_CAST: {
+            struct lox_ir_data_cast_node * cast = (struct lox_ir_data_cast_node *) node;
+            add_u64_set(&children, (uint64_t) &cast->to_cast);
             break;
         }
         case LOX_IR_DATA_NODE_GET_LOCAL:

@@ -448,24 +448,14 @@ static int generate_data_node_graph(struct lox_ir_visualizer * visualizer, struc
             link_data_data_label_node_graphviz_file(visualizer, "index", self_data_node_id, array_index_node_id);
             break;
         }
-        case LOX_IR_DATA_NODE_UNBOX: {
-            struct lox_ir_data_unbox_node * unbox = (struct lox_ir_data_unbox_node *) node;
-            char * node_desc = dynamic_format_string("Unbox");
+        case LOX_IR_DATA_NODE_CAST: {
+            struct lox_ir_data_cast_node * cast = (struct lox_ir_data_cast_node *) node;
+            char * node_desc = dynamic_format_string("Cast");
             node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
-            int unboxed_value_node_id = generate_data_node_graph(visualizer, unbox->to_unbox);
+            int unboxed_value_node_id = generate_data_node_graph(visualizer, cast->to_cast);
             link_data_data_node_graphviz_file(visualizer, self_data_node_id, unboxed_value_node_id);
-            break;
-        }
-        case LOX_IR_DATA_NODE_BOX: {
-            struct lox_ir_data_box_node * box = (struct lox_ir_data_box_node *) node;
-            char * node_desc = dynamic_format_string("Box");
-            node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
-
-            add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
-            int boxed_value_node_id = generate_data_node_graph(visualizer, box->to_box);
-            link_data_data_node_graphviz_file(visualizer, self_data_node_id, boxed_value_node_id);
             break;
         }
         case LOX_IR_DATA_NODE_INITIALIZE_ARRAY: {

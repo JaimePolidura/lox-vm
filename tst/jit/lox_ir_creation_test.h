@@ -19,9 +19,12 @@ static void run(struct compilation_result);
 TEST(lox_ir_lowerer_ptr) {
     struct compilation_result compilation = compile_standalone(
             "fun function(a, b) {"
-            "   if(a % 2 == 0) {"
+            "   var mensaje = \"a\";"
+            "   for(var i = 0; i < 10; i = i + 1){"
+            "       mensaje = mensaje + i;"
+            "       print mensaje;"
             "   }"
-            "   return (a % 10) + (b % 8);"
+            "   return mensaje;"
             "}"
     );
 
@@ -35,7 +38,7 @@ TEST(lox_ir_lowerer_ptr) {
     visualize_lox_ir(
             package,
             function,
-            LOWERING_LOX_IR_VISUALIZATION,
+            UNBOXING_INSERTION_PHASE_LOX_IR_VISUALIZATION,
             DISPLAY_TYPE_INFO_OPT,
             LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"

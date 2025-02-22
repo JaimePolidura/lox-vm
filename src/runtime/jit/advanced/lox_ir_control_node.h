@@ -222,6 +222,7 @@ typedef enum {
     UNARY_LL_LOX_IR_I64_TO_F64_CAST,
     UNARY_LL_LOX_IR_INC, //Only works for native i64
     UNARY_LL_LOX_IR_DEC, //Only works for native i64
+    UNARY_LL_LOX_IR_FLAGS_TO_NATIVE_BOOL,
 } unary_operator_type_ll_lox_ir;
 
 struct lox_ir_control_ll_unary {
