@@ -26,7 +26,7 @@ static void maybe_save_instance_define_ssa(struct ea*, struct lox_ir_control_def
 static void mark_control_node_input_nodes_as_escaped(struct ea *ea, struct lox_ir_control_node *control_node);
 static bool control_node_escapes_inputs(struct ea*, struct lox_ir_control_node *);
 static bool mark_control_node_input_nodes_as_escaped_consumer(struct lox_ir_data_node*, void**, struct lox_ir_data_node*, void*);
-static void mark_data_node_as_escaped(struct ea*, struct lox_ir_data_node*);
+static void mark_as_escaped_instance_used_in_data_node(struct ea *ea, struct lox_ir_data_node *data_node);
 static struct lox_ir_data_node * get_instance_data_node(struct lox_ir_data_node *);
 static bool perform_escape_analysis_data(struct ea*, struct lox_ir_control_node*, struct lox_ir_data_node*);
 static bool does_ssa_name_escapes(struct ea*, struct ssa_name);
@@ -56,10 +56,6 @@ static bool perform_escape_analysis_block(struct lox_ir_block * block, void * ex
     struct ea * ea = extra;
 
     for (struct lox_ir_control_node * current_control = block->first;; current_control = current_control->next) {
-        if(current_control->type == LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME && GET_DEFINED_SSA_NAME_VALUE(current_control)->type == LOX_IR_DATA_NODE_PHI){
-            puts("hOLA");
-        }
-
         perform_escape_analysis_control(ea, current_control);
 
         if (current_control == block->last) {
@@ -114,7 +110,8 @@ static bool perform_escape_analysis_data(
         case LOX_IR_DATA_NODE_CALL: {
             struct lox_ir_data_function_call_node * call_node = (struct lox_ir_data_function_call_node *) data_node;
             for (int i = 0; i < call_node->n_arguments; i++) {
-                mark_data_node_as_escaped(ea, call_node->arguments[i]);
+                perform_escape_analysis_data(ea, control_node, call_node->arguments[i]);
+                mark_as_escaped_instance_used_in_data_node(ea, call_node->arguments[i]);
             }
             return true;
         }
@@ -233,12 +230,15 @@ static bool mark_control_node_input_nodes_as_escaped_consumer(
         void * extra
 ) {
     struct ea * ea = extra;
-    mark_data_node_as_escaped(ea, child);
+    mark_as_escaped_instance_used_in_data_node(ea, child);
 
     return true;
 }
 
-static void mark_data_node_as_escaped(struct ea * ea, struct lox_ir_data_node * data_node) {
+//Every node that is used as an input of other node that makes it to escape, there will be a call to this function
+//For example: call(a, b[0]). Call() will make the arg "a" to escape, but not "b" becuase the instance is not
+//being used as a arg
+static void mark_as_escaped_instance_used_in_data_node(struct ea * ea, struct lox_ir_data_node * data_node) {
     switch (data_node->type) {
         case LOX_IR_DATA_NODE_BINARY:
         case LOX_IR_DATA_NODE_UNARY:
@@ -247,7 +247,7 @@ static void mark_data_node_as_escaped(struct ea * ea, struct lox_ir_data_node * 
             struct u64_set children = get_children_lox_ir_data_node(data_node, &ea->ea_allocator.lox_allocator);
             FOR_EACH_U64_SET_VALUE(children, child_parent_ptr) {
                 struct lox_ir_data_node * child = *((struct lox_ir_data_node **) child_parent_ptr);
-                mark_data_node_as_escaped(ea, child);
+                mark_as_escaped_instance_used_in_data_node(ea, child);
             }
             break;
         }
@@ -256,14 +256,15 @@ static void mark_data_node_as_escaped(struct ea * ea, struct lox_ir_data_node * 
             propagate_ssa_name_as_escaped(ea, get_ssa_name->ssa_name);
             break;
         }
-        case LOX_IR_DATA_NODE_GET_STRUCT_FIELD:
-        case LOX_IR_DATA_NODE_GET_ARRAY_ELEMENT:
-        case LOX_IR_DATA_NODE_GET_ARRAY_LENGTH:
         case LOX_IR_DATA_NODE_INITIALIZE_STRUCT:
         case LOX_IR_DATA_NODE_INITIALIZE_ARRAY: {
             mark_as_escaped_lox_ir_data_node(data_node);
             break;
         }
+        case LOX_IR_DATA_NODE_GET_STRUCT_FIELD:
+        case LOX_IR_DATA_NODE_GET_ARRAY_ELEMENT:
+        case LOX_IR_DATA_NODE_GET_ARRAY_LENGTH:
+            break;
         case LOX_IR_DATA_NODE_GET_GLOBAL:
         case LOX_IR_DATA_NODE_CONSTANT:
         case LOX_IR_DATA_NODE_PHI:

@@ -180,6 +180,9 @@ static struct lox_ir_type * get_type_data_node_recursive(
             return CREATE_LOX_IR_TYPE(LOX_IR_TYPE_LOX_ANY, LOX_IR_ALLOCATOR(tp->lox_ir));
         }
         case LOX_IR_DATA_NODE_GET_ARRAY_LENGTH: {
+            struct lox_ir_data_get_array_length * get_arr_length = (struct lox_ir_data_get_array_length *) node;
+            get_arr_length->instance->produced_type = get_type_data_node_recursive(to_evaluate, get_arr_length->instance,
+                &get_arr_length->instance);;
             return CREATE_LOX_IR_TYPE(LOX_IR_TYPE_LOX_I64, LOX_IR_ALLOCATOR(tp->lox_ir));
         }
         case LOX_IR_DATA_NODE_UNARY: {
@@ -214,11 +217,12 @@ static struct lox_ir_type * get_type_data_node_recursive(
         }
         case LOX_IR_DATA_NODE_BINARY: {
             struct lox_ir_data_binary_node * binary = (struct lox_ir_data_binary_node *) node;
+
             struct lox_ir_type * right_type = get_type_data_node_recursive(to_evaluate, binary->right, &binary->right);
             struct lox_ir_type * left_type = get_type_data_node_recursive(to_evaluate, binary->left, &binary->left);
-
             binary->right->produced_type = right_type;
             binary->left->produced_type = left_type;
+
             lox_ir_type_t produced_type = binary_to_lox_ir_type(binary->operator, left_type->type, right_type->type);
             return CREATE_LOX_IR_TYPE(produced_type, LOX_IR_ALLOCATOR(tp->lox_ir));
         }

@@ -431,7 +431,7 @@ static int generate_data_node_graph(struct lox_ir_visualizer * visualizer, struc
             struct lox_ir_data_get_array_length * get_array_length = (struct lox_ir_data_get_array_length *) node;
             char * node_desc = maybe_add_type_info_data_node(visualizer, node, "GetArrayLength");
 
-            add_data_node_graphviz_file(visualizer, "GetArrayLength", self_data_node_id);
+            add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             int array_instance_node_id = generate_data_node_graph(visualizer, get_array_length->instance);
             link_data_data_node_graphviz_file(visualizer, self_data_node_id, array_instance_node_id);
             break;

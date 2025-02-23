@@ -303,12 +303,12 @@ static bool data_always_requires_lox_input(struct lox_ir_data_node * data) {
     switch (data->type) {
         case LOX_IR_DATA_NODE_CALL:
             return true;
-        case LOX_IR_DATA_NODE_GET_STRUCT_FIELD:
         case LOX_IR_DATA_NODE_INITIALIZE_STRUCT:
-        case LOX_IR_DATA_NODE_GET_ARRAY_ELEMENT:
-        case LOX_IR_DATA_NODE_GET_ARRAY_LENGTH:
         case LOX_IR_DATA_NODE_INITIALIZE_ARRAY:
             return is_marked_as_escaped_lox_ir_data_node(data);
+        case LOX_IR_DATA_NODE_GET_STRUCT_FIELD:
+        case LOX_IR_DATA_NODE_GET_ARRAY_LENGTH:
+        case LOX_IR_DATA_NODE_GET_ARRAY_ELEMENT:
         case LOX_IR_DATA_NODE_BINARY:
         case LOX_IR_DATA_NODE_CONSTANT:
         case LOX_IR_DATA_NODE_UNARY:
