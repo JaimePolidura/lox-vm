@@ -37,7 +37,7 @@ static void named_variable(struct bytecode_compiler * compiler, struct token var
 static void begin_scope(struct bytecode_compiler * compiler);
 static void end_scope(struct bytecode_compiler * compiler);
 static void block(struct bytecode_compiler * compiler);
-static int add_local_variable(struct bytecode_compiler * compiler, struct token new_variable_name);
+static int add_local_variable(struct bytecode_compiler * compiler, struct token new_variable_name, bool *);
 static bool is_variable_already_defined(struct bytecode_compiler * compiler, struct token new_variable_name);
 static bool identifiers_equal(struct token * a, struct token * b);
 static int resolve_local_variable(struct bytecode_compiler * compiler, struct token * name);
@@ -354,7 +354,7 @@ static void var_declaration(struct bytecode_compiler * compiler, bool is_public,
     struct token variable_name = compiler->parser->previous;
     bool is_array_empty_initialization = false;
 
-    if(match(compiler, TOKEN_OPEN_SQUARE)) {
+    if (match(compiler, TOKEN_OPEN_SQUARE)) {
         emtpy_array_initialization(compiler);
         is_array_empty_initialization = true;
     }
@@ -372,12 +372,22 @@ static void var_declaration(struct bytecode_compiler * compiler, bool is_public,
         put_trie(&compiler->const_global_variables, copy_variable_name, variable_name.length, NON_TRIE_VALUE);
     }
 
+    bool newly_added_local_variable = false;
+
     int variable_identifier = is_local_variable ?
-        add_local_variable(compiler, variable_name) :
+        add_local_variable(compiler, variable_name, &newly_added_local_variable) :
         add_string_constant(compiler, variable_name);
 
-    if(!is_array_empty_initialization){
+    if (newly_added_local_variable) {
+         compiler->compiling_new_local_set_body = variable_identifier;
+    }
+
+    if (!is_array_empty_initialization) {
         variable_expression_declaration(compiler);
+    }
+
+    if (newly_added_local_variable) {
+        compiler->compiling_new_local_set_body = -1;
     }
 
     if(is_local_variable) { // Local current_scope
@@ -451,7 +461,7 @@ static void function_parameters(struct bytecode_compiler * function_compiler) {
         do {
             function_compiler->current_function->n_arguments++;
             consume(function_compiler, TOKEN_IDENTIFIER, "Expect variable name in current_function arguments.");
-            add_local_variable(function_compiler, function_compiler->parser->previous);
+            add_local_variable(function_compiler, function_compiler->parser->previous, NULL);
         } while (match(function_compiler, TOKEN_COMMA));
     }
 
@@ -827,6 +837,10 @@ static void named_variable(
 ) {
     int variable_identifier = resolve_local_variable(compiler, &variable_name);
 
+    if(variable_identifier == compiler->compiling_new_local_set_body){
+        report_error(compiler, variable_name, "Variable is not yet defined");
+    }
+
     bool is_from_external_package = external_package != NULL;
     bool is_const = is_const_variable(compiler, variable_name, external_package);
     bool is_local = variable_identifier != -1;
@@ -1174,6 +1188,7 @@ static void init_compiler(struct bytecode_compiler * compiler, scope_type_t scop
     compiler->compiling_set_operation = false;
     compiler->compiling_inline_call = false;
     compiler->compiling_set_array_element_operation = false;
+    compiler->compiling_new_local_set_body = -1;
 
     compiler->function_calls = NULL;
 
@@ -1243,7 +1258,11 @@ static int resolve_local_variable(struct bytecode_compiler * compiler, struct to
     return -1;
 }
 
-static int add_local_variable(struct bytecode_compiler * compiler, struct token new_variable_name) {
+static int add_local_variable(
+        struct bytecode_compiler * compiler,
+        struct token new_variable_name,
+        bool * new_local_variable
+) {
     if(compiler->local_depth == 0){
         return - 1; //We are in a global current_scope
     }
@@ -1255,6 +1274,11 @@ static int add_local_variable(struct bytecode_compiler * compiler, struct token 
     struct local * local = &compiler->locals[compiler->local_count++];
     local->depth = compiler->local_depth;
     local->name = new_variable_name;
+
+    if (new_local_variable != NULL) {
+        *new_local_variable = true;
+    }
+
 
     compiler->max_locals = MAX(compiler->max_locals, compiler->local_count);
 

@@ -17,14 +17,30 @@ static bool node_defines_ssa_name(struct lox_ir_control_node *, int version);
 static void run(struct compilation_result);
 
 TEST(lox_ir_lowerer_ptr) {
+//    struct compilation_result compilation = compile_standalone(
+//            "fun function(a, b, c) {"
+//            "   for (var i = 0; i < 10; i = i + 1) {"
+//            "      if(i == 0){"
+//            "          var d = a + b;"
+//            "          var e = e + i;"
+//            "      }else{"
+//            "          for(var j = 0; j < 10; j = j + 1){"
+//            "              print i + 1;"
+//            "              c = 2;"
+//            "              var d = i * 2;"
+//            "              print d;"
+//            "           }"
+//            "       }"
+//            "       print c + 3;"
+//            "   }"
+//            "}"
+//    );
+
     struct compilation_result compilation = compile_standalone(
-            "fun function(a, b) {"
-            "   var mensaje = \"a\";"
-            "   for(var i = 0; i < 10; i = i + 1){"
-            "       mensaje = mensaje + i;"
-            "       print mensaje;"
+            "fun function(a, b, c) {"
+            "   for (var i = 0; i < 10; i = i + 1) {"
+            "          var e = e + 1;"
             "   }"
-            "   return mensaje;"
             "}"
     );
 
@@ -38,7 +54,7 @@ TEST(lox_ir_lowerer_ptr) {
     visualize_lox_ir(
             package,
             function,
-            UNBOXING_INSERTION_PHASE_LOX_IR_VISUALIZATION,
+            PHIS_OPTIMIZED_PHASE_LOX_IR_VISUALIZATION,
             DISPLAY_TYPE_INFO_OPT,
             LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"

@@ -93,6 +93,10 @@ static bool perform_unboxing_insertion_data_consumer(
     lox_ir_type_t type_should_produce = control_requires_lox_input(consumer_struct->ui, consumer_struct->control_node) ?
         LOX_IR_TYPE_LOX_ANY : LOX_IR_TYPE_UNKNOWN;
 
+    if(consumer_struct->control_node->type == LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME && child->type == LOX_IR_DATA_NODE_BINARY){
+        puts("hola");
+    }
+
     perform_unboxing_insertion_data(consumer_struct->ui, consumer_struct->block, consumer_struct->control_node,
         child, parent, parent_child_ptr, type_should_produce);
 
@@ -111,10 +115,6 @@ static void perform_unboxing_insertion_data(
 ) {
     bool first_iteration = parent_node == NULL;
     bool should_produce_lox = is_lox_lox_ir_type(type_should_produce);
-
-    if(control_node->type == LOX_IR_CONTROL_NODE_RETURN){
-        puts("Hola");
-    }
 
     FOR_EACH_U64_SET_VALUE(get_children_lox_ir_data_node(data_node, &ui->ui_allocator.lox_allocator), children_field_ptr_u64) {
         void ** children_field_ptr = (void **) children_field_ptr_u64;
@@ -390,7 +390,7 @@ static lox_ir_type_t calculate_data_input_type_should_produce(
                 return LOX_IR_TYPE_F64;
             }
             //Otherwise it produces a native i64
-            return LOX_IR_TYPE_NATIVE_I64;
+            return parent_should_produce_lox ? LOX_IR_TYPE_LOX_I64 : LOX_IR_TYPE_NATIVE_I64;
         }
         case OP_GREATER:
         case OP_EQUAL:
@@ -399,21 +399,26 @@ static lox_ir_type_t calculate_data_input_type_should_produce(
                 return LOX_IR_TYPE_F64;
             }
             if (both_native) {
-                return binary->left->produced_type->type;
+                return parent_should_produce_lox ?
+                    native_type_to_lox_ir_type(left_type) :
+                    lox_type_to_native_lox_ir_type(left_type);
             }
 
-            return is_native_lox_ir_type(right_type) ? right_type : left_type;
+            lox_ir_type_t produced_type = is_native_lox_ir_type(right_type) ? right_type : left_type;
+
+            return parent_should_produce_lox ?
+                   native_type_to_lox_ir_type(left_type) :
+                   lox_type_to_native_lox_ir_type(left_type);
         }
         case OP_BINARY_OP_AND:
         case OP_BINARY_OP_OR:
         case OP_LEFT_SHIFT:
         case OP_MODULO:
         case OP_RIGHT_SHIFT:
-            return LOX_IR_TYPE_NATIVE_I64;
+            return parent_should_produce_lox ? LOX_IR_TYPE_LOX_I64 : LOX_IR_TYPE_NATIVE_I64;
     }
 }
 
-//TODO Take into consideration parent_should_produce_lox
 static lox_ir_type_t calculate_type_should_produce_data(
         struct ui * ui,
         struct lox_ir_block * block,
@@ -421,7 +426,7 @@ static lox_ir_type_t calculate_type_should_produce_data(
         bool parent_should_produce_lox
 ) {
     switch (data->type) {
-        case LOX_IR_DATA_NODE_GET_ARRAY_LENGTH: return LOX_IR_TYPE_NATIVE_I64;
+        case LOX_IR_DATA_NODE_GET_ARRAY_LENGTH: return parent_should_produce_lox ? LOX_IR_TYPE_LOX_I64 : LOX_IR_TYPE_NATIVE_I64;
         case LOX_IR_DATA_NODE_GET_GLOBAL: return LOX_IR_TYPE_LOX_ANY;
         case LOX_IR_DATA_NODE_CALL: return LOX_IR_TYPE_LOX_ANY; //TODO Native funtion calls
         case LOX_IR_DATA_NODE_BINARY: {
@@ -434,34 +439,34 @@ static lox_ir_type_t calculate_type_should_produce_data(
             switch (binary->operator) {
                 case OP_ADD:
                     if (some_string) {
-                        return LOX_IR_TYPE_NATIVE_STRING;
+                        return parent_should_produce_lox ? LOX_IR_TYPE_LOX_STRING : LOX_IR_TYPE_NATIVE_STRING;
                     }
                 case OP_SUB:
                 case OP_MUL:
                 case OP_DIV:
                     if (type_left == LOX_IR_TYPE_LOX_I64 && type_right == LOX_IR_TYPE_LOX_I64) {
-                        return LOX_IR_TYPE_LOX_I64;
+                        return parent_should_produce_lox ? LOX_IR_TYPE_LOX_I64 : LOX_IR_TYPE_NATIVE_I64;
                     } else if (type_left == LOX_IR_TYPE_F64 || type_right == LOX_IR_TYPE_F64) {
                         return LOX_IR_TYPE_F64;
                     } else {
-                        return LOX_IR_TYPE_NATIVE_I64;
+                        return parent_should_produce_lox ? LOX_IR_TYPE_LOX_I64 : LOX_IR_TYPE_NATIVE_I64;
                     }
                 case OP_GREATER:
                 case OP_LESS:
                 case OP_EQUAL:
-                    return LOX_IR_TYPE_NATIVE_BOOLEAN;
+                    return parent_should_produce_lox ? LOX_IR_TYPE_LOX_BOOLEAN : LOX_IR_TYPE_NATIVE_BOOLEAN;
                 case OP_BINARY_OP_AND:
                 case OP_BINARY_OP_OR:
                 case OP_LEFT_SHIFT:
                 case OP_MODULO:
                 case OP_RIGHT_SHIFT:
-                    return LOX_IR_TYPE_NATIVE_I64;
+                    return parent_should_produce_lox ? LOX_IR_TYPE_LOX_I64 : LOX_IR_TYPE_NATIVE_I64;
             }
         }
         case LOX_IR_DATA_NODE_UNARY: {
             struct lox_ir_data_unary_node * unary = (struct lox_ir_data_unary_node *) data;
             bool is_f64 = unary->operand->produced_type->type;
-            return is_f64 ? LOX_IR_TYPE_F64 : LOX_IR_TYPE_NATIVE_I64;
+            return is_f64 ? LOX_IR_TYPE_F64 : (parent_should_produce_lox ? LOX_IR_TYPE_LOX_I64 : LOX_IR_TYPE_NATIVE_I64);
         }
         case LOX_IR_DATA_NODE_CONSTANT: {
             struct lox_ir_data_constant_node * const_node = (struct lox_ir_data_constant_node *) data;
@@ -475,12 +480,18 @@ static lox_ir_type_t calculate_type_should_produce_data(
         case LOX_IR_DATA_NODE_GUARD:
         case LOX_IR_DATA_NODE_PHI:
         case LOX_IR_DATA_NODE_INITIALIZE_ARRAY: {
-            return data->produced_type->type;
+            lox_ir_type_t produced_type = data->produced_type->type;
+            return parent_should_produce_lox ?
+                native_type_to_lox_ir_type(produced_type) :
+                lox_type_to_native_lox_ir_type(produced_type);
         }
         case LOX_IR_DATA_NODE_GET_SSA_NAME: {
-            return is_ssa_name_unboxed(ui, block, GET_USED_SSA_NAME(data)) ?
+            lox_ir_type_t produced_type = is_ssa_name_unboxed(ui, block, GET_USED_SSA_NAME(data)) ?
                    lox_type_to_native_lox_ir_type(data->produced_type->type) :
                    data->produced_type->type;
+            return parent_should_produce_lox ?
+                   native_type_to_lox_ir_type(produced_type) :
+                   lox_type_to_native_lox_ir_type(produced_type);
         }
         default: //TODO Runtime panic
     }
