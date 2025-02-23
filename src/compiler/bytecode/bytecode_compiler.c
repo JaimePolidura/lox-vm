@@ -387,7 +387,7 @@ static void var_declaration(struct bytecode_compiler * compiler, bool is_public,
     }
 
     if (newly_added_local_variable) {
-        compiler->compiling_new_local_set_body = -1;
+        compiler->compiling_new_local_set_body = -2;
     }
 
     if(is_local_variable) { // Local current_scope
@@ -1188,7 +1188,7 @@ static void init_compiler(struct bytecode_compiler * compiler, scope_type_t scop
     compiler->compiling_set_operation = false;
     compiler->compiling_inline_call = false;
     compiler->compiling_set_array_element_operation = false;
-    compiler->compiling_new_local_set_body = -1;
+    compiler->compiling_new_local_set_body = -2;
 
     compiler->function_calls = NULL;
 

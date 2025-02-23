@@ -18,20 +18,33 @@ static void run(struct compilation_result);
 
 TEST(lox_ir_lowerer_ptr) {
     struct compilation_result compilation = compile_standalone(
-            "fun function(a, b) {"
-            "   var c = a + b;"
-            "   var d = 2 * (b + a);"
-            "   if(a > 0) {"
-            "       print a - b;"
-            "       if (a > 0) {"
-            "           print a * b;"
-            "           return 2 / (a - b);"
-            "       } else {"
-            "           return a * b;"
-            "       }"
+            "struct Point {"
+            "   x;"
+            "   y;"
+            "}"
+            ""
+            "fun transform(p) {"
+            "}"
+            ""
+            "fun function() {"
+            "   var a = Point{1, 2};"
+            "   var b = Point{1, 3};"
+            "   var c = b;"
+            "   var d = b;"
+            "   transform(d);"
+            "   transform(a.y);"
+            "   print c.x;"
+            "   print a.x;"
+            "   var p = nil;"
+            "   if (true) {"
+            "       p = Point{1, 3};"
+            "   } else {"
+            "       p = transform(1);"
             "   }"
+            "   print p.x;"
             "}"
     );
+    run(compilation);
 
     struct package * package = compilation.compiled_package;
 
@@ -44,7 +57,7 @@ TEST(lox_ir_lowerer_ptr) {
             package,
             function,
             UNBOXING_INSERTION_PHASE_LOX_IR_VISUALIZATION,
-            DISPLAY_TYPE_INFO_OPT,
+            DISPLAY_TYPE_INFO_OPT | DISPLAY_ESCAPE_INFO_OPT,
             LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
     );

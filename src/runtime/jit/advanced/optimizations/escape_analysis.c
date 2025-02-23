@@ -56,6 +56,10 @@ static bool perform_escape_analysis_block(struct lox_ir_block * block, void * ex
     struct ea * ea = extra;
 
     for (struct lox_ir_control_node * current_control = block->first;; current_control = current_control->next) {
+        if(current_control->type == LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME && GET_DEFINED_SSA_NAME_VALUE(current_control)->type == LOX_IR_DATA_NODE_PHI){
+            puts("hOLA");
+        }
+
         perform_escape_analysis_control(ea, current_control);
 
         if (current_control == block->last) {
@@ -198,7 +202,8 @@ static bool perform_escape_analysis_data(
                 }
             }
 
-            if (size_u64_set(struct_definitions_seen) > 1) {
+            //We will mark all dependant ssa names in phi as escaped
+            if (size_u64_set(struct_definitions_seen) > 1 || escapes) {
                 escapes = true;
                 FOR_EACH_SSA_NAME_IN_PHI_NODE(phi, current_ssa_version_in_phi) {
                     propagate_ssa_name_as_escaped(ea, current_ssa_version_in_phi);
@@ -378,6 +383,10 @@ static bool does_ssa_name_escapes(struct ea * ea, struct ssa_name name) {
         struct lox_ir_data_node * instance = (struct lox_ir_data_node *) get_u64_hash_table(
                 &ea->instance_by_ssa_name, name.u16);
         escapes = is_marked_as_escaped_lox_ir_data_node(instance);
+    } else {
+        //Given a0 where it holds a struct which doest escape and a1 where it holds a number: a2 = phi(a0, a1)
+        //Without this code, does_ssa_name_escapes on a2 will return false
+        escapes = true;
     }
 
     return escapes;

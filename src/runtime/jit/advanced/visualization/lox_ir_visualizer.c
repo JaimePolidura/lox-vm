@@ -104,6 +104,7 @@ void visualize_lox_ir(
             struct lox_ir lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
                     &node_allocator.lox_allocator), graphviz_visualizer.options);
             perform_type_propagation(&lox_ir);
+            perform_escape_analysis(&lox_ir);
             perform_unboxing_insertion(&lox_ir);
             graphviz_visualizer.lox_ir = lox_ir;
 
@@ -125,6 +126,7 @@ void visualize_lox_ir(
                     &node_allocator.lox_allocator), graphviz_visualizer.options);
             graphviz_visualizer.lox_ir = lox_ir;
             perform_type_propagation(&lox_ir);
+            perform_escape_analysis(&lox_ir);
             perform_unboxing_insertion(&lox_ir);
             perform_copy_propagation(&lox_ir);
             resolve_phi(&lox_ir);
@@ -136,6 +138,7 @@ void visualize_lox_ir(
             struct lox_ir lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
                     &node_allocator.lox_allocator), graphviz_visualizer.options);
             perform_type_propagation(&lox_ir);
+            perform_escape_analysis(&lox_ir);
             perform_unboxing_insertion(&lox_ir);
             //perform_copy_propagation(&lox_ir);
             resolve_phi(&lox_ir);

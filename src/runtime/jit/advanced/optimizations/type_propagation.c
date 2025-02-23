@@ -293,6 +293,7 @@ static struct lox_ir_type * get_type_data_node_recursive(
             struct type_profile_data get_struct_field_type_profile = get_struct_field_profile_data.as.struct_field.get_struct_field_profile;
 
             struct lox_ir_type * type_struct_instance = get_type_data_node_recursive(to_evaluate, instance_node, &get_struct_field->instance);
+            instance_node->produced_type = type_struct_instance;
 
             if(type_struct_instance->type == LOX_IR_TYPE_UNKNOWN){
                 return type_struct_instance;
@@ -300,10 +301,8 @@ static struct lox_ir_type * get_type_data_node_recursive(
             //We insert a struct type-check/struct-definition-check guard
             if (type_struct_instance->type != LOX_IR_TYPE_LOX_STRUCT_INSTANCE) {
                 struct lox_ir_data_node * guard_node = create_guard_get_struct_field(tp, instance_node, get_struct_field_type_profile);
-                if (guard_node != NULL) {
-                    get_struct_field->instance = guard_node;
-                    instance_node = guard_node;
-                }
+                get_struct_field->instance = guard_node;
+                instance_node = guard_node;
 
                 type_struct_instance = get_type_data_node_recursive(to_evaluate, instance_node, &get_struct_field->instance);
             }
@@ -405,17 +404,12 @@ static struct lox_ir_type * get_type_data_node_recursive(
     }
 }
 
-//Will return NULL, if there is no sufficient profile (AKA LOX_ANY) data to insert a guard
 static struct lox_ir_data_node * create_guard_get_struct_field(
         struct tp * tp,
         struct lox_ir_data_node * instance_node,
         struct type_profile_data get_struct_type_profile
 ) {
     profile_data_type_t profiled_type = get_type_by_type_profile_data(get_struct_type_profile);
-
-    if (profiled_type == PROFILE_DATA_TYPE_ANY) {
-        return NULL;
-    }
 
     struct lox_ir_data_guard_node * guard_node = ALLOC_LOX_IR_DATA(LOX_IR_DATA_NODE_GUARD, struct lox_ir_data_guard_node, NULL,
             LOX_IR_ALLOCATOR(tp->lox_ir));

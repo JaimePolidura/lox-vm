@@ -63,7 +63,7 @@ struct bytecode_compiler {
 
     //Stores the local number when we are compiling the OP_SET_LOCAL of a new local variable
     //This is useful to avoid this situation: var a = a + 1; where a is the first time being defined.
-    //-1 is the default value
+    //-2 is the default value
     int compiling_new_local_set_body;
 
     //Indicates if the pending_bytecode function call/variable/struct is from an external package

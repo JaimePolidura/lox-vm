@@ -22,6 +22,7 @@ static lox_ir_type_t calculate_data_input_type_should_produce(struct ui*,struct 
 static struct lox_ir_data_node * insert_lox_type_check_guard(struct ui*,struct lox_ir_data_node*,void**,lox_ir_type_t);
 static void insert_cast_node(struct ui*,struct lox_ir_data_node*,void**,lox_ir_type_t);
 static void cast_node(struct ui*,struct lox_ir_data_node*,struct lox_ir_control_node*,void**,lox_ir_type_t);
+static bool data_always_requires_lox_input(struct lox_ir_data_node*);
 
 void perform_unboxing_insertion(struct lox_ir * lox_ir) {
     struct ui * ui = alloc_unbox_insertion(lox_ir);
@@ -52,7 +53,7 @@ static bool perform_unboxing_insertion_block(struct lox_ir_block * current_block
 }
 
 struct perform_unboxing_insertion_data_struct {
-    bool should_produced_boxed_result;
+    bool should_produced_lox_result;
     struct lox_ir_control_node * control_node;
     struct lox_ir_block * block;
     struct ui * ui;
@@ -64,7 +65,7 @@ static void perform_unboxing_insertion_control(
         struct lox_ir_control_node * current_control
 ) {
     struct perform_unboxing_insertion_data_struct consumer_struct = (struct perform_unboxing_insertion_data_struct) {
-        .should_produced_boxed_result = control_requires_lox_input(ui, current_control),
+        .should_produced_lox_result = control_requires_lox_input(ui, current_control),
         .control_node = current_control,
         .block = current_block,
         .ui = ui,
@@ -90,8 +91,9 @@ static bool perform_unboxing_insertion_data_consumer(
         void * extra
 ) {
     struct perform_unboxing_insertion_data_struct * consumer_struct = extra;
+
     lox_ir_type_t type_should_produce = control_requires_lox_input(consumer_struct->ui, consumer_struct->control_node) ?
-        LOX_IR_TYPE_LOX_ANY : LOX_IR_TYPE_UNKNOWN;
+            LOX_IR_TYPE_LOX_ANY : LOX_IR_TYPE_UNKNOWN;
 
     perform_unboxing_insertion_data(consumer_struct->ui, consumer_struct->block, consumer_struct->control_node,
         child, parent, parent_child_ptr, type_should_produce);
@@ -122,7 +124,7 @@ static void perform_unboxing_insertion_data(
                                         type_child_should_produce);
     }
 
-    type_should_produce = parent_node == NULL ?
+    type_should_produce = first_iteration ?
             calculate_type_should_produce_data(ui, block, data_node, should_produce_lox) : type_should_produce;
 
     //Special case: We deal with string concatenation by emitting at compiletime a functino call to generic function to
@@ -297,6 +299,28 @@ static bool is_ssa_name_unboxed(struct ui * ui, struct lox_ir_block * block, str
     return type->type == LOX_IR_TYPE_F64 || is_native_lox_ir_type(type->type);
 }
 
+static bool data_always_requires_lox_input(struct lox_ir_data_node * data) {
+    switch (data->type) {
+        case LOX_IR_DATA_NODE_CALL:
+            return true;
+        case LOX_IR_DATA_NODE_GET_STRUCT_FIELD:
+        case LOX_IR_DATA_NODE_INITIALIZE_STRUCT:
+        case LOX_IR_DATA_NODE_GET_ARRAY_ELEMENT:
+        case LOX_IR_DATA_NODE_GET_ARRAY_LENGTH:
+        case LOX_IR_DATA_NODE_INITIALIZE_ARRAY:
+            return is_marked_as_escaped_lox_ir_data_node(data);
+        case LOX_IR_DATA_NODE_BINARY:
+        case LOX_IR_DATA_NODE_CONSTANT:
+        case LOX_IR_DATA_NODE_UNARY:
+        case LOX_IR_DATA_NODE_GUARD:
+        case LOX_IR_DATA_NODE_PHI:
+        case LOX_IR_DATA_NODE_GET_SSA_NAME:
+        case LOX_IR_DATA_NODE_GET_GLOBAL:
+        case LOX_IR_DATA_NODE_CAST:
+            return false;
+    }
+}
+
 static bool control_requires_lox_input(struct ui * ui, struct lox_ir_control_node * control) {
     switch (control->type) {
         case LOX_IR_CONTROL_NODE_SET_ARRAY_ELEMENT:
@@ -343,15 +367,18 @@ static bool control_requires_lox_input(struct ui * ui, struct lox_ir_control_nod
 static lox_ir_type_t calculate_data_input_type_should_produce(
         struct ui * ui,
         struct lox_ir_block * block,
-        struct lox_ir_data_node * data,
+        struct lox_ir_data_node * parent,
         struct lox_ir_data_node * input,
         bool parent_should_produce_lox
 ) {
-    if (data->type != LOX_IR_DATA_NODE_BINARY) {
+    if(data_always_requires_lox_input(parent)){
+        return LOX_IR_TYPE_LOX_ANY;
+    }
+    if (parent->type != LOX_IR_DATA_NODE_BINARY) {
         return calculate_type_should_produce_data(ui, block, input, parent_should_produce_lox);
     }
 
-    struct lox_ir_data_binary_node * binary = (struct lox_ir_data_binary_node *) data;
+    struct lox_ir_data_binary_node * binary = (struct lox_ir_data_binary_node *) parent;
     lox_ir_type_t right_type = binary->right->produced_type->type;
     lox_ir_type_t left_type = binary->left->produced_type->type;
     //A constant can be of type lox and native, since the value can be modified at compile time.
