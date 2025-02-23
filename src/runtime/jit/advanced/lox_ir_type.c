@@ -220,57 +220,41 @@ bool is_native_lox_ir_type(lox_ir_type_t type) {
     return type >= LOX_IR_TYPE_NATIVE_I64 && type <= LOX_IR_TYPE_NATIVE_STRUCT_INSTANCE;
 }
 
-lox_ir_type_t binary_to_lox_ir_type(bytecode_t operator, lox_ir_type_t left, lox_ir_type_t right, bool return_lox_as_default) {
+lox_ir_type_t binary_to_lox_ir_type(bytecode_t operator, lox_ir_type_t left, lox_ir_type_t right) {
     switch (operator) {
         case OP_GREATER:
         case OP_EQUAL:
         case OP_LESS: {
-            return return_lox_as_default ? LOX_IR_TYPE_LOX_BOOLEAN : LOX_IR_TYPE_NATIVE_BOOLEAN;
+            return LOX_IR_TYPE_LOX_BOOLEAN;
         }
         case OP_BINARY_OP_AND:
         case OP_BINARY_OP_OR:
         case OP_LEFT_SHIFT:
         case OP_RIGHT_SHIFT:
         case OP_MODULO: {
-            return return_lox_as_default ? LOX_IR_TYPE_LOX_I64 : LOX_IR_TYPE_NATIVE_I64;
+            return LOX_IR_TYPE_LOX_I64;
         }
+        case OP_SUB:
+        case OP_MUL:
+        case OP_DIV:
         case OP_ADD: {
             if(left == LOX_IR_TYPE_UNKNOWN || right == LOX_IR_TYPE_UNKNOWN){
                 return LOX_IR_TYPE_UNKNOWN;
             }
-            bool some_string = left == LOX_IR_TYPE_LOX_STRING || right == LOX_IR_TYPE_LOX_STRING ||
-                               left == LOX_IR_TYPE_NATIVE_STRING || right == LOX_IR_TYPE_NATIVE_STRING;
+            bool some_string = left == LOX_IR_TYPE_LOX_STRING || right == LOX_IR_TYPE_LOX_STRING;
             bool some_f64 = left == LOX_IR_TYPE_F64 || right == LOX_IR_TYPE_F64;
             bool some_any = left == LOX_IR_TYPE_LOX_ANY || right == LOX_IR_TYPE_LOX_ANY;
             bool some_lox = is_lox_lox_ir_type(left) || is_lox_lox_ir_type(right);
-            bool both_native_i64 = left == LOX_IR_TYPE_NATIVE_I64 && right == LOX_IR_TYPE_NATIVE_I64;
 
             if (some_string) {
-                return return_lox_as_default ? LOX_IR_TYPE_LOX_STRING : LOX_IR_TYPE_NATIVE_STRING;
+                return LOX_IR_TYPE_LOX_STRING;
             } else if (some_any) {
                 return LOX_IR_TYPE_LOX_ANY;
             } else if(some_f64) {
                 return LOX_IR_TYPE_F64;
-            } else if (both_native_i64) {
-                return LOX_IR_TYPE_NATIVE_I64;
             } else {
-                return return_lox_as_default ? LOX_IR_TYPE_LOX_I64 : LOX_IR_TYPE_NATIVE_I64;
+                return LOX_IR_TYPE_LOX_I64;
             }
-        }
-        case OP_SUB:
-        case OP_MUL: {
-            if(left == LOX_IR_TYPE_UNKNOWN || right == LOX_IR_TYPE_UNKNOWN){
-                return LOX_IR_TYPE_UNKNOWN;
-            }
-
-            if(left == LOX_IR_TYPE_F64 || right == LOX_IR_TYPE_F64) {
-                return LOX_IR_TYPE_F64;
-            } else {
-                return return_lox_as_default ? LOX_IR_TYPE_LOX_I64 : LOX_IR_TYPE_NATIVE_I64;
-            }
-        }
-        case OP_DIV: {
-            return LOX_IR_TYPE_F64;
         }
     }
 }

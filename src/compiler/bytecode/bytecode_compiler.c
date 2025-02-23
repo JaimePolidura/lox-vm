@@ -837,7 +837,7 @@ static void named_variable(
 ) {
     int variable_identifier = resolve_local_variable(compiler, &variable_name);
 
-    if(variable_identifier == compiler->compiling_new_local_set_body){
+    if (variable_identifier == compiler->compiling_new_local_set_body) {
         report_error(compiler, variable_name, "Variable is not yet defined");
     }
 
@@ -1263,11 +1263,11 @@ static int add_local_variable(
         struct token new_variable_name,
         bool * new_local_variable
 ) {
-    if(compiler->local_depth == 0){
+    if (compiler->local_depth == 0) {
         return - 1; //We are in a global current_scope
     }
 
-    if(is_variable_already_defined(compiler, new_variable_name)){
+    if (is_variable_already_defined(compiler, new_variable_name)) {
         report_error(compiler, new_variable_name, "variable already defined");
     }
 

@@ -64,7 +64,8 @@ struct lox_ir_type * lox_to_native_lox_ir_type(struct lox_ir_type *lox_type, str
 
 #define RETURN_LOX_TYPE_AS_DEFAULT true
 #define RETURN_NATIVE_TYPE_AS_DEFAULT true
-lox_ir_type_t binary_to_lox_ir_type(bytecode_t operator, lox_ir_type_t left, lox_ir_type_t right, bool return_lox_as_default);
+//Only takes inputs as lox types and returns lox type, not native types
+lox_ir_type_t binary_to_lox_ir_type(bytecode_t operator, lox_ir_type_t left, lox_ir_type_t right);
 lox_ir_type_t profiled_type_to_lox_ir_type(profile_data_type_t profiled_type);
 bool is_lox_lox_ir_type(lox_ir_type_t type);
 bool is_native_lox_ir_type(lox_ir_type_t type);

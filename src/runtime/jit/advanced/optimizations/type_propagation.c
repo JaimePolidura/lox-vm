@@ -219,8 +219,7 @@ static struct lox_ir_type * get_type_data_node_recursive(
 
             binary->right->produced_type = right_type;
             binary->left->produced_type = left_type;
-            lox_ir_type_t produced_type = binary_to_lox_ir_type(binary->operator, left_type->type, right_type->type,
-                                                                RETURN_LOX_TYPE_AS_DEFAULT);
+            lox_ir_type_t produced_type = binary_to_lox_ir_type(binary->operator, left_type->type, right_type->type);
             return CREATE_LOX_IR_TYPE(produced_type, LOX_IR_ALLOCATOR(tp->lox_ir));
         }
         case LOX_IR_DATA_NODE_GUARD: {

@@ -17,29 +17,18 @@ static bool node_defines_ssa_name(struct lox_ir_control_node *, int version);
 static void run(struct compilation_result);
 
 TEST(lox_ir_lowerer_ptr) {
-//    struct compilation_result compilation = compile_standalone(
-//            "fun function(a, b, c) {"
-//            "   for (var i = 0; i < 10; i = i + 1) {"
-//            "      if(i == 0){"
-//            "          var d = a + b;"
-//            "          var e = e + i;"
-//            "      }else{"
-//            "          for(var j = 0; j < 10; j = j + 1){"
-//            "              print i + 1;"
-//            "              c = 2;"
-//            "              var d = i * 2;"
-//            "              print d;"
-//            "           }"
-//            "       }"
-//            "       print c + 3;"
-//            "   }"
-//            "}"
-//    );
-
     struct compilation_result compilation = compile_standalone(
-            "fun function(a, b, c) {"
-            "   for (var i = 0; i < 10; i = i + 1) {"
-            "          var e = e + 1;"
+            "fun function(a, b) {"
+            "   var c = a + b;"
+            "   var d = 2 * (b + a);"
+            "   if(a > 0) {"
+            "       print a - b;"
+            "       if (a > 0) {"
+            "           print a * b;"
+            "           return 2 / (a - b);"
+            "       } else {"
+            "           return a * b;"
+            "       }"
             "   }"
             "}"
     );
@@ -54,7 +43,7 @@ TEST(lox_ir_lowerer_ptr) {
     visualize_lox_ir(
             package,
             function,
-            PHIS_OPTIMIZED_PHASE_LOX_IR_VISUALIZATION,
+            UNBOXING_INSERTION_PHASE_LOX_IR_VISUALIZATION,
             DISPLAY_TYPE_INFO_OPT,
             LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"

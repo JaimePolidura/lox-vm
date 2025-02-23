@@ -93,10 +93,6 @@ static bool perform_unboxing_insertion_data_consumer(
     lox_ir_type_t type_should_produce = control_requires_lox_input(consumer_struct->ui, consumer_struct->control_node) ?
         LOX_IR_TYPE_LOX_ANY : LOX_IR_TYPE_UNKNOWN;
 
-    if(consumer_struct->control_node->type == LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME && child->type == LOX_IR_DATA_NODE_BINARY){
-        puts("hola");
-    }
-
     perform_unboxing_insertion_data(consumer_struct->ui, consumer_struct->block, consumer_struct->control_node,
         child, parent, parent_child_ptr, type_should_produce);
 
@@ -362,10 +358,6 @@ static lox_ir_type_t calculate_data_input_type_should_produce(
     //That means that if one operator node is const, we will return the type of the other operator
     bool is_right_constant = binary->right->type == LOX_IR_DATA_NODE_CONSTANT;
     bool is_left_constant = binary->left->type == LOX_IR_DATA_NODE_CONSTANT;
-
-    if (left_type == right_type) {
-        return left_type;
-    }
 
     bool binary_produces_string = IS_STRING_LOX_IR_TYPE(binary->data.produced_type->type);
     bool binary_produces_f64 = binary->data.produced_type->type == LOX_IR_TYPE_F64
