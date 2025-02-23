@@ -18,24 +18,9 @@ static void run(struct compilation_result);
 
 TEST(lox_ir_lowerer_ptr) {
     struct compilation_result compilation = compile_standalone(
-            "struct Point {"
-            "   x;"
-            "   y;"
-            "}"
-            ""
-            "fun transform(p) {"
-            "}"
-            ""
-            "fun function() {"
-            "   var arr = [1, 2, 3];"
-            "   transform(arr[0]);"
-            "   arr = [1, 2, 2];"
-            "   if(len(arr) > 10) {"
-            "       var t = p[0];"
-            "   } else {"
-            "       arr = [1, 2];"
-            "   }"
-            "   print arr[2];"
+            "fun function(a) {"
+            "   var b = 5;"
+            "   var c = a + 5 - b;"
             "}"
     );
     run(compilation);
