@@ -304,8 +304,11 @@ static void maybe_save_instance_define_ssa(struct ea * ea, struct lox_ir_control
         put_u64_hash_table(&ea->instance_by_ssa_name, define->ssa_name.u16, define->value);
     } else if (define->value->type == LOX_IR_DATA_NODE_GET_SSA_NAME) {
         struct lox_ir_data_get_ssa_name_node * get_ssa_name = (struct lox_ir_data_get_ssa_name_node * ) define->value;
-        void * instance = get_u64_hash_table(&ea->instance_by_ssa_name, get_ssa_name->ssa_name.u16);
-        put_u64_hash_table(&ea->instance_by_ssa_name, define->ssa_name.u16, instance);
+        
+        if (contains_u64_hash_table(&ea->instance_by_ssa_name, get_ssa_name->ssa_name.u16)) {
+            void * instance = get_u64_hash_table(&ea->instance_by_ssa_name, get_ssa_name->ssa_name.u16);
+            put_u64_hash_table(&ea->instance_by_ssa_name, define->ssa_name.u16, instance);
+        }
     }
 }
 

@@ -369,7 +369,7 @@ static struct lox_ir_data_node * insert_lox_type_check_guard(
     guard_node->guard.value = node;
     guard_node->guard.type = LOX_IR_GUARD_TYPE_CHECK;
     guard_node->guard.value_to_compare.type = type_to_be_checked;
-    guard_node->guard.action_on_guard_failed = LOX_IR_GUARD_FAIL_ACTION_TYPE_SWITCH_TO_INTERPRETER;
+    guard_node->guard.action_on_guard_failed = LOX_IR_GUARD_FAIL_ACTION_TYPE_RUNTIME_ERROR;
     guard_node->data.produced_type = create_lox_ir_type(type_to_be_checked, LOX_IR_ALLOCATOR(ui->lox_ir));
 
     if(parnet_field_ptr != NULL){
