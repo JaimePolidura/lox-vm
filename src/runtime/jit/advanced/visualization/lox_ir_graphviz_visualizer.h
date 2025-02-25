@@ -6,7 +6,7 @@
 #include "runtime/jit/advanced/optimizations/loop_invariant_code_motion.h"
 #include "runtime/jit/advanced/optimizations/sparse_constant_propagation.h"
 #include "runtime/jit/advanced/optimizations/strength_reduction.h"
-#include "runtime/jit/advanced/optimizations/unboxing_insertion.h"
+#include "runtime/jit/advanced/optimizations/cast_insertion.h"
 #include "runtime/jit/advanced/optimizations/copy_propagation.h"
 #include "runtime/jit/advanced/optimizations/type_propagation.h"
 #include "runtime/jit/advanced/optimizations/escape_analysis.h"

@@ -85,7 +85,7 @@ struct u64_set get_used_v_registers_lox_ir_data_node(struct lox_ir_data_node*, s
 bool is_terminator_lox_ir_data_node(struct lox_ir_data_node*);
 //Returns set of pointers to the fields of parent that contains the children pointer. Type: struct lox_ir_data_node **
 struct u64_set get_children_lox_ir_data_node(struct lox_ir_data_node*, struct lox_allocator*);
-void unbox_const_lox_ir_data_node(struct lox_ir_data_constant_node*);
+void const_to_native_lox_ir_data_node(struct lox_ir_data_constant_node *const_node);
 bool is_marked_as_escaped_lox_ir_data_node(struct lox_ir_data_node*);
 //Sets escapes boolean field in certain type of lox ir nodes to true
 void mark_as_escaped_lox_ir_data_node(struct lox_ir_data_node*);

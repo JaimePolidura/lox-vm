@@ -454,8 +454,8 @@ static int generate_data_node_graph(struct lox_ir_visualizer * visualizer, struc
             node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
 
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
-            int unboxed_value_node_id = generate_data_node_graph(visualizer, cast->to_cast);
-            link_data_data_node_graphviz_file(visualizer, self_data_node_id, unboxed_value_node_id);
+            int casted_value_node_id = generate_data_node_graph(visualizer, cast->to_cast);
+            link_data_data_node_graphviz_file(visualizer, self_data_node_id, casted_value_node_id);
             break;
         }
         case LOX_IR_DATA_NODE_INITIALIZE_ARRAY: {

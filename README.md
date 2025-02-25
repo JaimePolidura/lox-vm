@@ -29,7 +29,7 @@ An implementation of lox pending_bytecode interpreter described in "Crafting Int
     - Loop invariant code motion
     - Escape analysis
     - Type propagation/analysis
-    - Box/Unbox insertion
+    - Cast insertion
     - Range check elimination
   - 3º <b> Virtual register allocation </b>
   - 4º <b> IR Lowering </b>

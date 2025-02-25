@@ -346,6 +346,7 @@ void put_type_by_ssa_name_lox_ir(
     while (has_next_u64_hash_table_iterator(type_by_ssa_name_by_block_ite)) {
         struct u64_hash_table_entry current_entry = next_u64_hash_table_iterator(&type_by_ssa_name_by_block_ite);
         struct u64_hash_table * current_types_by_ssa_name = current_entry.value;
+        struct lox_ir_block * block = (struct lox_ir_block *) current_entry.key;
 
         if (contains_u64_hash_table(current_types_by_ssa_name, ssa_name.u16)) {
             put_u64_hash_table(current_types_by_ssa_name, ssa_name.u16, new_type);

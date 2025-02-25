@@ -795,18 +795,18 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_cast(
         struct lox_ir_data_node * data_node,
         struct v_register * result
 ) {
-    //unboxing_insertion guarantees that cast nodes won't have as input a const node, so when we call lower_lox_ir_data(unbox->to_unbox)
+    //cast_insertion guarantees that cast nodes won't have as input a const node, so when we call lower_lox_ir_data(csat->to_cast)
     //it will be returned as a v register
     struct lox_ir_data_cast_node * cast = (struct lox_ir_data_cast_node *) data_node;
-    struct lox_ir_ll_operand to_unbox_input = lower_lox_ir_data(lllil, cast->to_cast, LOX_IR_TYPE_UNKNOWN, result);
+    struct lox_ir_ll_operand to_cast_input = lower_lox_ir_data(lllil, cast->to_cast, LOX_IR_TYPE_UNKNOWN, result);
 
     if (is_lox_lox_ir_type(cast->data.produced_type->type)) {
-        emit_lox_to_native(lllil, to_unbox_input, cast->to_cast->produced_type->type, LOX_IR_TYPE_LOX_ANY);
+        emit_lox_to_native(lllil, to_cast_input, cast->to_cast->produced_type->type, LOX_IR_TYPE_LOX_ANY);
     } else {
-        emit_native_to_lox(lllil, to_unbox_input, cast->to_cast->produced_type->type, LOX_IR_TYPE_LOX_ANY);
+        emit_native_to_lox(lllil, to_cast_input, cast->to_cast->produced_type->type, LOX_IR_TYPE_LOX_ANY);
     }
 
-    return to_unbox_input;
+    return to_cast_input;
 }
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_get_global(

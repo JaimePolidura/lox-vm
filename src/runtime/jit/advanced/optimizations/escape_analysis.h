@@ -7,10 +7,10 @@
 
 //Performs escape analysis on structs & arrays (instance) initialized in the lox_ir. If an instance does/doesn't escape
 //all the jit control uses of that instance, the field escapes is set to true/false.
-//Run after type_propagation and before box insertion. Uses type information.
+//Run after type_propagation and before cast insertion. Uses type information.
 //Escape analysis is useful:
 // Allocate instances in the stack if possible
-// Avoid inserting boxing/unboxing when getting/setting instsance fields
+// Avoid inserting cast when getting/setting instsance fields
 
 //An instance escapes if:
 // Is passed as a function argument

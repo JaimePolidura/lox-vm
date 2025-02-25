@@ -679,7 +679,7 @@ struct u64_set get_children_lox_ir_data_node(struct lox_ir_data_node * node, str
     return children;
 }
 
-void unbox_const_lox_ir_data_node(struct lox_ir_data_constant_node * const_node) {
+void const_to_native_lox_ir_data_node(struct lox_ir_data_constant_node * const_node) {
     if (is_lox_lox_ir_type(const_node->data.produced_type->type)) {
         const_node->data.produced_type->type = lox_type_to_native_lox_ir_type(const_node->data.produced_type->type);
         const_node->value = lox_to_native_type((lox_value_t) const_node->value);
