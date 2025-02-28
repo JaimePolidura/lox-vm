@@ -318,3 +318,23 @@ bool is_format_equivalent_lox_ir_type(lox_ir_type_t left, lox_ir_type_t right) {
         case LOX_IR_TYPE_LOX_STRUCT_INSTANCE: return right == LOX_IR_TYPE_NATIVE_STRUCT_INSTANCE;
     }
 }
+
+bool is_same_number_binay_format_lox_ir_type(lox_ir_type_t left, lox_ir_type_t right) {
+    struct u8_set values;
+    add_u8_set(&values, right + 1);
+    add_u8_set(&values, left + 1);
+
+    bool some_other_type_found = false;
+
+    for (int i = 0 ; i < (LOX_IR_TYPE_LOX_LAST_TYPE + 1); i++) {
+        if (i != LOX_IR_TYPE_LOX_ANY
+            && i != LOX_IR_TYPE_LOX_I64
+            && i != LOX_IR_TYPE_F64
+        ) {
+            some_other_type_found = true;
+            break;
+        }
+    }
+
+    return !some_other_type_found;
+}

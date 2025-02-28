@@ -159,7 +159,7 @@ static void perform_cast_insertion_data(
         perform_cast_insertion_data(ci, block, control, child, child_node, (void **) children_field_ptr,
                                     parent_child_field_ptr);
     }
-    struct lox_ir_data_unary_node * unary = (struct lox_ir_data_unary_node *) child_node;
+
     //At this point all inputs to child_node have been processed, so we can upate its produced type safely
     update_prev_parent_produced_type(ci, child_node);
 
@@ -475,23 +475,29 @@ static void insert_cast_node(
         struct ci * ci,
         struct lox_ir_data_node * to_cast,
         void ** parent,
-        lox_ir_type_t type_should_produce
+        lox_ir_type_t expeced_type
 ) {
     if (to_cast->produced_type->type == LOX_IR_TYPE_LOX_ANY) {
-        lox_ir_type_t type_to_be_used_in_guard = native_type_to_lox_ir_type(type_should_produce);
+        lox_ir_type_t type_to_be_used_in_guard = native_type_to_lox_ir_type(expeced_type);
         struct lox_ir_data_guard_node * guard_node = insert_lox_type_check_guard(ci, to_cast, parent, type_to_be_used_in_guard);
         *parent = (void *) guard_node;
         to_cast = &guard_node->data;
     }
 
-    if (is_native_lox_ir_type(type_should_produce)) {
+    lox_ir_type_t actual_type = to_cast->produced_type->type;
+
+    bool redundant_cast = actual_type == expeced_type ||
+            is_same_number_binay_format_lox_ir_type(actual_type, expeced_type);
+
+    if (!redundant_cast) {
         struct lox_ir_data_cast_node * cast_node = ALLOC_LOX_IR_DATA(LOX_IR_DATA_NODE_CAST, struct lox_ir_data_cast_node,
                 NULL, LOX_IR_ALLOCATOR(ci->lox_ir));
         cast_node->to_cast = to_cast;
-        cast_node->data.produced_type = create_lox_ir_type(type_should_produce, LOX_IR_ALLOCATOR(ci->lox_ir));
+        cast_node->data.produced_type = create_lox_ir_type(expeced_type, LOX_IR_ALLOCATOR(ci->lox_ir));
 
         *parent = (void *) cast_node;
     }
+
 }
 
 static struct lox_ir_data_guard_node * insert_lox_type_check_guard(

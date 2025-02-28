@@ -1,9 +1,11 @@
 #pragma once
 
-#include "shared.h"
-#include "shared/utils/collections/u64_hash_table.h"
 #include "runtime/profiler/profile_data.h"
+
+#include "shared/utils/collections/u64_hash_table.h"
+#include "shared/utils/collections/u8_set.h"
 #include "shared/types/struct_definition_object.h"
+#include "shared.h"
 
 #define CREATE_LOX_IR_TYPE(type_arg, allocator) (create_lox_ir_type((type_arg), (allocator)))
 #define CREATE_STRUCT_LOX_IR_TYPE(definition, allocator) (create_initialize_struct_lox_ir_type((definition), (allocator)))
@@ -33,6 +35,9 @@ typedef enum {
     LOX_IR_TYPE_LOX_NIL,
     LOX_IR_TYPE_LOX_ARRAY,
     LOX_IR_TYPE_LOX_STRUCT_INSTANCE,
+
+    //It should always be the last element, this is usefule to know how many types there are
+    LOX_IR_TYPE_LOX_LAST_TYPE
 } lox_ir_type_t;
 
 struct struct_instance_lox_ir_type {
@@ -75,3 +80,4 @@ lox_ir_type_t native_type_to_lox_ir_type(lox_ir_type_t native_type);
 char * to_string_lox_ir_type(lox_ir_type_t type);
 bool is_same_format_lox_ir_type(lox_ir_type_t left, lox_ir_type_t right);
 bool is_format_equivalent_lox_ir_type(lox_ir_type_t left, lox_ir_type_t right);
+bool is_same_number_binay_format_lox_ir_type(lox_ir_type_t left, lox_ir_type_t right);
