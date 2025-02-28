@@ -489,8 +489,9 @@ void emit_conditional_function_call_ll_lox_ir(
     struct lox_ir_control_ll_function_call * func_call = ALLOC_LOX_IR_CONTROL(
             LOX_IR_CONTROL_NODE_LL_FUNCTION_CALL, struct lox_ir_control_ll_function_call, NULL, allocator
     );
-
+    cond_func_call->call = func_call;
     cond_func_call->condition = condition;
+
     cond_func_call->call->function_name = function_name;
     cond_func_call->call = func_call;
     cond_func_call->call->function_call_address = function_address;

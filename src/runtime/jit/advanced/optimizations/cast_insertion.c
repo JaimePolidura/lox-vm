@@ -38,6 +38,7 @@ static void remove_cast_node(struct ci*, struct lox_ir_data_node*, struct lox_ir
 static void cast_binary_node(struct ci*, struct lox_ir_data_binary_node*, void ** parent_field_ptr,lox_ir_type_t);
 static lox_ir_type_t calculate_type_produced_by_binary(struct lox_ir_data_binary_node *binary);
 static void cast_unary_node(struct ci*, struct lox_ir_data_unary_node*, void ** parent_field_ptr,lox_ir_type_t);
+static void update_prev_parent_produced_type(struct ci *ci, struct lox_ir_data_node *data_node);
 
 void perform_cast_insertion(struct lox_ir * lox_ir) {
     struct ci * ci = alloc_cast_insertion(lox_ir);
@@ -158,6 +159,9 @@ static void perform_cast_insertion_data(
         perform_cast_insertion_data(ci, block, control, child, child_node, (void **) children_field_ptr,
                                     parent_child_field_ptr);
     }
+    struct lox_ir_data_unary_node * unary = (struct lox_ir_data_unary_node *) child_node;
+    //At this point all inputs to child_node have been processed, so we can upate its produced type safely
+    update_prev_parent_produced_type(ci, child_node);
 
     lox_ir_type_t expected_type = calculate_expected_type_child_to_produce(ci, control, parent_node, child_node);
     lox_ir_type_t actual_type = calculate_actual_type_child_produces(ci, control, parent_node, child_node);
@@ -220,7 +224,9 @@ static lox_ir_type_t calculate_expected_type_child_to_produce(
         case LOX_IR_DATA_NODE_CALL: return LOX_IR_TYPE_LOX_ANY;
         case LOX_IR_DATA_NODE_GUARD: return LOX_IR_TYPE_LOX_ANY;
         case LOX_IR_DATA_NODE_UNARY: {
-            return calculate_expected_type_unary_to_produce((struct lox_ir_data_unary_node *) parent, input);
+            lox_ir_type_t expected_input_type = calculate_expected_type_unary_to_produce((struct lox_ir_data_unary_node *) parent, input);
+            parent->produced_type->type = expected_input_type;
+            return expected_input_type;
         }
         case LOX_IR_DATA_NODE_BINARY: {
             return calculate_expected_type_binary_to_produce((struct lox_ir_data_binary_node *) parent, input);
@@ -230,7 +236,7 @@ static lox_ir_type_t calculate_expected_type_child_to_produce(
         }
         case LOX_IR_DATA_NODE_GET_ARRAY_ELEMENT: {
             struct lox_ir_data_get_array_element_node * get_arr_ele = (struct lox_ir_data_get_array_element_node *) parent;
-            if(get_arr_ele->instance == input){
+            if(get_arr_ele->instance == input) {
                 return LOX_IR_TYPE_NATIVE_ARRAY;
             } else {
                 //Otherwise input is the index
@@ -369,7 +375,8 @@ static void cast_node(
             break;
         }
         case LOX_IR_DATA_NODE_GET_SSA_NAME: {
-            data_node->produced_type = get_type_by_ssa_name_lox_ir(ci->lox_ir, block, GET_USED_SSA_NAME(data_node));
+            data_node->produced_type = clone_lox_ir_type(get_type_by_ssa_name_lox_ir(ci->lox_ir, block, GET_USED_SSA_NAME(data_node)),
+                                                         LOX_IR_ALLOCATOR(ci->lox_ir));
             if (data_node->produced_type->type != type_should_produce) {
                 insert_cast_node(ci, data_node, parent_field_ptr, type_should_produce);
             }
@@ -416,6 +423,9 @@ static lox_ir_type_t calculate_type_produced_by_binary(struct lox_ir_data_binary
     }
     if (is_comparation_bytecode_instruction(binary->operator)) {
         return LOX_IR_TYPE_NATIVE_BOOLEAN;
+    }
+    if (IS_STRING_LOX_IR_TYPE(binary->data.produced_type->type)) {
+        return LOX_IR_TYPE_NATIVE_STRING;
     }
 
     lox_ir_type_t right_type = binary->right->produced_type->type;
@@ -476,7 +486,7 @@ static void insert_cast_node(
 
     if (is_native_lox_ir_type(type_should_produce)) {
         struct lox_ir_data_cast_node * cast_node = ALLOC_LOX_IR_DATA(LOX_IR_DATA_NODE_CAST, struct lox_ir_data_cast_node,
-                                                                     NULL, LOX_IR_ALLOCATOR(ci->lox_ir));
+                NULL, LOX_IR_ALLOCATOR(ci->lox_ir));
         cast_node->to_cast = to_cast;
         cast_node->data.produced_type = create_lox_ir_type(type_should_produce, LOX_IR_ALLOCATOR(ci->lox_ir));
 
@@ -490,14 +500,13 @@ static struct lox_ir_data_guard_node * insert_lox_type_check_guard(
         void ** parnet_field_ptr,
         lox_ir_type_t type_to_be_checked
 ) {
-    struct lox_ir_data_guard_node * guard_node = ALLOC_LOX_IR_DATA(LOX_IR_DATA_NODE_GUARD, struct lox_ir_data_guard_node, NULL,
-        LOX_IR_ALLOCATOR(ci->lox_ir));
+    struct lox_ir_guard guard;
+    guard.value = node;
+    guard.type = LOX_IR_GUARD_TYPE_CHECK;
+    guard.value_to_compare.type = type_to_be_checked;
+    guard.action_on_guard_failed = LOX_IR_GUARD_FAIL_ACTION_TYPE_RUNTIME_ERROR;
 
-    guard_node->guard.value = node;
-    guard_node->guard.type = LOX_IR_GUARD_TYPE_CHECK;
-    guard_node->guard.value_to_compare.type = type_to_be_checked;
-    guard_node->guard.action_on_guard_failed = LOX_IR_GUARD_FAIL_ACTION_TYPE_RUNTIME_ERROR;
-    guard_node->data.produced_type = create_lox_ir_type(type_to_be_checked, LOX_IR_ALLOCATOR(ci->lox_ir));
+    struct lox_ir_data_guard_node * guard_node = create_guard_lox_ir_data_node(guard, LOX_IR_ALLOCATOR(ci->lox_ir));
 
     if(parnet_field_ptr != NULL){
         *parnet_field_ptr = (void *) guard_node;
@@ -525,7 +534,8 @@ static void extract_define_cast_from_phi(
     );
 
     //get_uncasted_ssa_name_node
-    get_uncasted_ssa_name_node->data.produced_type = get_type_by_ssa_name_lox_ir(ci->lox_ir, block, ssa_name_to_extract);
+    get_uncasted_ssa_name_node->data.produced_type = clone_lox_ir_type(get_type_by_ssa_name_lox_ir(ci->lox_ir, block, ssa_name_to_extract),
+                                                                       LOX_IR_ALLOCATOR(ci->lox_ir));
     get_uncasted_ssa_name_node->ssa_name = ssa_name_to_extract;
     add_ssa_name_use_lox_ir(ci->lox_ir, ssa_name_to_extract, &define_casted->control);
 
@@ -647,6 +657,36 @@ static bool can_process(struct ci * ci, struct lox_ir_block * block) {
     }
 
     return can_process;
+}
+
+static void update_prev_parent_produced_type(struct ci * ci, struct lox_ir_data_node * data_node) {
+    switch (data_node->type) {
+        case LOX_IR_DATA_NODE_BINARY: {
+            struct lox_ir_data_binary_node * binary = (struct lox_ir_data_binary_node *) data_node;
+            binary->data.produced_type->type = calculate_type_produced_by_binary(binary);
+            break;
+        }
+        case LOX_IR_DATA_NODE_UNARY: {
+            struct lox_ir_data_unary_node * unary = (struct lox_ir_data_unary_node *) data_node;
+            unary->data.produced_type->type = unary->operand->produced_type->type;
+            break;
+        }
+        case LOX_IR_DATA_NODE_INITIALIZE_STRUCT: {
+            data_node->produced_type->type = LOX_IR_TYPE_NATIVE_STRUCT_INSTANCE;
+            break;
+        }
+        case LOX_IR_DATA_NODE_INITIALIZE_ARRAY: {
+            data_node->produced_type->type = LOX_IR_TYPE_NATIVE_ARRAY;
+            break;
+        }
+        case LOX_IR_DATA_NODE_GET_ARRAY_LENGTH: {
+            data_node->produced_type->type = LOX_IR_TYPE_NATIVE_I64;
+            break;
+        }
+        //The type is inserted when creating a guard_node, so we don't have to anything here
+        case LOX_IR_DATA_NODE_GUARD: break;
+        default: break;
+    }
 }
 
 static struct ci * alloc_cast_insertion(struct lox_ir * lox_ir) {

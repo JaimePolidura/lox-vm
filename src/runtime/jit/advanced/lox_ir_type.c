@@ -21,6 +21,33 @@ struct lox_ir_type * create_initialize_struct_lox_ir_type(
     return type;
 }
 
+struct lox_ir_type * clone_lox_ir_type(struct lox_ir_type * clone_src, struct lox_allocator * allocator) {
+    struct lox_ir_type * clone_dst = LOX_MALLOC(allocator, sizeof(struct lox_ir_type));
+    clone_dst->type = clone_src->type;
+
+    struct array_lox_ir_type * array_clone_src = clone_src->value.array;
+    if (array_clone_src != NULL) {
+        clone_dst->value.array = LOX_MALLOC(allocator, sizeof(struct array_lox_ir_type));
+        clone_dst->value.array->type = clone_lox_ir_type(array_clone_src->type, allocator);
+    }
+
+    struct struct_instance_lox_ir_type * struct_clone_src = clone_src->value.struct_instance;
+    if (struct_clone_src != NULL) {
+        struct u64_hash_table * struct_fields_clone_dst = clone_u64_hash_table(&struct_clone_src->type_by_field_name, allocator);
+        struct_clone_src->type_by_field_name.capacity = struct_fields_clone_dst->capacity;
+        struct_clone_src->type_by_field_name.entries = struct_fields_clone_dst->entries;
+        struct_clone_src->type_by_field_name.size = struct_fields_clone_dst->size;
+        struct_clone_src->type_by_field_name.allocator = allocator;
+
+        struct_clone_src->definition = struct_clone_src->definition;
+    }
+
+    clone_dst->value.struct_instance = struct_clone_src;
+    clone_dst->value.array = array_clone_src;
+
+    return clone_dst;
+}
+
 struct lox_ir_type * create_array_lox_ir_type(
         struct lox_ir_type * array_type,
         struct lox_allocator * allocator

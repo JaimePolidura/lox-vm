@@ -8,6 +8,7 @@ struct lllil * alloc_low_level_lox_ir_lowerer(struct lox_ir * lox_ir) {
     lllil->lllil_allocator = to_lox_allocator_arena(arena);
     init_u64_hash_table(&lllil->stack_slots_by_block, &lllil->lllil_allocator.lox_allocator);
     init_u64_set(&lllil->processed_blocks, &lllil->lllil_allocator.lox_allocator);
+    lllil->last_phi_resolution_v_reg_allocated = lox_ir->last_v_reg_allocated;
 
     return lllil;
 }

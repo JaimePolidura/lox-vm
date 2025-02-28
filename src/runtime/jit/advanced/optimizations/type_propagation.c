@@ -39,6 +39,7 @@ static bool calculate_is_cyclic_definition(struct tp * tp, struct ssa_name paren
 static bool produced_type_has_been_asigned(struct lox_ir_data_node *);
 static struct lox_ir_type * merge_block_types(struct tp*, struct lox_ir_type*, struct lox_ir_type*);
 static struct lox_ir_data_node * create_guard_get_struct_field(struct tp*, struct lox_ir_data_node*, struct type_profile_data);
+static void set_produced_type(struct tp*, struct lox_ir_data_node*, struct lox_ir_type*);
 
 extern void runtime_panic(char * format, ...);
 
@@ -157,7 +158,7 @@ static bool perform_type_propagation_data(
 
     struct lox_ir_type * produced_type = get_type_data_node_recursive(pending_evaluate, data_node, (struct lox_ir_data_node **) parent_ptr);
     if(!(produced_type->type == LOX_IR_TYPE_UNKNOWN && produced_type_has_been_asigned(data_node))){
-        data_node->produced_type = produced_type;
+        set_produced_type(pending_evaluate->tp, data_node, produced_type);
     }
 
     return false;
@@ -181,14 +182,14 @@ static struct lox_ir_type * get_type_data_node_recursive(
         }
         case LOX_IR_DATA_NODE_GET_ARRAY_LENGTH: {
             struct lox_ir_data_get_array_length * get_arr_length = (struct lox_ir_data_get_array_length *) node;
-            get_arr_length->instance->produced_type = get_type_data_node_recursive(to_evaluate, get_arr_length->instance,
-                &get_arr_length->instance);;
+            set_produced_type(tp, node, get_type_data_node_recursive(to_evaluate, get_arr_length->instance, &get_arr_length->instance));
             return CREATE_LOX_IR_TYPE(LOX_IR_TYPE_LOX_I64, LOX_IR_ALLOCATOR(tp->lox_ir));
         }
         case LOX_IR_DATA_NODE_UNARY: {
             struct lox_ir_data_unary_node * unary = (struct lox_ir_data_unary_node *) node;
             struct lox_ir_type * unary_operand_type = get_type_data_node_recursive(to_evaluate, unary->operand, &unary->operand);
-            unary->operand->produced_type = unary_operand_type;
+            set_produced_type(tp, unary->operand, unary_operand_type);
+
             return unary_operand_type;
         }
         case LOX_IR_DATA_NODE_GET_SSA_NAME: {
@@ -199,7 +200,7 @@ static struct lox_ir_type * get_type_data_node_recursive(
             struct lox_ir_data_function_call_node * call = (struct lox_ir_data_function_call_node *) node;
             for(int i = 0; i < call->n_arguments; i++){
                 struct lox_ir_data_node * argument = call->arguments[i];
-                argument->produced_type = get_type_data_node_recursive(to_evaluate, argument, &call->arguments[i]);
+                set_produced_type(tp, argument, get_type_data_node_recursive(to_evaluate, argument, &call->arguments[i]));
                 //Functions might modify the array/struct. So we need to clear its type
                 clear_type(argument->produced_type);
             }
@@ -220,8 +221,8 @@ static struct lox_ir_type * get_type_data_node_recursive(
 
             struct lox_ir_type * right_type = get_type_data_node_recursive(to_evaluate, binary->right, &binary->right);
             struct lox_ir_type * left_type = get_type_data_node_recursive(to_evaluate, binary->left, &binary->left);
-            binary->right->produced_type = right_type;
-            binary->left->produced_type = left_type;
+            set_produced_type(tp, binary->right, right_type);
+            set_produced_type(tp, binary->left, left_type);
 
             lox_ir_type_t produced_type = binary_to_lox_ir_type(binary->operator, left_type->type, right_type->type);
             return CREATE_LOX_IR_TYPE(produced_type, LOX_IR_ALLOCATOR(tp->lox_ir));
@@ -257,7 +258,8 @@ static struct lox_ir_type * get_type_data_node_recursive(
             for(int i = 0; i < init_struct->definition->n_fields; i++) {
                 struct lox_ir_data_node * field_node_arg = init_struct->fields_nodes[i];
                 struct lox_ir_type * field_node_type = get_type_data_node_recursive(to_evaluate, field_node_arg, &init_struct->fields_nodes[i]);
-                field_node_arg->produced_type = field_node_type;
+                set_produced_type(tp, field_node_arg, field_node_type);
+
                 struct string_object * field_name = init_struct->definition->field_names[i];
 
                 put_u64_hash_table(&type->value.struct_instance->type_by_field_name, (uint64_t) field_name->chars,
@@ -276,7 +278,7 @@ static struct lox_ir_type * get_type_data_node_recursive(
 
             for (int i = 0; i < init_array->n_elements && !init_array->empty_initialization; i++) {
                 struct lox_ir_data_node * array_element_type = init_array->elememnts[i];
-                array_element_type->produced_type = get_type_data_node_recursive(to_evaluate, array_element_type, &init_array->elememnts[i]);
+                set_produced_type(tp, array_element_type, get_type_data_node_recursive(to_evaluate, array_element_type, &init_array->elememnts[i]));
 
                 if(type == NULL){
                     type = array_element_type->produced_type;
@@ -297,7 +299,7 @@ static struct lox_ir_type * get_type_data_node_recursive(
             struct type_profile_data get_struct_field_type_profile = get_struct_field_profile_data.as.struct_field.get_struct_field_profile;
 
             struct lox_ir_type * type_struct_instance = get_type_data_node_recursive(to_evaluate, instance_node, &get_struct_field->instance);
-            instance_node->produced_type = type_struct_instance;
+            set_produced_type(tp, instance_node, type_struct_instance);
 
             if(type_struct_instance->type == LOX_IR_TYPE_UNKNOWN){
                 return type_struct_instance;
@@ -311,7 +313,7 @@ static struct lox_ir_type * get_type_data_node_recursive(
                 type_struct_instance = get_type_data_node_recursive(to_evaluate, instance_node, &get_struct_field->instance);
             }
 
-            instance_node->produced_type = type_struct_instance;
+            set_produced_type(tp, instance_node, type_struct_instance);
 
             struct lox_ir_type * field_type = get_u64_hash_table(
                     &type_struct_instance->value.struct_instance->type_by_field_name,
@@ -320,7 +322,7 @@ static struct lox_ir_type * get_type_data_node_recursive(
 
             //Field type found
             if (field_type != NULL) {
-                instance_node->produced_type = type_struct_instance;
+                set_produced_type(tp, instance_node, type_struct_instance);
                 return field_type;
             }
             if(get_type_by_type_profile_data(get_struct_field_type_profile) == PROFILE_DATA_TYPE_ANY){
@@ -341,8 +343,8 @@ static struct lox_ir_type * get_type_data_node_recursive(
             struct lox_ir_data_get_array_element_node * get_array_element = (struct lox_ir_data_get_array_element_node *) node;
             struct lox_ir_data_node * array_instance = get_array_element->instance;
             struct lox_ir_data_node * index = get_array_element->index;
-            array_instance->produced_type = get_type_data_node_recursive(to_evaluate, array_instance, &get_array_element->instance);
-            index->produced_type = get_type_data_node_recursive(to_evaluate, index, &get_array_element->index);
+            set_produced_type(tp, array_instance, get_type_data_node_recursive(to_evaluate, array_instance, &get_array_element->instance));
+            set_produced_type(tp, index, get_type_data_node_recursive(to_evaluate, index, &get_array_element->index));
 
             //Array type found
             if(array_instance->produced_type->type == LOX_IR_TYPE_LOX_ARRAY &&
@@ -364,12 +366,13 @@ static struct lox_ir_type * get_type_data_node_recursive(
                 return CREATE_LOX_IR_TYPE(LOX_IR_TYPE_LOX_ANY, LOX_IR_ALLOCATOR(tp->lox_ir));
             }
 
-            struct lox_ir_data_guard_node * array_type_guard = ALLOC_LOX_IR_DATA(LOX_IR_DATA_NODE_GUARD,
-                    struct lox_ir_data_guard_node, NULL, LOX_IR_ALLOCATOR(tp->lox_ir));
-            array_type_guard->guard.value_to_compare.type = profiled_type_to_lox_ir_type(get_array_profiled_type);
-            array_type_guard->guard.action_on_guard_failed = LOX_IR_GUARD_FAIL_ACTION_TYPE_RUNTIME_ERROR;
-            array_type_guard->guard.type = LOX_IR_GUARD_ARRAY_TYPE_CHECK;
-            array_type_guard->guard.value = array_instance;
+            struct lox_ir_guard guard;
+            guard.value_to_compare.type = profiled_type_to_lox_ir_type(get_array_profiled_type);
+            guard.action_on_guard_failed = LOX_IR_GUARD_FAIL_ACTION_TYPE_RUNTIME_ERROR;
+            guard.type = LOX_IR_GUARD_ARRAY_TYPE_CHECK;
+            guard.value = array_instance;
+            struct lox_ir_data_guard_node * array_type_guard = create_guard_lox_ir_data_node(guard, LOX_IR_ALLOCATOR(tp->lox_ir));
+
             get_array_element->instance = &array_type_guard->data;
 
             return get_type_data_node_recursive(to_evaluate, &array_type_guard->data, parent_ptr);
@@ -415,17 +418,16 @@ static struct lox_ir_data_node * create_guard_get_struct_field(
 ) {
     profile_data_type_t profiled_type = get_type_by_type_profile_data(get_struct_type_profile);
 
-    struct lox_ir_data_guard_node * guard_node = ALLOC_LOX_IR_DATA(LOX_IR_DATA_NODE_GUARD, struct lox_ir_data_guard_node, NULL,
-            LOX_IR_ALLOCATOR(tp->lox_ir));
-    guard_node->guard.action_on_guard_failed = LOX_IR_GUARD_FAIL_ACTION_TYPE_RUNTIME_ERROR;
-    guard_node->guard.type = LOX_IR_GUARD_STRUCT_DEFINITION_TYPE_CHECK;
-    guard_node->guard.value_to_compare.struct_definition = NULL;
-    guard_node->guard.value = instance_node;
-
+    struct lox_ir_guard guard;
+    guard.action_on_guard_failed = LOX_IR_GUARD_FAIL_ACTION_TYPE_RUNTIME_ERROR;
+    guard.type = LOX_IR_GUARD_STRUCT_DEFINITION_TYPE_CHECK;
+    guard.value_to_compare.struct_definition = NULL;
+    guard.value = instance_node;
     if (profiled_type == PROFILE_DATA_TYPE_STRUCT_INSTANCE && !get_struct_type_profile.invalid_struct_definition) {
-        guard_node->guard.value_to_compare.struct_definition = get_struct_type_profile.struct_definition;
+        guard.value_to_compare.struct_definition = get_struct_type_profile.struct_definition;
     }
 
+    struct lox_ir_data_guard_node * guard_node = create_guard_lox_ir_data_node(guard, LOX_IR_ALLOCATOR(tp->lox_ir));
     return &guard_node->data;
 }
 
@@ -675,4 +677,8 @@ static struct lox_ir_type * get_type_by_ssa_name(struct tp * tp, struct pending_
 
 static bool produced_type_has_been_asigned(struct lox_ir_data_node * data_node) {
     return data_node->produced_type != NULL && data_node->produced_type->type != LOX_IR_TYPE_UNKNOWN;
+}
+
+static void set_produced_type(struct tp * tp, struct lox_ir_data_node * data, struct lox_ir_type * type) {
+    data->produced_type = clone_lox_ir_type(type, LOX_IR_ALLOCATOR(tp->lox_ir));
 }

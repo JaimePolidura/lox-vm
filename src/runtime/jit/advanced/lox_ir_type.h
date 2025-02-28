@@ -56,6 +56,7 @@ struct lox_ir_type {
 struct lox_ir_type * create_lox_ir_type(lox_ir_type_t, struct lox_allocator *);
 struct lox_ir_type * create_initialize_struct_lox_ir_type(struct struct_definition_object *, struct lox_allocator *);
 struct lox_ir_type * create_array_lox_ir_type(struct lox_ir_type *, struct lox_allocator *);
+struct lox_ir_type * clone_lox_ir_type(struct lox_ir_type *, struct lox_allocator *);
 
 struct lox_ir_type * get_struct_field_lox_ir_type(struct lox_ir_type *struct_type, char *field_name, struct lox_allocator *allocator);
 bool is_eq_lox_ir_type(struct lox_ir_type *a, struct lox_ir_type *b);

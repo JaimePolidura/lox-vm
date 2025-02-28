@@ -579,6 +579,47 @@ static bool check_equivalence_flatted_out(struct u64_set left, struct u64_set ri
     return false;
 }
 
+struct lox_ir_data_guard_node * create_guard_lox_ir_data_node(
+        struct lox_ir_guard guard,
+        struct lox_allocator * allocator
+) {
+    struct lox_ir_data_guard_node * guard_node = ALLOC_LOX_IR_DATA(LOX_IR_DATA_NODE_GUARD, struct lox_ir_data_guard_node, NULL,
+                                                                   allocator);
+    guard_node->guard = guard;
+
+    struct lox_ir_type * produced_type = NULL;
+
+    switch (guard.type) {
+        case LOX_IR_GUARD_TYPE_CHECK: {
+            produced_type = CREATE_LOX_IR_TYPE(guard.value_to_compare.type, allocator);
+            break;
+        }
+        case LOX_IR_GUARD_BOOLEAN_CHECK: {
+            produced_type = CREATE_LOX_IR_TYPE(LOX_IR_TYPE_NATIVE_BOOLEAN, allocator);
+            break;
+        }
+        case LOX_IR_GUARD_STRUCT_DEFINITION_TYPE_CHECK: {
+            produced_type = CREATE_LOX_IR_TYPE(LOX_IR_TYPE_LOX_STRUCT_INSTANCE, allocator);
+            if(guard.value_to_compare.struct_definition != NULL){
+                produced_type->value.struct_instance = LOX_MALLOC(allocator, sizeof(struct struct_instance_lox_ir_type));
+                produced_type->value.struct_instance->definition = guard.value_to_compare.struct_definition;
+                init_u64_hash_table(&produced_type->value.struct_instance->type_by_field_name, allocator);
+            }
+            break;
+        }
+        case LOX_IR_GUARD_ARRAY_TYPE_CHECK: {
+            produced_type = CREATE_LOX_IR_TYPE(LOX_IR_TYPE_LOX_ARRAY, allocator);
+            produced_type->value.array = LOX_MALLOC(allocator, sizeof(struct array_lox_ir_type));
+            produced_type->value.array->type = CREATE_LOX_IR_TYPE(guard.value_to_compare.type, allocator);
+            break;
+        }
+    }
+
+    guard_node->data.produced_type = produced_type;
+
+    return guard_node;
+}
+
 struct lox_ir_data_guard_node * create_from_profile_lox_ir_data_guard_node(
         struct type_profile_data type_profile,
         struct lox_ir_data_node * source,
@@ -591,6 +632,7 @@ struct lox_ir_data_guard_node * create_from_profile_lox_ir_data_guard_node(
             allocator);
     guard_node->guard.action_on_guard_failed = action_on_guard_failed;
     guard_node->guard.value = source;
+    guard_node->data.produced_type = source->produced_type;
 
     if(profiled_type == PROFILE_DATA_TYPE_STRUCT_INSTANCE && type_profile.invalid_struct_definition){
         guard_node->guard.type = LOX_IR_GUARD_STRUCT_DEFINITION_TYPE_CHECK;

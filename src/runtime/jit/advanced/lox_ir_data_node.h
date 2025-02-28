@@ -242,6 +242,7 @@ struct lox_ir_data_guard_node {
     struct lox_ir_guard guard;
 };
 
+struct lox_ir_data_guard_node * create_guard_lox_ir_data_node(struct lox_ir_guard guard, struct lox_allocator*);
 struct lox_ir_data_guard_node * create_from_profile_lox_ir_data_guard_node(struct type_profile_data, struct lox_ir_data_node*,
         struct lox_allocator *, lox_ir_guard_action_on_check_failed);
 

@@ -319,7 +319,8 @@ struct lox_ir_type * get_type_by_ssa_name_lox_ir(
         struct ssa_name ssa_name
 ) {
     struct u64_hash_table * types_by_block = get_u64_hash_table(&lox_ir->type_by_ssa_name_by_block, (uint64_t) block);
-    return get_u64_hash_table(types_by_block, ssa_name.u16);
+    struct lox_ir_type * produced_type = get_u64_hash_table(types_by_block, ssa_name.u16);
+    return produced_type;
 }
 
 void put_type_by_ssa_name_lox_ir(
