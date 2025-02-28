@@ -469,6 +469,10 @@ static void handle_phi_node(
             extract_define_cast_from_phi(ci, block, control_node, phi, phi_ssa_name, expected_type_to_produce);
         }
     }
+
+    if (phi_node_should_produce_native) {
+        phi->data.produced_type->type = lox_type_to_native_lox_ir_type(phi->data.produced_type->type);
+    }
 }
 
 static void insert_cast_node(
@@ -497,7 +501,6 @@ static void insert_cast_node(
 
         *parent = (void *) cast_node;
     }
-
 }
 
 static struct lox_ir_data_guard_node * insert_lox_type_check_guard(
@@ -558,8 +561,8 @@ static void extract_define_cast_from_phi(
     //control_uses_phi
     remove_u64_set(&phi_node->ssa_versions, ssa_name_to_extract.value.version);
     add_u64_set(&phi_node->ssa_versions, casted_ssa_name.value.version);
-    add_ssa_name_use_lox_ir(ci->lox_ir, casted_ssa_name, &define_casted->control);
     remove_ssa_name_use_lox_ir(ci->lox_ir, ssa_name_to_extract, control_uses_phi);
+    add_ssa_name_use_lox_ir(ci->lox_ir, casted_ssa_name, control_uses_phi);
 }
 
 static bool is_ssa_name_lox(struct ci * ci, struct lox_ir_block * block, struct ssa_name ssa_name) {
@@ -601,16 +604,16 @@ static bool control_requires_lox_input(struct ci * ci, struct lox_ir_control_nod
             FOR_EACH_U64_SET_VALUE(*uses_ssa_name, node_uses_ssa_name_ptr_u64) {
                 struct lox_ir_control_node * node_uses_ssa_name = (struct lox_ir_control_node *) node_uses_ssa_name_ptr_u64;
 
-                if(node_uses_ssa_name->type != LOX_IR_CONTROL_NODE_SET_ARRAY_ELEMENT &&
-                   node_uses_ssa_name->type != LOX_IR_CONTROL_NODE_SET_STRUCT_FIELD &&
-                   node_uses_ssa_name->type != LOX_IR_CONTORL_NODE_SET_GLOBAL &&
-                   node_uses_ssa_name->type != LOX_IR_CONTROL_NODE_RETURN){
+                if (node_uses_ssa_name->type == LOX_IR_CONTROL_NODE_SET_ARRAY_ELEMENT ||
+                   node_uses_ssa_name->type == LOX_IR_CONTROL_NODE_SET_STRUCT_FIELD ||
+                   node_uses_ssa_name->type == LOX_IR_CONTORL_NODE_SET_GLOBAL ||
+                   node_uses_ssa_name->type == LOX_IR_CONTROL_NODE_RETURN ){
                     some_use_requires_lox_type_as_input = true;
                     break;
                 }
             }
 
-            return !some_use_requires_lox_type_as_input;
+            return some_use_requires_lox_type_as_input;
         }
     }
 }
