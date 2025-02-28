@@ -98,6 +98,10 @@ struct lox_ir_ll_operand lower_lox_ir_data(
         struct lox_ir_data_node * data_node,
         struct v_register * result
 ) {
+    if(lllil_control->control_node_to_lower->type == LOX_IR_CONTROL_NODE_RETURN){
+        puts("Hola");
+    }
+
     lowerer_lox_ir_data_t lowerer_lox_ir_data = lowerer_lox_ir_by_data_node[data_node->type];
 
     if (lowerer_lox_ir_data == NULL) {
@@ -759,10 +763,9 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_global(
 static struct lox_ir_ll_operand lowerer_lox_ir_data_get_v_register(
         struct lllil_control * lllil,
         struct lox_ir_data_node * node,
-        struct v_register * result
+        struct v_register * _
 ) {
     struct lox_ir_data_get_v_register_node * get_v_reg = (struct lox_ir_data_get_v_register_node *) node;
-    struct lox_ir_ll_operand v_reg = alloc_new_v_register(lllil, node->produced_type->type == LOX_IR_TYPE_F64);
     return V_REG_TO_OPERAND(get_v_reg->v_register);
 }
 
@@ -1175,6 +1178,7 @@ static bool parent_will_have_unwanted_side_effect(
         struct lox_ir_data_node * parent
 ) {
     return parent != NULL
+        && lllil->control_node_to_lower->type != LOX_IR_CONTROL_NODE_RETURN
         && (parent->type == LOX_IR_DATA_NODE_CAST || parent->type == LOX_IR_DATA_NODE_UNARY)
         && parent_input.type == LOX_IR_LL_OPERAND_REGISTER
         && parent_input.v_register.number < lllil->lllil->last_phi_resolution_v_reg_allocated;
