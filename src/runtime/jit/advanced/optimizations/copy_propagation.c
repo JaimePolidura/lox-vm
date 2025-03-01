@@ -42,11 +42,13 @@ static void propagation(struct cp * cp) {
         } else if (size_u64_set((*control_nodes_that_uses_ssa_name)) == 1) {
             uint64_t control_node_that_uses_ssa_name_u64 = get_first_value_u64_set((*control_nodes_that_uses_ssa_name));
             struct lox_ir_control_node * control_node_that_uses_ssa_name = (struct lox_ir_control_node *) control_node_that_uses_ssa_name_u64;
-            struct lox_ir_control_define_ssa_name_node * define = (struct lox_ir_control_define_ssa_name_node *) control_node_that_uses_ssa_name_u64;
 
             if (can_be_replaced(definition, control_node_that_uses_ssa_name)) {
                 replace_redudant_copy_ssa_name(cp, definition, control_node_that_uses_ssa_name);
-                push_pending_to_propagate(cp, control_node_that_uses_ssa_name);
+
+                if (control_node_that_uses_ssa_name->type == LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME) {
+                    push_pending_to_propagate(cp, control_node_that_uses_ssa_name);
+                }
             }
         }
     }

@@ -106,7 +106,7 @@ void visualize_lox_ir(
             perform_type_propagation(&lox_ir);
             perform_escape_analysis(&lox_ir);
             perform_cast_insertion(&lox_ir);
-            perform_copy_propagation(&lox_ir);
+//            perform_copy_propagation(&lox_ir);
             graphviz_visualizer.lox_ir = lox_ir;
 
             generate_graph_visualization_lox_ir(&graphviz_visualizer, lox_ir.first_block);

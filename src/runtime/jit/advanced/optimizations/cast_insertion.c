@@ -525,6 +525,7 @@ static struct lox_ir_data_guard_node * insert_lox_type_check_guard(
 }
 
 //Given a2 = phi(a0, a1) Extract: a1, it will produce: a3 = cast(a1); a2 = phi(a0, a3)
+//We will move a3 = cast(a1) to the block where a1 is defined
 static void extract_define_cast_from_phi(
         struct ci * ci,
         struct lox_ir_block * block,
@@ -534,7 +535,6 @@ static void extract_define_cast_from_phi(
         lox_ir_type_t type_to_be_casted
 ) {
     struct ssa_name casted_ssa_name = alloc_ssa_version_lox_ir(ci->lox_ir, ssa_name_to_extract.value.local_number);
-
     struct lox_ir_control_define_ssa_name_node * define_casted = ALLOC_LOX_IR_CONTROL(
             LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME, struct lox_ir_control_define_ssa_name_node, block, LOX_IR_ALLOCATOR(ci->lox_ir)
     );
@@ -542,23 +542,21 @@ static void extract_define_cast_from_phi(
             LOX_IR_DATA_NODE_GET_SSA_NAME, struct lox_ir_data_get_ssa_name_node, NULL, LOX_IR_ALLOCATOR(ci->lox_ir)
     );
 
-    //get_uncasted_ssa_name_node
-    get_uncasted_ssa_name_node->data.produced_type = clone_lox_ir_type(get_type_by_ssa_name_lox_ir(ci->lox_ir, block, ssa_name_to_extract),
-                                                                       LOX_IR_ALLOCATOR(ci->lox_ir));
+    //Get uncasted ssa name (a1 in the example)
+    get_uncasted_ssa_name_node->data.produced_type = clone_lox_ir_type(get_type_by_ssa_name_lox_ir(ci->lox_ir, block,
+        ssa_name_to_extract), LOX_IR_ALLOCATOR(ci->lox_ir));
     get_uncasted_ssa_name_node->ssa_name = ssa_name_to_extract;
     add_ssa_name_use_lox_ir(ci->lox_ir, ssa_name_to_extract, &define_casted->control);
 
-    //define casted node
+    //Define casted ssa name (a3 = cast(a1))
     define_casted->ssa_name = casted_ssa_name;
     define_casted->value = &get_uncasted_ssa_name_node->data;
     add_u64_set(&block->defined_ssa_names, casted_ssa_name.u16);
     put_u64_hash_table(&ci->lox_ir->definitions_by_ssa_name, casted_ssa_name.u16, define_casted);
     add_before_control_node_lox_ir_block(block, control_uses_phi, &define_casted->control);
-
-    //Insert cast node
     insert_cast_node(ci, define_casted->value, (void**) &define_casted->value, type_to_be_casted);
 
-    //control_uses_phi
+    //Added casted ssa name in phi (a2 = phi(a0, a3))
     remove_u64_set(&phi_node->ssa_versions, ssa_name_to_extract.value.version);
     add_u64_set(&phi_node->ssa_versions, casted_ssa_name.value.version);
     remove_ssa_name_use_lox_ir(ci->lox_ir, ssa_name_to_extract, control_uses_phi);

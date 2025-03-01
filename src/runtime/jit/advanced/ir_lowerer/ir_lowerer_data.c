@@ -1178,7 +1178,6 @@ static bool parent_will_have_unwanted_side_effect(
         struct lox_ir_data_node * parent
 ) {
     return parent != NULL
-        && lllil->control_node_to_lower->type != LOX_IR_CONTROL_NODE_RETURN
         && (parent->type == LOX_IR_DATA_NODE_CAST || parent->type == LOX_IR_DATA_NODE_UNARY)
         && parent_input.type == LOX_IR_LL_OPERAND_REGISTER
         && parent_input.v_register.number < lllil->lllil->last_phi_resolution_v_reg_allocated;
