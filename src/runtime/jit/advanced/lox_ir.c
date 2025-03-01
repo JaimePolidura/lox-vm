@@ -183,6 +183,64 @@ static struct u64_set get_blocks_to_remove(struct lox_ir_block * start_block) {
     return blocks_to_be_removed;
 }
 
+struct u64_set get_all_block_paths_to_block_set_lox_ir(
+        struct lox_ir * lox_ir,
+        struct lox_ir_block * start_block,
+        struct lox_ir_block * target_block,
+        struct lox_allocator * allocator
+) {
+    struct u64_set block_paths;
+    init_u64_set(&block_paths, allocator);
+    add_u64_set(&block_paths, (uint64_t) start_block);
+
+    struct stack_list pending;
+    init_stack_list(&pending, allocator);
+    push_stack_list(&pending, start_block);
+
+    while (!is_empty_stack_list(&pending)) {
+        struct lox_ir_block * current_block = pop_stack_list(&pending);
+
+        FOR_EACH_U64_SET_VALUE(get_successors_lox_ir_block(current_block, allocator), successor_ptr_u64) {
+            struct lox_ir_block * successor = (struct lox_ir_block *) successor_ptr_u64;
+            if (successor != target_block) {
+                add_u64_set(&block_paths, (uint64_t) successor);
+                push_stack_list(&pending, successor);
+            }
+        }
+    }
+
+    return block_paths;
+}
+
+void insert_block_before_lox_ir(
+        struct lox_ir * lox_ir,
+        struct lox_ir_block * new_block,
+        struct u64_set predecessors,
+        struct lox_ir_block * successor
+) {
+    struct lox_ir_block * first_predecessor = (struct lox_ir_block *) get_first_value_u64_set(predecessors);
+
+    //Initialize new_block
+    new_block->first = new_block->last = NULL;
+    new_block->nested_loop_body = first_predecessor != NULL ? first_predecessor->nested_loop_body : 0;
+    new_block->is_loop_condition = false;
+    new_block->loop_condition_block = first_predecessor != NULL ?
+            (first_predecessor->loop_condition_block == first_predecessor ? first_predecessor : first_predecessor->loop_condition_block) :
+            NULL;
+    new_block->loop_info = NULL;
+    new_block->predecesors = clone_u64_set(&predecessors, predecessors.inner_hash_table.allocator);
+    new_block->lox_ir_head_block = first_predecessor != NULL ? first_predecessor->lox_ir_head_block : NULL;
+    new_block->type_next = successor != NULL ? TYPE_NEXT_LOX_IR_BLOCK_SEQ : TYPE_NEXT_LOX_IR_BLOCK_NONE;
+    new_block->next_as.next = successor;
+
+    //Now we will "install" new_block to be the predecessors of the passed arg "successor"
+    FOR_EACH_U64_SET_VALUE(predecessors, current_predecessor_ptr_u64) {
+        struct lox_ir_block * current_predecessor = (struct lox_ir_block *) current_predecessor_ptr_u64;
+        current_predecessor->type_next = TYPE_NEXT_LOX_IR_BLOCK_SEQ;
+        current_predecessor->next_as.next = new_block;
+    }
+}
+
 bool dominates_block_lox_ir(struct lox_ir * lox_ir, struct lox_ir_block * a, struct lox_ir_block * b, struct lox_allocator * allocator) {
     struct u64_set dominator_set_b = get_block_dominator_set_lox_ir(lox_ir, b, allocator);
     return contains_u64_set(&dominator_set_b, (uint64_t) a);
@@ -347,7 +405,6 @@ void put_type_by_ssa_name_lox_ir(
     while (has_next_u64_hash_table_iterator(type_by_ssa_name_by_block_ite)) {
         struct u64_hash_table_entry current_entry = next_u64_hash_table_iterator(&type_by_ssa_name_by_block_ite);
         struct u64_hash_table * current_types_by_ssa_name = current_entry.value;
-        struct lox_ir_block * block = (struct lox_ir_block *) current_entry.key;
 
         if (contains_u64_hash_table(current_types_by_ssa_name, ssa_name.u16)) {
             put_u64_hash_table(current_types_by_ssa_name, ssa_name.u16, new_type);

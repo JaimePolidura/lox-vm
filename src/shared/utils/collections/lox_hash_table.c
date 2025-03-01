@@ -210,6 +210,7 @@ static struct hash_table_entry * find_entry_by_hash(struct hash_table_entry * en
     uint32_t index = key_hash & (capacity - 1); //Optimized %
     for (;;) {
         struct hash_table_entry * entry = &entries[index];
+        index = (index + 1) & (capacity - 1);
 
         if(is_tombstone(entry) && first_tombstone_found == NULL){
             first_tombstone_found = entry;
@@ -224,8 +225,6 @@ static struct hash_table_entry * find_entry_by_hash(struct hash_table_entry * en
         if(entry->key == NULL && first_tombstone_found == NULL){
             return entry;
         }
-
-        index = (index + 1) & (capacity - 1); //Optimized %
     }
 }
 

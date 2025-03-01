@@ -46,6 +46,9 @@ static void propagation(struct cp * cp) {
             if (can_be_replaced(definition, control_node_that_uses_ssa_name)) {
                 replace_redudant_copy_ssa_name(cp, definition, control_node_that_uses_ssa_name);
 
+                struct u64_set * c3 = get_u64_hash_table(&cp->lox_ir->node_uses_by_ssa_name, CREATE_SSA_NAME(1, 3).u16);
+                struct lox_ir_control_node * use3 = (struct lox_ir_control_node *) get_first_value_u64_set((*c3));
+
                 if (control_node_that_uses_ssa_name->type == LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME) {
                     push_pending_to_propagate(cp, control_node_that_uses_ssa_name);
                 }
@@ -126,8 +129,14 @@ static void replace_redudant_copy_ssa_name(
             replace_redudant_copy_data_node
     );
 
+    struct u64_set * c2 = get_u64_hash_table(&cp->lox_ir->node_uses_by_ssa_name, CREATE_SSA_NAME(1, 2).u16);
+    struct lox_ir_control_node * use2= (struct lox_ir_control_node *) get_first_value_u64_set((*c2));
+
     remove_u64_hash_table(&cp->lox_ir->definitions_by_ssa_name, copy_src_control->ssa_name.u16);
     remove_u64_hash_table(&cp->lox_ir->node_uses_by_ssa_name, copy_src_control->ssa_name.u16);
+
+    struct u64_set * c22 = get_u64_hash_table(&cp->lox_ir->node_uses_by_ssa_name, CREATE_SSA_NAME(1, 2).u16);
+    struct lox_ir_control_node * use22= (struct lox_ir_control_node *) get_first_value_u64_set((*c22));
 
     struct u64_set copy_src_control_used_ssa_names = get_used_ssa_names_lox_ir_data_node(
             copy_src_control->value, NATIVE_LOX_ALLOCATOR()

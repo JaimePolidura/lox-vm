@@ -27,7 +27,7 @@ void * get_u64_hash_table(struct u64_hash_table * hash_hable, uint64_t key) {
     }
 
     struct u64_hash_table_entry * result = find_u64_hash_table_entry(hash_hable->entries, hash_hable->capacity, key);
-    return result != NULL ? result->value : NULL;
+    return result != NULL && result->some_value ? result->value : NULL;
 }
 
 bool put_u64_hash_table(struct u64_hash_table * hash_hable, uint64_t key, void * value) {
@@ -75,14 +75,24 @@ void clear_u64_hash_table(struct u64_hash_table * hash_table) {
 
 static struct u64_hash_table_entry * find_u64_hash_table_entry(struct u64_hash_table_entry * entries, int capacity, uint64_t key) {
     uint64_t index = key & (capacity - 1);
-    struct u64_hash_table_entry * current_entry = entries + index;
 
-    while (current_entry->some_value && current_entry->key != key) {
+    struct u64_hash_table_entry * last_maybe_deleted_entry = NULL;
+
+    for (;;) {
+        struct u64_hash_table_entry * current_entry = entries + index;
         index = (index + 1) & (capacity - 1); //Optimized %
-        current_entry = entries + index;
-    }
 
-    return current_entry;
+        if (!current_entry->some_value && last_maybe_deleted_entry == NULL) {
+            last_maybe_deleted_entry = current_entry;
+            continue;
+        }
+        if (current_entry->some_value && current_entry->key == key) {
+            return current_entry;
+        }
+        if (!current_entry->some_value && last_maybe_deleted_entry != NULL) {
+            return last_maybe_deleted_entry;
+        }
+    }
 }
 
 static void grow_u64_hash_table(struct u64_hash_table * table) {

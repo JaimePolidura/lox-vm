@@ -56,6 +56,10 @@ struct branch_removed remove_block_branch_lox_ir(struct lox_ir*, struct lox_ir_b
 //a dominates b
 bool dominates_block_lox_ir(struct lox_ir*, struct lox_ir_block*, struct lox_ir_block*, struct lox_allocator*);
 struct u64_set get_block_dominator_set_lox_ir(struct lox_ir*, struct lox_ir_block*, struct lox_allocator*);
+//Returns all the possible blocks that might be traversed from a to b. If there is no such possible paths, it will return
+//all the nodes from a to the end of the graph
+struct u64_set get_all_block_paths_to_block_set_lox_ir(struct lox_ir*,struct lox_ir_block*a,struct lox_ir_block*b,struct lox_allocator*);
+void insert_block_before_lox_ir(struct lox_ir*, struct lox_ir_block*, struct u64_set predecessors, struct lox_ir_block* successor);
 
 //Removes the references in the struct lox_ir data structure to the ssa_name. It doest
 //remove the nodes that uses the jit name
