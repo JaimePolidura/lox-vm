@@ -98,10 +98,6 @@ struct lox_ir_ll_operand lower_lox_ir_data(
         struct lox_ir_data_node * data_node,
         struct v_register * result
 ) {
-    if(lllil_control->control_node_to_lower->type == LOX_IR_CONTROL_NODE_RETURN){
-        puts("Hola");
-    }
-
     lowerer_lox_ir_data_t lowerer_lox_ir_data = lowerer_lox_ir_by_data_node[data_node->type];
 
     if (lowerer_lox_ir_data == NULL) {

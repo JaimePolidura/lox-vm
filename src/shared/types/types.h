@@ -101,7 +101,6 @@ char * lox_value_to_string(lox_value_t);
 char * lox_object_type_to_string(object_type_t);
 
 lox_value_type get_lox_type(lox_value_t lox_value);
-uint64_t lox_to_native_type(lox_value_t);
 
 #define OBJECT_TYPE(value) (AS_OBJECT(value)->type)
 #define ALLOCATE_OBJ(type, object_type) (type *) allocate_object(sizeof(type), object_type)

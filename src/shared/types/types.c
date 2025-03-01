@@ -89,33 +89,3 @@ lox_value_type get_lox_type(lox_value_t lox_value) {
         return VAL_NIL;
     }
 }
-
-static uint64_t lox_object_to_native_type(struct object *);
-
-uint64_t lox_to_native_type(lox_value_t lox_value) {
-    if(IS_BOOL(lox_value)){
-        return (uint64_t) AS_BOOL(lox_value);
-    } else if (IS_NIL(lox_value)) {
-        return (uint64_t) NULL;
-    } else if (IS_OBJECT(lox_value)) {
-        return lox_object_to_native_type(AS_OBJECT(lox_value));
-    } else if(IS_NUMBER(lox_value)) {
-        return (uint64_t) AS_NUMBER(lox_value);
-    } else {
-        runtime_panic("");
-    }
-}
-
-static uint64_t lox_object_to_native_type(struct object * object) {
-    switch (object->type) {
-        case OBJ_STRING: return (uint64_t) ((struct string_object *) object)->chars;
-        case OBJ_ARRAY: return (uint64_t) ((struct array_object *) object)->values.values;
-        case OBJ_FUNCTION:
-        case OBJ_NATIVE_FUNCTION:
-        case OBJ_STRUCT_INSTANCE:
-        case OBJ_STRUCT_DEFINITION:
-        case OBJ_PACKAGE: {
-            return (uint64_t) object;
-        }
-    }
-}

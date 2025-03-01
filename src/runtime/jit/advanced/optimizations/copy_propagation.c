@@ -15,6 +15,7 @@ static void propagation(struct cp *);
 static bool can_be_replaced(struct lox_ir_control_define_ssa_name_node*, struct lox_ir_control_node*);
 static void remove_unused_definition(struct cp *cp, struct lox_ir_control_define_ssa_name_node *definition_to_remove);
 static void replace_redudant_copy_ssa_name(struct cp *,struct lox_ir_control_define_ssa_name_node*,struct lox_ir_control_node *);
+static void remove_redundant_cast(struct lox_ir_data_cast_node*, void**);
 
 static struct u64_set * get_definitions(struct cp*, struct pending_to_cp*);
 static struct lox_ir_data_node * get_definition_value(struct pending_to_cp*, struct lox_ir_control_node *);
@@ -45,9 +46,6 @@ static void propagation(struct cp * cp) {
 
             if (can_be_replaced(definition, control_node_that_uses_ssa_name)) {
                 replace_redudant_copy_ssa_name(cp, definition, control_node_that_uses_ssa_name);
-
-                struct u64_set * c3 = get_u64_hash_table(&cp->lox_ir->node_uses_by_ssa_name, CREATE_SSA_NAME(1, 3).u16);
-                struct lox_ir_control_node * use3 = (struct lox_ir_control_node *) get_first_value_u64_set((*c3));
 
                 if (control_node_that_uses_ssa_name->type == LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME) {
                     push_pending_to_propagate(cp, control_node_that_uses_ssa_name);
@@ -125,18 +123,12 @@ static void replace_redudant_copy_ssa_name(
     for_each_data_node_in_lox_ir_control(
             copy_dst,
             &replace_redudant_copy_struct,
-            LOX_IR_DATA_NODE_OPT_PRE_ORDER | LOX_IR_DATA_NODE_OPT_ONLY_TERMINATORS,
+            LOX_IR_DATA_NODE_OPT_POST_ORDER,
             replace_redudant_copy_data_node
     );
 
-    struct u64_set * c2 = get_u64_hash_table(&cp->lox_ir->node_uses_by_ssa_name, CREATE_SSA_NAME(1, 2).u16);
-    struct lox_ir_control_node * use2= (struct lox_ir_control_node *) get_first_value_u64_set((*c2));
-
     remove_u64_hash_table(&cp->lox_ir->definitions_by_ssa_name, copy_src_control->ssa_name.u16);
     remove_u64_hash_table(&cp->lox_ir->node_uses_by_ssa_name, copy_src_control->ssa_name.u16);
-
-    struct u64_set * c22 = get_u64_hash_table(&cp->lox_ir->node_uses_by_ssa_name, CREATE_SSA_NAME(1, 2).u16);
-    struct lox_ir_control_node * use22= (struct lox_ir_control_node *) get_first_value_u64_set((*c22));
 
     struct u64_set copy_src_control_used_ssa_names = get_used_ssa_names_lox_ir_data_node(
             copy_src_control->value, NATIVE_LOX_ALLOCATOR()
@@ -148,7 +140,7 @@ static void replace_redudant_copy_ssa_name(
 }
 
 static bool replace_redudant_copy_data_node(
-        struct lox_ir_data_node * _,
+        struct lox_ir_data_node * parent,
         void ** parent_child_ptr,
         struct lox_ir_data_node * current_node,
         void * extra
@@ -158,10 +150,41 @@ static bool replace_redudant_copy_data_node(
     struct ssa_name redundant_ssa_name = replace_redudant_copy_struct->redundant_ssa_name;
 
     if (current_node->type == LOX_IR_DATA_NODE_GET_SSA_NAME && GET_USED_SSA_NAME(current_node).u16 == redundant_ssa_name.u16) {
-        *parent_child_ptr = replace_redudant_copy_struct->redundant_copy_value;
+        *parent_child_ptr = redundant_copy_value;
+    }
+
+    //Special replace cases:
+    if (current_node->type == LOX_IR_DATA_NODE_CAST
+        && ((struct lox_ir_data_cast_node * ) current_node)->to_cast->type == LOX_IR_DATA_NODE_CONSTANT) {
+
+        remove_redundant_cast((struct lox_ir_data_cast_node *) current_node, parent_child_ptr);
     }
 
     return true;
+}
+
+//TODO Extract to common funcionality
+static void remove_redundant_cast(struct lox_ir_data_cast_node * cast_node, void ** parent_ptr) {
+    struct lox_ir_data_constant_node * to_cast_const = (struct lox_ir_data_constant_node *) cast_node->to_cast;
+
+    lox_ir_type_t type_const = to_cast_const->data.produced_type->type;
+    lox_ir_type_t type_to_cast = cast_node->data.produced_type->type;
+
+    if ((is_native_lox_ir_type(type_const) && is_native_lox_ir_type(type_to_cast))
+        || (is_lox_lox_ir_type(type_const) && is_lox_lox_ir_type(type_to_cast))
+        || is_same_number_binay_format_lox_ir_type(type_const, type_to_cast)) {
+
+        *parent_ptr = &to_cast_const->data;
+        return;
+    }
+
+    if (is_native_lox_ir_type(type_to_cast)) {
+        const_to_native_lox_ir_data_node(to_cast_const);
+    } else {
+        const_to_lox_lox_ir_data_node(to_cast_const, type_to_cast);
+    }
+
+    *parent_ptr = &to_cast_const->data;
 }
 
 static struct cp * alloc_copy_propagation(struct lox_ir * lox_ir) {

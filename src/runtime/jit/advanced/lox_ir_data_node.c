@@ -721,10 +721,17 @@ struct u64_set get_children_lox_ir_data_node(struct lox_ir_data_node * node, str
     return children;
 }
 
+void const_to_lox_lox_ir_data_node(struct lox_ir_data_constant_node * const_node, lox_ir_type_t new_lox_type) {
+    if (is_native_lox_ir_type(const_node->data.produced_type->type)) {
+        const_node->value = value_native_to_lox_ir_type((lox_value_t) const_node->value, new_lox_type);
+        const_node->data.produced_type->type = new_lox_type;
+    }
+}
+
 void const_to_native_lox_ir_data_node(struct lox_ir_data_constant_node * const_node) {
     if (is_lox_lox_ir_type(const_node->data.produced_type->type)) {
         const_node->data.produced_type->type = lox_type_to_native_lox_ir_type(const_node->data.produced_type->type);
-        const_node->value = lox_to_native_type((lox_value_t) const_node->value);
+        const_node->value = value_lox_to_native_lox_ir_type((lox_value_t) const_node->value);
     }
 }
 

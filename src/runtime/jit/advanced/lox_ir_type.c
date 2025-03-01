@@ -338,3 +338,58 @@ bool is_same_number_binay_format_lox_ir_type(lox_ir_type_t left, lox_ir_type_t r
 
     return !some_other_type_found;
 }
+
+static uint64_t lox_object_to_native_type(struct object *);
+
+uint64_t value_lox_to_native_lox_ir_type(lox_value_t lox_value) {
+    if(IS_BOOL(lox_value)){
+        return (uint64_t) AS_BOOL(lox_value);
+    } else if (IS_NIL(lox_value)) {
+        return (uint64_t) NULL;
+    } else if (IS_OBJECT(lox_value)) {
+        return lox_object_to_native_type(AS_OBJECT(lox_value));
+    } else if(IS_NUMBER(lox_value)) {
+        return (uint64_t) AS_NUMBER(lox_value);
+    } else {
+        //TODO Runtime panic
+    }
+}
+
+lox_value_t value_native_to_lox_ir_type(uint64_t native_value, lox_ir_type_t expected_lox_type) {
+    switch (expected_lox_type) {
+        case LOX_IR_TYPE_F64:
+        case LOX_IR_TYPE_LOX_ANY:
+        case LOX_IR_TYPE_LOX_I64: {
+            return (double) native_value;
+        }
+        case LOX_IR_TYPE_LOX_BOOLEAN: return TO_LOX_VALUE_BOOL(native_value);
+        case LOX_IR_TYPE_LOX_NIL: return NIL_VALUE;
+        case LOX_IR_TYPE_LOX_STRING: {
+            return TO_LOX_VALUE_OBJECT((struct object *) native_value
+                    - offsetof(struct string_object, chars));
+        }
+        case LOX_IR_TYPE_LOX_ARRAY: {
+            return TO_LOX_VALUE_OBJECT((struct object *) native_value
+                    - offsetof(struct array_object, values)
+                    - offsetof(struct lox_arraylist, values));
+        };
+        case LOX_IR_TYPE_LOX_STRUCT_INSTANCE: {
+            return native_value;
+        }
+        default: //TODO Runtime panic
+    }
+}
+
+static uint64_t lox_object_to_native_type(struct object * object) {
+    switch (object->type) {
+        case OBJ_STRING: return (uint64_t) ((struct string_object *) object)->chars;
+        case OBJ_ARRAY: return (uint64_t) ((struct array_object *) object)->values.values;
+        case OBJ_FUNCTION:
+        case OBJ_NATIVE_FUNCTION:
+        case OBJ_STRUCT_INSTANCE:
+        case OBJ_STRUCT_DEFINITION:
+        case OBJ_PACKAGE: {
+            return (uint64_t) object;
+        }
+    }
+}

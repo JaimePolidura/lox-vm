@@ -5,6 +5,7 @@
 #include "shared/utils/collections/u64_hash_table.h"
 #include "shared/utils/collections/u8_set.h"
 #include "shared/types/struct_definition_object.h"
+#include "shared/types/array_object.h"
 #include "shared.h"
 
 #define CREATE_LOX_IR_TYPE(type_arg, allocator) (create_lox_ir_type((type_arg), (allocator)))
@@ -81,3 +82,5 @@ char * to_string_lox_ir_type(lox_ir_type_t type);
 bool is_same_format_lox_ir_type(lox_ir_type_t left, lox_ir_type_t right);
 bool is_format_equivalent_lox_ir_type(lox_ir_type_t left, lox_ir_type_t right);
 bool is_same_number_binay_format_lox_ir_type(lox_ir_type_t left, lox_ir_type_t right);
+uint64_t value_lox_to_native_lox_ir_type(lox_value_t lox_value);
+lox_value_t value_native_to_lox_ir_type(uint64_t native_value, lox_ir_type_t expected_lox_type);
