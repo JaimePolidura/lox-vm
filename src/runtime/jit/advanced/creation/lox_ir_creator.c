@@ -23,6 +23,7 @@ struct lox_ir create_lox_ir(
         .function = function,
     };
 
+    init_u64_hash_table(&lox_ir.cyclic_ssa_name_definitions, &nodes_allocator->lox_allocator);
     init_u64_hash_table(&lox_ir.definitions_by_v_reg, &nodes_allocator->lox_allocator);
     init_u64_hash_table(&lox_ir.node_uses_by_v_reg, &nodes_allocator->lox_allocator);
 

@@ -63,6 +63,7 @@ struct u64_set get_children_lox_ir_control(struct lox_ir_control_node *control_n
 void mark_as_escaped_lox_ir_control(struct lox_ir_control_node *node);
 bool is_marked_as_escaped_lox_ir_control(struct lox_ir_control_node *node);
 bool is_lowered_type_lox_ir_control(struct lox_ir_control_node *node);
+bool is_define_phi_lox_ir_control(struct lox_ir_control_node *node);
 
 //OP_SET_LOCAL
 struct lox_ir_control_set_local_node {

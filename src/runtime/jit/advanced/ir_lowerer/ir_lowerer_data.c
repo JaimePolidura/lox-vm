@@ -726,9 +726,9 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_cast(
     lox_ir_type_t expected_type = cast->data.produced_type->type;
 
     if (is_lox_lox_ir_type(actual_type)) {
-        emit_native_to_lox(lllil, to_cast_input, actual_type, expected_type);
-    } else {
         emit_lox_to_native(lllil, to_cast_input, actual_type, expected_type);
+    } else {
+        emit_native_to_lox(lllil, to_cast_input, actual_type, expected_type);
     }
 
     return to_cast_input;

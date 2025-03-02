@@ -3,7 +3,8 @@
 struct ci {
     struct lox_ir * lox_ir;
     struct u64_set processed_blocks;
-    struct stack_list * blocks_to_reprocess;
+    struct u64_set processed_ssa_names;
+
     struct arena_lox_allocator ci_allocator;
 };
 
@@ -21,6 +22,7 @@ static void extract_define_cast_from_phi(struct ci*, struct lox_ir_block*, struc
                                          struct ssa_name, lox_ir_type_t);
 static lox_ir_type_t calculate_type_should_produce_data(struct ci*, struct lox_ir_block*, struct lox_ir_data_node*, bool);
 static lox_ir_type_t calculate_data_input_type_should_produce(struct ci*, struct lox_ir_block*, struct lox_ir_data_node*, struct lox_ir_data_node*, bool);
+static lox_ir_type_t calculate_actual_type_phi_produces(struct ci*,struct lox_ir_control_define_ssa_name_node*, struct lox_ir_data_phi_node*);
 static struct lox_ir_data_guard_node * insert_lox_type_check_guard(struct ci*, struct lox_ir_data_node*, void**, lox_ir_type_t);
 static void insert_cast_node(struct ci*, struct lox_ir_data_node*, void**, lox_ir_type_t);
 static void cast_node(struct ci*, struct lox_ir_data_node*, struct lox_ir_control_node*, void**, lox_ir_type_t);
@@ -31,14 +33,13 @@ static lox_ir_type_t calculate_actual_type_child_produces(struct ci*, struct lox
 static lox_ir_type_t calculate_expected_type_unary_to_produce(struct lox_ir_data_unary_node*,struct lox_ir_data_node*);
 static bool can_process(struct ci*, struct lox_ir_block*);
 static void handle_phi_node(struct ci*,struct lox_ir_control_node*,struct lox_ir_data_phi_node*,lox_ir_type_t);
-static void propagate_new_ssa_name_type(struct ci *ci, struct lox_ir_control_define_ssa_name_node *define);
-static void reprocess_pending_blocks(struct ci *ci);
 static lox_ir_type_t get_type_by_ssa_name(struct ci*, struct lox_ir_control_node*, struct ssa_name);
 static void remove_cast_node(struct ci*, struct lox_ir_data_node*, struct lox_ir_data_node*,void**);
 static void cast_binary_node(struct ci*, struct lox_ir_data_binary_node*, void ** parent_field_ptr,lox_ir_type_t);
 static lox_ir_type_t calculate_type_produced_by_binary(struct lox_ir_data_binary_node *binary);
 static void cast_unary_node(struct ci*, struct lox_ir_data_unary_node*, void ** parent_field_ptr,lox_ir_type_t);
 static void update_prev_parent_produced_type(struct ci *ci, struct lox_ir_data_node *data_node);
+static lox_ir_type_t union_binary_format_lox_type(lox_ir_type_t left, lox_ir_type_t right);
 
 void perform_cast_insertion(struct lox_ir * lox_ir) {
     struct ci * ci = alloc_cast_insertion(lox_ir);
@@ -57,7 +58,7 @@ void perform_cast_insertion(struct lox_ir * lox_ir) {
 static bool perform_cast_insertion_block(struct lox_ir_block * current_block, void * extra) {
     struct ci * ci = extra;
 
-    if(!can_process(ci, current_block)){
+    if (!can_process(ci, current_block)) {
         return true;
     }
 
@@ -71,28 +72,7 @@ static bool perform_cast_insertion_block(struct lox_ir_block * current_block, vo
         }
     }
 
-    reprocess_pending_blocks(ci);
-
     return true;
-}
-
-static void reprocess_pending_blocks(struct ci * ci) {
-    struct stack_list * pending_to_reprocess = ci->blocks_to_reprocess;
-    //Reset queue
-    ci->blocks_to_reprocess = LOX_MALLOC(&ci->ci_allocator.lox_allocator, sizeof(struct stack_list));
-    init_stack_list(ci->blocks_to_reprocess, &ci->ci_allocator.lox_allocator);
-
-    while (!is_empty_stack_list(pending_to_reprocess)) {
-        struct lox_ir_block * block_to_reprocess = pop_stack_list(pending_to_reprocess);
-
-        for (struct lox_ir_control_node * current_control = block_to_reprocess->first;; current_control = current_control->next) {
-            perform_cast_insertion_control(ci, block_to_reprocess, current_control);
-
-            if (current_control == block_to_reprocess->last) {
-                break;
-            }
-        }
-    }
 }
 
 struct perform_cast_insertion_data_struct {
@@ -122,7 +102,7 @@ static void perform_cast_insertion_control(
     if (current_control->type == LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME) {
         struct lox_ir_control_define_ssa_name_node * define = (struct lox_ir_control_define_ssa_name_node *) current_control;
         put_type_by_ssa_name_lox_ir(ci->lox_ir, current_block, define->ssa_name, define->value->produced_type);
-        propagate_new_ssa_name_type(ci, define);
+        add_u64_set(&ci->processed_ssa_names, define->ssa_name.u16);
     }
 }
 
@@ -190,22 +170,52 @@ static lox_ir_type_t calculate_actual_type_child_produces(
         struct lox_ir_data_node * parent,
         struct lox_ir_data_node * input
 ) {
-    if (parent == NULL) {
-        return !control_requires_lox_input(ci, control_node) ?
-            input->produced_type->type :
-            LOX_IR_TYPE_LOX_ANY;
+    //What?
+//    if (parent == NULL) {
+//        return !control_requires_lox_input(ci, control_node) ?
+//            input->produced_type->type :
+//            LOX_IR_TYPE_LOX_ANY;
+//    }
+
+    if (input->type == LOX_IR_DATA_NODE_PHI) {
+        struct lox_ir_control_define_ssa_name_node * define = (struct lox_ir_control_define_ssa_name_node *) control_node;
+        struct lox_ir_data_phi_node * phi = (struct lox_ir_data_phi_node *) input;
+        lox_ir_type_t produced_type = calculate_actual_type_phi_produces(ci, define, phi);
+        input->produced_type->type = produced_type;
     }
-
     if (input->type == LOX_IR_DATA_NODE_GET_SSA_NAME) {
-        lox_ir_type_t new_type = get_type_by_ssa_name(ci, control_node, GET_USED_SSA_NAME(input));
-        lox_ir_type_t current_type = input->produced_type->type;
-
-        if (new_type != current_type) {
-            input->produced_type->type = new_type;
-        }
+        lox_ir_type_t produced_type = get_type_by_ssa_name(ci, control_node, GET_USED_SSA_NAME(input));
+        input->produced_type->type = produced_type;
     }
 
     return input->produced_type->type;
+}
+
+static lox_ir_type_t calculate_actual_type_phi_produces(
+        struct ci * ci,
+        struct lox_ir_control_define_ssa_name_node * define_node,
+        struct lox_ir_data_phi_node * phi
+) {
+    if (phi->data.produced_type->type == LOX_IR_TYPE_LOX_ANY) {
+        return LOX_IR_TYPE_LOX_ANY;
+    }
+
+    //Not assigned yet
+    lox_ir_type_t type_produced = LOX_IR_TYPE_UNKNOWN;
+
+    FOR_EACH_SSA_NAME_IN_PHI_NODE(phi, ssa_name_used_in_phi) {
+        if (is_cyclic_ssa_name_definition_lox_ir(ci->lox_ir, define_node->ssa_name, ssa_name_used_in_phi)) {
+            continue;
+        }
+
+        lox_ir_type_t produced_type = get_type_by_ssa_name(ci, &define_node->control, ssa_name_used_in_phi);
+
+        type_produced = type_produced != LOX_IR_TYPE_UNKNOWN ?
+                union_binary_format_lox_type(type_produced, produced_type) :
+                produced_type;
+    }
+
+    return type_produced;
 }
 
 static lox_ir_type_t calculate_expected_type_child_to_produce(
@@ -270,7 +280,7 @@ static lox_ir_type_t calculate_expected_type_binary_to_produce(
         struct lox_ir_data_binary_node * binary,
         struct lox_ir_data_node * binary_operand
 ) {
-    if(binary->operator == OP_MODULO){
+    if (binary->operator == OP_MODULO) {
         return LOX_IR_TYPE_NATIVE_I64;
     }
     if (IS_STRING_LOX_IR_TYPE(binary->data.produced_type->type)) {
@@ -455,6 +465,7 @@ static void handle_phi_node(
         struct lox_ir_data_phi_node * phi,
         lox_ir_type_t expected_type_to_produce
 ) {
+    struct lox_ir_control_define_ssa_name_node * definition = (struct lox_ir_control_define_ssa_name_node *) control_node;
     struct lox_ir_block * block = control_node->block;
     bool produced_any = phi->data.produced_type->type == LOX_IR_TYPE_LOX_ANY;
     bool phi_node_should_produce_native = !produced_any;
@@ -465,6 +476,9 @@ static void handle_phi_node(
         bool needs_to_be_extracted = (is_ssa_name_native && phi_node_should_produce_lox)
                                      || (!is_ssa_name_native && phi_node_should_produce_native);
 
+        if (is_cyclic_ssa_name_definition_lox_ir(ci->lox_ir, definition->ssa_name, phi_ssa_name)) {
+            continue;
+        }
         if (needs_to_be_extracted) {
             extract_define_cast_from_phi(ci, block, control_node, phi, phi_ssa_name, expected_type_to_produce);
         }
@@ -588,6 +602,9 @@ static void extract_define_cast_from_phi(
     add_u64_set(&phi_node->ssa_versions, casted_ssa_name.value.version);
     remove_ssa_name_use_lox_ir(ci->lox_ir, ssa_name_to_extract, control_uses_phi);
     add_ssa_name_use_lox_ir(ci->lox_ir, casted_ssa_name, control_uses_phi);
+
+    on_ssa_name_def_moved_lox_ir(ci->lox_ir, GET_DEFINED_SSA_NAME(control_uses_phi));
+    on_ssa_name_def_moved_lox_ir(ci->lox_ir, casted_ssa_name);
 }
 
 static bool is_ssa_name_lox(struct ci * ci, struct lox_ir_block * block, struct ssa_name ssa_name) {
@@ -639,40 +656,6 @@ static bool control_requires_lox_input(struct ci * ci, struct lox_ir_control_nod
             }
 
             return some_use_requires_lox_type_as_input;
-        }
-    }
-}
-
-//If the current type is native, it means it has changed so we will "propagate" the type change by reprocessing
-//the blocks where the ssa name is used and have been already processed. This is useful in loops where in the body
-//a variable is used in the loop condition but assigned in the loop body
-static void propagate_new_ssa_name_type(struct ci * ci, struct lox_ir_control_define_ssa_name_node * define) {
-    if (is_native_lox_ir_type(define->value->produced_type->type)) {
-        struct lox_ir_block * current_block = define->control.block;
-
-        //1. We insert in the set the blocks that we will reprocess. We store in a set to a void duplicates
-        struct u64_set blocks_to_reprocess;
-        init_u64_set(&blocks_to_reprocess, &ci->ci_allocator.lox_allocator);
-        struct u64_set * name_uses = get_u64_hash_table(&ci->lox_ir->node_uses_by_ssa_name, define->ssa_name.u16);
-
-        if(name_uses == NULL){
-            return;
-        }
-
-        FOR_EACH_U64_SET_VALUE(*name_uses, name_control_node_use_ptru_64) {
-            struct lox_ir_control_node * control = (struct lox_ir_control_node *) name_control_node_use_ptru_64;
-            struct lox_ir_block * block_to_maybe_reprocess = control->block;
-
-            if (contains_u64_set(&ci->processed_blocks, (uint64_t) block_to_maybe_reprocess)
-                && block_to_maybe_reprocess != current_block) {
-
-                add_u64_set(&blocks_to_reprocess, (uint64_t) control->block);
-            }
-        }
-        //2. We insert them in the stack
-        FOR_EACH_U64_SET_VALUE(blocks_to_reprocess, block_to_reprocess_u64_ptr) {
-            struct lox_ir_block * block_to_reprocess = (struct lox_ir_block *) block_to_reprocess_u64_ptr;
-            push_stack_list(ci->blocks_to_reprocess, block_to_reprocess);
         }
     }
 }
@@ -730,8 +713,7 @@ static struct ci * alloc_cast_insertion(struct lox_ir * lox_ir) {
     init_arena(&arena);
     ci->ci_allocator = to_lox_allocator_arena(arena);
     init_u64_set(&ci->processed_blocks, &ci->ci_allocator.lox_allocator);
-    ci->blocks_to_reprocess = LOX_MALLOC(&ci->ci_allocator.lox_allocator, sizeof(struct stack_list));
-    init_stack_list(ci->blocks_to_reprocess, &ci->ci_allocator.lox_allocator);
+    init_u64_set(&ci->processed_ssa_names, &ci->ci_allocator.lox_allocator);
 
     return ci;
 }
@@ -739,4 +721,22 @@ static struct ci * alloc_cast_insertion(struct lox_ir * lox_ir) {
 static void free_casting_insertion(struct ci * ci) {
     free_arena(&ci->ci_allocator.arena);
     NATIVE_LOX_FREE(ci);
+}
+
+static lox_ir_type_t union_binary_format_lox_type(lox_ir_type_t left, lox_ir_type_t right) {
+    if (left == LOX_IR_TYPE_LOX_ANY || right == LOX_IR_TYPE_LOX_ANY) {
+        return LOX_IR_TYPE_LOX_ANY;
+    }
+    if (is_native_lox_ir_type(left) && is_native_lox_ir_type(right)) {
+        return left;
+    }
+    //At this point some of the types have lox binary format
+    if (left == LOX_IR_TYPE_F64 && right == LOX_IR_TYPE_LOX_I64) {
+        return left;
+    }
+    if (left == LOX_IR_TYPE_LOX_I64 && right == LOX_IR_TYPE_F64) {
+        return right;
+    }
+    //Return any of the left or right types since both have the same binary format
+    return left;
 }

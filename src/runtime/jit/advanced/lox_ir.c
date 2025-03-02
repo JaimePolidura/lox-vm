@@ -419,3 +419,61 @@ struct v_register alloc_v_register_lox_ir(struct lox_ir * lox_ir, bool is_float_
         .register_bit_size = 64,
     });
 }
+
+static bool calculate_is_cyclic_definition(struct lox_ir * lox_ir, struct ssa_name target, struct ssa_name start);
+
+//i2 = phi(i0, i1) i1 = i2; i2 = i1 + 1;
+//is_cyclic_definition(parent = i2, name_to_check = i1) = true
+bool is_cyclic_ssa_name_definition_lox_ir(struct lox_ir * lox_ir, struct ssa_name parent, struct ssa_name name_to_check) {
+    uint64_t cyclic_name = parent.u16 << 16 | name_to_check.u16;
+    if(contains_u64_hash_table(&lox_ir->cyclic_ssa_name_definitions, cyclic_name)){
+        return (bool) get_u64_hash_table(&lox_ir->cyclic_ssa_name_definitions, cyclic_name);
+    }
+
+    bool is_cyclic = calculate_is_cyclic_definition(lox_ir, parent, name_to_check);
+    put_u64_hash_table(&lox_ir->cyclic_ssa_name_definitions, cyclic_name, (void *) is_cyclic);
+
+    return is_cyclic;
+}
+
+static bool calculate_is_cyclic_definition(struct lox_ir * lox_ir, struct ssa_name target, struct ssa_name start) {
+    struct stack_list pending_evaluate;
+    init_stack_list(&pending_evaluate, NATIVE_LOX_ALLOCATOR());
+    push_stack_list(&pending_evaluate, (void *) start.u16);
+
+    struct u8_set visited_ssa_names;
+    init_u8_set(&visited_ssa_names);
+
+    while (!is_empty_stack_list(&pending_evaluate)) {
+        struct ssa_name current_ssa_name = CREATE_SSA_NAME_FROM_U64((uint64_t) pop_stack_list(&pending_evaluate));
+        struct lox_ir_control_define_ssa_name_node * define_ssa_name = get_u64_hash_table(
+                &lox_ir->definitions_by_ssa_name, current_ssa_name.u16);
+        struct u64_set used_ssa_names = get_used_ssa_names_lox_ir_data_node(define_ssa_name->value,
+                NATIVE_LOX_ALLOCATOR());
+
+        FOR_EACH_U64_SET_VALUE(used_ssa_names, used_ssa_name_u16) {
+            struct ssa_name used_ssa_name = CREATE_SSA_NAME_FROM_U64(used_ssa_name_u16);
+
+            if (used_ssa_name_u16 == target.u16) {
+                return true;
+            }
+            if (contains_u8_set(&visited_ssa_names, used_ssa_name_u16)) {
+                continue;
+            }
+            if (used_ssa_name.value.local_number == target.value.local_number) {
+                push_stack_list(&pending_evaluate, (void *) used_ssa_name_u16);
+                add_u8_set(&visited_ssa_names, used_ssa_name.value.version);
+            }
+        }
+
+        free_u64_set(&used_ssa_names);
+    }
+
+    free_stack_list(&pending_evaluate);
+
+    return false;
+}
+
+void on_ssa_name_def_moved_lox_ir(struct lox_ir * lox_ir, struct ssa_name name) {
+    remove_u64_hash_table(&lox_ir->cyclic_ssa_name_definitions, name.u16);
+}

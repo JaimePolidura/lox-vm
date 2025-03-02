@@ -30,6 +30,8 @@ struct lox_ir {
     struct function_object * function;
     //Set by type_propagation Key: block pointer, value: Hashtable of key ssa_name, value: lox_ir_type *.
     struct u64_hash_table type_by_ssa_name_by_block;
+    //Key: ssa_name, value: boolean that indicates is the ssa name definitino is cyclical
+    struct u64_hash_table cyclic_ssa_name_definitions;
 
     int last_v_reg_allocated;
     //key: v register number, value: u64_set of pointers to control_nodes
@@ -70,6 +72,8 @@ struct ssa_name alloc_ssa_name_lox_ir(struct lox_ir *lox_ir, int ssa_version, ch
 struct ssa_name alloc_ssa_version_lox_ir(struct lox_ir *lox_ir, int local_number);
 void add_ssa_name_use_lox_ir(struct lox_ir *lox_ir, struct ssa_name ssa_name, struct lox_ir_control_node *control_node);
 void remove_ssa_name_use_lox_ir(struct lox_ir *lox_ir, struct ssa_name ssa_name, struct lox_ir_control_node *control_node);
+bool is_cyclic_ssa_name_definition_lox_ir(struct lox_ir *, struct ssa_name, struct ssa_name);
+void on_ssa_name_def_moved_lox_ir(struct lox_ir *, struct ssa_name);
 
 struct lox_ir_type * get_type_by_ssa_name_lox_ir(struct lox_ir *lox_ir, struct lox_ir_block *block, struct ssa_name ssa_name);
 void put_type_by_ssa_name_lox_ir(struct lox_ir *lox_ir, struct lox_ir_block *block, struct ssa_name ssa_name, struct lox_ir_type *new_type);

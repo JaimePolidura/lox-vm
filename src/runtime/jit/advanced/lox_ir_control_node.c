@@ -183,3 +183,10 @@ bool is_lowered_type_lox_ir_control(struct lox_ir_control_node *node) {
         || node->type == LOX_IR_CONTROL_NODE_LL_FUNCTION_CALL
         || node->type == LOX_IR_CONTROL_NODE_LL_COND_FUNCTION_CALL;
 }
+
+bool is_define_phi_lox_ir_control(struct lox_ir_control_node * node) {
+    return node->type == LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME
+        && (GET_DEFINED_SSA_NAME_VALUE(node)->type == LOX_IR_DATA_NODE_PHI
+            || (GET_DEFINED_SSA_NAME_VALUE(node)->type == LOX_IR_DATA_NODE_CAST
+                && ((struct lox_ir_data_cast_node *) GET_DEFINED_SSA_NAME_VALUE(node))->to_cast->type == LOX_IR_DATA_NODE_PHI));
+}

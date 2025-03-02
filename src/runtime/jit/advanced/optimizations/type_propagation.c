@@ -6,8 +6,6 @@ struct tp {
     //Key block pointer: value pointer to pending_evaluate's type_by_ssa_name
     struct u64_hash_table type_by_ssa_name_by_block;
 
-    struct u64_hash_table cyclic_ssa_name_definitions;
-
     struct u64_set loops_aready_scanned;
     bool rescanning_loop_body;
     int rescanning_loop_body_nested_loops;
@@ -34,8 +32,6 @@ static void push_pending_evaluate(struct stack_list*, struct tp*, struct lox_ir_
 static struct lox_ir_type * get_type_by_ssa_name(struct tp*, struct pending_evaluate*, struct ssa_name);
 static struct u64_hash_table * get_merged_type_map_block(struct tp *tp, struct lox_ir_block *next_block);
 static struct u64_hash_table * get_type_by_ssa_name_by_block(struct tp *tp, struct lox_ir_block *block);
-static bool is_cyclic_definition(struct tp *, struct ssa_name defined_phi, struct ssa_name);
-static bool calculate_is_cyclic_definition(struct tp * tp, struct ssa_name parent, struct ssa_name);
 static bool produced_type_has_been_asigned(struct lox_ir_data_node *);
 static struct lox_ir_type * merge_block_types(struct tp*, struct lox_ir_type*, struct lox_ir_type*);
 static struct lox_ir_data_node * create_guard_get_struct_field(struct tp*, struct lox_ir_data_node*, struct type_profile_data);
@@ -125,7 +121,7 @@ static void perform_type_propagation_control(struct pending_evaluate * to_evalut
     for_each_data_node_in_lox_ir_control(control_node, to_evalute, LOX_IR_DATA_NODE_OPT_PRE_ORDER,
                                          perform_type_propagation_data);
 
-    if(control_node->type == LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME){
+    if (control_node->type == LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME) {
         struct lox_ir_control_define_ssa_name_node * define = (struct lox_ir_control_define_ssa_name_node *) control_node;
         put_u64_hash_table(to_evalute->type_by_ssa_name, define->ssa_name.u16, define->value->produced_type);
 
@@ -393,7 +389,7 @@ static struct lox_ir_type * get_type_data_node_recursive(
                 }
                 if (phi_type_result != NULL) {
                     if(type_current_ssa_name->type == LOX_IR_TYPE_UNKNOWN &&
-                       is_cyclic_definition(tp, definition_node->ssa_name, current_ssa_name)) {
+                            is_cyclic_ssa_name_definition_lox_ir(tp->lox_ir, definition_node->ssa_name, current_ssa_name)) {
                         continue;
                     }
                     phi_type_result = union_type(tp, phi_type_result, type_current_ssa_name);
@@ -474,7 +470,6 @@ static struct tp * alloc_type_propagation(struct lox_ir * lox_ir) {
     tp->tp_allocator = to_lox_allocator_arena(arena);
     init_u64_hash_table(&tp->type_by_ssa_name_by_block, LOX_IR_ALLOCATOR(lox_ir));
     init_u64_set(&tp->loops_aready_scanned, &tp->tp_allocator.lox_allocator);
-    init_u64_hash_table(&tp->cyclic_ssa_name_definitions, &tp->tp_allocator.lox_allocator);
 
     return tp;
 }
@@ -602,55 +597,6 @@ static struct lox_ir_type * merge_block_types(struct tp * tp, struct lox_ir_type
     }
 
     return union_type(tp, a, b);
-}
-
-//i2 = phi(i0, i1) i1 = i2; i2 = i1 + 1;
-//is_cyclic_definition(parent = i2, name_to_check = i1) = true
-static bool is_cyclic_definition(struct tp * tp, struct ssa_name parent, struct ssa_name name_to_check) {
-    uint64_t cyclic_name = parent.u16 << 16 | name_to_check.u16;
-    if(contains_u64_hash_table(&tp->cyclic_ssa_name_definitions, cyclic_name)){
-        return (bool) get_u64_hash_table(&tp->cyclic_ssa_name_definitions, cyclic_name);
-    }
-
-    bool is_cyclic = calculate_is_cyclic_definition(tp, parent, name_to_check);
-    put_u64_hash_table(&tp->cyclic_ssa_name_definitions, cyclic_name, (void *) is_cyclic);
-
-    return is_cyclic;
-}
-
-//TODO Incorporate type info
-static bool calculate_is_cyclic_definition(struct tp * tp, struct ssa_name target, struct ssa_name start) {
-    struct stack_list pending_evaluate;
-    init_stack_list(&pending_evaluate, &tp->tp_allocator.lox_allocator);
-    push_stack_list(&pending_evaluate, (void *) start.u16);
-
-    struct u8_set visited_ssa_names;
-    init_u8_set(&visited_ssa_names);
-
-    while(!is_empty_stack_list(&pending_evaluate)){
-        struct ssa_name current_ssa_name = CREATE_SSA_NAME_FROM_U64((uint64_t) pop_stack_list(&pending_evaluate));
-        struct lox_ir_control_define_ssa_name_node * define_ssa_name = get_u64_hash_table(
-                &tp->lox_ir->definitions_by_ssa_name, current_ssa_name.u16);
-        struct u64_set used_ssa_names = get_used_ssa_names_lox_ir_data_node(define_ssa_name->value,
-                &tp->tp_allocator.lox_allocator);
-
-        FOR_EACH_U64_SET_VALUE(used_ssa_names, used_ssa_name_u16) {
-            struct ssa_name used_ssa_name = CREATE_SSA_NAME_FROM_U64(used_ssa_name_u16);
-
-            if(used_ssa_name_u16 == target.u16){
-                return true;
-            }
-            if(contains_u8_set(&visited_ssa_names, used_ssa_name_u16)){
-                continue;
-            }
-            if(used_ssa_name.value.local_number == target.value.local_number){
-                push_stack_list(&pending_evaluate, (void *) used_ssa_name_u16);
-                add_u8_set(&visited_ssa_names, used_ssa_name.value.version);
-            }
-        }
-    }
-
-    return false;
 }
 
 static struct u64_hash_table * get_type_by_ssa_name_by_block(struct tp * tp, struct lox_ir_block * block) {
