@@ -321,22 +321,25 @@ bool is_format_equivalent_lox_ir_type(lox_ir_type_t left, lox_ir_type_t right) {
 
 bool is_same_number_binay_format_lox_ir_type(lox_ir_type_t left, lox_ir_type_t right) {
     struct u8_set values;
+    init_u8_set(&values);
+
     add_u8_set(&values, right + 1);
     add_u8_set(&values, left + 1);
 
     bool some_other_type_found = false;
 
-    for (int i = 0 ; i < (LOX_IR_TYPE_LOX_LAST_TYPE + 1); i++) {
+    for (int i = 0 ; i < LOX_IR_TYPE_LOX_LAST_TYPE; i++) {
         if (i != LOX_IR_TYPE_LOX_ANY
             && i != LOX_IR_TYPE_LOX_I64
             && i != LOX_IR_TYPE_F64
         ) {
-            some_other_type_found = true;
-            break;
+            if (contains_u8_set(&values, i + 1)) {
+                return false;
+            }
         }
     }
 
-    return !some_other_type_found;
+    return true;
 }
 
 static uint64_t lox_object_to_native_type(struct object *);

@@ -172,7 +172,6 @@ static struct lox_ir_block * get_block_to_move_invariant(struct licm * licm, str
 
     struct lox_ir_block * new_block = alloc_lox_ir_block(LOX_IR_ALLOCATOR(licm->lox_ir));
     new_block->predecesors = clone_u64_set(&loop_condition_block->predecesors, LOX_IR_ALLOCATOR(licm->lox_ir));
-    new_block->lox_ir_head_block = loop_condition_block->lox_ir_head_block;
     new_block->type_next = TYPE_NEXT_LOX_IR_BLOCK_SEQ;
     new_block->next_as.next = loop_condition_block;
     new_block->nested_loop_body = MAX(first_predecessor_of_loop_condition->nested_loop_body - 1, 0);

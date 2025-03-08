@@ -16,7 +16,10 @@ struct u8_set create_u8_set(int n_elements, ...) {
 }
 
 void init_u8_set(struct u8_set * set) {
-    memset(set, 0, sizeof(struct u8_set));
+    set->slot_bit_maps[0] = 0;
+    set->slot_bit_maps[1] = 0;
+    set->slot_bit_maps[2] = 0;
+    set->slot_bit_maps[3] = 0;
 }
 
 void clear_u8_set(struct u8_set * set) {

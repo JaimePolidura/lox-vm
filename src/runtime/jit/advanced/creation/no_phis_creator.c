@@ -89,7 +89,6 @@ struct lox_ir_block * create_lox_ir_no_phis(
     struct lox_ir_block * first_block = get_block_by_first_bytecode(inserter, start_function_bytecode);
     push_pending_evaluate(inserter, start_function_bytecode, NULL, first_block);
     inserter->first_block = first_block;
-    first_block->lox_ir_head_block = first_block;
 
     add_arguments_guard(inserter, first_block, function);
 
@@ -830,7 +829,6 @@ static struct lox_ir_block * get_block_by_first_bytecode(
     } else {
         struct lox_ir_block * new_block = alloc_lox_ir_block(&inserter->nodes_allocator->lox_allocator);
         put_u64_hash_table(&inserter->blocks_by_first_bytecode, (uint64_t) first_bytecode, new_block);
-        new_block->lox_ir_head_block = inserter->first_block;
         return new_block;
     }
 }

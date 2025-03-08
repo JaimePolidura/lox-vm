@@ -229,7 +229,6 @@ void insert_block_before_lox_ir(
             NULL;
     new_block->loop_info = NULL;
     new_block->predecesors = clone_u64_set(&predecessors, predecessors.inner_hash_table.allocator);
-    new_block->lox_ir_head_block = first_predecessor != NULL ? first_predecessor->lox_ir_head_block : NULL;
     new_block->type_next = successor != NULL ? TYPE_NEXT_LOX_IR_BLOCK_SEQ : TYPE_NEXT_LOX_IR_BLOCK_NONE;
     new_block->next_as.next = successor;
 
@@ -448,6 +447,11 @@ static bool calculate_is_cyclic_definition(struct lox_ir * lox_ir, struct ssa_na
         struct ssa_name current_ssa_name = CREATE_SSA_NAME_FROM_U64((uint64_t) pop_stack_list(&pending_evaluate));
         struct lox_ir_control_define_ssa_name_node * define_ssa_name = get_u64_hash_table(
                 &lox_ir->definitions_by_ssa_name, current_ssa_name.u16);
+        //If the definition is null, it means that the ssa name comes from a function arguemnt
+        if (define_ssa_name == NULL) {
+            continue;
+        }
+
         struct u64_set used_ssa_names = get_used_ssa_names_lox_ir_data_node(define_ssa_name->value,
                 NATIVE_LOX_ALLOCATOR());
 

@@ -6,13 +6,14 @@ struct phi_inserter {
     struct u8_hash_table max_version_allocated_per_local;
     struct u64_set loops_already_scanned; //Stores lox_ir_block->next_as.loop address
     struct stack_list pending_evaluate;
-    struct arena_lox_allocator * nodes_lox_allocator;
 
     //Key struct ssa_name, Value: pointer to lox_ir_control_node
     struct u64_hash_table ssa_definitions_by_ssa_name;
 
     bool rescanning_loop_body;
     int rescanning_loop_body_nested_loops;
+
+    struct arena_lox_allocator * nodes_lox_allocator;
 };
 
 struct pending_evaluate {
@@ -22,7 +23,8 @@ struct pending_evaluate {
 
 static void push_pending_evaluate(struct phi_inserter *, struct lox_ir_block *, struct u8_hash_table*);
 static void insert_phis_in_block(struct phi_inserter *, struct lox_ir_block *, struct u8_hash_table*);
-static void insert_ssa_versions_in_control_node(struct phi_inserter *, struct lox_ir_block *, struct lox_ir_control_node*, struct u8_hash_table*);
+static void insert_ssa_versions_in_control_node(struct phi_inserter *, struct lox_ir_block *, struct lox_ir_control_node*,
+        struct u8_hash_table*);
 static uint8_t allocate_new_version(struct u8_hash_table *, uint8_t);
 static int get_version(struct u8_hash_table * parent_versions, uint8_t local_number);
 static void init_phi_inserter(struct phi_inserter*, struct arena_lox_allocator *);
@@ -127,8 +129,8 @@ static void insert_ssa_versions_in_control_node(
         struct u8_hash_table * parent_versions
 ) {
     struct insert_phis_in_data_node_struct consumer_struct = (struct insert_phis_in_data_node_struct) {
-        .control_node = control_node,
         .parent_versions = parent_versions,
+        .control_node = control_node,
         .inserter = inserter,
         .block = block,
     };
@@ -184,7 +186,7 @@ static bool insert_phis_in_data_node_consumer(
         if(BELONGS_TO_LOOP_BODY_BLOCK(block) &&
            !block->is_loop_condition &&
            inside_expression &&
-            contains_u8_set(&block->use_before_assigment, local_number)
+           contains_u8_set(&block->use_before_assigment, local_number) //TODO Check if the local has not been already extrated
         ){
             extract_get_local(inserter, parent_versions, control_node, block, local_number, parent_current_ptr);
         } else {
@@ -259,8 +261,8 @@ static void push_pending_evaluate(
 
 static void init_phi_inserter(struct phi_inserter * phi_inserter, struct arena_lox_allocator * nodes_lox_allocator) {
     init_u64_hash_table(&phi_inserter->ssa_definitions_by_ssa_name, &nodes_lox_allocator->lox_allocator);
-    init_stack_list(&phi_inserter->pending_evaluate, NATIVE_LOX_ALLOCATOR());
     init_u64_set(&phi_inserter->loops_already_scanned, NATIVE_LOX_ALLOCATOR());
+    init_stack_list(&phi_inserter->pending_evaluate, NATIVE_LOX_ALLOCATOR());
     init_u8_hash_table(&phi_inserter->max_version_allocated_per_local);
     phi_inserter->nodes_lox_allocator = nodes_lox_allocator;
     phi_inserter->rescanning_loop_body = false;

@@ -18,8 +18,6 @@ static bool perform_cast_insertion_data_consumer(struct lox_ir_data_node *parent
 static void perform_cast_insertion_data(struct ci *ci, struct lox_ir_block *block, struct lox_ir_control_node *control, struct lox_ir_data_node *child_node,
                                         struct lox_ir_data_node *parent_node, void **parent_child_field_ptr, void ** parent_parent_field_ptr);
 static bool is_ssa_name_lox(struct ci *ci, struct lox_ir_block *block, struct ssa_name ssa_name);
-static void extract_define_cast_from_phi(struct ci*, struct lox_ir_block*, struct lox_ir_control_node*, struct lox_ir_data_phi_node *,
-                                         struct ssa_name, lox_ir_type_t);
 static lox_ir_type_t calculate_type_should_produce_data(struct ci*, struct lox_ir_block*, struct lox_ir_data_node*, bool);
 static lox_ir_type_t calculate_data_input_type_should_produce(struct ci*, struct lox_ir_block*, struct lox_ir_data_node*, struct lox_ir_data_node*, bool);
 static lox_ir_type_t calculate_actual_type_phi_produces(struct ci*,struct lox_ir_control_define_ssa_name_node*, struct lox_ir_data_phi_node*);
@@ -40,6 +38,12 @@ static lox_ir_type_t calculate_type_produced_by_binary(struct lox_ir_data_binary
 static void cast_unary_node(struct ci*, struct lox_ir_data_unary_node*, void ** parent_field_ptr,lox_ir_type_t);
 static void update_prev_parent_produced_type(struct ci *ci, struct lox_ir_data_node *data_node);
 static lox_ir_type_t union_binary_format_lox_type(lox_ir_type_t left, lox_ir_type_t right);
+static struct u64_set calculate_predecessors_extract_cast_from_phi(struct ci*,struct ssa_name,struct lox_ir_block*);
+static struct lox_ir_block * create_block_loop_case_extract_cast_from_phi(struct ci*,struct lox_ir_block*,struct lox_ir_block*);
+static void insert_cast_node_and_replace_phi(struct ci*,struct ssa_name,struct lox_ir_block*,struct lox_ir_block*,
+        struct lox_ir_control_node*,struct lox_ir_data_phi_node*,lox_ir_type_t);
+static void extract_cast_from_phi(struct ci*,struct lox_ir_block*,struct lox_ir_control_node*,struct lox_ir_data_phi_node*,
+        struct ssa_name,lox_ir_type_t);
 
 void perform_cast_insertion(struct lox_ir * lox_ir) {
     struct ci * ci = alloc_cast_insertion(lox_ir);
@@ -170,13 +174,6 @@ static lox_ir_type_t calculate_actual_type_child_produces(
         struct lox_ir_data_node * parent,
         struct lox_ir_data_node * input
 ) {
-    //What?
-//    if (parent == NULL) {
-//        return !control_requires_lox_input(ci, control_node) ?
-//            input->produced_type->type :
-//            LOX_IR_TYPE_LOX_ANY;
-//    }
-
     if (input->type == LOX_IR_DATA_NODE_PHI) {
         struct lox_ir_control_define_ssa_name_node * define = (struct lox_ir_control_define_ssa_name_node *) control_node;
         struct lox_ir_data_phi_node * phi = (struct lox_ir_data_phi_node *) input;
@@ -476,11 +473,8 @@ static void handle_phi_node(
         bool needs_to_be_extracted = (is_ssa_name_native && phi_node_should_produce_lox)
                                      || (!is_ssa_name_native && phi_node_should_produce_native);
 
-        if (is_cyclic_ssa_name_definition_lox_ir(ci->lox_ir, definition->ssa_name, phi_ssa_name)) {
-            continue;
-        }
-        if (needs_to_be_extracted) {
-            extract_define_cast_from_phi(ci, block, control_node, phi, phi_ssa_name, expected_type_to_produce);
+        if (!is_cyclic_ssa_name_definition_lox_ir(ci->lox_ir, definition->ssa_name, phi_ssa_name) && needs_to_be_extracted) {
+            extract_cast_from_phi(ci, block, control_node, phi, phi_ssa_name, expected_type_to_produce);
         }
     }
 
@@ -538,7 +532,168 @@ static struct lox_ir_data_guard_node * insert_lox_type_check_guard(
     return guard_node;
 }
 
-//This method will return the block where the cast will be hold.
+//Given a2 = phi(a0, a1) Extract: a1, it will produce: a3 = cast(a1); a2 = phi(a0, a3)
+//We will move a3 = cast(a1) to a new block which is the closest to the definition, if it is not possible,
+//we will create a new one.
+static void extract_cast_from_phi(
+        struct ci * ci,
+        struct lox_ir_block * block_uses_casted,
+        struct lox_ir_control_node * control_uses_phi,
+        struct lox_ir_data_phi_node * phi_node,
+        struct ssa_name ssa_name_to_extract,
+        lox_ir_type_t type_to_be_casted
+) {
+    struct lox_ir_block * block_definition_uncasted = ((struct lox_ir_control_node *) get_u64_hash_table(
+            &ci->lox_ir->definitions_by_ssa_name, ssa_name_to_extract.u16))->block;
+
+    struct u64_set predecessorss_cast_will_be_held = calculate_predecessors_extract_cast_from_phi(ci,
+            ssa_name_to_extract, block_uses_casted);
+
+    struct lox_ir_block * block_definition_casted = NULL;
+    if (block_definition_uncasted->nested_loop_body > block_uses_casted->nested_loop_body) {
+        block_definition_casted = create_block_loop_case_extract_cast_from_phi(ci, block_definition_uncasted,
+                block_uses_casted);
+    } else {
+        block_definition_casted = alloc_lox_ir_block(LOX_IR_ALLOCATOR(ci->lox_ir));
+    }
+
+    insert_block_before_lox_ir(ci->lox_ir, block_definition_casted, predecessorss_cast_will_be_held, block_uses_casted);
+
+    insert_cast_node_and_replace_phi(ci, ssa_name_to_extract, block_definition_casted, block_uses_casted,
+            control_uses_phi, phi_node, type_to_be_casted);
+}
+
+static struct lox_ir_block * create_block_loop_case_extract_cast_from_phi(
+        struct ci * ci,
+        struct lox_ir_block * blocK_definition_uncasted,
+        struct lox_ir_block * blocK_uses_casted
+) {
+    if (ci->lox_ir->first_block->is_loop_condition) {
+        struct lox_ir_block * new_start_block = alloc_lox_ir_block(LOX_IR_ALLOCATOR(ci->lox_ir));
+        new_start_block->type_next = TYPE_NEXT_LOX_IR_BLOCK_SEQ;
+        new_start_block->next_as.next = ci->lox_ir->first_block;
+        add_u64_set(&ci->lox_ir->first_block->predecesors, (uint64_t) new_start_block);
+        ci->lox_ir->first_block = new_start_block;
+    }
+
+    //Initialize entered loop flag to false
+    struct lox_ir_control_define_ssa_name_node * define_entered_loop_flag = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME,
+            struct lox_ir_control_define_ssa_name_node, ci->lox_ir->first_block, LOX_IR_ALLOCATOR(ci->lox_ir));
+    struct ssa_name entered_loop_flag_initialized = alloc_ssa_name_lox_ir(ci->lox_ir, 0, "EnteredLoop", ci->lox_ir->first_block,
+            create_lox_ir_type(LOX_IR_TYPE_NATIVE_BOOLEAN, LOX_IR_ALLOCATOR(ci->lox_ir)));
+    int entered_loop_flag_local_num = entered_loop_flag_initialized.value.local_number;
+    define_entered_loop_flag->ssa_name = entered_loop_flag_initialized;
+    define_entered_loop_flag->value = &create_lox_ir_const_node(0, LOX_IR_TYPE_NATIVE_BOOLEAN, NULL, LOX_IR_ALLOCATOR(ci->lox_ir))->data;
+    add_last_control_node_lox_ir_block(ci->lox_ir->first_block, &define_entered_loop_flag->control);
+
+    //Set entered loop flag to true when loop entered
+    struct lox_ir_control_define_ssa_name_node * set_true_entered_loop_flag =  ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME,
+            struct lox_ir_control_define_ssa_name_node, blocK_definition_uncasted, LOX_IR_ALLOCATOR(ci->lox_ir));
+    struct ssa_name entered_loop_flag_modified = alloc_ssa_version_lox_ir(ci->lox_ir, entered_loop_flag_initialized.value.version);
+    set_true_entered_loop_flag->ssa_name = entered_loop_flag_modified;
+    set_true_entered_loop_flag->value = &create_lox_ir_const_node(1, LOX_IR_TYPE_NATIVE_BOOLEAN, NULL, LOX_IR_ALLOCATOR(ci->lox_ir))->data;
+    add_first_control_node_lox_ir_block(blocK_definition_uncasted, &set_true_entered_loop_flag->control);
+
+    //Create condition on loop entered flag
+    struct lox_ir_block * check_loop_flag_condition_block = alloc_lox_ir_block(LOX_IR_ALLOCATOR(ci->lox_ir));
+    struct lox_ir_block * loop_entered_cast_block = alloc_lox_ir_block(LOX_IR_ALLOCATOR(ci->lox_ir));
+    check_loop_flag_condition_block->type_next = TYPE_NEXT_LOX_IR_BLOCK_BRANCH;
+    check_loop_flag_condition_block->next_as.branch.false_branch = blocK_uses_casted;
+    check_loop_flag_condition_block->next_as.branch.true_branch = loop_entered_cast_block;
+    loop_entered_cast_block->type_next = TYPE_NEXT_LOX_IR_BLOCK_SEQ;
+    loop_entered_cast_block->next_as.next = blocK_uses_casted;
+
+    //First phi-resolve the entered_loop_flag_
+    struct lox_ir_data_phi_node * phi_loop_entered_flag_condition = ALLOC_LOX_IR_DATA(LOX_IR_DATA_NODE_PHI,
+            struct lox_ir_data_phi_node, NULL, LOX_IR_ALLOCATOR(ci->lox_ir));
+    phi_loop_entered_flag_condition->local_number = entered_loop_flag_local_num;
+    init_u64_set(&phi_loop_entered_flag_condition->ssa_versions, LOX_IR_ALLOCATOR(ci->lox_ir));
+    add_u64_set(&phi_loop_entered_flag_condition->ssa_versions, entered_loop_flag_modified.value.version);
+    add_u64_set(&phi_loop_entered_flag_condition->ssa_versions, entered_loop_flag_initialized.value.version);
+    struct lox_ir_control_define_ssa_name_node * get_loop_entered_in_condition = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME,
+            struct lox_ir_control_define_ssa_name_node, check_loop_flag_condition_block, LOX_IR_ALLOCATOR(ci->lox_ir));
+    struct ssa_name loop_entered_flag_phi_resolved = alloc_ssa_version_lox_ir(ci->lox_ir, entered_loop_flag_local_num);
+    get_loop_entered_in_condition->value = &phi_loop_entered_flag_condition->data;
+    get_loop_entered_in_condition->ssa_name = loop_entered_flag_phi_resolved;
+
+    //Then add cond jump node, to check wether the phi-resolved entered loop flag is true
+    struct lox_ir_control_conditional_jump_node * jump_if_loop_flag_condition_is_true = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_CONDITIONAL_JUMP,
+            struct lox_ir_control_conditional_jump_node, check_loop_flag_condition_block, LOX_IR_ALLOCATOR(ci->lox_ir));
+    struct lox_ir_data_binary_node * condition_loop_flag_condition_is_true = ALLOC_LOX_IR_DATA(LOX_IR_DATA_NODE_BINARY,
+            struct lox_ir_data_binary_node, NULL, LOX_IR_ALLOCATOR(ci->lox_ir));
+    struct lox_ir_data_get_ssa_name_node * get_loop_flag_condition = ALLOC_LOX_IR_DATA(LOX_IR_DATA_NODE_GET_SSA_NAME,
+            struct lox_ir_data_get_ssa_name_node, NULL, LOX_IR_ALLOCATOR(ci->lox_ir));
+    get_loop_flag_condition->ssa_name = loop_entered_flag_phi_resolved;
+    condition_loop_flag_condition_is_true->operator = OP_EQUAL;
+    condition_loop_flag_condition_is_true->left = &get_loop_flag_condition->data;
+    condition_loop_flag_condition_is_true->right = &create_lox_ir_const_node(1, LOX_IR_TYPE_NATIVE_BOOLEAN, NULL, LOX_IR_ALLOCATOR(ci->lox_ir))->data;
+
+    add_first_control_node_lox_ir_block(check_loop_flag_condition_block, &jump_if_loop_flag_condition_is_true->control);
+    add_first_control_node_lox_ir_block(check_loop_flag_condition_block, &get_loop_entered_in_condition->control);
+
+    return loop_entered_cast_block;
+}
+
+static void insert_cast_node_and_replace_phi(
+        struct ci * ci,
+        struct ssa_name ssa_name_to_extract,
+        struct lox_ir_block * block_define_casted,
+        struct lox_ir_block * block_uses_casted,
+        struct lox_ir_control_node * phi_control,
+        struct lox_ir_data_phi_node * phi,
+        lox_ir_type_t type_to_be_casted
+) {
+    struct ssa_name casted_ssa_name = alloc_ssa_version_lox_ir(ci->lox_ir, ssa_name_to_extract.value.local_number);
+    struct lox_ir_control_define_ssa_name_node * define_casted = ALLOC_LOX_IR_CONTROL(
+            LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME, struct lox_ir_control_define_ssa_name_node, block_define_casted, LOX_IR_ALLOCATOR(ci->lox_ir)
+    );
+    struct lox_ir_data_get_ssa_name_node * get_uncasted_ssa_name_node = ALLOC_LOX_IR_DATA(
+            LOX_IR_DATA_NODE_GET_SSA_NAME, struct lox_ir_data_get_ssa_name_node, NULL, LOX_IR_ALLOCATOR(ci->lox_ir)
+    );
+
+    //Get uncasted ssa name (a1 in the example)
+    get_uncasted_ssa_name_node->data.produced_type = clone_lox_ir_type(get_type_by_ssa_name_lox_ir(ci->lox_ir, block_uses_casted,
+        ssa_name_to_extract), LOX_IR_ALLOCATOR(ci->lox_ir));
+    get_uncasted_ssa_name_node->ssa_name = ssa_name_to_extract;
+    add_ssa_name_use_lox_ir(ci->lox_ir, ssa_name_to_extract, &define_casted->control);
+
+    //Define casted ssa name (a3 = cast(a1))
+    define_casted->ssa_name = casted_ssa_name;
+    define_casted->value = &get_uncasted_ssa_name_node->data;
+    add_u64_set(&block_define_casted->defined_ssa_names, casted_ssa_name.u16);
+    put_u64_hash_table(&ci->lox_ir->definitions_by_ssa_name, casted_ssa_name.u16, define_casted);
+    add_last_control_node_lox_ir_block(block_define_casted, &define_casted->control);
+    insert_cast_node(ci, define_casted->value, (void**) &define_casted->value, type_to_be_casted);
+
+    //Added casted ssa name in phi (a2 = phi(a0, a3))
+    remove_u64_set(&phi->ssa_versions, ssa_name_to_extract.value.version);
+    add_u64_set(&phi->ssa_versions, casted_ssa_name.value.version);
+    remove_ssa_name_use_lox_ir(ci->lox_ir, ssa_name_to_extract, phi_control);
+    add_ssa_name_use_lox_ir(ci->lox_ir, casted_ssa_name, phi_control);
+
+    on_ssa_name_def_moved_lox_ir(ci->lox_ir, GET_DEFINED_SSA_NAME(phi_control));
+    on_ssa_name_def_moved_lox_ir(ci->lox_ir, casted_ssa_name);
+}
+
+static struct u64_set calculate_predecessors_extract_cast_from_phi(
+        struct ci * ci,
+        struct ssa_name uncasted_name,
+        struct lox_ir_block * block_uses_unscasted
+) {
+    struct lox_ir_block * block_definition_uncasted = ((struct lox_ir_control_node *) get_u64_hash_table(
+            &ci->lox_ir->definitions_by_ssa_name, uncasted_name.u16))->block;
+
+    struct u64_set all_possible_block_paths = get_all_block_paths_to_block_set_lox_ir(ci->lox_ir,
+            block_definition_uncasted, block_uses_unscasted, &ci->ci_allocator.lox_allocator);
+    struct u64_set predecessors_block_uses_unscasted = clone_u64_set(&block_uses_unscasted->predecesors,
+            LOX_IR_ALLOCATOR(ci->lox_ir));
+
+    intersection_u64_set(&predecessors_block_uses_unscasted, all_possible_block_paths);
+
+    return predecessors_block_uses_unscasted;
+}
+
+//This method will return the block where the cast will be held.
 static struct lox_ir_block * create_block_to_define_casted(
         struct ci * ci,
         struct ssa_name uncasted_name,
@@ -561,50 +716,6 @@ static struct lox_ir_block * create_block_to_define_casted(
     struct lox_ir_block * new_block = alloc_lox_ir_block(LOX_IR_ALLOCATOR(ci->lox_ir));
     insert_block_before_lox_ir(ci->lox_ir, new_block, predecessors_block_uses_unscasted, block_uses_unscasted);
     return new_block;
-}
-
-//Given a2 = phi(a0, a1) Extract: a1, it will produce: a3 = cast(a1); a2 = phi(a0, a3)
-//We will move a3 = cast(a1) to a new block which is the closest to the definition, if it is not possible,
-//we will create a new one.
-static void extract_define_cast_from_phi(
-        struct ci * ci,
-        struct lox_ir_block * block,
-        struct lox_ir_control_node * control_uses_phi,
-        struct lox_ir_data_phi_node * phi_node,
-        struct ssa_name ssa_name_to_extract,
-        lox_ir_type_t type_to_be_casted
-) {
-    struct ssa_name casted_ssa_name = alloc_ssa_version_lox_ir(ci->lox_ir, ssa_name_to_extract.value.local_number);
-    struct lox_ir_block * block_define_casted = create_block_to_define_casted(ci, ssa_name_to_extract, control_uses_phi->block);
-    struct lox_ir_control_define_ssa_name_node * define_casted = ALLOC_LOX_IR_CONTROL(
-            LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME, struct lox_ir_control_define_ssa_name_node, block_define_casted, LOX_IR_ALLOCATOR(ci->lox_ir)
-    );
-    struct lox_ir_data_get_ssa_name_node * get_uncasted_ssa_name_node = ALLOC_LOX_IR_DATA(
-            LOX_IR_DATA_NODE_GET_SSA_NAME, struct lox_ir_data_get_ssa_name_node, NULL, LOX_IR_ALLOCATOR(ci->lox_ir)
-    );
-
-    //Get uncasted ssa name (a1 in the example)
-    get_uncasted_ssa_name_node->data.produced_type = clone_lox_ir_type(get_type_by_ssa_name_lox_ir(ci->lox_ir, block,
-        ssa_name_to_extract), LOX_IR_ALLOCATOR(ci->lox_ir));
-    get_uncasted_ssa_name_node->ssa_name = ssa_name_to_extract;
-    add_ssa_name_use_lox_ir(ci->lox_ir, ssa_name_to_extract, &define_casted->control);
-
-    //Define casted ssa name (a3 = cast(a1))
-    define_casted->ssa_name = casted_ssa_name;
-    define_casted->value = &get_uncasted_ssa_name_node->data;
-    add_u64_set(&block_define_casted->defined_ssa_names, casted_ssa_name.u16);
-    put_u64_hash_table(&ci->lox_ir->definitions_by_ssa_name, casted_ssa_name.u16, define_casted);
-    add_last_control_node_lox_ir_block(block_define_casted, &define_casted->control);
-    insert_cast_node(ci, define_casted->value, (void**) &define_casted->value, type_to_be_casted);
-
-    //Added casted ssa name in phi (a2 = phi(a0, a3))
-    remove_u64_set(&phi_node->ssa_versions, ssa_name_to_extract.value.version);
-    add_u64_set(&phi_node->ssa_versions, casted_ssa_name.value.version);
-    remove_ssa_name_use_lox_ir(ci->lox_ir, ssa_name_to_extract, control_uses_phi);
-    add_ssa_name_use_lox_ir(ci->lox_ir, casted_ssa_name, control_uses_phi);
-
-    on_ssa_name_def_moved_lox_ir(ci->lox_ir, GET_DEFINED_SSA_NAME(control_uses_phi));
-    on_ssa_name_def_moved_lox_ir(ci->lox_ir, casted_ssa_name);
 }
 
 static bool is_ssa_name_lox(struct ci * ci, struct lox_ir_block * block, struct ssa_name ssa_name) {

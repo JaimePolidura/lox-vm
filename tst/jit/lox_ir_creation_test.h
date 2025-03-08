@@ -18,9 +18,12 @@ static void run(struct compilation_result);
 
 TEST(lox_ir_lowerer_ptr) {
     struct compilation_result compilation = compile_standalone(
-            "fun function() {"
-            "   for(var i = 0; i < 10; i = i + 1) {"
+            "fun function(a) {"
+            "   var b = 1;"
+            "   for(var j = 0; j < 10; j = j + 1){"
+            "       b = a;"
             "   }"
+            "   print b + 3;"
             "}"
     );
     run(compilation);
@@ -35,7 +38,7 @@ TEST(lox_ir_lowerer_ptr) {
     visualize_lox_ir(
             package,
             function,
-            LOWERING_LOX_IR_VISUALIZATION,
+            TYPE_PROPAGATION_PHASE_LOX_IR_VISUALIZATION,
             DISPLAY_TYPE_INFO_OPT | DISPLAY_ESCAPE_INFO_OPT,
             LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
@@ -46,7 +49,6 @@ TEST(lox_ir_creation_pr) {
     struct compilation_result compilation = compile_standalone(
             "fun function() {"
             "   for(var i = 0; i < 10; i = i + 1) {"
-            "       print i;"
             "   }"
             "}"
     );

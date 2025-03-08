@@ -349,7 +349,7 @@ struct u64_set get_successors_lox_ir_block(struct lox_ir_block * block, struct l
     struct u64_set children;
     init_u64_set(&children, allocator);
 
-    if(block->type_next == TYPE_NEXT_LOX_IR_BLOCK_SEQ || block->type_next == TYPE_NEXT_LOX_IR_BLOCK_LOOP){
+    if(block->type_next == TYPE_NEXT_LOX_IR_BLOCK_SEQ){
         add_u64_set(&children, (uint64_t) block->next_as.next);
     } else if(block->type_next == TYPE_NEXT_LOX_IR_BLOCK_BRANCH) {
         add_u64_set(&children, (uint64_t) block->next_as.branch.false_branch);

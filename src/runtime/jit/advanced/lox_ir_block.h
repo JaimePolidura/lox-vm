@@ -48,9 +48,6 @@ struct lox_ir_block {
     //Set of pointers to lox_ir_block that points to this lox_ir_block
     struct u64_set predecesors;
 
-    //First block of lox ir. This is the only block whose predecessors set is emtpy
-    struct lox_ir_block * lox_ir_head_block;
-
     //Set of struct ssa_name, defined in the current block
     struct u64_set defined_ssa_names;
 
