@@ -1,8 +1,10 @@
 #include "lox_ir_block.h"
 
-static bool create_loop_info_lox_ir_block_consumer(struct lox_ir_block *current_block, void *extra);
+static struct lox_ir_block_loop_info * create_loop_info_lox_ir_block(struct lox_ir_block*,struct lox_allocator*);
 static void record_new_node_information_of_block(struct lox_ir_block *, struct lox_ir_control_node *);
+static bool create_loop_info_lox_ir_block_consumer(struct lox_ir_block *current_block, void *extra);
 static struct u64_set get_blocks_to_remove(struct lox_ir_block *);
+
 
 void for_each_lox_ir_block(
         struct lox_ir_block * start_block,
@@ -92,119 +94,6 @@ type_next_lox_ir_block_t get_type_next_lox_ir_block(struct lox_ir_control_node *
     }
 }
 
-void replace_control_node_lox_ir_block(
-        struct lox_ir_block * block,
-        struct lox_ir_control_node * prev,
-        struct lox_ir_control_node * new
-) {
-    record_removed_node_information_of_block(block, prev);
-    record_new_node_information_of_block(block, new);
-    reset_loop_info(block);
-
-    if (block->last == prev) {
-        block->last = new;
-    }
-    if (block->first == prev) {
-        block->first = new;
-    }
-
-    if (prev->prev != NULL) {
-        prev->prev->next = new;
-        new->prev = prev->prev;
-    }
-    if (prev->next != NULL) {
-        prev->next->prev = new;
-        new->next = prev->next;
-    }
-}
-
-void add_last_control_node_lox_ir_block(struct lox_ir_block * block, struct lox_ir_control_node * node) {
-    record_new_node_information_of_block(block, node);
-    reset_loop_info(block);
-
-    if(block->first == NULL){
-        block->first = node;
-    }
-    if(block->last != NULL) {
-        block->last->next = node;
-        node->prev = block->last;
-    }
-
-    block->last = node;
-}
-
-void add_first_control_node_lox_ir_block(
-        struct lox_ir_block * block,
-        struct lox_ir_control_node * node
-) {
-    record_new_node_information_of_block(block, node);
-    reset_loop_info(block);
-
-    if(block->last == NULL){
-        block->last = node;
-    }
-    if(block->first != NULL) {
-        block->first->prev = node;
-        node->next = block->first;
-    }
-
-    block->first = node;
-}
-
-void add_after_control_node_lox_ir_block(
-        struct lox_ir_block * block,
-        struct lox_ir_control_node * after,
-        struct lox_ir_control_node * new
-) {
-    record_new_node_information_of_block(block, new);
-    reset_loop_info(block);
-
-    if(after == NULL){
-        add_first_control_node_lox_ir_block(block, new);
-        return;
-    }
-
-    if(block->first == NULL){
-        block->first = new;
-    }
-    if (block->last == after) {
-        block->last = new;
-    }
-    if (after->next != NULL) {
-        new->next = after->next;
-        after->next->prev = new;
-    }
-
-    new->prev = after;
-    after->next = new;
-}
-
-void add_before_control_node_lox_ir_block(
-        struct lox_ir_block * block,
-        struct lox_ir_control_node * before,
-        struct lox_ir_control_node * new
-) {
-    record_new_node_information_of_block(block, new);
-    reset_loop_info(block);
-
-    if (before == NULL) {
-        add_last_control_node_lox_ir_block(block, new);
-        return;
-    }
-
-    if(block->first == before){
-        block->first = new;
-    }
-
-    if(before->prev != NULL){
-        new->prev = before->prev;
-        before->prev->next = new;
-    }
-
-    new->next = before;
-    before->prev = new;
-}
-
 bool is_emtpy_lox_ir_block(struct lox_ir_block * block) {
     return block->first == NULL && block->last == NULL;
 }
@@ -241,8 +130,6 @@ void replace_block_lox_ir_block(struct lox_ir_block * old_block, struct lox_ir_b
         }
     }
 }
-
-static struct lox_ir_block_loop_info * create_loop_info_lox_ir_block(struct lox_ir_block * loop_condition_block, struct lox_allocator *allocator);
 
 struct lox_ir_block_loop_info * get_loop_info_lox_ir_block(struct lox_ir_block * block, struct lox_allocator * allocator) {
     if(!BELONGS_TO_LOOP_BODY_BLOCK(block)){

@@ -28,6 +28,7 @@ struct lox_ir {
     struct arena_lox_allocator * nodes_allocator_arena;
     //Function of the lox_ir
     struct function_object * function;
+    struct package * package;
     //Set by type_propagation Key: block pointer, value: Hashtable of key ssa_name, value: lox_ir_type *.
     struct u64_hash_table type_by_ssa_name_by_block;
     //Key: ssa_name, value: boolean that indicates is the ssa name definitino is cyclical
@@ -39,6 +40,16 @@ struct lox_ir {
     //key: v register number, value: u64_set of pointers control_nodes
     struct u64_hash_table node_uses_by_v_reg;
 };
+
+struct lox_ir * alloc_lox_ir(struct lox_allocator*,struct function_object*,struct package*);
+
+void add_last_control_node_block_lox_ir(struct lox_ir*, struct lox_ir_block*, struct lox_ir_control_node*);
+void add_first_control_node_block_lox_ir(struct lox_ir*, struct lox_ir_block*, struct lox_ir_control_node*);
+//If before is NULL, the node will be added as the last node in the block
+void add_before_control_node_block_lox_ir(struct lox_ir*,struct lox_ir_block*,struct lox_ir_control_node*,struct lox_ir_control_node*);
+//If after is NULL, the node will be added as the first node in the block
+void add_after_control_node_block_lox_ir(struct lox_ir*,struct lox_ir_block*,struct lox_ir_control_node*,struct lox_ir_control_node*);
+void replace_control_node_block_lox_ir(struct lox_ir*,struct lox_ir_block*,struct lox_ir_control_node*, struct lox_ir_control_node*);
 
 //Removes control node from block. If the control node to remove is the only one in the block, the block will get removed
 //from the lox ir graph

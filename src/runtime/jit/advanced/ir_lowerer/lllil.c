@@ -41,7 +41,7 @@ void add_lowered_node_lllil_control(
     struct lox_ir_control_node * prev_node = lllil_control->last_node_lowered;
     struct lox_ir_block * block = lllil_control->control_node_to_lower->block;
 
-    add_after_control_node_lox_ir_block(block, prev_node, lowered_node_to_add);
+    add_after_control_node_block_lox_ir(lllil_control->lllil->lox_ir, block, prev_node, lowered_node_to_add);
 
     lllil_control->last_node_lowered = lowered_node_to_add;
 }

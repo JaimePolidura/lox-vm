@@ -2,6 +2,7 @@
 
 #include "runtime/jit/advanced/lox_ir_options.h"
 #include "runtime/jit/advanced/lox_ir_block.h"
+#include "runtime/jit/advanced/lox_ir.h"
 
 #include "compiler/bytecode/bytecode_list.h"
 
@@ -17,10 +18,8 @@
 //It also creates blocks, which is a series of lox_ir_control_nodes that are executed sequentially without branches
 //It also insert guards in:ç
 //  - Return values
-struct lox_ir_block * create_lox_ir_no_phis(
-        struct package * package,
-        struct function_object * function,
+void create_lox_ir_no_phis(
+        struct lox_ir * lox_ir,
         struct bytecode_list * start_function_bytecode,
-        struct arena_lox_allocator * nodes_allocator,
         long options
 );

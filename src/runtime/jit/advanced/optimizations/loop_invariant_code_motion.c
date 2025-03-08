@@ -151,8 +151,7 @@ static void move_up_loop_invariant(
             struct lox_ir_control_define_ssa_name_node, block_to_move_invariant, LOX_IR_ALLOCATOR(licm->lox_ir));
     define_loop_invariant->ssa_name = invariant_name;
     define_loop_invariant->value = invariant_data_node;
-    add_last_control_node_lox_ir_block(block_to_move_invariant, &define_loop_invariant->control);
-    put_u64_hash_table(&licm->lox_ir->definitions_by_ssa_name, invariant_name.u16, define_loop_invariant);
+    add_last_control_node_block_lox_ir(licm->lox_ir, block_to_move_invariant, &define_loop_invariant->control);
 
     struct lox_ir_data_get_ssa_name_node * get_loop_invariant = ALLOC_LOX_IR_DATA(LOX_IR_DATA_NODE_GET_SSA_NAME,
             struct lox_ir_data_get_ssa_name_node, NULL, LOX_IR_ALLOCATOR(licm->lox_ir));

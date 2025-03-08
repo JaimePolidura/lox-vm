@@ -1,15 +1,9 @@
 #include "phi_optimizer.h"
 
 struct optimize_phi_functions_consumer_struct {
-    struct phi_insertion_result * phi_insertion_result;
     struct lox_ir_control_node * control_node;
-    //u64_set of control_nodes per jit name
-    struct u64_hash_table * node_uses_by_ssa_name;
-    struct lox_ir_block * block;
-    struct arena_lox_allocator * nodes_allocator;
+    struct lox_ir * lox_ir;
 };
-
-#define GET_NODES_ALLOCATOR(inserter) (&(inserter)->nodes_allocator->lox_allocator)
 
 static bool optimize_phi_functions_consumer (
         struct lox_ir_data_node * __,
@@ -19,60 +13,36 @@ static bool optimize_phi_functions_consumer (
 );
 static void remove_innecesary_phi_function(struct optimize_phi_functions_consumer_struct *, struct lox_ir_data_phi_node *, void ** parent_child_ptr);
 static void extract_phi_to_ssa_name(struct optimize_phi_functions_consumer_struct *, struct lox_ir_data_phi_node *, void ** parent_child_ptr);
-static uint8_t allocate_new_ssa_version(int local_number, struct phi_insertion_result *);
 static void add_ssa_name_use(struct u64_hash_table * uses_by_ssa_node, struct ssa_name, struct lox_ir_control_node *);
-static void propagate_extracted_phi(struct arena_lox_allocator*, struct lox_ir_block*, struct lox_ir_control_node*,
+static void propagate_extracted_phi(struct lox_ir*, struct lox_ir_block*, struct lox_ir_control_node*,
                                     struct lox_ir_data_phi_node*, uint8_t extracted_version);
 static void fill_uses_by_node_hashtable(struct u64_hash_table *uses_by_ssa_node, struct lox_ir_block * start_block);
 static bool fill_uses_by_node_hashtable_block(struct lox_ir_block *block, void *extra);
 
 static bool optimize_lox_ir_phis_block(struct lox_ir_block *current_block, void * extra);
 
-struct optimize_lox_ir_phis_block_struct {
-    struct phi_insertion_result * phi_insertion_result;
-    struct arena_lox_allocator * nodes_allocator;
-    struct u64_hash_table * node_uses_by_ssa_name;
-};
-
-struct phi_optimization_result optimize_lox_ir_phis(
-        struct lox_ir_block * start_block,
-        struct phi_insertion_result * phi_insertion_result,
-        struct arena_lox_allocator * nodes_allocator
-) {
+void optimize_lox_ir_phis(struct lox_ir * lox_ir) {
     struct u64_hash_table node_uses_by_ssa_name;
-    init_u64_hash_table(&node_uses_by_ssa_name, &nodes_allocator->lox_allocator);
-
-    struct optimize_lox_ir_phis_block_struct consumer_struct = (struct optimize_lox_ir_phis_block_struct) {
-        .phi_insertion_result = phi_insertion_result,
-        .nodes_allocator = nodes_allocator,
-        .node_uses_by_ssa_name = &node_uses_by_ssa_name,
-    };
+    init_u64_hash_table(&node_uses_by_ssa_name, LOX_IR_ALLOCATOR(lox_ir));
 
     for_each_lox_ir_block(
-            start_block,
+            lox_ir->first_block,
             NATIVE_LOX_ALLOCATOR(),
-            &consumer_struct,
+            &lox_ir,
             LOX_IR_BLOCK_OPT_REPEATED,
             &optimize_lox_ir_phis_block
     );
 
-    fill_uses_by_node_hashtable(&node_uses_by_ssa_name, start_block);
-
-    return (struct phi_optimization_result) {
-        .node_uses_by_ssa_name = node_uses_by_ssa_name,
-    };
+    fill_uses_by_node_hashtable(&node_uses_by_ssa_name, lox_ir->first_block);
 }
 
 static bool optimize_lox_ir_phis_block(struct lox_ir_block * current_block, void * extra) {
-    struct optimize_lox_ir_phis_block_struct * consumer_struct = extra;
+    struct lox_ir * lox_ir = extra;
 
     for (struct lox_ir_control_node * current = current_block->first;; current = current->next) {
         struct optimize_phi_functions_consumer_struct for_each_node_struct = (struct optimize_phi_functions_consumer_struct) {
-                .phi_insertion_result = consumer_struct->phi_insertion_result,
-                .nodes_allocator = consumer_struct->nodes_allocator,
-                .node_uses_by_ssa_name = consumer_struct->node_uses_by_ssa_name,
-                .control_node = current,
-                .block = current_block,
+            .control_node = current,
+            .lox_ir = lox_ir,
         };
 
         for_each_data_node_in_lox_ir_control(
@@ -121,9 +91,8 @@ static void remove_innecesary_phi_function(
 ) {
     uint8_t ssa_version = get_first_value_u64_set(phi_node->ssa_versions);
 
-    struct lox_ir_data_get_ssa_name_node * new_get_ssa_name = ALLOC_LOX_IR_DATA(
-            LOX_IR_DATA_NODE_GET_SSA_NAME, struct lox_ir_data_get_ssa_name_node, NULL, GET_NODES_ALLOCATOR(optimizer)
-    );
+    struct lox_ir_data_get_ssa_name_node * new_get_ssa_name = ALLOC_LOX_IR_DATA(LOX_IR_DATA_NODE_GET_SSA_NAME,
+            struct lox_ir_data_get_ssa_name_node, NULL, LOX_IR_ALLOCATOR(optimizer->lox_ir));
     new_get_ssa_name->ssa_name = CREATE_SSA_NAME(phi_node->local_number, ssa_version);
 
     //Replace control_node_to_lower
@@ -137,28 +106,26 @@ static void extract_phi_to_ssa_name(
         struct lox_ir_data_phi_node * phi_node,
         void ** parent_child_ptr
 ) {
-    struct phi_insertion_result * phi_insertion_result = consumer_struct->phi_insertion_result;
     struct lox_ir_control_node * control_node = consumer_struct->control_node;
-    struct lox_ir_block * block = consumer_struct->block;
+    struct lox_ir_block * block = control_node->block;
+    struct lox_ir * lox_ir = consumer_struct->lox_ir;
 
-    uint8_t extracted_version = allocate_new_ssa_version(phi_node->local_number, phi_insertion_result);
+    uint8_t extracted_version = alloc_ssa_version_lox_ir(lox_ir, phi_node->local_number).value.version;
     struct ssa_name extracted_ssa_name = CREATE_SSA_NAME(phi_node->local_number, extracted_version);
-    struct lox_ir_control_define_ssa_name_node * extracted_define_ssa_name = ALLOC_LOX_IR_CONTROL(
-            LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME, struct lox_ir_control_define_ssa_name_node, block, GET_NODES_ALLOCATOR(consumer_struct)
-    );
+    struct lox_ir_control_define_ssa_name_node * extracted_define_ssa_name = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME,
+            struct lox_ir_control_define_ssa_name_node, block, LOX_IR_ALLOCATOR(lox_ir));
     extracted_define_ssa_name->ssa_name = extracted_ssa_name;
     extracted_define_ssa_name->value = &phi_node->data;
-    put_u64_hash_table(&phi_insertion_result->ssa_definitions_by_ssa_name, extracted_ssa_name.u16, extracted_define_ssa_name);
+    put_u64_hash_table(&lox_ir->definitions_by_ssa_name, extracted_ssa_name.u16, extracted_define_ssa_name);
 
-    struct lox_ir_data_get_ssa_name_node * get_extracted = ALLOC_LOX_IR_DATA(
-            LOX_IR_DATA_NODE_GET_SSA_NAME, struct lox_ir_data_get_ssa_name_node, NULL, GET_NODES_ALLOCATOR(consumer_struct)
-    );
+    struct lox_ir_data_get_ssa_name_node * get_extracted = ALLOC_LOX_IR_DATA(LOX_IR_DATA_NODE_GET_SSA_NAME,
+            struct lox_ir_data_get_ssa_name_node, NULL, LOX_IR_ALLOCATOR(lox_ir));
 
     get_extracted->ssa_name = extracted_ssa_name;
 
-    propagate_extracted_phi(consumer_struct->nodes_allocator, block, control_node, phi_node, extracted_version);
+    propagate_extracted_phi(lox_ir, block, control_node, phi_node, extracted_version);
 
-    add_before_control_node_lox_ir_block(block, control_node, &extracted_define_ssa_name->control);
+    add_before_control_node_block_lox_ir(lox_ir, block, control_node, &extracted_define_ssa_name->control);
     *parent_child_ptr = get_extracted;
 }
 
@@ -214,7 +181,7 @@ static void propagate_extracted_phi_in_block(
 //This method will propagate a3 to replace phi nodes of nodes a1 and a2. In the example:
 //a3 = phi(a1, a2); print a3; return a3.
 static void propagate_extracted_phi(
-        struct arena_lox_allocator * arena_lox_allocator,
+        struct lox_ir * lox_ir,
         struct lox_ir_block * block,
         struct lox_ir_control_node * control_node,
         struct lox_ir_data_phi_node * phi_node,
@@ -231,10 +198,10 @@ static void propagate_extracted_phi(
 
     //Propagate the change to all subblocks of the subgraph whose only parent is block
     struct queue_list pending;
-    init_queue_list(&pending, &arena_lox_allocator->lox_allocator);
+    init_queue_list(&pending, NATIVE_LOX_ALLOCATOR());
     enqueue_queue_list(&pending, block);
     struct u64_set expeced_predecessors;
-    init_u64_set(&expeced_predecessors, &arena_lox_allocator->lox_allocator);
+    init_u64_set(&expeced_predecessors, LOX_IR_ALLOCATOR(lox_ir));
     add_u64_set(&expeced_predecessors, (uint64_t) block);
     if(block->type_next == TYPE_NEXT_LOX_IR_BLOCK_SEQ){
         enqueue_queue_list(&pending, block->next_as.next);
@@ -266,14 +233,8 @@ static void propagate_extracted_phi(
             }
         }
     }
-}
 
-static uint8_t allocate_new_ssa_version(int local_number, struct phi_insertion_result * phi_insertion_result) {
-    uint8_t last_version = (uint8_t) get_u8_hash_table(&phi_insertion_result->max_version_allocated_per_local, local_number);
-    uint8_t new_version = last_version + 1;
-    put_u8_hash_table(&phi_insertion_result->max_version_allocated_per_local, local_number, (void *) new_version);
-
-    return new_version;
+    free_queue_list(&pending);
 }
 
 static void fill_uses_by_node_hashtable(

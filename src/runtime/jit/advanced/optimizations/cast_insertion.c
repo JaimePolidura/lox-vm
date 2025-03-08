@@ -584,7 +584,7 @@ static struct lox_ir_block * create_block_loop_case_extract_cast_from_phi(
     int entered_loop_flag_local_num = entered_loop_flag_initialized.value.local_number;
     define_entered_loop_flag->ssa_name = entered_loop_flag_initialized;
     define_entered_loop_flag->value = &create_lox_ir_const_node(0, LOX_IR_TYPE_NATIVE_BOOLEAN, NULL, LOX_IR_ALLOCATOR(ci->lox_ir))->data;
-    add_last_control_node_lox_ir_block(ci->lox_ir->first_block, &define_entered_loop_flag->control);
+    add_last_control_node_block_lox_ir(ci->lox_ir, ci->lox_ir->first_block, &define_entered_loop_flag->control);
 
     //Set entered loop flag to true when loop entered
     struct lox_ir_control_define_ssa_name_node * set_true_entered_loop_flag =  ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME,
@@ -592,7 +592,7 @@ static struct lox_ir_block * create_block_loop_case_extract_cast_from_phi(
     struct ssa_name entered_loop_flag_modified = alloc_ssa_version_lox_ir(ci->lox_ir, entered_loop_flag_initialized.value.version);
     set_true_entered_loop_flag->ssa_name = entered_loop_flag_modified;
     set_true_entered_loop_flag->value = &create_lox_ir_const_node(1, LOX_IR_TYPE_NATIVE_BOOLEAN, NULL, LOX_IR_ALLOCATOR(ci->lox_ir))->data;
-    add_first_control_node_lox_ir_block(blocK_definition_uncasted, &set_true_entered_loop_flag->control);
+    add_first_control_node_block_lox_ir(ci->lox_ir, blocK_definition_uncasted, &set_true_entered_loop_flag->control);
 
     //Create condition on loop entered flag
     struct lox_ir_block * check_loop_flag_condition_block = alloc_lox_ir_block(LOX_IR_ALLOCATOR(ci->lox_ir));
@@ -628,8 +628,8 @@ static struct lox_ir_block * create_block_loop_case_extract_cast_from_phi(
     condition_loop_flag_condition_is_true->left = &get_loop_flag_condition->data;
     condition_loop_flag_condition_is_true->right = &create_lox_ir_const_node(1, LOX_IR_TYPE_NATIVE_BOOLEAN, NULL, LOX_IR_ALLOCATOR(ci->lox_ir))->data;
 
-    add_first_control_node_lox_ir_block(check_loop_flag_condition_block, &jump_if_loop_flag_condition_is_true->control);
-    add_first_control_node_lox_ir_block(check_loop_flag_condition_block, &get_loop_entered_in_condition->control);
+    add_first_control_node_block_lox_ir(ci->lox_ir, check_loop_flag_condition_block, &jump_if_loop_flag_condition_is_true->control);
+    add_first_control_node_block_lox_ir(ci->lox_ir, check_loop_flag_condition_block, &get_loop_entered_in_condition->control);
 
     return loop_entered_cast_block;
 }
@@ -660,9 +660,7 @@ static void insert_cast_node_and_replace_phi(
     //Define casted ssa name (a3 = cast(a1))
     define_casted->ssa_name = casted_ssa_name;
     define_casted->value = &get_uncasted_ssa_name_node->data;
-    add_u64_set(&block_define_casted->defined_ssa_names, casted_ssa_name.u16);
-    put_u64_hash_table(&ci->lox_ir->definitions_by_ssa_name, casted_ssa_name.u16, define_casted);
-    add_last_control_node_lox_ir_block(block_define_casted, &define_casted->control);
+    add_last_control_node_block_lox_ir(ci->lox_ir, block_define_casted, &define_casted->control);
     insert_cast_node(ci, define_casted->value, (void**) &define_casted->value, type_to_be_casted);
 
     //Added casted ssa name in phi (a2 = phi(a0, a3))

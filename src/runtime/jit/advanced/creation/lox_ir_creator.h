@@ -23,7 +23,7 @@
 // - 1º: create_lox_ir_no_phis()
 // - 3º: insert_lox_ir_phis()
 // - 4º: optimize_lox_ir_phis()
-struct lox_ir create_lox_ir(
+struct lox_ir * create_lox_ir(
         struct package * package,
         struct function_object * function,
         struct bytecode_list * start_function_bytecode,

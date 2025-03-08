@@ -194,8 +194,7 @@ static void extract_to_ssa_name(struct cse * cse, struct subexpression * subexpr
     );
     define_ssa_name_extracted->value = subexpression_to_extract->data_node;
     define_ssa_name_extracted->ssa_name = reusable_ssa_name;
-    add_before_control_node_lox_ir_block(block, control_node, &define_ssa_name_extracted->control);
-    put_u64_hash_table(&cse->lox_ir->definitions_by_ssa_name, reusable_ssa_name.u16, define_ssa_name_extracted);
+    add_before_control_node_block_lox_ir(cse->lox_ir, block, control_node, &define_ssa_name_extracted->control);
 
     struct lox_ir_data_get_ssa_name_node * get_extracted_ssa_name = ALLOC_LOX_IR_DATA(
             LOX_IR_DATA_NODE_GET_SSA_NAME, struct lox_ir_data_get_ssa_name_node, NULL, LOX_IR_ALLOCATOR(cse->lox_ir)

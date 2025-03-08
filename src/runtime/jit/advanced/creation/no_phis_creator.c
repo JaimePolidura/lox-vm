@@ -17,16 +17,15 @@ struct block_local_usage {
 };
 
 struct no_phis_inserter {
+    struct block_local_usage current_block_local_usage;
     struct u64_hash_table control_nodes_by_bytecode;
     struct u64_hash_table blocks_by_first_bytecode;
     struct stack_list pending_evaluation;
     struct stack_list data_nodes_stack;
     struct stack_list package_stack;
-    struct arena_lox_allocator * nodes_allocator;
-    struct lox_ir_block * first_block;
-    struct block_local_usage current_block_local_usage;
     long ptions;
-    struct function_object * function;
+
+    struct lox_ir * lox_ir;
 };
 
 static void push_pending_evaluate(
@@ -40,32 +39,32 @@ static void map_data_nodes_bytecodes_to_control(
 );
 static void calculate_and_put_use_before_assigment(struct lox_ir_block *, struct no_phis_inserter *);
 static struct lox_ir_block * get_block_by_first_bytecode(struct no_phis_inserter *, struct bytecode_list *);
-static struct no_phis_inserter * alloc_no_phis_inserter(struct arena_lox_allocator *, long);
+static struct no_phis_inserter * alloc_no_phis_inserter(struct lox_ir *, long);
 static void free_no_phis_inserter(struct no_phis_inserter *inserter);
 static void jump_if_false(struct no_phis_inserter *, struct pending_evaluate *);
 static void jump(struct no_phis_inserter *, struct pending_evaluate *);
 static void loop(struct no_phis_inserter *, struct pending_evaluate *);
 static void pop(struct no_phis_inserter *, struct pending_evaluate *);
 static void set_array_element(struct no_phis_inserter *, struct pending_evaluate *);
-static void set_struct_field(struct function_object *, struct no_phis_inserter *, struct pending_evaluate *);
-static void set_global(struct function_object *, struct no_phis_inserter *, struct pending_evaluate *);
-static void exit_monitor_explicit(struct no_phis_inserter *, struct pending_evaluate *, struct function_object *);
-static void exit_monitor_opcode(struct function_object *, struct no_phis_inserter *, struct pending_evaluate *);
-static void enter_monitor_explicit(struct no_phis_inserter *, struct pending_evaluate *, struct function_object *);
-static void enter_monitor_opcode(struct function_object *, struct no_phis_inserter *, struct pending_evaluate *);
+static void set_struct_field(struct no_phis_inserter *, struct pending_evaluate *);
+static void set_global(struct no_phis_inserter *, struct pending_evaluate *);
+static void exit_monitor_explicit(struct no_phis_inserter *, struct pending_evaluate *);
+static void exit_monitor_opcode(struct no_phis_inserter *, struct pending_evaluate *);
+static void enter_monitor_explicit(struct no_phis_inserter *, struct pending_evaluate *);
+static void enter_monitor_opcode(struct no_phis_inserter *, struct pending_evaluate *);
 static void return_opcode(struct no_phis_inserter *, struct pending_evaluate *);
 static void print(struct no_phis_inserter *, struct pending_evaluate *);
 static void set_local(struct no_phis_inserter *, struct pending_evaluate *);
-static void get_local(struct function_object *, struct no_phis_inserter *, struct pending_evaluate *);
+static void get_local(struct no_phis_inserter *, struct pending_evaluate *);
 static void call(struct no_phis_inserter *, struct pending_evaluate *);
-static void get_global(struct function_object *, struct no_phis_inserter *, struct pending_evaluate *);
+static void get_global(struct no_phis_inserter *, struct pending_evaluate *);
 static void initialize_array(struct no_phis_inserter *, struct pending_evaluate *);
-static void initialize_struct(struct function_object *, struct no_phis_inserter *, struct pending_evaluate *);
-static void get_struct_field(struct function_object *, struct no_phis_inserter *, struct pending_evaluate *);
+static void initialize_struct(struct no_phis_inserter *, struct pending_evaluate *);
+static void get_struct_field(struct no_phis_inserter *, struct pending_evaluate *);
 static void get_array_element(struct no_phis_inserter *, struct pending_evaluate *);
 static void unary(struct no_phis_inserter *, struct pending_evaluate *);
 static void binary(struct no_phis_inserter *, struct pending_evaluate *);
-static void add_arguments_guard(struct no_phis_inserter *inserter, struct lox_ir_block *block, struct function_object *function);
+static void add_arguments_guard(struct no_phis_inserter *inserter, struct lox_ir_block *block);
 static bool can_optimize_branch(struct no_phis_inserter *, struct bytecode_list *);
 static bool can_discard_true_branch(struct no_phis_inserter *, struct bytecode_list *);
 static struct instruction_profile_data get_instruction_profile_data(struct no_phis_inserter *, struct bytecode_list *);
@@ -74,23 +73,20 @@ static void add_argument_guard(struct no_phis_inserter*, struct lox_ir_block*, s
 static struct lox_ir_data_guard_node * create_guard(struct no_phis_inserter *, struct lox_ir_data_node * source, struct bytecode_list *);
 static bool is_emty_return(struct lox_ir_data_node *);
 
-struct lox_ir_block * create_lox_ir_no_phis(
-        struct package * package,
-        struct function_object * function,
+void create_lox_ir_no_phis(
+        struct lox_ir * lox_ir,
         struct bytecode_list * start_function_bytecode,
-        struct arena_lox_allocator * nodes_allocator,
         long options
 ) {
-    struct no_phis_inserter * inserter = alloc_no_phis_inserter(nodes_allocator, options);
-    inserter->function = function;
+    struct no_phis_inserter * inserter = alloc_no_phis_inserter(lox_ir, options);
 
-    push_stack_list(&inserter->package_stack, package);
+    push_stack_list(&inserter->package_stack, lox_ir->package);
 
     struct lox_ir_block * first_block = get_block_by_first_bytecode(inserter, start_function_bytecode);
     push_pending_evaluate(inserter, start_function_bytecode, NULL, first_block);
-    inserter->first_block = first_block;
+    lox_ir->first_block = first_block;
 
-    add_arguments_guard(inserter, first_block, function);
+    add_arguments_guard(inserter, first_block);
 
     while (!is_empty_stack_list(&inserter->pending_evaluation)) {
         struct pending_evaluate * to_evaluate = pop_stack_list(&inserter->pending_evaluation);
@@ -114,23 +110,23 @@ struct lox_ir_block * create_lox_ir_no_phis(
             case OP_LOOP: loop(inserter, to_evaluate); break;
             case OP_POP: pop(inserter, to_evaluate); break;
             case OP_SET_ARRAY_ELEMENT: set_array_element(inserter, to_evaluate); break;
-            case OP_SET_STRUCT_FIELD: set_struct_field(function, inserter, to_evaluate); break;
-            case OP_SET_GLOBAL: set_global(function, inserter, to_evaluate); break;
-            case OP_EXIT_MONITOR_EXPLICIT: exit_monitor_explicit(inserter, to_evaluate, function); break;
-            case OP_EXIT_MONITOR: exit_monitor_opcode(function, inserter, to_evaluate); break;
-            case OP_ENTER_MONITOR_EXPLICIT: enter_monitor_explicit(inserter, to_evaluate, function); break;
-            case OP_ENTER_MONITOR: enter_monitor_opcode(function, inserter, to_evaluate); break;
+            case OP_SET_STRUCT_FIELD: set_struct_field(inserter, to_evaluate); break;
+            case OP_SET_GLOBAL: set_global(inserter, to_evaluate); break;
+            case OP_EXIT_MONITOR_EXPLICIT: exit_monitor_explicit(inserter, to_evaluate); break;
+            case OP_EXIT_MONITOR: exit_monitor_opcode(inserter, to_evaluate); break;
+            case OP_ENTER_MONITOR_EXPLICIT: enter_monitor_explicit(inserter, to_evaluate); break;
+            case OP_ENTER_MONITOR: enter_monitor_opcode(inserter, to_evaluate); break;
             case OP_RETURN: return_opcode(inserter, to_evaluate); break;
             case OP_PRINT: print(inserter, to_evaluate); break;
             case OP_SET_LOCAL: set_local(inserter, to_evaluate); break;
 
             //Expressions -> control nodes
-            case OP_GET_LOCAL: get_local(function, inserter, to_evaluate); break;
+            case OP_GET_LOCAL: get_local(inserter, to_evaluate); break;
             case OP_CALL: call(inserter, to_evaluate); break;
-            case OP_GET_GLOBAL: get_global(function, inserter, to_evaluate); break;
+            case OP_GET_GLOBAL: get_global(inserter, to_evaluate); break;
             case OP_INITIALIZE_ARRAY: initialize_array(inserter, to_evaluate); break;
-            case OP_INITIALIZE_STRUCT: initialize_struct(function, inserter, to_evaluate); break;
-            case OP_GET_STRUCT_FIELD: get_struct_field(function, inserter, to_evaluate); break;
+            case OP_INITIALIZE_STRUCT: initialize_struct(inserter, to_evaluate); break;
+            case OP_GET_STRUCT_FIELD: get_struct_field(inserter, to_evaluate); break;
             case OP_GET_ARRAY_ELEMENT: get_array_element(inserter, to_evaluate); break;
             case OP_NEGATE:
             case OP_NOT: unary(inserter, to_evaluate); break;
@@ -152,7 +148,7 @@ struct lox_ir_block * create_lox_ir_no_phis(
             }
             case OP_GET_ARRAY_LENGTH: {
                 struct lox_ir_data_get_array_length * get_arr_length = ALLOC_LOX_IR_DATA(LOX_IR_DATA_NODE_GET_ARRAY_LENGTH,
-                        struct lox_ir_data_get_array_length, to_evaluate->pending_bytecode, &nodes_allocator->lox_allocator);
+                        struct lox_ir_data_get_array_length, to_evaluate->pending_bytecode, LOX_IR_ALLOCATOR(lox_ir));
                 get_arr_length->instance = pop_stack_list(&inserter->data_nodes_stack);
 
                 push_stack_list(&inserter->data_nodes_stack, get_arr_length);
@@ -160,58 +156,58 @@ struct lox_ir_block * create_lox_ir_no_phis(
                 break;
             }
             case OP_CONSTANT: {
-                lox_value_t constant = READ_CONSTANT(function, to_evaluate->pending_bytecode);
+                lox_value_t constant = READ_CONSTANT(lox_ir->function, to_evaluate->pending_bytecode);
                 push_stack_list(&inserter->data_nodes_stack, create_lox_ir_const_node(constant, LOX_IR_TYPE_F64, to_evaluate->pending_bytecode,
-                    &nodes_allocator->lox_allocator));
+                        LOX_IR_ALLOCATOR(lox_ir)));
                 push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
                 break;
             }
             case OP_FALSE: {
                 push_stack_list(&inserter->data_nodes_stack, create_lox_ir_const_node(FALSE_VALUE, LOX_IR_TYPE_LOX_BOOLEAN,
-                    to_evaluate->pending_bytecode, &nodes_allocator->lox_allocator));
+                    to_evaluate->pending_bytecode, LOX_IR_ALLOCATOR(lox_ir)));
                 push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
                 break;
             }
             case OP_TRUE: {
                 push_stack_list(&inserter->data_nodes_stack, create_lox_ir_const_node(TRUE_VALUE, LOX_IR_TYPE_LOX_BOOLEAN,
-                    to_evaluate->pending_bytecode, &nodes_allocator->lox_allocator));
+                    to_evaluate->pending_bytecode, LOX_IR_ALLOCATOR(lox_ir)));
                 push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
                 break;
             }
             case OP_NIL: {
                 push_stack_list(&inserter->data_nodes_stack, create_lox_ir_const_node(NIL_VALUE, LOX_IR_TYPE_LOX_NIL,
-                    to_evaluate->pending_bytecode, &nodes_allocator->lox_allocator));
+                    to_evaluate->pending_bytecode, LOX_IR_ALLOCATOR(lox_ir)));
                 push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
                 break;
             }
             case OP_FAST_CONST_8: {
                 lox_value_t constant = AS_NUMBER(to_evaluate->pending_bytecode->as.u8);
                 push_stack_list(&inserter->data_nodes_stack, create_lox_ir_const_node(constant, LOX_IR_TYPE_F64, to_evaluate->pending_bytecode,
-                    &nodes_allocator->lox_allocator));
+                        LOX_IR_ALLOCATOR(lox_ir)));
                 push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
                 break;
             }
             case OP_FAST_CONST_16: {
                 lox_value_t constant = AS_NUMBER(to_evaluate->pending_bytecode->as.u16);
                 push_stack_list(&inserter->data_nodes_stack, create_lox_ir_const_node(constant, LOX_IR_TYPE_F64, to_evaluate->pending_bytecode,
-                    &nodes_allocator->lox_allocator));
+                        LOX_IR_ALLOCATOR(lox_ir)));
                 push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
                 break;
             }
             case OP_CONST_1: {
                 push_stack_list(&inserter->data_nodes_stack, create_lox_ir_const_node(1, LOX_IR_TYPE_F64, to_evaluate->pending_bytecode,
-                    &nodes_allocator->lox_allocator));
+                        LOX_IR_ALLOCATOR(lox_ir)));
                 push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
                 break;
             }
             case OP_CONST_2: {
                 push_stack_list(&inserter->data_nodes_stack, create_lox_ir_const_node(2, LOX_IR_TYPE_F64, to_evaluate->pending_bytecode,
-                    &nodes_allocator->lox_allocator));
+                        LOX_IR_ALLOCATOR(lox_ir)));
                 push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
                 break;
             }
             case OP_PACKAGE_CONST: {
-                lox_value_t package_lox_value = READ_CONSTANT(function, to_evaluate->pending_bytecode);
+                lox_value_t package_lox_value = READ_CONSTANT(lox_ir->function, to_evaluate->pending_bytecode);
                 struct package_object * package_const = (struct package_object *) AS_OBJECT(package_lox_value);
 
                 push_stack_list(&inserter->package_stack, package_const->package);
@@ -233,14 +229,11 @@ struct lox_ir_block * create_lox_ir_no_phis(
     }
 
     free_no_phis_inserter(inserter);
-
-    return first_block;
 }
 
 static void binary(struct no_phis_inserter * inserter, struct pending_evaluate * to_evaluate) {
-    struct lox_ir_data_binary_node * binaryt_node = ALLOC_LOX_IR_DATA(
-            LOX_IR_DATA_NODE_BINARY, struct lox_ir_data_binary_node, to_evaluate->pending_bytecode, GET_NODES_ALLOCATOR(inserter)
-    );
+    struct lox_ir_data_binary_node * binaryt_node = ALLOC_LOX_IR_DATA(LOX_IR_DATA_NODE_BINARY, struct lox_ir_data_binary_node,
+            to_evaluate->pending_bytecode, LOX_IR_ALLOCATOR(inserter->lox_ir));
     struct lox_ir_data_node * right = pop_stack_list(&inserter->data_nodes_stack);
     struct lox_ir_data_node * left = pop_stack_list(&inserter->data_nodes_stack);
     binaryt_node->operator = to_evaluate->pending_bytecode->bytecode;
@@ -252,9 +245,8 @@ static void binary(struct no_phis_inserter * inserter, struct pending_evaluate *
 }
 
 static void unary(struct no_phis_inserter * inserter, struct pending_evaluate * to_evaluate) {
-    struct lox_ir_data_unary_node * unary_node = ALLOC_LOX_IR_DATA(
-            LOX_IR_DATA_NODE_UNARY, struct lox_ir_data_unary_node, to_evaluate->pending_bytecode, GET_NODES_ALLOCATOR(inserter)
-    );
+    struct lox_ir_data_unary_node * unary_node = ALLOC_LOX_IR_DATA(LOX_IR_DATA_NODE_UNARY, struct lox_ir_data_unary_node,
+            to_evaluate->pending_bytecode, LOX_IR_ALLOCATOR(inserter->lox_ir));
     unary_node->operator = to_evaluate->pending_bytecode->bytecode == OP_NEGATE ? UNARY_OPERATION_TYPE_NEGATION : UNARY_OPERATION_TYPE_NOT;
     unary_node->operand = pop_stack_list(&inserter->data_nodes_stack);
 
@@ -263,9 +255,8 @@ static void unary(struct no_phis_inserter * inserter, struct pending_evaluate * 
 }
 
 static void get_array_element(struct no_phis_inserter * inserter, struct pending_evaluate * to_evaluate) {
-    struct lox_ir_data_get_array_element_node * get_array_element_node = ALLOC_LOX_IR_DATA(
-            LOX_IR_DATA_NODE_GET_ARRAY_ELEMENT, struct lox_ir_data_get_array_element_node, to_evaluate->pending_bytecode, GET_NODES_ALLOCATOR(inserter)
-    );
+    struct lox_ir_data_get_array_element_node * get_array_element_node = ALLOC_LOX_IR_DATA(LOX_IR_DATA_NODE_GET_ARRAY_ELEMENT,
+            struct lox_ir_data_get_array_element_node, to_evaluate->pending_bytecode, LOX_IR_ALLOCATOR(inserter->lox_ir));
     get_array_element_node->instance = pop_stack_list(&inserter->data_nodes_stack);
     get_array_element_node->index = pop_stack_list(&inserter->data_nodes_stack);
 
@@ -274,31 +265,28 @@ static void get_array_element(struct no_phis_inserter * inserter, struct pending
 }
 
 static void get_struct_field(
-        struct function_object * function,
         struct no_phis_inserter * inserter,
         struct pending_evaluate * to_evaluate
 ) {
-    struct lox_ir_data_get_struct_field_node * get_struct_field_node = ALLOC_LOX_IR_DATA(
-            LOX_IR_DATA_NODE_GET_STRUCT_FIELD, struct lox_ir_data_get_struct_field_node, to_evaluate->pending_bytecode, GET_NODES_ALLOCATOR(inserter)
-    );
+    struct lox_ir_data_get_struct_field_node * get_struct_field_node = ALLOC_LOX_IR_DATA(LOX_IR_DATA_NODE_GET_STRUCT_FIELD,
+            struct lox_ir_data_get_struct_field_node, to_evaluate->pending_bytecode,LOX_IR_ALLOCATOR(inserter->lox_ir));
     get_struct_field_node->instance = pop_stack_list(&inserter->data_nodes_stack);
-    get_struct_field_node->field_name = AS_STRING_OBJECT(READ_CONSTANT(function, to_evaluate->pending_bytecode));
+    get_struct_field_node->field_name = AS_STRING_OBJECT(READ_CONSTANT(inserter->lox_ir->function, to_evaluate->pending_bytecode));
 
     push_stack_list(&inserter->data_nodes_stack, get_struct_field_node);
     push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, to_evaluate->prev_control_node, to_evaluate->block);
 }
 
 static void initialize_array(struct no_phis_inserter * inserter, struct pending_evaluate * to_evaluate) {
-    struct lox_ir_data_initialize_array_node * initialize_array_node = ALLOC_LOX_IR_DATA(
-            LOX_IR_DATA_NODE_INITIALIZE_ARRAY, struct lox_ir_data_initialize_array_node, to_evaluate->pending_bytecode, GET_NODES_ALLOCATOR(inserter)
-    );
+    struct lox_ir_data_initialize_array_node * initialize_array_node = ALLOC_LOX_IR_DATA(LOX_IR_DATA_NODE_INITIALIZE_ARRAY,
+            struct lox_ir_data_initialize_array_node, to_evaluate->pending_bytecode, LOX_IR_ALLOCATOR(inserter->lox_ir));
     bool empty_initialization = to_evaluate->pending_bytecode->as.initialize_array.is_emtpy_initializaion;
     uint16_t n_elements = to_evaluate->pending_bytecode->as.initialize_array.n_elements;
 
     initialize_array_node->empty_initialization = empty_initialization;
     initialize_array_node->n_elements = n_elements;
-    if(!empty_initialization){
-        initialize_array_node->elememnts = LOX_MALLOC(GET_NODES_ALLOCATOR(inserter), sizeof(struct lox_ir_data_node *) * n_elements);
+    if (!empty_initialization) {
+        initialize_array_node->elememnts = LOX_MALLOC(LOX_IR_ALLOCATOR(inserter->lox_ir), sizeof(struct lox_ir_data_node *) * n_elements);
     }
     for(int i = n_elements - 1; i >= 0 && !empty_initialization; i--){
         initialize_array_node->elememnts[i] = pop_stack_list(&inserter->data_nodes_stack);
@@ -309,15 +297,16 @@ static void initialize_array(struct no_phis_inserter * inserter, struct pending_
 }
 
 static void initialize_struct(
-        struct function_object * function,
         struct no_phis_inserter * inserter,
         struct pending_evaluate * to_evaluate
 ) {
     struct lox_ir_data_initialize_struct_node * initialize_struct_node = ALLOC_LOX_IR_DATA(
-            LOX_IR_DATA_NODE_INITIALIZE_STRUCT, struct lox_ir_data_initialize_struct_node, to_evaluate->pending_bytecode, GET_NODES_ALLOCATOR(inserter)
-    );
+            LOX_IR_DATA_NODE_INITIALIZE_STRUCT, struct lox_ir_data_initialize_struct_node, to_evaluate->pending_bytecode,
+            LOX_IR_ALLOCATOR(inserter->lox_ir));
+
+    struct function_object * function = inserter->lox_ir->function;
     struct struct_definition_object * definition = (struct struct_definition_object *) AS_OBJECT(READ_CONSTANT(function, to_evaluate->pending_bytecode));
-    initialize_struct_node->fields_nodes = LOX_MALLOC(GET_NODES_ALLOCATOR(inserter), sizeof(struct struct_definition_object *) * definition->n_fields);
+    initialize_struct_node->fields_nodes = LOX_MALLOC(LOX_IR_ALLOCATOR(inserter->lox_ir), sizeof(struct struct_definition_object *) * definition->n_fields);
     initialize_struct_node->definition = definition;
     for (int i = definition->n_fields - 1; i >= 0; i--) {
         initialize_struct_node->fields_nodes[i] = pop_stack_list(&inserter->data_nodes_stack);
@@ -328,22 +317,22 @@ static void initialize_struct(
 }
 
 static void get_global(
-        struct function_object * function,
         struct no_phis_inserter * inserter,
         struct pending_evaluate * to_evaluate
 ) {
     struct package * global_variable_package = peek_stack_list(&inserter->package_stack);
+    struct function_object * function = inserter->lox_ir->function;
     struct string_object * global_variable_name = AS_STRING_OBJECT(READ_CONSTANT(function, to_evaluate->pending_bytecode));
     //If the global variable is constant, we will return a CONST_NODE instead of GET_GLOBAL control_node_to_lower
     if(contains_trie(&global_variable_package->const_global_variables_names, global_variable_name->chars, global_variable_name->length)) {
         lox_value_t constant_value = get_hash_table(&global_variable_package->global_variables, global_variable_name);
         struct lox_ir_data_constant_node * constant_node = create_lox_ir_const_node(constant_value, LOX_IR_TYPE_LOX_ANY,
-                to_evaluate->pending_bytecode, GET_NODES_ALLOCATOR(inserter));
+                to_evaluate->pending_bytecode, LOX_IR_ALLOCATOR(inserter->lox_ir));
         push_stack_list(&inserter->data_nodes_stack, constant_node);
+
     } else { //Non constant global variable
-        struct lox_ir_data_get_global_node * get_global_node = ALLOC_LOX_IR_DATA(
-                LOX_IR_DATA_NODE_GET_GLOBAL, struct lox_ir_data_get_global_node, to_evaluate->pending_bytecode, GET_NODES_ALLOCATOR(inserter)
-        );
+        struct lox_ir_data_get_global_node * get_global_node = ALLOC_LOX_IR_DATA(LOX_IR_DATA_NODE_GET_GLOBAL,
+                struct lox_ir_data_get_global_node, to_evaluate->pending_bytecode,LOX_IR_ALLOCATOR(inserter->lox_ir));
         get_global_node->package = global_variable_package;
         get_global_node->name = global_variable_name;
 
@@ -355,9 +344,8 @@ static void get_global(
 }
 
 static void call(struct no_phis_inserter * inserter, struct pending_evaluate * to_evaluate) {
-    struct lox_ir_data_function_call_node * call_node = ALLOC_LOX_IR_DATA(
-            LOX_IR_DATA_NODE_CALL, struct lox_ir_data_function_call_node, to_evaluate->pending_bytecode, GET_NODES_ALLOCATOR(inserter)
-    );
+    struct lox_ir_data_function_call_node * call_node = ALLOC_LOX_IR_DATA(LOX_IR_DATA_NODE_CALL, struct lox_ir_data_function_call_node,
+            to_evaluate->pending_bytecode, LOX_IR_ALLOCATOR(inserter->lox_ir));
     bool is_paralell = to_evaluate->pending_bytecode->as.pair.u8_2;
     uint8_t n_args = to_evaluate->pending_bytecode->as.pair.u8_1;
     struct lox_ir_data_node * function_to_call_data_node = peek_n_stack_list(&inserter->data_nodes_stack, n_args);
@@ -373,7 +361,7 @@ static void call(struct no_phis_inserter * inserter, struct pending_evaluate * t
     }
 
     call_node->n_arguments = n_args;
-    call_node->arguments = LOX_MALLOC(GET_NODES_ALLOCATOR(inserter), sizeof(struct lox_ir_data_node *) * n_args);
+    call_node->arguments = LOX_MALLOC(LOX_IR_ALLOCATOR(inserter->lox_ir), sizeof(struct lox_ir_data_node *) * n_args);
     for (int i = n_args; i > 0; i--) {
         struct lox_ir_data_node * argument = pop_stack_list(&inserter->data_nodes_stack);
         call_node->arguments[i - 1] = argument;
@@ -394,13 +382,11 @@ static void call(struct no_phis_inserter * inserter, struct pending_evaluate * t
 }
 
 static void get_local(
-        struct function_object * function,
         struct no_phis_inserter * inserter,
         struct pending_evaluate * to_evaluate
 ) {
-    struct lox_ir_data_get_local_node * get_local_node = ALLOC_LOX_IR_DATA(
-            LOX_IR_DATA_NODE_GET_LOCAL, struct lox_ir_data_get_local_node, to_evaluate->pending_bytecode, GET_NODES_ALLOCATOR(inserter)
-    );
+    struct lox_ir_data_get_local_node * get_local_node = ALLOC_LOX_IR_DATA(LOX_IR_DATA_NODE_GET_LOCAL, struct lox_ir_data_get_local_node,
+            to_evaluate->pending_bytecode, LOX_IR_ALLOCATOR(inserter->lox_ir));
 
     //Pending initialize
     int local_number = to_evaluate->pending_bytecode->as.u8;
@@ -413,9 +399,8 @@ static void get_local(
 }
 
 static void set_local(struct no_phis_inserter * inserter, struct pending_evaluate * to_evaluate) {
-    struct lox_ir_control_set_local_node * set_local_node = ALLOC_LOX_IR_CONTROL(
-            LOX_IR_CONTORL_NODE_SET_LOCAL, struct lox_ir_control_set_local_node, to_evaluate->block, GET_NODES_ALLOCATOR(inserter)
-    );
+    struct lox_ir_control_set_local_node * set_local_node = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTORL_NODE_SET_LOCAL, struct lox_ir_control_set_local_node,
+            to_evaluate->block, LOX_IR_ALLOCATOR(inserter->lox_ir));
     struct lox_ir_data_node * new_local_value = pop_stack_list(&inserter->data_nodes_stack);
     int local_number = to_evaluate->pending_bytecode->as.u8;
     set_local_node->new_local_value = new_local_value;
@@ -424,28 +409,27 @@ static void set_local(struct no_phis_inserter * inserter, struct pending_evaluat
 
     calculate_and_put_use_before_assigment(to_evaluate->block, inserter);
     map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, new_local_value, &set_local_node->control);
-    add_last_control_node_lox_ir_block(to_evaluate->block, &set_local_node->control);
+
+    add_last_control_node_block_lox_ir(inserter->lox_ir, to_evaluate->block, &set_local_node->control);
     push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, &set_local_node->control, to_evaluate->block);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evaluate->pending_bytecode, set_local_node);
 }
 
 static void print(struct no_phis_inserter * inserter, struct pending_evaluate * to_evaluate) {
-    struct lox_ir_control_print_node * print_node = ALLOC_LOX_IR_CONTROL(
-            LOX_IR_CONTROL_NODE_PRINT, struct lox_ir_control_print_node, to_evaluate->block, GET_NODES_ALLOCATOR(inserter)
-    );
+    struct lox_ir_control_print_node * print_node = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_PRINT, struct lox_ir_control_print_node,
+            to_evaluate->block, LOX_IR_ALLOCATOR(inserter->lox_ir));
     struct lox_ir_data_node * print_value = pop_stack_list(&inserter->data_nodes_stack);
     print_node->data = print_value;
 
     map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, print_value, &print_node->control);
-    add_last_control_node_lox_ir_block(to_evaluate->block, &print_node->control);
+    add_last_control_node_block_lox_ir(inserter->lox_ir, to_evaluate->block, &print_node->control);
     push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, &print_node->control, to_evaluate->block);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evaluate->pending_bytecode, print_node);
 }
 
 static void return_opcode(struct no_phis_inserter * inserter, struct pending_evaluate * to_evalute) {
-    struct lox_ir_control_return_node * return_node = ALLOC_LOX_IR_CONTROL(
-            LOX_IR_CONTROL_NODE_RETURN, struct lox_ir_control_return_node, to_evalute->block, GET_NODES_ALLOCATOR(inserter)
-    );
+    struct lox_ir_control_return_node * return_node = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_RETURN, struct lox_ir_control_return_node,
+            to_evalute->block, LOX_IR_ALLOCATOR(inserter->lox_ir));
     struct lox_ir_data_node * return_value = pop_stack_list(&inserter->data_nodes_stack);
     return_node->empty_return = is_emty_return(return_value);
     return_node->data = return_value;
@@ -453,120 +437,124 @@ static void return_opcode(struct no_phis_inserter * inserter, struct pending_eva
     to_evalute->block->type_next = TYPE_NEXT_LOX_IR_BLOCK_NONE;
 
     map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, return_value, &return_node->control);
-    add_last_control_node_lox_ir_block(to_evalute->block, &return_node->control);
+    add_last_control_node_block_lox_ir(inserter->lox_ir, to_evalute->block, &return_node->control);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, return_node);
 }
 
 static void enter_monitor_opcode(
-        struct function_object * function,
         struct no_phis_inserter * inserter,
         struct pending_evaluate * to_evaluate
 ) {
     monitor_number_t monitor_number = to_evaluate->pending_bytecode->as.u8;
+    struct function_object * function = inserter->lox_ir->function;
     struct monitor * monitor = &function->monitors[monitor_number];
     struct lox_ir_control_enter_monitor_node * enter_monitor_node = ALLOC_LOX_IR_CONTROL(
-            LOX_IR_CONTROL_NODE_ENTER_MONITOR, struct lox_ir_control_enter_monitor_node, to_evaluate->block, GET_NODES_ALLOCATOR(inserter)
+            LOX_IR_CONTROL_NODE_ENTER_MONITOR, struct lox_ir_control_enter_monitor_node, to_evaluate->block,
+            LOX_IR_ALLOCATOR(inserter->lox_ir)
     );
 
     enter_monitor_node->monitor_number = monitor_number;
     enter_monitor_node->monitor = monitor;
 
-    add_last_control_node_lox_ir_block(to_evaluate->block, &enter_monitor_node->control);
+    add_last_control_node_block_lox_ir(inserter->lox_ir, to_evaluate->block, &enter_monitor_node->control);
     push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, &enter_monitor_node->control, to_evaluate->block);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evaluate->pending_bytecode, enter_monitor_node);
 }
 
-static void enter_monitor_explicit(struct no_phis_inserter * inserter, struct pending_evaluate * to_evalute, struct function_object * function) {
+static void enter_monitor_explicit(struct no_phis_inserter * inserter, struct pending_evaluate * to_evalute) {
     struct monitor * monitor = (struct monitor *) to_evalute->pending_bytecode->as.u64;
     struct lox_ir_control_enter_monitor_node * enter_monitor_node = ALLOC_LOX_IR_CONTROL(
-            LOX_IR_CONTROL_NODE_ENTER_MONITOR, struct lox_ir_control_enter_monitor_node, to_evalute->block, GET_NODES_ALLOCATOR(inserter)
+            LOX_IR_CONTROL_NODE_ENTER_MONITOR, struct lox_ir_control_enter_monitor_node, to_evalute->block,
+                    LOX_IR_ALLOCATOR(inserter->lox_ir)
     );
 
+    struct function_object * function = inserter->lox_ir->function;
     enter_monitor_node->monitor_number = (monitor_number_t) (monitor - &function->monitors[0]);
     enter_monitor_node->monitor = monitor;
 
-    add_last_control_node_lox_ir_block(to_evalute->block, &enter_monitor_node->control);
+    add_last_control_node_block_lox_ir(inserter->lox_ir, to_evalute->block, &enter_monitor_node->control);
     push_pending_evaluate(inserter, to_evalute->pending_bytecode->next, &enter_monitor_node->control, to_evalute->block);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, enter_monitor_node);
 }
 
 static void exit_monitor_opcode(
-        struct function_object * function,
         struct no_phis_inserter * inserter,
         struct pending_evaluate * to_evalute
 ) {
     monitor_number_t monitor_number = to_evalute->pending_bytecode->as.u8;
-    struct monitor * monitor = &function->monitors[monitor_number];
+    struct monitor * monitor = &inserter->lox_ir->function->monitors[monitor_number];
     struct lox_ir_control_exit_monitor_node * exit_monitor_node = ALLOC_LOX_IR_CONTROL(
-            LOX_IR_CONTROL_NODE_EXIT_MONITOR, struct lox_ir_control_exit_monitor_node, to_evalute->block, GET_NODES_ALLOCATOR(inserter)
+            LOX_IR_CONTROL_NODE_EXIT_MONITOR, struct lox_ir_control_exit_monitor_node, to_evalute->block,
+            LOX_IR_ALLOCATOR(inserter->lox_ir)
     );
 
     exit_monitor_node->monitor_number = monitor_number;
     exit_monitor_node->monitor = monitor;
 
-    add_last_control_node_lox_ir_block(to_evalute->block, &exit_monitor_node->control);
+    add_last_control_node_block_lox_ir(inserter->lox_ir, to_evalute->block, &exit_monitor_node->control);
     push_pending_evaluate(inserter, to_evalute->pending_bytecode->next, &exit_monitor_node->control, to_evalute->block);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, exit_monitor_node);
 }
 
-static void exit_monitor_explicit(struct no_phis_inserter * inserter, struct pending_evaluate * to_evalute, struct function_object * function) {
+static void exit_monitor_explicit(struct no_phis_inserter * inserter, struct pending_evaluate * to_evalute) {
     struct monitor * monitor = (struct monitor *) to_evalute->pending_bytecode->as.u64;
     struct lox_ir_control_exit_monitor_node * exit_monitor_node = ALLOC_LOX_IR_CONTROL(
-            LOX_IR_CONTROL_NODE_EXIT_MONITOR, struct lox_ir_control_exit_monitor_node, to_evalute->block, GET_NODES_ALLOCATOR(inserter)
+            LOX_IR_CONTROL_NODE_EXIT_MONITOR, struct lox_ir_control_exit_monitor_node, to_evalute->block,
+            LOX_IR_ALLOCATOR(inserter->lox_ir)
     );
 
+    struct function_object * function = inserter->lox_ir->function;
     exit_monitor_node->monitor_number = (monitor_number_t) (monitor - &function->monitors[0]);
     exit_monitor_node->monitor = monitor;
 
-    add_last_control_node_lox_ir_block(to_evalute->block, &exit_monitor_node->control);
+    add_last_control_node_block_lox_ir(inserter->lox_ir, to_evalute->block, &exit_monitor_node->control);
     push_pending_evaluate(inserter, to_evalute->pending_bytecode->next, &exit_monitor_node->control, to_evalute->block);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, exit_monitor_node);
 }
 
 static void set_global(
-        struct function_object * function,
         struct no_phis_inserter * inserter,
         struct pending_evaluate * to_evaluate
 ) {
     struct lox_ir_control_set_global_node * set_global_node = ALLOC_LOX_IR_CONTROL(
-            LOX_IR_CONTORL_NODE_SET_GLOBAL, struct lox_ir_control_set_global_node, to_evaluate->block, GET_NODES_ALLOCATOR(inserter)
+            LOX_IR_CONTORL_NODE_SET_GLOBAL, struct lox_ir_control_set_global_node, to_evaluate->block,
+            LOX_IR_ALLOCATOR(inserter->lox_ir)
     );
 
-    set_global_node->name = AS_STRING_OBJECT(READ_CONSTANT(function, to_evaluate->pending_bytecode));
+    set_global_node->name = AS_STRING_OBJECT(READ_CONSTANT(inserter->lox_ir->function, to_evaluate->pending_bytecode));
     set_global_node->value_node = pop_stack_list(&inserter->data_nodes_stack);
     set_global_node->package = peek_stack_list(&inserter->package_stack);
 
-    add_last_control_node_lox_ir_block(to_evaluate->block, &set_global_node->control);
+    add_last_control_node_block_lox_ir(inserter->lox_ir, to_evaluate->block, &set_global_node->control);
     push_pending_evaluate(inserter, to_evaluate->pending_bytecode->next, &set_global_node->control, to_evaluate->block);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evaluate->pending_bytecode, set_global_node);
 }
 
 static void set_struct_field(
-        struct function_object * function,
         struct no_phis_inserter * inserter,
         struct pending_evaluate * to_evalute
 ) {
     struct lox_ir_control_set_struct_field_node * set_struct_field = ALLOC_LOX_IR_CONTROL(
-            LOX_IR_CONTROL_NODE_SET_STRUCT_FIELD, struct lox_ir_control_set_struct_field_node, to_evalute->block, GET_NODES_ALLOCATOR(inserter)
+            LOX_IR_CONTROL_NODE_SET_STRUCT_FIELD, struct lox_ir_control_set_struct_field_node, to_evalute->block,
+                    LOX_IR_ALLOCATOR(inserter->lox_ir)
     );
     struct lox_ir_data_node * field_value = pop_stack_list(&inserter->data_nodes_stack);
     struct lox_ir_data_node * instance = pop_stack_list(&inserter->data_nodes_stack);
 
-    set_struct_field->field_name = AS_STRING_OBJECT(READ_CONSTANT(function, to_evalute->pending_bytecode));
+    set_struct_field->field_name = AS_STRING_OBJECT(READ_CONSTANT(inserter->lox_ir->function, to_evalute->pending_bytecode));
     set_struct_field->new_field_value = field_value;
     set_struct_field->instance = instance;
 
     map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, field_value, &set_struct_field->control);
     map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, instance, &set_struct_field->control);
-    add_last_control_node_lox_ir_block(to_evalute->block, &set_struct_field->control);
+    add_last_control_node_block_lox_ir(inserter->lox_ir, to_evalute->block, &set_struct_field->control);
     push_pending_evaluate(inserter, to_evalute->pending_bytecode->next, &set_struct_field->control, to_evalute->block);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, set_struct_field);
 }
 
 static void set_array_element(struct no_phis_inserter * inserter, struct pending_evaluate * to_evalute) {
-    struct lox_ir_control_set_array_element_node * set_arrary_element_node = ALLOC_LOX_IR_CONTROL(
-            LOX_IR_CONTROL_NODE_SET_ARRAY_ELEMENT, struct lox_ir_control_set_array_element_node, to_evalute->block, GET_NODES_ALLOCATOR(inserter)
-    );
+    struct lox_ir_control_set_array_element_node * set_arrary_element_node = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_SET_ARRAY_ELEMENT,
+            struct lox_ir_control_set_array_element_node, to_evalute->block, LOX_IR_ALLOCATOR(inserter->lox_ir));
     struct lox_ir_data_node * instance = pop_stack_list(&inserter->data_nodes_stack);
     struct lox_ir_data_node * new_element = pop_stack_list(&inserter->data_nodes_stack);
     struct lox_ir_data_node * index = pop_stack_list(&inserter->data_nodes_stack);
@@ -577,7 +565,7 @@ static void set_array_element(struct no_phis_inserter * inserter, struct pending
 
     map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, instance, &set_arrary_element_node->control);
     map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, new_element, &set_arrary_element_node->control);
-    add_last_control_node_lox_ir_block(to_evalute->block, &set_arrary_element_node->control);
+    add_last_control_node_block_lox_ir(inserter->lox_ir, to_evalute->block, &set_arrary_element_node->control);
     push_pending_evaluate(inserter, to_evalute->pending_bytecode->next, &set_arrary_element_node->control, to_evalute->block);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, set_arrary_element_node);
 }
@@ -586,14 +574,13 @@ static void set_array_element(struct no_phis_inserter * inserter, struct pending
 static void pop(struct no_phis_inserter * inserter, struct pending_evaluate * to_evalute) {
     if(!is_empty_stack_list(&inserter->data_nodes_stack)){
         struct lox_ir_data_node * data_node = pop_stack_list(&inserter->data_nodes_stack);
-        struct lox_ir_control_data_node * control_data_node = ALLOC_LOX_IR_CONTROL(
-                LOX_IR_CONTROL_NODE_DATA, struct lox_ir_control_data_node, to_evalute->block, GET_NODES_ALLOCATOR(inserter)
-        );
+        struct lox_ir_control_data_node * control_data_node = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_DATA, struct lox_ir_control_data_node,
+                to_evalute->block, LOX_IR_ALLOCATOR(inserter->lox_ir));
 
         control_data_node->data = data_node;
 
         map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, data_node, &control_data_node->control);
-        add_last_control_node_lox_ir_block(to_evalute->block, &control_data_node->control);
+        add_last_control_node_block_lox_ir(inserter->lox_ir, to_evalute->block, &control_data_node->control);
         push_pending_evaluate(inserter, to_evalute->pending_bytecode->next, &control_data_node->control, to_evalute->block);
         put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, control_data_node);
     } else {
@@ -603,9 +590,8 @@ static void pop(struct no_phis_inserter * inserter, struct pending_evaluate * to
 
 //Loop body is not added to the predecesors set of loop jump_to_operand
 static void loop(struct no_phis_inserter * inserter, struct pending_evaluate * to_evalute) {
-    struct lox_ir_control_loop_jump_node * loop_jump_node = ALLOC_LOX_IR_CONTROL(
-            LOX_IR_CONTROL_NODE_LOOP_JUMP, struct lox_ir_control_loop_jump_node, to_evalute->block, GET_NODES_ALLOCATOR(inserter)
-    );
+    struct lox_ir_control_loop_jump_node * loop_jump_node = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_LOOP_JUMP, struct lox_ir_control_loop_jump_node,
+            to_evalute->block, LOX_IR_ALLOCATOR(inserter->lox_ir));
     struct bytecode_list * to_jump_bytecode = to_evalute->pending_bytecode->as.jump;
     struct bytecode_list * loop_condition_bytecode = get_next_bytecode_list(to_jump_bytecode, OP_JUMP_IF_FALSE);
     struct lox_ir_control_node * to_jump_node = get_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_jump_bytecode);
@@ -615,7 +601,7 @@ static void loop(struct no_phis_inserter * inserter, struct pending_evaluate * t
 
     clear_u8_set(&inserter->current_block_local_usage.assigned);
     clear_u8_set(&inserter->current_block_local_usage.used);
-    add_last_control_node_lox_ir_block(to_evalute->block, &loop_jump_node->control);
+    add_last_control_node_block_lox_ir(inserter->lox_ir, to_evalute->block, &loop_jump_node->control);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, loop_jump_node);
 }
 
@@ -649,9 +635,8 @@ static void jump_if_false(struct no_phis_inserter * inserter, struct pending_eva
 
     //Loop conditions, are creatd in the graph as a separated block
     if(to_evalute->pending_bytecode->loop_condition) {
-        struct lox_ir_control_conditional_jump_node * cond_jump_node = ALLOC_LOX_IR_CONTROL(
-                LOX_IR_CONTROL_NODE_CONDITIONAL_JUMP, struct lox_ir_control_conditional_jump_node, to_evalute->block, GET_NODES_ALLOCATOR(inserter)
-        );
+        struct lox_ir_control_conditional_jump_node * cond_jump_node = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_CONDITIONAL_JUMP,
+                struct lox_ir_control_conditional_jump_node, to_evalute->block, LOX_IR_ALLOCATOR(inserter->lox_ir));
 
         struct lox_ir_block  *condition_block = get_block_by_first_bytecode(inserter, to_evalute->pending_bytecode);
         parent_block->type_next = TYPE_NEXT_LOX_IR_BLOCK_SEQ;
@@ -675,7 +660,7 @@ static void jump_if_false(struct no_phis_inserter * inserter, struct pending_eva
         add_u64_set(&false_branch_block->predecesors, (uint64_t) condition_block);
         add_u64_set(&true_branch_block->predecesors, (uint64_t) condition_block);
 
-        add_last_control_node_lox_ir_block(condition_block, &cond_jump_node->control);
+        add_last_control_node_block_lox_ir(inserter->lox_ir, condition_block, &cond_jump_node->control);
 
         push_pending_evaluate(inserter, false_branch_bytecode, NULL, false_branch_block);
         push_pending_evaluate(inserter, true_branch_bytecode, NULL, true_branch_block);
@@ -688,7 +673,7 @@ static void jump_if_false(struct no_phis_inserter * inserter, struct pending_eva
               can_optimize_branch(inserter, to_evalute->pending_bytecode)) {
 
         struct lox_ir_control_guard_node * guard_node = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_GUARD, struct lox_ir_control_guard_node,
-                to_evalute->block, GET_NODES_ALLOCATOR(inserter));
+                to_evalute->block, LOX_IR_ALLOCATOR(inserter->lox_ir));
         guard_node->guard.value_to_compare.check_true = !can_discard_true_branch(inserter, to_evalute->pending_bytecode);
         guard_node->guard.action_on_guard_failed = LOX_IR_GUARD_FAIL_ACTION_TYPE_SWITCH_TO_INTERPRETER;
         guard_node->guard.type = LOX_IR_GUARD_BOOLEAN_CHECK;
@@ -697,13 +682,12 @@ static void jump_if_false(struct no_phis_inserter * inserter, struct pending_eva
         struct bytecode_list * remaining_bytecode = can_discard_true_branch(inserter, to_evalute->pending_bytecode) ?
                 false_branch_bytecode : true_branch_bytecode;
 
-        add_last_control_node_lox_ir_block(parent_block, &guard_node->control);
+        add_last_control_node_block_lox_ir(inserter->lox_ir, parent_block, &guard_node->control);
         push_pending_evaluate(inserter, remaining_bytecode, NULL, parent_block);
 
     } else {
-        struct lox_ir_control_conditional_jump_node * cond_jump_node = ALLOC_LOX_IR_CONTROL(
-                LOX_IR_CONTROL_NODE_CONDITIONAL_JUMP, struct lox_ir_control_conditional_jump_node, to_evalute->block, GET_NODES_ALLOCATOR(inserter)
-        );
+        struct lox_ir_control_conditional_jump_node * cond_jump_node = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_CONDITIONAL_JUMP,
+                struct lox_ir_control_conditional_jump_node, to_evalute->block, LOX_IR_ALLOCATOR(inserter->lox_ir));
         cond_jump_node->condition = condition;
 
         parent_block->type_next = TYPE_NEXT_LOX_IR_BLOCK_BRANCH;
@@ -718,7 +702,7 @@ static void jump_if_false(struct no_phis_inserter * inserter, struct pending_eva
         add_u64_set(&false_branch_block->predecesors, (uint64_t) parent_block);
         add_u64_set(&true_branch_block->predecesors, (uint64_t) parent_block);
 
-        add_last_control_node_lox_ir_block(parent_block, &cond_jump_node->control);
+        add_last_control_node_block_lox_ir(inserter->lox_ir, parent_block, &cond_jump_node->control);
 
         push_pending_evaluate(inserter, false_branch_bytecode, NULL, false_branch_block);
         push_pending_evaluate(inserter, true_branch_bytecode, NULL, true_branch_block);
@@ -798,10 +782,11 @@ static void map_data_nodes_bytecodes_to_control(
     );
 }
 
-static struct no_phis_inserter * alloc_no_phis_inserter(struct arena_lox_allocator * nodes_allocator, long options) {
+//TODO Added local no_phis_inserter arena
+static struct no_phis_inserter * alloc_no_phis_inserter(struct lox_ir * lox_ir, long options) {
     struct no_phis_inserter * no_phis_inserter = NATIVE_LOX_MALLOC(sizeof(struct no_phis_inserter));
     init_u8_set(&no_phis_inserter->current_block_local_usage.assigned);
-    no_phis_inserter->nodes_allocator = nodes_allocator;
+    no_phis_inserter->lox_ir = lox_ir;
     init_u64_hash_table(&no_phis_inserter->control_nodes_by_bytecode, NATIVE_LOX_ALLOCATOR());
     init_u64_hash_table(&no_phis_inserter->blocks_by_first_bytecode, NATIVE_LOX_ALLOCATOR());
     init_u8_set(&no_phis_inserter->current_block_local_usage.used);
@@ -827,7 +812,7 @@ static struct lox_ir_block * get_block_by_first_bytecode(
     if(contains_u64_hash_table(&inserter->blocks_by_first_bytecode, (uint64_t) first_bytecode)){
         return get_u64_hash_table(&inserter->blocks_by_first_bytecode, (uint64_t) first_bytecode);
     } else {
-        struct lox_ir_block * new_block = alloc_lox_ir_block(&inserter->nodes_allocator->lox_allocator);
+        struct lox_ir_block * new_block = alloc_lox_ir_block(LOX_IR_ALLOCATOR(inserter->lox_ir));
         put_u64_hash_table(&inserter->blocks_by_first_bytecode, (uint64_t) first_bytecode, new_block);
         return new_block;
     }
@@ -842,7 +827,8 @@ static void calculate_and_put_use_before_assigment(struct lox_ir_block * block, 
     union_u8_set(&block->use_before_assigment, use_before_assigment);
 }
 
-static void add_arguments_guard(struct no_phis_inserter * inserter, struct lox_ir_block * block, struct function_object * function) {
+static void add_arguments_guard(struct no_phis_inserter * inserter, struct lox_ir_block * block) {
+    struct function_object * function = inserter->lox_ir->function;
     struct function_profile_data function_profile = function->state_as.profiling.profile_data;
 
     for (int i = 0; i < function->n_arguments; i++) {
@@ -864,13 +850,13 @@ static void add_argument_guard(
 
     struct lox_ir_control_guard_node * guard_node = NULL;
     if(argument_profiled_type == PROFILE_DATA_TYPE_STRUCT_INSTANCE && !type_profile.invalid_struct_definition){
-        guard_node = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_GUARD, struct lox_ir_control_guard_node,
-                                          block, &inserter->nodes_allocator->lox_allocator);
+        guard_node = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_GUARD, struct lox_ir_control_guard_node, block,
+                LOX_IR_ALLOCATOR(inserter->lox_ir));
         guard_node->guard.type = LOX_IR_GUARD_STRUCT_DEFINITION_TYPE_CHECK;
         guard_node->guard.value_to_compare.struct_definition = type_profile.struct_definition;
     } else {
-        guard_node = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_GUARD, struct lox_ir_control_guard_node,
-                                          block, &inserter->nodes_allocator->lox_allocator);
+        guard_node = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_GUARD, struct lox_ir_control_guard_node, block,
+                LOX_IR_ALLOCATOR(inserter->lox_ir));
         guard_node->guard.value_to_compare.type = profiled_type_to_lox_ir_type(argument_profiled_type);
         guard_node->guard.type = LOX_IR_GUARD_TYPE_CHECK;
     }
@@ -878,11 +864,11 @@ static void add_argument_guard(
     guard_node->guard.action_on_guard_failed = LOX_IR_GUARD_FAIL_ACTION_TYPE_SWITCH_TO_INTERPRETER;
 
     struct lox_ir_data_get_local_node * get_argument = ALLOC_LOX_IR_DATA(LOX_IR_DATA_NODE_GET_LOCAL, struct lox_ir_data_get_local_node,
-                                                                         NULL, &inserter->nodes_allocator->lox_allocator);
+            NULL, LOX_IR_ALLOCATOR(inserter->lox_ir));
     guard_node->guard.value = &get_argument->data;
     get_argument->local_number = argument_local_number;
 
-    add_last_control_node_lox_ir_block(block, &guard_node->control);
+    add_last_control_node_block_lox_ir(inserter->lox_ir, block, &guard_node->control);
 }
 
 static bool can_optimize_branch(struct no_phis_inserter * inserter, struct bytecode_list * condition_bytecode) {
@@ -900,7 +886,7 @@ static struct instruction_profile_data get_instruction_profile_data(
         struct no_phis_inserter * inserter,
         struct bytecode_list * bytecode
 ) {
-    return get_instruction_profile_data_function(inserter->function, bytecode);
+    return get_instruction_profile_data_function(inserter->lox_ir->function, bytecode);
 }
 
 static struct object * get_function(struct no_phis_inserter * inserter, struct lox_ir_data_node * function_data_node) {
@@ -936,7 +922,7 @@ static struct lox_ir_data_guard_node * create_guard(
     }
 
     return create_from_profile_lox_ir_data_guard_node(return_type_profile_data, source,
-        GET_NODES_ALLOCATOR(inserter), LOX_IR_GUARD_FAIL_ACTION_TYPE_SWITCH_TO_INTERPRETER);
+        LOX_IR_ALLOCATOR(inserter->lox_ir), LOX_IR_GUARD_FAIL_ACTION_TYPE_SWITCH_TO_INTERPRETER);
 }
 
 static bool is_emty_return(struct lox_ir_data_node * return_value) {

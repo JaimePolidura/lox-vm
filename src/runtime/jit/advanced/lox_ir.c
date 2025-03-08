@@ -2,13 +2,174 @@
 
 static void link_predecessors_to_block(struct u64_set, struct lox_ir_block *);
 static struct u64_set get_blocks_to_remove(struct lox_ir_block*);
+static void record_new_node_information_of_block(struct lox_ir*,struct lox_ir_block*,struct lox_ir_control_node*);
+static void record_removed_node_information_of_block(struct lox_ir*,struct lox_ir_block*,struct lox_ir_control_node*);
+
+void add_last_control_node_block_lox_ir(
+        struct lox_ir * lox_ir,
+        struct lox_ir_block * block,
+        struct lox_ir_control_node * node
+) {
+    record_new_node_information_of_block(lox_ir, block, node);
+    reset_loop_info(block);
+
+    if(block->first == NULL){
+        block->first = node;
+    }
+    if(block->last != NULL) {
+        block->last->next = node;
+        node->prev = block->last;
+    }
+
+    block->last = node;
+}
+
+void add_first_control_node_block_lox_ir(
+        struct lox_ir * lox_ir,
+        struct lox_ir_block * block,
+        struct lox_ir_control_node * node
+) {
+    record_new_node_information_of_block(lox_ir, block, node);
+    reset_loop_info(block);
+
+    if(block->last == NULL){
+        block->last = node;
+    }
+    if(block->first != NULL) {
+        block->first->prev = node;
+        node->next = block->first;
+    }
+
+    block->first = node;
+}
+
+void add_before_control_node_block_lox_ir(
+        struct lox_ir * lox_ir,
+        struct lox_ir_block * block,
+        struct lox_ir_control_node * before,
+        struct lox_ir_control_node * new
+) {
+    record_new_node_information_of_block(lox_ir, block, new);
+    reset_loop_info(block);
+
+    if (before == NULL) {
+        add_last_control_node_block_lox_ir(lox_ir, block, new);
+        return;
+    }
+
+    if(block->first == before){
+        block->first = new;
+    }
+
+    if(before->prev != NULL){
+        new->prev = before->prev;
+        before->prev->next = new;
+    }
+
+    new->next = before;
+    before->prev = new;
+}
+
+void add_after_control_node_block_lox_ir(
+        struct lox_ir * lox_ir,
+        struct lox_ir_block * block,
+        struct lox_ir_control_node * after,
+        struct lox_ir_control_node * new
+) {
+    record_new_node_information_of_block(lox_ir, block, new);
+    reset_loop_info(block);
+
+    if(after == NULL){
+        add_first_control_node_block_lox_ir(lox_ir, block, new);
+        return;
+    }
+
+    if(block->first == NULL){
+        block->first = new;
+    }
+    if (block->last == after) {
+        block->last = new;
+    }
+    if (after->next != NULL) {
+        new->next = after->next;
+        after->next->prev = new;
+    }
+
+    new->prev = after;
+    after->next = new;
+}
+
+void replace_control_node_block_lox_ir(
+        struct lox_ir * lox_ir,
+        struct lox_ir_block * block,
+        struct lox_ir_control_node * prev,
+        struct lox_ir_control_node * new
+) {
+    record_removed_node_information_of_block(lox_ir, block, prev);
+    record_new_node_information_of_block(lox_ir, block, new);
+    reset_loop_info(block);
+
+    if (block->last == prev) {
+        block->last = new;
+    }
+    if (block->first == prev) {
+        block->first = new;
+    }
+
+    if (prev->prev != NULL) {
+        prev->prev->next = new;
+        new->prev = prev->prev;
+    }
+    if (prev->next != NULL) {
+        prev->next->prev = new;
+        new->next = prev->next;
+    }
+}
+
+static void record_removed_node_information_of_block(
+        struct lox_ir * lox_ir,
+        struct lox_ir_block * block,
+        struct lox_ir_control_node * removed_node
+) {
+    struct u64_set used_ssa_names = get_used_ssa_names_lox_ir_control(removed_node, NATIVE_LOX_ALLOCATOR());
+    FOR_EACH_U64_SET_VALUE(used_ssa_names, used_ssa_name_u64) {
+        struct ssa_name used_ssa_name = CREATE_SSA_NAME_FROM_U64(used_ssa_name_u64);
+        remove_ssa_name_use_lox_ir(lox_ir, used_ssa_name, removed_node);
+    }
+    free_u64_set(&used_ssa_names);
+
+    if (removed_node->type == LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME) {
+        struct lox_ir_control_define_ssa_name_node * define = (struct lox_ir_control_define_ssa_name_node *) removed_node;
+        remove_u64_set(&block->defined_ssa_names, define->ssa_name.u16);
+        remove_u64_hash_table(&lox_ir->cyclic_ssa_name_definitions, define->ssa_name.u16);
+    }
+}
+
+static void record_new_node_information_of_block(
+        struct lox_ir * lox_ir,
+        struct lox_ir_block * block,
+        struct lox_ir_control_node * new_block_node
+) {
+    struct u64_set used_ssa_names = get_used_ssa_names_lox_ir_control(new_block_node, NATIVE_LOX_ALLOCATOR());
+    FOR_EACH_U64_SET_VALUE(used_ssa_names, used_ssa_name_u64) {
+        struct ssa_name used_ssa_name = CREATE_SSA_NAME_FROM_U64(used_ssa_name_u64);
+        add_ssa_name_use_lox_ir(lox_ir, used_ssa_name, new_block_node);
+    }
+    free_u64_set(&used_ssa_names);
+
+    if (new_block_node->type == LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME) {
+        struct lox_ir_control_define_ssa_name_node * define = (struct lox_ir_control_define_ssa_name_node *) new_block_node;
+        add_u64_set(&block->defined_ssa_names, define->ssa_name.u16);
+        put_u64_hash_table(&lox_ir->definitions_by_ssa_name, define->ssa_name.u16, new_block_node);
+    }
+}
 
 void remove_block_control_node_lox_ir(
         struct lox_ir * lox_ir,
         struct lox_ir_block * lox_ir_block,
         struct lox_ir_control_node * node_to_remove
 ) {
-    record_removed_node_information_of_block(lox_ir_block, node_to_remove);
+    record_removed_node_information_of_block(lox_ir, lox_ir_block, node_to_remove);
     reset_loop_info(lox_ir_block);
 
     //The block has only 1 control control_node_to_lower
@@ -480,4 +641,27 @@ static bool calculate_is_cyclic_definition(struct lox_ir * lox_ir, struct ssa_na
 
 void on_ssa_name_def_moved_lox_ir(struct lox_ir * lox_ir, struct ssa_name name) {
     remove_u64_hash_table(&lox_ir->cyclic_ssa_name_definitions, name.u16);
+}
+
+struct lox_ir * alloc_lox_ir(struct lox_allocator * allocator, struct function_object * function, struct package * package) {
+    struct lox_ir * lox_ir = LOX_MALLOC(allocator, sizeof(struct lox_ir));
+
+    struct arena arena;
+    init_arena(&arena);
+    struct arena_lox_allocator * arena_lox_allocator = alloc_lox_allocator_arena(arena, NATIVE_LOX_ALLOCATOR());
+
+    init_u64_hash_table(&lox_ir->cyclic_ssa_name_definitions, LOX_IR_ALLOCATOR(lox_ir));
+    init_u64_hash_table(&lox_ir->type_by_ssa_name_by_block, LOX_IR_ALLOCATOR(lox_ir));
+    init_u64_hash_table(&lox_ir->definitions_by_ssa_name, LOX_IR_ALLOCATOR(lox_ir));
+    init_u64_hash_table(&lox_ir->node_uses_by_ssa_name, LOX_IR_ALLOCATOR(lox_ir));
+    init_u64_hash_table(&lox_ir->definitions_by_v_reg, LOX_IR_ALLOCATOR(lox_ir));
+    init_u64_hash_table(&lox_ir->node_uses_by_v_reg, LOX_IR_ALLOCATOR(lox_ir));
+    init_u8_hash_table(&lox_ir->max_version_allocated_per_local);
+    lox_ir->nodes_allocator_arena = arena_lox_allocator;
+    lox_ir->last_v_reg_allocated = 0;
+    lox_ir->function = function;
+    lox_ir->package = package;
+    lox_ir->first_block = NULL;
+
+    return lox_ir;
 }

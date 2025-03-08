@@ -43,7 +43,7 @@ struct lox_ir_visualizer {
 
     long graphviz_options;
     long options;
-    struct lox_ir lox_ir;
+    struct lox_ir * lox_ir;
     struct function_object * function;
 
     //These properties are only used in lox_ir_graphviz_visualizer:
