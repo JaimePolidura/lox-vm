@@ -178,7 +178,7 @@ static struct lox_ir_type * get_type_data_node_recursive(
         }
         case LOX_IR_DATA_NODE_GET_ARRAY_LENGTH: {
             struct lox_ir_data_get_array_length * get_arr_length = (struct lox_ir_data_get_array_length *) node;
-            set_produced_type(tp, node, get_type_data_node_recursive(to_evaluate, get_arr_length->instance, &get_arr_length->instance));
+            set_produced_type(tp, get_arr_length->instance, get_type_data_node_recursive(to_evaluate, get_arr_length->instance, &get_arr_length->instance));
             return CREATE_LOX_IR_TYPE(LOX_IR_TYPE_LOX_I64, LOX_IR_ALLOCATOR(tp->lox_ir));
         }
         case LOX_IR_DATA_NODE_UNARY: {

@@ -359,6 +359,8 @@ struct u64_set get_all_block_paths_to_block_set_lox_ir(
         }
     }
 
+    free_stack_list(&pending);
+
     return block_paths;
 }
 
@@ -371,7 +373,6 @@ void insert_block_before_lox_ir(
     struct lox_ir_block * first_predecessor = (struct lox_ir_block *) get_first_value_u64_set(predecessors);
 
     //Initialize new_block
-    new_block->first = new_block->last = NULL;
     new_block->nested_loop_body = first_predecessor != NULL ? first_predecessor->nested_loop_body : 0;
     new_block->is_loop_condition = false;
     new_block->loop_condition_block = first_predecessor != NULL ?
@@ -379,8 +380,12 @@ void insert_block_before_lox_ir(
             NULL;
     new_block->loop_info = NULL;
     new_block->predecesors = clone_u64_set(&predecessors, predecessors.inner_hash_table.allocator);
-    new_block->type_next = successor != NULL ? TYPE_NEXT_LOX_IR_BLOCK_SEQ : TYPE_NEXT_LOX_IR_BLOCK_NONE;
-    new_block->next_as.next = successor;
+
+    //TODO Fix bad code
+    if (new_block->type_next != TYPE_NEXT_LOX_IR_BLOCK_BRANCH) {
+        new_block->type_next = successor != NULL ? TYPE_NEXT_LOX_IR_BLOCK_SEQ : TYPE_NEXT_LOX_IR_BLOCK_NONE;
+        new_block->next_as.next = successor;
+    }
 
     //Now we will "install" new_block to be the predecessors of the passed arg "successor"
     insert_block_in_graph(predecessors, successor, new_block);

@@ -26,13 +26,13 @@ struct lox_ir_type * clone_lox_ir_type(struct lox_ir_type * clone_src, struct lo
     clone_dst->type = clone_src->type;
 
     struct array_lox_ir_type * array_clone_src = clone_src->value.array;
-    if (array_clone_src != NULL) {
+    if (array_clone_src != NULL && (clone_src->type == LOX_IR_TYPE_LOX_ARRAY || clone_src->type == LOX_IR_TYPE_NATIVE_ARRAY)) {
         clone_dst->value.array = LOX_MALLOC(allocator, sizeof(struct array_lox_ir_type));
         clone_dst->value.array->type = clone_lox_ir_type(array_clone_src->type, allocator);
     }
 
     struct struct_instance_lox_ir_type * struct_clone_src = clone_src->value.struct_instance;
-    if (struct_clone_src != NULL) {
+    if (struct_clone_src != NULL && (clone_src->type == LOX_IR_TYPE_LOX_STRUCT_INSTANCE || clone_src->type == LOX_IR_TYPE_NATIVE_STRUCT_INSTANCE)) {
         struct u64_hash_table * struct_fields_clone_dst = clone_u64_hash_table(&struct_clone_src->type_by_field_name, allocator);
         struct_clone_src->type_by_field_name.capacity = struct_fields_clone_dst->capacity;
         struct_clone_src->type_by_field_name.entries = struct_fields_clone_dst->entries;
