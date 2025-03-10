@@ -28,7 +28,7 @@ void optimize_lox_ir_phis(struct lox_ir * lox_ir) {
     for_each_lox_ir_block(
             lox_ir->first_block,
             NATIVE_LOX_ALLOCATOR(),
-            &lox_ir,
+            lox_ir,
             LOX_IR_BLOCK_OPT_REPEATED,
             &optimize_lox_ir_phis_block
     );

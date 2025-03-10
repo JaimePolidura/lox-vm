@@ -1,6 +1,6 @@
 #include "lox_ir.h"
 
-static void link_predecessors_to_block(struct u64_set, struct lox_ir_block *);
+static void insert_block_in_graph(struct u64_set predeccessors, struct lox_ir_block *prev_successor, struct lox_ir_block *new_block);
 static struct u64_set get_blocks_to_remove(struct lox_ir_block*);
 static void record_new_node_information_of_block(struct lox_ir*,struct lox_ir_block*,struct lox_ir_control_node*);
 static void record_removed_node_information_of_block(struct lox_ir*,struct lox_ir_block*,struct lox_ir_control_node*);
@@ -237,17 +237,6 @@ void remove_only_block_lox_ir(struct lox_ir * lox_ir, struct lox_ir_block * bloc
     clear_u64_set(&successors);
 }
 
-//We are going to link predeccessors nodes to block
-static void link_predecessors_to_block(struct u64_set predeccessors, struct lox_ir_block * block) {
-    FOR_EACH_U64_SET_VALUE(predeccessors, predeccessor_ptr_u64) {
-        struct lox_ir_block * predeccessor = (struct lox_ir_block *) predeccessor_ptr_u64;
-
-        predeccessor->type_next = TYPE_NEXT_LOX_IR_BLOCK_SEQ;
-        predeccessor->next_as.next = block;
-        add_u64_set(&block->predecesors, (uint64_t) predeccessor);
-    }
-}
-
 struct branch_removed remove_block_branch_lox_ir(
         struct lox_ir * lox_ir,
         struct lox_ir_block * branch_block,
@@ -394,10 +383,28 @@ void insert_block_before_lox_ir(
     new_block->next_as.next = successor;
 
     //Now we will "install" new_block to be the predecessors of the passed arg "successor"
-    FOR_EACH_U64_SET_VALUE(predecessors, current_predecessor_ptr_u64) {
-        struct lox_ir_block * current_predecessor = (struct lox_ir_block *) current_predecessor_ptr_u64;
-        current_predecessor->type_next = TYPE_NEXT_LOX_IR_BLOCK_SEQ;
-        current_predecessor->next_as.next = new_block;
+    insert_block_in_graph(predecessors, successor, new_block);
+}
+
+static void insert_block_in_graph(
+        struct u64_set predeccessors,
+        struct lox_ir_block * prev_successor,
+        struct lox_ir_block * new_block
+) {
+    FOR_EACH_U64_SET_VALUE(predeccessors, predeccessor_ptr_u64) {
+        struct lox_ir_block * current_predecessor = (struct lox_ir_block *) predeccessor_ptr_u64;
+
+        add_u64_set(&new_block->predecesors, (uint64_t) current_predecessor);
+
+        if (current_predecessor->type_next == TYPE_NEXT_LOX_IR_BLOCK_BRANCH) {
+            if (current_predecessor->next_as.branch.true_branch == prev_successor) {
+                current_predecessor->next_as.branch.true_branch = new_block;
+            } else {
+                current_predecessor->next_as.branch.false_branch = new_block;
+            }
+        } else { // TYPE_NEXT_LOX_IR_BLOCK_SEQ
+            current_predecessor->next_as.next = new_block;
+        }
     }
 }
 
@@ -648,7 +655,7 @@ struct lox_ir * alloc_lox_ir(struct lox_allocator * allocator, struct function_o
 
     struct arena arena;
     init_arena(&arena);
-    struct arena_lox_allocator * arena_lox_allocator = alloc_lox_allocator_arena(arena, NATIVE_LOX_ALLOCATOR());
+    lox_ir->nodes_allocator_arena = alloc_lox_allocator_arena(arena, NATIVE_LOX_ALLOCATOR());
 
     init_u64_hash_table(&lox_ir->cyclic_ssa_name_definitions, LOX_IR_ALLOCATOR(lox_ir));
     init_u64_hash_table(&lox_ir->type_by_ssa_name_by_block, LOX_IR_ALLOCATOR(lox_ir));
@@ -657,7 +664,6 @@ struct lox_ir * alloc_lox_ir(struct lox_allocator * allocator, struct function_o
     init_u64_hash_table(&lox_ir->definitions_by_v_reg, LOX_IR_ALLOCATOR(lox_ir));
     init_u64_hash_table(&lox_ir->node_uses_by_v_reg, LOX_IR_ALLOCATOR(lox_ir));
     init_u8_hash_table(&lox_ir->max_version_allocated_per_local);
-    lox_ir->nodes_allocator_arena = arena_lox_allocator;
     lox_ir->last_v_reg_allocated = 0;
     lox_ir->function = function;
     lox_ir->package = package;
