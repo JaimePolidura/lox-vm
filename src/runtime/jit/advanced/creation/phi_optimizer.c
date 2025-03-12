@@ -95,6 +95,8 @@ static void remove_innecesary_phi_function(
             struct lox_ir_data_get_ssa_name_node, NULL, LOX_IR_ALLOCATOR(optimizer->lox_ir));
     new_get_ssa_name->ssa_name = CREATE_SSA_NAME(phi_node->local_number, ssa_version);
 
+    add_ssa_name_use_lox_ir(optimizer->lox_ir, new_get_ssa_name->ssa_name, optimizer->control_node);
+
     //Replace control_node_to_lower
     *parent_child_ptr = (void *) new_get_ssa_name;
 }
@@ -127,6 +129,11 @@ static void extract_phi_to_ssa_name(
 
     add_before_control_node_block_lox_ir(lox_ir, block, control_node, &extracted_define_ssa_name->control);
     *parent_child_ptr = get_extracted;
+
+    add_ssa_name_use_lox_ir(consumer_struct->lox_ir, extracted_ssa_name, control_node);
+    FOR_EACH_SSA_NAME_IN_PHI_NODE(phi_node, phi_node_ssa_name) {
+        add_ssa_name_use_lox_ir(consumer_struct->lox_ir, phi_node_ssa_name, &extracted_define_ssa_name->control);
+    }
 }
 
 //a2 = phi(a0, a1) Local number = "a". versions_extracted = {0, 1}. to_extracted_version = 2

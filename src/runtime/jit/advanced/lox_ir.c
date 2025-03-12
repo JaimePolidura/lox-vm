@@ -142,6 +142,7 @@ static void record_removed_node_information_of_block(
         struct lox_ir_control_define_ssa_name_node * define = (struct lox_ir_control_define_ssa_name_node *) removed_node;
         remove_u64_set(&block->defined_ssa_names, define->ssa_name.u16);
         remove_u64_hash_table(&lox_ir->cyclic_ssa_name_definitions, define->ssa_name.u16);
+        remove_u64_hash_table(&lox_ir->node_uses_by_ssa_name, define->ssa_name.u16);
     }
 }
 

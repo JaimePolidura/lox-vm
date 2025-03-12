@@ -134,6 +134,7 @@ void visualize_lox_ir(
         case LOWERING_LOX_IR_VISUALIZATION: {
             struct lox_ir * lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
                     &node_allocator.lox_allocator), graphviz_visualizer.options);
+
             perform_type_propagation(lox_ir);
             perform_escape_analysis(lox_ir);
             perform_cast_insertion(lox_ir);

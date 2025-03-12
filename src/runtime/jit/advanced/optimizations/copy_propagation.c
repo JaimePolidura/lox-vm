@@ -3,6 +3,8 @@
 struct cp {
     struct lox_ir * lox_ir;
     struct stack_list pending;
+    struct u64_set already_processed_ssa_names;
+
     struct arena_lox_allocator cp_allocator;
 };
 
@@ -36,6 +38,13 @@ static void propagation(struct cp * cp) {
         struct u64_set * control_nodes_that_uses_ssa_name = get_u64_hash_table(&cp->lox_ir->node_uses_by_ssa_name, pending_to_cp.u16);
         struct lox_ir_control_define_ssa_name_node * definition = get_u64_hash_table(
                 &cp->lox_ir->definitions_by_ssa_name, pending_to_cp.u16);
+
+        if (contains_u64_set(&cp->already_processed_ssa_names, pending_to_cp.u16)
+            || pending_to_cp.value.version == 0) {
+            continue;
+        }
+
+        add_u64_set(&cp->already_processed_ssa_names, pending_to_cp.u16);
 
         if (control_nodes_that_uses_ssa_name == NULL || size_u64_set((*control_nodes_that_uses_ssa_name)) == 0) {
             remove_unused_definition(cp, definition);
@@ -190,15 +199,17 @@ static void remove_redundant_cast(struct lox_ir_data_cast_node * cast_node, void
 static struct cp * alloc_copy_propagation(struct lox_ir * lox_ir) {
     struct cp * cp =  NATIVE_LOX_MALLOC(sizeof(struct lox_ir));
     cp->lox_ir = lox_ir;
-    init_stack_list(&cp->pending, NATIVE_LOX_ALLOCATOR());
     struct arena arena;
     init_arena(&arena);
     cp->cp_allocator = to_lox_allocator_arena(arena);
+
+    init_u64_set(&cp->already_processed_ssa_names, &cp->cp_allocator.lox_allocator);
+    init_stack_list(&cp->pending, &cp->cp_allocator.lox_allocator);
+
     return cp;
 }
 
 static void free_copy_propagation(struct cp * cp) {
-    free_stack_list(&cp->pending);
     free_arena(&cp->cp_allocator.arena);
     free(cp);
 }
