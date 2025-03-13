@@ -21,7 +21,7 @@ TEST(lox_ir_lowerer_ptr) {
             "fun function(a) {"
             "   var b = 12;"
             "   var c = 13;"
-            "   if(a > b) {"
+            "   if (a > b) {"
             "       c = a;"
             "   } else {"
             "       c = b;"

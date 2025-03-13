@@ -223,8 +223,17 @@ void remove_only_block_lox_ir(struct lox_ir * lox_ir, struct lox_ir_block * bloc
         FOR_EACH_U64_SET_VALUE(successors, successor_ptr_u64) {
             struct lox_ir_block * successor = (struct lox_ir_block *) successor_ptr_u64;
 
-            predeccessor->type_next = TYPE_NEXT_LOX_IR_BLOCK_SEQ;
-            predeccessor->next_as.next = successor;
+            //TODO Duplicated code
+            if(predeccessor->type_next == TYPE_NEXT_LOX_IR_BLOCK_BRANCH){
+                if(predeccessor->next_as.branch.true_branch == block){
+                    predeccessor->next_as.branch.true_branch = successor;
+                } else {
+                    predeccessor->next_as.branch.false_branch = successor;
+                }
+            } else {
+                predeccessor->type_next = TYPE_NEXT_LOX_IR_BLOCK_SEQ;
+                predeccessor->next_as.next = successor;
+            }
 
             clear_u64_set(&successor->predecesors);
             add_u64_set(&successor->predecesors, (uint64_t) predeccessor);
