@@ -1,6 +1,5 @@
 #include "lox_ir.h"
 
-static void insert_block_in_graph(struct u64_set predeccessors, struct lox_ir_block *prev_successor, struct lox_ir_block *new_block);
 static struct u64_set get_blocks_to_remove(struct lox_ir_block*);
 static void record_new_node_information_of_block(struct lox_ir*,struct lox_ir_block*,struct lox_ir_control_node*);
 static void record_removed_node_information_of_block(struct lox_ir*,struct lox_ir_block*,struct lox_ir_control_node*);
@@ -224,7 +223,7 @@ void remove_only_block_lox_ir(struct lox_ir * lox_ir, struct lox_ir_block * bloc
             struct lox_ir_block * successor = (struct lox_ir_block *) successor_ptr_u64;
 
             //TODO Duplicated code
-            if(predeccessor->type_next == TYPE_NEXT_LOX_IR_BLOCK_BRANCH){
+            if (predeccessor->type_next == TYPE_NEXT_LOX_IR_BLOCK_BRANCH) {
                 if(predeccessor->next_as.branch.true_branch == block){
                     predeccessor->next_as.branch.true_branch = successor;
                 } else {
@@ -235,7 +234,7 @@ void remove_only_block_lox_ir(struct lox_ir * lox_ir, struct lox_ir_block * bloc
                 predeccessor->next_as.next = successor;
             }
 
-            clear_u64_set(&successor->predecesors);
+            remove_u64_set(&successor->predecesors, (uint64_t) block);
             add_u64_set(&successor->predecesors, (uint64_t) predeccessor);
         }
     }
@@ -243,8 +242,6 @@ void remove_only_block_lox_ir(struct lox_ir * lox_ir, struct lox_ir_block * bloc
     if(lox_ir->first_block == block){
         lox_ir->first_block = (struct lox_ir_block *) get_first_value_u64_set(successors);
     }
-
-    clear_u64_set(&successors);
 }
 
 struct branch_removed remove_block_branch_lox_ir(
@@ -398,21 +395,16 @@ void insert_block_before_lox_ir(
     }
 
     //Now we will "install" new_block to be the predecessors of the passed arg "successor"
-    insert_block_in_graph(predecessors, successor, new_block);
-}
-
-static void insert_block_in_graph(
-        struct u64_set predeccessors,
-        struct lox_ir_block * prev_successor,
-        struct lox_ir_block * new_block
-) {
-    FOR_EACH_U64_SET_VALUE(predeccessors, predeccessor_ptr_u64) {
+    add_u64_set(&successor->predecesors, (uint64_t) new_block);
+    FOR_EACH_U64_SET_VALUE(predecessors, predeccessor_ptr_u64) {
         struct lox_ir_block * current_predecessor = (struct lox_ir_block *) predeccessor_ptr_u64;
 
         add_u64_set(&new_block->predecesors, (uint64_t) current_predecessor);
 
+        remove_u64_set(&successor->predecesors, (uint64_t) current_predecessor);
+
         if (current_predecessor->type_next == TYPE_NEXT_LOX_IR_BLOCK_BRANCH) {
-            if (current_predecessor->next_as.branch.true_branch == prev_successor) {
+            if (current_predecessor->next_as.branch.true_branch == successor) {
                 current_predecessor->next_as.branch.true_branch = new_block;
             } else {
                 current_predecessor->next_as.branch.false_branch = new_block;

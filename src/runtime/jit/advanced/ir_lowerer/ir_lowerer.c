@@ -25,10 +25,15 @@ struct lox_level_lox_ir_node * lower_lox_ir(struct lox_ir * lox_ir) {
 bool lower_lox_ir_block(struct lox_ir_block * block, void * extra) {
     struct lllil * lllil = extra;
 
-    add_u64_set(&lllil->processed_blocks, (uint64_t) block);
+    if (block->type_next == TYPE_NEXT_LOX_IR_BLOCK_NONE) {
+       puts("hoa");
+    }
+
     if (!all_predecessors_have_been_scanned(lllil, block)) {
         return false;
     }
+
+    add_u64_set(&lllil->processed_blocks, (uint64_t) block);
 
     merge_predecessors_stack_slots(lllil, block);
 
@@ -107,7 +112,9 @@ static bool all_predecessors_have_been_scanned(
         struct lox_ir_block * block
 ) {
     FOR_EACH_U64_SET_VALUE(block->predecesors, current_predecessor_u64_ptr) {
-        if(!contains_u64_set(&lllil->processed_blocks, current_predecessor_u64_ptr)){
+        struct lox_ir_block * xd = (struct lox_ir_block *) current_predecessor_u64_ptr;
+
+        if (!contains_u64_set(&lllil->processed_blocks, current_predecessor_u64_ptr)) {
             return false;
         }
     }
