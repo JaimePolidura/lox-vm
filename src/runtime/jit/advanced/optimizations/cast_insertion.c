@@ -613,6 +613,7 @@ static struct lox_ir_block * create_block_loop_case_extract_cast_from_phi(
     init_u64_set(&phi_loop_entered_flag_condition->ssa_versions, LOX_IR_ALLOCATOR(ci->lox_ir));
     add_u64_set(&phi_loop_entered_flag_condition->ssa_versions, entered_loop_flag_modified.value.version);
     add_u64_set(&phi_loop_entered_flag_condition->ssa_versions, entered_loop_flag_initialized.value.version);
+    phi_loop_entered_flag_condition->data.produced_type = create_lox_ir_type(LOX_IR_TYPE_NATIVE_BOOLEAN, LOX_IR_ALLOCATOR(ci->lox_ir));
     struct lox_ir_control_define_ssa_name_node * get_loop_entered_in_condition = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME,
             struct lox_ir_control_define_ssa_name_node, check_loop_flag_condition_block, LOX_IR_ALLOCATOR(ci->lox_ir));
     struct ssa_name loop_entered_flag_phi_resolved = alloc_ssa_version_lox_ir(ci->lox_ir, entered_loop_flag_local_num);
@@ -626,6 +627,8 @@ static struct lox_ir_block * create_block_loop_case_extract_cast_from_phi(
             struct lox_ir_data_binary_node, NULL, LOX_IR_ALLOCATOR(ci->lox_ir));
     struct lox_ir_data_get_ssa_name_node * get_loop_flag_condition = ALLOC_LOX_IR_DATA(LOX_IR_DATA_NODE_GET_SSA_NAME,
             struct lox_ir_data_get_ssa_name_node, NULL, LOX_IR_ALLOCATOR(ci->lox_ir));
+    condition_loop_flag_condition_is_true->data.produced_type = create_lox_ir_type(LOX_IR_TYPE_NATIVE_BOOLEAN, LOX_IR_ALLOCATOR(ci->lox_ir));
+    get_loop_flag_condition->data.produced_type = create_lox_ir_type(LOX_IR_TYPE_NATIVE_BOOLEAN, LOX_IR_ALLOCATOR(ci->lox_ir));
     get_loop_flag_condition->ssa_name = loop_entered_flag_phi_resolved;
     condition_loop_flag_condition_is_true->operator = OP_EQUAL;
     condition_loop_flag_condition_is_true->left = &get_loop_flag_condition->data;

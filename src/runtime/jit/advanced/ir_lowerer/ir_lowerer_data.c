@@ -13,6 +13,7 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_element(struct lll
 static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_length(struct lllil_control*, struct lox_ir_data_node*, struct v_register*);
 static struct lox_ir_ll_operand lowerer_lox_ir_data_guard(struct lllil_control*, struct lox_ir_data_node*, struct v_register*);
 static struct lox_ir_ll_operand lowerer_lox_ir_data_binary(struct lllil_control*, struct lox_ir_data_node*, struct v_register*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_call(struct lllil_control*, struct lox_ir_data_node*, struct v_register*);
 
 static struct lox_ir_ll_operand emit_not_lox(struct lllil_control*, struct lox_ir_ll_operand);
 static struct lox_ir_ll_operand emit_not_native(struct lllil_control*, struct lox_ir_ll_operand);
@@ -80,9 +81,7 @@ lowerer_lox_ir_data_t lowerer_lox_ir_by_data_node[] = {
         [LOX_IR_DATA_NODE_UNARY] = lowerer_lox_ir_data_unary,
         [LOX_IR_DATA_NODE_GUARD] = lowerer_lox_ir_data_guard,
         [LOX_IR_DATA_NODE_CAST] = lowerer_lox_ir_data_cast,
-
-        //TOOD I will do this when I have a working compiler
-        [LOX_IR_DATA_NODE_CALL] = NULL,
+        [LOX_IR_DATA_NODE_CALL] = lowerer_lox_ir_data_call,
 
         [LOX_IR_DATA_NODE_GET_SSA_NAME] = NULL,
         [LOX_IR_DATA_NODE_GET_LOCAL] = NULL,
@@ -710,6 +709,11 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field_escapes(
     );
 
     return get_struct_field_reg_result;
+}
+
+static struct lox_ir_ll_operand lowerer_lox_ir_data_call(struct lllil_control*, struct lox_ir_data_node*, struct v_register*) {
+    //TOOD I will do this when I have a working compiler
+    
 }
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_cast(

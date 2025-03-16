@@ -36,6 +36,7 @@ static void propagation(struct cp * cp) {
     while(!is_empty_stack_list(&cp->pending)) {
         struct ssa_name pending_to_cp = CREATE_SSA_NAME_FROM_U64(pop_stack_list(&cp->pending));
         struct u64_set * control_nodes_that_uses_ssa_name = get_u64_hash_table(&cp->lox_ir->node_uses_by_ssa_name, pending_to_cp.u16);
+
         struct lox_ir_control_define_ssa_name_node * definition = get_u64_hash_table(
                 &cp->lox_ir->definitions_by_ssa_name, pending_to_cp.u16);
 

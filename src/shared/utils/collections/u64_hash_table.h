@@ -6,7 +6,7 @@
 
 #define U64_HASH_TABLE_INITIAL_CAPACITY 8
 
-#define EMPTY_U64_HASH_TABLE_ENTRY() ((struct u64_hash_table_entry) {.key = 0, .value = NULL, .some_value = false} )
+#define EMPTY_U64_HASH_TABLE_ENTRY() ((struct u64_hash_table_entry) {.key = 0, .value = NULL, .state = U64_HASH_TABLE_ENTRY_STATE_VALUE_PRESENT} )
 
 #define FOR_EACH_U64_HASH_TABLE_ENTRY(hash_table, entry) \
     struct u64_hash_table_iterator iterator##entry; \
@@ -20,9 +20,13 @@
 
 //Regular hash table which uses the uint64 value_as an index
 struct u64_hash_table_entry {
+    enum {
+        U64_HASH_TABLE_ENTRY_STATE_EMTPY,
+        U64_HASH_TABLE_ENTRY_STATE_VALUE_PRESENT,
+        U64_HASH_TABLE_ENTRY_STATE_TOMBSTONE,
+    } state;
     uint64_t key;
     void * value;
-    bool some_value;
 };
 
 struct u64_hash_table {

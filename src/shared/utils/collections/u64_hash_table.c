@@ -27,7 +27,7 @@ void * get_u64_hash_table(struct u64_hash_table * hash_hable, uint64_t key) {
     }
 
     struct u64_hash_table_entry * result = find_u64_hash_table_entry(hash_hable->entries, hash_hable->capacity, key);
-    return result != NULL && result->some_value ? result->value : NULL;
+    return result != NULL && result->state == U64_HASH_TABLE_ENTRY_STATE_VALUE_PRESENT ? result->value : NULL;
 }
 
 bool put_u64_hash_table(struct u64_hash_table * hash_hable, uint64_t key, void * value) {
@@ -36,10 +36,10 @@ bool put_u64_hash_table(struct u64_hash_table * hash_hable, uint64_t key, void *
     }
 
     struct u64_hash_table_entry * entry = find_u64_hash_table_entry(hash_hable->entries, hash_hable->capacity, key);
-    bool key_already_exists = entry->some_value;
+    bool key_already_exists = entry->state == U64_HASH_TABLE_ENTRY_STATE_VALUE_PRESENT;
     entry->key = key;
     entry->value = value;
-    entry->some_value = true;
+    entry->state = U64_HASH_TABLE_ENTRY_STATE_VALUE_PRESENT;
 
     if (!key_already_exists) {
         hash_hable->size++;
@@ -54,14 +54,14 @@ bool contains_u64_hash_table(struct u64_hash_table * hash_hable, uint64_t key) {
     }
 
     struct u64_hash_table_entry * entry = find_u64_hash_table_entry(hash_hable->entries, hash_hable->capacity, key);
-    return entry != NULL && entry->some_value;
+    return entry != NULL && entry->state == U64_HASH_TABLE_ENTRY_STATE_VALUE_PRESENT;
 }
 
 void remove_u64_hash_table(struct u64_hash_table * hash_hable, uint64_t key) {
     struct u64_hash_table_entry * entry = find_u64_hash_table_entry(hash_hable->entries, hash_hable->capacity, key);
-    if(entry->some_value) {
+    if(entry != NULL && entry->state == U64_HASH_TABLE_ENTRY_STATE_VALUE_PRESENT) {
+        entry->state = U64_HASH_TABLE_ENTRY_STATE_TOMBSTONE;
         hash_hable->size--;
-        entry->some_value = false;
     }
 }
 
@@ -69,28 +69,34 @@ void clear_u64_hash_table(struct u64_hash_table * hash_table) {
     hash_table->size = 0;
     for(int i = 0; i < hash_table->capacity; i++){
         struct u64_hash_table_entry * current_entry = hash_table->entries + i;
-        current_entry->some_value = false;
+        current_entry->state = U64_HASH_TABLE_ENTRY_STATE_EMTPY;
     }
 }
 
 static struct u64_hash_table_entry * find_u64_hash_table_entry(struct u64_hash_table_entry * entries, int capacity, uint64_t key) {
-    uint64_t index = key & (capacity - 1);
+    if (capacity == 0) {
+        return NULL;
+    }
 
-    struct u64_hash_table_entry * last_maybe_deleted_entry = NULL;
+    uint64_t index = key & (capacity - 1);
+    struct u64_hash_table_entry * last_tombstone_found_entry = NULL;
 
     for (;;) {
         struct u64_hash_table_entry * current_entry = entries + index;
         index = (index + 1) & (capacity - 1); //Optimized %
 
-        if (!current_entry->some_value && last_maybe_deleted_entry == NULL) {
-            last_maybe_deleted_entry = current_entry;
+        if (current_entry->state == U64_HASH_TABLE_ENTRY_STATE_TOMBSTONE && last_tombstone_found_entry == NULL) {
+            last_tombstone_found_entry = current_entry;
             continue;
         }
-        if (current_entry->some_value && current_entry->key == key) {
+        if (current_entry->state == U64_HASH_TABLE_ENTRY_STATE_VALUE_PRESENT && current_entry->key == key) {
             return current_entry;
         }
-        if (!current_entry->some_value && last_maybe_deleted_entry != NULL) {
-            return last_maybe_deleted_entry;
+        if (current_entry->state == U64_HASH_TABLE_ENTRY_STATE_EMTPY && last_tombstone_found_entry != NULL) {
+            return last_tombstone_found_entry;
+        }
+        if (current_entry->state == U64_HASH_TABLE_ENTRY_STATE_EMTPY && last_tombstone_found_entry == NULL) {
+            return current_entry;
         }
     }
 }
@@ -104,11 +110,11 @@ static void grow_u64_hash_table(struct u64_hash_table * table) {
 
     for (int i = 0; i < table->capacity; i++) {
         struct u64_hash_table_entry * old_entry = &old_entries[i];
-        if (old_entry->some_value) {
+        if (old_entry->state == U64_HASH_TABLE_ENTRY_STATE_VALUE_PRESENT) {
             struct u64_hash_table_entry * new_entry = find_u64_hash_table_entry(new_entries, new_capacity, old_entry->key);
+            new_entry->state = U64_HASH_TABLE_ENTRY_STATE_VALUE_PRESENT;
             new_entry->value = old_entry->value;
             new_entry->key = old_entry->key;
-            new_entry->some_value = true;
         }
     }
 
@@ -130,7 +136,7 @@ bool has_next_u64_hash_table_iterator(struct u64_hash_table_iterator iterator) {
 struct u64_hash_table_entry next_u64_hash_table_iterator(struct u64_hash_table_iterator * iterator) {
     while (has_next_u64_hash_table_iterator(*iterator)) {
         struct u64_hash_table_entry entry = iterator->hash_table.entries[iterator->current_index++];
-        if(entry.some_value){
+        if (entry.state == U64_HASH_TABLE_ENTRY_STATE_VALUE_PRESENT) {
             iterator->n_entries_returned++;
             return entry;
         }
