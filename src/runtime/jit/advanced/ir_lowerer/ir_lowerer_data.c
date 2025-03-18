@@ -717,7 +717,7 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_call(
         struct v_register * result
 ) {
     struct lox_ir_data_function_call_node * call = (struct lox_ir_data_function_call_node *) data_node;
-
+    
     if (call->is_native) {
         return lowerer_lox_ir_data_native_function_call(lllil, call, result);
     } else {
@@ -731,13 +731,11 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_native_function_call(
         struct v_register * result
 ) {
     bool return_value_used = lllil->control_node_to_lower->type != LOX_IR_CONTROL_NODE_DATA;
-    struct ptr_arraylist arguments;
-    init_ptr_arraylist(&arguments, LOX_IR_ALLOCATOR(lllil->lllil->lox_ir));
 
+    struct lox_ir_ll_operand arguments[call->n_arguments];
     for (int i = 0; i < call->n_arguments; i++) {
         struct lox_ir_ll_operand * function_arg = LOX_MALLOC(LOX_IR_ALLOCATOR(lllil->lllil->lox_ir), sizeof(struct lox_ir_ll_operand));
-        *function_arg = lower_lox_ir_data(lllil, &call->data, call->arguments[i], result);
-        append_ptr_arraylist(&arguments, function_arg);
+        arguments[i] = lower_lox_ir_data(lllil, &call->data, call->arguments[i], result);
     }
 
     struct lox_ir_ll_operand return_value_v_reg;
@@ -748,23 +746,21 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_native_function_call(
                 V_REG_TO_OPERAND(*result) :
                 alloc_new_v_register(lllil, false);
 
-        emit_function_call_with_return_value_ll_lox_ir(
+        emit_function_call_with_return_value_manual_args_ll_lox_ir(
                 lllil,
-                call_lox_function_jit_runtime,
+                call->native_function->native_jit_fn,
                 call->native_function->name,
                 return_value_v_reg.v_register,
-                2,
-                IMMEDIATE_TO_OPERAND((uint64_t) call->lox_function.function),
-                IMMEDIATE_TO_OPERAND((uint64_t) call->lox_function.is_parallel)
+                call->n_arguments,
+                arguments
         );
     } else {
-        emit_function_call_ll_lox_ir(
+        emit_function_call_manual_args_ll_lox_ir(
                 lllil,
-                call_lox_function_jit_runtime,
-                "call_lox_function_jit_runtime",
-                2,
-                IMMEDIATE_TO_OPERAND((uint64_t) call->lox_function.function),
-                IMMEDIATE_TO_OPERAND((uint64_t) call->lox_function.is_parallel)
+                call->native_function->native_jit_fn,
+                call->native_function->name,
+                call->n_arguments,
+                arguments
         );
     }
 

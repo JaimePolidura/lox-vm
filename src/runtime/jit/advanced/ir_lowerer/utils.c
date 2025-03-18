@@ -518,6 +518,21 @@ void emit_function_call_with_return_value_ll_lox_ir(
         int n_args,
         ... //Arguments
 ) {
+    struct lox_ir_ll_operand arguments[n_args];
+    VARARGS_TO_ARRAY(struct lox_ir_ll_operand, arguments, n_args, ...);
+
+    emit_function_call_with_return_value_manual_args_ll_lox_ir(lllil, function_address, function_name,
+        return_value_v_reg, n_args, arguments);
+}
+
+void emit_function_call_with_return_value_manual_args_ll_lox_ir(
+        struct lllil_control *lllil,
+        void * function_address,
+        char * function_name,
+        struct v_register return_value_v_reg, //Return value register
+        int n_args,
+        struct lox_ir_ll_operand arguments[n_args]
+) {
     struct lox_allocator * allocator = &lllil->lllil->lox_ir->nodes_allocator_arena->lox_allocator;
 
     struct lox_ir_control_ll_function_call * func_call = ALLOC_LOX_IR_CONTROL( //TODO
@@ -529,9 +544,6 @@ void emit_function_call_with_return_value_ll_lox_ir(
     func_call->has_return_value = true;
     func_call->function_name = function_name;
     func_call->return_value_v_reg = return_value_v_reg;
-
-    struct lox_ir_ll_operand arguments[n_args];
-    VARARGS_TO_ARRAY(struct lox_ir_ll_operand, arguments, n_args, ...);
 
     for (int i = 0; i < n_args; i++) {
         struct lox_ir_ll_operand argument = arguments[i];
@@ -551,6 +563,19 @@ void emit_function_call_ll_lox_ir(
         int n_args,
         ... //Arguments
 ) {
+    struct lox_ir_ll_operand arguments[n_args];
+    VARARGS_TO_ARRAY(struct lox_ir_ll_operand, arguments, n_args, ...);
+
+    emit_function_call_manual_args_ll_lox_ir(lllil, function_address, function_name, n_args, arguments);
+}
+
+void emit_function_call_manual_args_ll_lox_ir(
+        struct lllil_control *lllil,
+        void * function_address,
+        char * function_name,
+        int n_args,
+        struct lox_ir_ll_operand arguments[]
+) {
     struct lox_allocator * allocator = &lllil->lllil->lox_ir->nodes_allocator_arena->lox_allocator;
 
     struct lox_ir_control_ll_function_call * func_call = ALLOC_LOX_IR_CONTROL( //TODO
@@ -560,9 +585,6 @@ void emit_function_call_ll_lox_ir(
     func_call->function_name = function_name;
     init_ptr_arraylist(&func_call->arguments, allocator);
     resize_ptr_arraylist(&func_call->arguments, n_args);
-
-    struct lox_ir_ll_operand arguments[n_args];
-    VARARGS_TO_ARRAY(struct lox_ir_ll_operand, arguments, n_args, ...);
 
     for (int i = 0; i < n_args; i++) {
         struct lox_ir_ll_operand argument = arguments[i];

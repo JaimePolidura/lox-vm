@@ -60,12 +60,29 @@ void emit_function_call_with_return_value_ll_lox_ir(
         ... //Arguments
 );
 
+void emit_function_call_with_return_value_manual_args_ll_lox_ir(
+        struct lllil_control *lllil,
+        void * function_address,
+        char * function_name,
+        struct v_register, //Return value register
+        int n_args,
+        struct lox_ir_ll_operand args[]
+);
+
 void emit_function_call_ll_lox_ir(
         struct lllil_control *lllil,
         void * function_address,
         char * function_name,
         int n_args,
         ... //Arguments
+);
+
+void emit_function_call_manual_args_ll_lox_ir(
+        struct lllil_control *lllil,
+        void * function_address,
+        char * function_name,
+        int n_args,
+        struct lox_ir_ll_operand args[]
 );
 
 void emit_unary_ll_lox_ir(
