@@ -56,6 +56,8 @@ static void emit_native_to_lox(struct lllil_control*,struct lox_ir_ll_operand,lo
 static void emit_lox_to_native(struct lllil_control*,struct lox_ir_ll_operand,lox_ir_type_t,lox_ir_type_t);
 static struct lox_ir_ll_operand emit_operand_to_register(struct lllil_control*,struct lox_ir_ll_operand,bool);
 static struct lox_ir_ll_operand copy_into_new_register(struct lllil_control*, struct lox_ir_ll_operand);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_lox_function_call(struct lllil_control*,struct lox_ir_data_function_call_node*,struct v_register*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_native_function_call(struct lllil_control*,struct lox_ir_data_function_call_node*,struct v_register*);
 
 static bool is_struct_field_fp(struct lox_ir_data_node *, char * field_name);
 static bool parent_will_have_unwanted_side_effect(struct lllil_control*, struct lox_ir_ll_operand input, struct lox_ir_data_node *parent);
@@ -65,6 +67,7 @@ extern void runtime_panic(char * format, ...);
 extern uint64_t any_to_native_cast_jit_runime(lox_value_t);
 extern struct array_object * alloc_array_gc_alg(int);
 extern void * string_concatenate_jit_runime(void*,void*,lox_ir_type_t,lox_ir_type_t,lox_ir_type_t);
+extern void call_lox_function_jit_runtime(struct function_object *, bool);
 
 extern lox_value_t addition_lox(lox_value_t a, lox_value_t b);
 
@@ -88,9 +91,6 @@ lowerer_lox_ir_data_t lowerer_lox_ir_by_data_node[] = {
         [LOX_IR_DATA_NODE_PHI] = NULL,
 };
 
-//If expected type is:
-// - LOX_IR_TYPE_LOX_ANY the result type will have lox byte format
-// - LOX_IR_TYPE_UNKNOWN the result type will have any type
 struct lox_ir_ll_operand lower_lox_ir_data(
         struct lllil_control * lllil_control,
         struct lox_ir_data_node * parent_node,
@@ -711,9 +711,111 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field_escapes(
     return get_struct_field_reg_result;
 }
 
-static struct lox_ir_ll_operand lowerer_lox_ir_data_call(struct lllil_control*, struct lox_ir_data_node*, struct v_register*) {
-    //TOOD I will do this when I have a working compiler
-    
+static struct lox_ir_ll_operand lowerer_lox_ir_data_call(
+        struct lllil_control * lllil,
+        struct lox_ir_data_node * data_node,
+        struct v_register * result
+) {
+    struct lox_ir_data_function_call_node * call = (struct lox_ir_data_function_call_node *) data_node;
+
+    if (call->is_native) {
+        return lowerer_lox_ir_data_native_function_call(lllil, call, result);
+    } else {
+        return lowerer_lox_ir_data_lox_function_call(lllil, call, result);
+    }
+}
+
+static struct lox_ir_ll_operand lowerer_lox_ir_data_native_function_call(
+        struct lllil_control * lllil,
+        struct lox_ir_data_function_call_node * call,
+        struct v_register * result
+) {
+    bool return_value_used = lllil->control_node_to_lower->type != LOX_IR_CONTROL_NODE_DATA;
+    struct ptr_arraylist arguments;
+    init_ptr_arraylist(&arguments, LOX_IR_ALLOCATOR(lllil->lllil->lox_ir));
+
+    for (int i = 0; i < call->n_arguments; i++) {
+        struct lox_ir_ll_operand * function_arg = LOX_MALLOC(LOX_IR_ALLOCATOR(lllil->lllil->lox_ir), sizeof(struct lox_ir_ll_operand));
+        *function_arg = lower_lox_ir_data(lllil, &call->data, call->arguments[i], result);
+        append_ptr_arraylist(&arguments, function_arg);
+    }
+
+    struct lox_ir_ll_operand return_value_v_reg;
+
+    if (return_value_used) {
+        //TODO Is float
+        return_value_v_reg = result != NULL ?
+                V_REG_TO_OPERAND(*result) :
+                alloc_new_v_register(lllil, false);
+
+        emit_function_call_with_return_value_ll_lox_ir(
+                lllil,
+                call_lox_function_jit_runtime,
+                call->native_function->name,
+                return_value_v_reg.v_register,
+                2,
+                IMMEDIATE_TO_OPERAND((uint64_t) call->lox_function.function),
+                IMMEDIATE_TO_OPERAND((uint64_t) call->lox_function.is_parallel)
+        );
+    } else {
+        emit_function_call_ll_lox_ir(
+                lllil,
+                call_lox_function_jit_runtime,
+                "call_lox_function_jit_runtime",
+                2,
+                IMMEDIATE_TO_OPERAND((uint64_t) call->lox_function.function),
+                IMMEDIATE_TO_OPERAND((uint64_t) call->lox_function.is_parallel)
+        );
+    }
+
+    return return_value_v_reg;
+}
+
+static struct lox_ir_ll_operand lowerer_lox_ir_data_lox_function_call(
+        struct lllil_control * lllil,
+        struct lox_ir_data_function_call_node * call,
+        struct v_register * result
+) {
+    bool return_value_used = lllil->control_node_to_lower->type != LOX_IR_CONTROL_NODE_DATA;
+
+    struct ptr_arraylist arguments;
+    init_ptr_arraylist(&arguments, LOX_IR_ALLOCATOR(lllil->lllil->lox_ir));
+
+    for (int i = 0; i < call->n_arguments; i++) {
+        struct lox_ir_ll_operand * function_arg = LOX_MALLOC(LOX_IR_ALLOCATOR(lllil->lllil->lox_ir), sizeof(struct lox_ir_ll_operand));
+        *function_arg = lower_lox_ir_data(lllil, &call->data, call->arguments[i], result);
+        append_ptr_arraylist(&arguments, function_arg);
+    }
+
+    struct lox_ir_ll_operand return_value_v_reg;
+
+    if (return_value_used) {
+        //TODO IS float?
+        return_value_v_reg = result != NULL ?
+                             V_REG_TO_OPERAND(*result) :
+                             alloc_new_v_register(lllil, false);
+
+        emit_function_call_with_return_value_ll_lox_ir(
+                lllil,
+                call_lox_function_jit_runtime,
+                "call_lox_function_jit_runtime",
+                return_value_v_reg.v_register,
+                2,
+                IMMEDIATE_TO_OPERAND((uint64_t) call->lox_function.function),
+                IMMEDIATE_TO_OPERAND((uint64_t) call->lox_function.is_parallel)
+        );
+    } else {
+        emit_function_call_ll_lox_ir(
+                lllil,
+                call_lox_function_jit_runtime,
+                "call_lox_function_jit_runtime",
+                2,
+                IMMEDIATE_TO_OPERAND((uint64_t) call->lox_function.function),
+                IMMEDIATE_TO_OPERAND((uint64_t) call->lox_function.is_parallel)
+        );
+    }
+
+    return return_value_v_reg;
 }
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_cast(

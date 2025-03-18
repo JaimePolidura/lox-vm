@@ -139,7 +139,7 @@ void * alloc_gc_vm_info_alg() {
     return generational_gc;
 }
 
-struct gc_result try_start_gc_alg(int n_args, lox_value_t * args) {
+struct gc_result try_start_gc_alg(lox_value_t * args) {
     struct generational_gc * gc = current_vm.gc;
     gc_gen_state_t expected = GC_NONE;
     bool start_major = args != NULL && args[0] == TRUE_VALUE;
@@ -185,7 +185,7 @@ static void try_claim_eden_block_or_start_gc(size_t size_bytes) {
     struct eden_block_allocation block_allocation = try_claim_eden_block(global_gc_info->eden, n_blocks);
 
     if (!block_allocation.success) {
-        try_start_gc_alg(0, NULL);
+        try_start_gc_alg(NULL);
         block_allocation = try_claim_eden_block(global_gc_info->eden, n_blocks);
     }
 

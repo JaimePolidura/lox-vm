@@ -2,7 +2,7 @@
 
 extern struct trie_list * compiled_packages;
 extern void check_gc_on_safe_point_alg();
-extern struct gc_result try_start_gc_alg(int n_args, lox_value_t * args);
+extern struct gc_result try_start_gc_alg(lox_value_t * args);
 extern void * alloc_gc_thread_info_alg();
 extern void * alloc_gc_vm_info_alg();
 extern struct struct_instance_object * alloc_struct_instance_gc_alg(struct struct_definition_object *);
@@ -341,7 +341,7 @@ void call(struct call_frame * current_frame, lox_value_t callee_lox, int n_args,
             }
 
             struct native_function_object * native_function_object = TO_NATIVE(callee_lox);
-            native_fn native_function = native_function_object->native_fn;
+            native_vm_fn native_function = native_function_object->native_vm_fn;
 
             lox_value_t result = native_function(n_args, self_thread->esp - n_args);
             self_thread->esp -= n_args + 1;
@@ -762,7 +762,7 @@ static int add_child_to_parent_list(struct vm_thread * new_child_thread) {
         return index;
     }
 
-    try_start_gc_alg(0, NULL);
+    try_start_gc_alg(NULL);
 
     //The gc will remove termianted threads
     if((index = try_add_child_to_parent_list(new_child_thread)) != -1) {

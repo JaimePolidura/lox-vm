@@ -44,7 +44,6 @@ typedef enum {
 } interpret_result_t;
 
 interpret_result_t interpret_vm(struct compilation_result compilation_result);
-void define_native(char * function_name, native_fn native_function, bool is_blocking);
 
 void set_self_thread_runnable();
 void set_self_thread_waiting();
