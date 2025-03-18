@@ -611,7 +611,7 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_struct_escapes(
                 "put_hash_table",
                 3,
                 struct_instance_operand,
-                field_name,
+                IMMEDIATE_TO_OPERAND((uint64_t) field_name),
                 struct_element_reg
         );
     }
@@ -662,31 +662,6 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field_doest_not_e
         struct lox_ir_data_get_struct_field_node * get_struct_field,
         struct v_register * result
 ) {
-    struct lox_ir_ll_operand struct_instance = lower_lox_ir_data(lllil, &get_struct_field->data,
-            get_struct_field->instance, NULL);
-
-    bool is_field_fp = is_struct_field_fp(get_struct_field->instance, get_struct_field->field_name->chars);
-    struct lox_ir_ll_operand get_struct_field_reg_result = result != NULL ?
-            V_REG_TO_OPERAND(result) : V_REG_TO_OPERAND(alloc_v_register_lox_ir(lllil->lllil->lox_ir, is_field_fp));
-
-    emit_function_call_with_return_value_ll_lox_ir(
-            lllil,
-            get_hash_table,
-            "get_hash_table",
-            get_struct_field_reg_result.v_register,
-            2,
-            struct_instance,
-            IMMEDIATE_TO_OPERAND((uint64_t) get_struct_field->field_name->chars)
-    );
-
-    return get_struct_field_reg_result;
-}
-
-static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field_escapes(
-        struct lllil_control * lllil,
-        struct lox_ir_data_get_struct_field_node * get_struct_field,
-        struct v_register * result
-) {
     //If it escapes, it should produce a native pointer to struct instance
     struct lox_ir_ll_operand struct_instance = lower_lox_ir_data(lllil, &get_struct_field->data,
             get_struct_field->instance, NULL);
@@ -711,13 +686,38 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field_escapes(
     return get_struct_field_reg_result;
 }
 
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field_escapes(
+        struct lllil_control * lllil,
+        struct lox_ir_data_get_struct_field_node * get_struct_field,
+        struct v_register * result
+) {
+    struct lox_ir_ll_operand struct_instance = lower_lox_ir_data(lllil, &get_struct_field->data,
+            get_struct_field->instance, NULL);
+
+    bool is_field_fp = is_struct_field_fp(get_struct_field->instance, get_struct_field->field_name->chars);
+    struct lox_ir_ll_operand get_struct_field_reg_result = result != NULL ?
+            V_REG_TO_OPERAND(result) : V_REG_TO_OPERAND(alloc_v_register_lox_ir(lllil->lllil->lox_ir, is_field_fp));
+
+    emit_function_call_with_return_value_ll_lox_ir(
+            lllil,
+            get_hash_table,
+            "get_hash_table",
+            get_struct_field_reg_result.v_register,
+            2,
+            struct_instance,
+            IMMEDIATE_TO_OPERAND((uint64_t) get_struct_field->field_name->chars)
+    );
+
+    return get_struct_field_reg_result;
+}
+
 static struct lox_ir_ll_operand lowerer_lox_ir_data_call(
         struct lllil_control * lllil,
         struct lox_ir_data_node * data_node,
         struct v_register * result
 ) {
     struct lox_ir_data_function_call_node * call = (struct lox_ir_data_function_call_node *) data_node;
-    
+
     if (call->is_native) {
         return lowerer_lox_ir_data_native_function_call(lllil, call, result);
     } else {
@@ -1163,9 +1163,8 @@ static bool is_struct_field_fp(
     }
 
     struct struct_instance_lox_ir_type * struct_instance_type = struct_instasnce_node->produced_type->value.struct_instance;
-    struct struct_definition_object * definition = struct_instance_type->definition;
 
-    if (definition == NULL) {
+    if (struct_instance_type == NULL || struct_instance_type->definition == NULL) {
         return false;
     }
 

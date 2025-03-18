@@ -28,7 +28,7 @@ TEST(lox_ir_lowerer_ptr) {
             ""
             "fun function() {"
             "   var p = nil;"
-            "   if (true) {"
+            "   if (1 == 1) {"
             "       p = Point{1, 3};"
             "   } else {"
             "       p = transform(1);"
