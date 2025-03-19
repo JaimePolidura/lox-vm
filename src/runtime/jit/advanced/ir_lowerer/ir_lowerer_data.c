@@ -599,6 +599,14 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_initialize_struct_escapes(
             IMMEDIATE_TO_OPERAND((uint64_t) init_node->definition)
     );
 
+    emit_binary_ll_lox_ir(
+            lllil,
+            BINARY_LL_LOX_IR_IADD,
+            struct_instance_operand,
+            struct_instance_operand,
+            IMMEDIATE_TO_OPERAND(offsetof(struct struct_instance_object, fields))
+    );
+
     for (int i = 0; i < init_node->definition->n_fields; i++) {
         struct string_object * field_name = definition->field_names[definition->n_fields - i - 1];
 

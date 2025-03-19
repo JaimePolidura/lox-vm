@@ -49,7 +49,7 @@ struct lox_ir_ll_operand emit_lox_object_ptr_to_native_ll_lox_ir(
             BINARY_LL_LOX_IR_AND,
             input,
             input,
-            IMMEDIATE_TO_OPERAND(~(FLOAT_SIGN_BIT | FLOAT_QNAN))
+            V_REG_TO_OPERAND(or_fsb_qfn_reg)
     );
 
     return input;
@@ -122,6 +122,10 @@ static void emit_guard_struct_definition_type_check(
 ) {
     //After this we are guaranteed that guard input is a lox object type
     emit_guard_object_type_check(control, guard_input);
+
+    if (guard.value_to_compare.struct_definition == NULL) {
+        return;
+    }
 
     struct lox_ir_ll_operand native_object_ptr = emit_lox_object_ptr_to_native_ll_lox_ir(control, guard_input);
 
