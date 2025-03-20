@@ -219,7 +219,7 @@ static bool perform_escape_analysis_data(
 }
 
 static void mark_control_node_input_nodes_as_escaped(struct ea * ea, struct lox_ir_control_node * control_node) {
-    for_each_data_node_in_lox_ir_control(control_node, ea, LOX_IR_DATA_NODE_OPT_ANY_ORDER,
+    for_each_data_node_in_lox_ir_control(control_node, ea, LOX_IR_DATA_NODE_OPT_PRE_ORDER,
                                          mark_control_node_input_nodes_as_escaped_consumer);
 }
 
@@ -231,8 +231,7 @@ static bool mark_control_node_input_nodes_as_escaped_consumer(
 ) {
     struct ea * ea = extra;
     mark_as_escaped_instance_used_in_data_node(ea, child);
-
-    return true;
+    return false;
 }
 
 //Every node that is used as an input of other node that makes it to escape, there will be a call to this function

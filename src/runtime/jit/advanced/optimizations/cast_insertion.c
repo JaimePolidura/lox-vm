@@ -732,6 +732,39 @@ static lox_ir_type_t get_type_by_ssa_name(struct ci * ci, struct lox_ir_control_
     return type->type;
 }
 
+static bool is_ssa_name_required_to_have_lox_type(struct ssa_name ssa_name, struct lox_ir_control_node * ssa_name_use) {
+    struct stack_list pending;
+    init_stack_list(&pending, NATIVE_LOX_ALLOCATOR());
+    struct u64_set children = get_children_lox_ir_control(ssa_name_use);
+    push_set_stack_list(&pending, children);
+    free_u64_set(&children);
+    bool ssa_name_required_to_have_lox_type = true;
+
+    while (!is_empty_stack_list(&pending)) {
+        struct lox_ir_data_node * current_children = *((struct lox_ir_data_node **) pop_stack_list(&pending));
+
+        if (current_children->type == LOX_IR_DATA_NODE_GET_STRUCT_FIELD
+            || current_children->type == LOX_IR_DATA_NODE_GET_ARRAY_ELEMENT) {
+            ssa_name_required_to_have_lox_type = false;
+            //We won't scan the current_children's children
+            
+        } else if (current_children->type == LOX_IR_DATA_NODE_GET_SSA_NAME
+            && GET_USED_SSA_NAME(current_children).u16 == ssa_name.u16) {
+            ssa_name_required_to_have_lox_type = true;
+            break;
+
+        } else {
+            struct u64_set child_of_current_children = get_children_lox_ir_data_node(current_children, NATIVE_LOX_ALLOCATOR());
+            push_set_stack_list(&pending, child_of_current_children);
+            free_u64_set(&child_of_current_children);
+        }
+    }
+
+    free_stack_list(&pending);
+
+    return ssa_name_required_to_have_lox_type;
+}
+
 static bool control_requires_lox_input(struct ci * ci, struct lox_ir_control_node * control) {
     switch (control->type) {
         case LOX_IR_CONTROL_NODE_SET_ARRAY_ELEMENT:
@@ -751,7 +784,8 @@ static bool control_requires_lox_input(struct ci * ci, struct lox_ir_control_nod
             return false;
         case LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME: {
             struct lox_ir_control_define_ssa_name_node * define = (struct lox_ir_control_define_ssa_name_node *) control;
-            struct u64_set * uses_ssa_name = get_u64_hash_table(&ci->lox_ir->node_uses_by_ssa_name, define->ssa_name.u16);
+            struct ssa_name defined_ssa_name = define->ssa_name;
+            struct u64_set * uses_ssa_name = get_u64_hash_table(&ci->lox_ir->node_uses_by_ssa_name, defined_ssa_name.u16);
             if(uses_ssa_name == NULL){
                 return false;
             }
@@ -761,10 +795,11 @@ static bool control_requires_lox_input(struct ci * ci, struct lox_ir_control_nod
             FOR_EACH_U64_SET_VALUE(*uses_ssa_name, node_uses_ssa_name_ptr_u64) {
                 struct lox_ir_control_node * node_uses_ssa_name = (struct lox_ir_control_node *) node_uses_ssa_name_ptr_u64;
 
-                if (node_uses_ssa_name->type == LOX_IR_CONTROL_NODE_SET_ARRAY_ELEMENT ||
-                   node_uses_ssa_name->type == LOX_IR_CONTROL_NODE_SET_STRUCT_FIELD ||
+                if (((node_uses_ssa_name->type == LOX_IR_CONTROL_NODE_SET_ARRAY_ELEMENT && is_marked_as_escaped_lox_ir_control(node_uses_ssa_name)) ||
+                   (node_uses_ssa_name->type == LOX_IR_CONTROL_NODE_SET_STRUCT_FIELD && is_marked_as_escaped_lox_ir_control(node_uses_ssa_name)) ||
                    node_uses_ssa_name->type == LOX_IR_CONTORL_NODE_SET_GLOBAL ||
-                   node_uses_ssa_name->type == LOX_IR_CONTROL_NODE_RETURN ){
+                   node_uses_ssa_name->type == LOX_IR_CONTROL_NODE_RETURN)
+                   && is_ssa_name_required_to_have_lox_type(defined_ssa_name, node_uses_ssa_name)) {
                     some_use_requires_lox_type_as_input = true;
                     break;
                 }
