@@ -1092,7 +1092,7 @@ static void binary_operation(
 ) {
     struct pop_stack_operand_result b = pop_stack_operand_jit_stack(jit_compiler);
     struct pop_stack_operand_result a = pop_stack_operand_jit_stack(jit_compiler);
-    struct lox_ir_ll_operand result_operand;
+    struct operand result_operand;
 
     struct binary_operation binary_operations_instruction = binary_operations[instruction];
 

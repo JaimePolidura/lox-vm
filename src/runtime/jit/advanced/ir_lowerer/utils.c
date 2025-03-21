@@ -136,7 +136,7 @@ static void emit_guard_struct_definition_type_check(
     emit_move_ll_lox_ir(
             control,
             V_REG_TO_OPERAND(object_type_v_reg),
-            ADDRESS_TO_OPERAND(native_object_ptr, offsetof(struct object, type))
+            ADDRESS_TO_OPERAND(native_object_ptr.v_register, offsetof(struct object, type))
     );
     emit_comparation_ll_lox_ir(
             control,
@@ -158,7 +158,7 @@ static void emit_guard_struct_definition_type_check(
     emit_move_ll_lox_ir(
             control,
             V_REG_TO_OPERAND(object_type_v_reg),
-            ADDRESS_TO_OPERAND(native_object_ptr, offsetof(struct struct_instance_object, definition))
+            ADDRESS_TO_OPERAND(native_object_ptr.v_register, offsetof(struct struct_instance_object, definition))
     );
     emit_comparation_ll_lox_ir(
             control,

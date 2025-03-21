@@ -6,7 +6,7 @@
 #define IMMEDIATE_TO_OPERAND(immediate) ((struct lox_ir_ll_operand) {.type = LOX_IR_LL_OPERAND_IMMEDIATE, .immedate = (immediate)})
 #define V_REG_TO_OPERAND(v_reg) ((struct lox_ir_ll_operand) {.type = LOX_IR_LL_OPERAND_REGISTER, .v_register = (v_reg)})
 #define STACKSLOT_TO_OPERAND(slot_index, offset) ((struct lox_ir_ll_operand) {.type = LOX_IR_LL_OPERAND_STACK_SLOT, .stack_slot = ((slot_index), (offset))})
-#define ADDRESS_TO_OPERAND(address, offset) ((struct lox_ir_ll_operand) {.type = LOX_IR_LL_OPERAND_MEMORY_ADDRESS, .memory_address = ((address), (offset))})
+#define ADDRESS_TO_OPERAND(address_f, offset_f) ((struct lox_ir_ll_operand) {.type = LOX_IR_LL_OPERAND_MEMORY_ADDRESS, .memory_address = {.address = (address_f), .offset = (offset_f)}})
 #define FLAGS_OPERAND() ((struct lox_ir_ll_operand) {LOX_IR_LL_OPERAND_FLAGS, (0, 0)})
 
 typedef enum {
@@ -29,7 +29,7 @@ struct lox_ir_ll_operand {
         } stack_slot;
         struct {
             struct v_register address;
-            uint64_t offset;
+            int64_t offset;
         } memory_address;
     };
 };

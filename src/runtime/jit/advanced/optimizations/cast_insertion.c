@@ -184,6 +184,11 @@ static lox_ir_type_t calculate_actual_type_child_produces(
         lox_ir_type_t produced_type = get_type_by_ssa_name(ci, control_node, GET_USED_SSA_NAME(input));
         input->produced_type->type = produced_type;
     }
+    if ((input->type == LOX_IR_DATA_NODE_GET_STRUCT_FIELD || input->type == LOX_IR_DATA_NODE_GET_ARRAY_ELEMENT)
+        && input->produced_type->type != LOX_IR_TYPE_LOX_ANY
+        && !is_marked_as_escaped_lox_ir_data_node(input)) {
+        input->produced_type->type = lox_type_to_native_lox_ir_type(input->produced_type->type);
+    }
 
     return input->produced_type->type;
 }
@@ -747,7 +752,7 @@ static bool is_ssa_name_required_to_have_lox_type(struct ssa_name ssa_name, stru
             || current_children->type == LOX_IR_DATA_NODE_GET_ARRAY_ELEMENT) {
             ssa_name_required_to_have_lox_type = false;
             //We won't scan the current_children's children
-            
+
         } else if (current_children->type == LOX_IR_DATA_NODE_GET_SSA_NAME
             && GET_USED_SSA_NAME(current_children).u16 == ssa_name.u16) {
             ssa_name_required_to_have_lox_type = true;

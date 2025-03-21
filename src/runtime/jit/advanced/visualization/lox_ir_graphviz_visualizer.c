@@ -761,11 +761,13 @@ static char * ll_operand_to_string(struct lox_ir_ll_operand operand) {
             return dynamic_format_string("v%s%i%s", fp_reg_string, operand.v_register.number, reg_size_string);
         }
         case LOX_IR_LL_OPERAND_MEMORY_ADDRESS: {
-            char * address_string = ll_operand_to_string(V_REG_TO_OPERAND(operand.memory_address.address));
-            if (operand.memory_address.offset > 0) {
-                return dynamic_format_string("[%s %llu]", address_string, operand.memory_address.offset);
+            if (operand.memory_address.offset != 0) {
+                char * address_string = ll_operand_to_string(V_REG_TO_OPERAND(operand.memory_address.address));
+                char * sign_offset = operand.memory_address.offset > 0 ? "+" : "-";
+                return dynamic_format_string("[%s %s %llu]", address_string, sign_offset, operand.memory_address.offset);
             } else {
-                return address_string;
+                char * address_string = ll_operand_to_string(V_REG_TO_OPERAND(operand.memory_address.address));
+                return dynamic_format_string("[%s]", address_string);
             }
         }
         case LOX_IR_LL_OPERAND_STACK_SLOT: {
