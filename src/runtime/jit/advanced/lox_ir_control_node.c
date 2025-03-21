@@ -190,3 +190,14 @@ bool is_define_phi_lox_ir_control(struct lox_ir_control_node * node) {
             || (GET_DEFINED_SSA_NAME_VALUE(node)->type == LOX_IR_DATA_NODE_CAST
                 && ((struct lox_ir_data_cast_node *) GET_DEFINED_SSA_NAME_VALUE(node))->to_cast->type == LOX_IR_DATA_NODE_PHI));
 }
+
+struct lox_ir_data_phi_node * get_defined_phi_lox_ir_control(struct lox_ir_control_node * node) {
+    struct lox_ir_control_define_ssa_name_node * definition = (struct lox_ir_control_define_ssa_name_node *) node;
+
+    if (definition->value->type == LOX_IR_DATA_NODE_PHI) {
+        return (struct lox_ir_data_phi_node *) definition->value;
+    }
+
+    struct lox_ir_data_cast_node * cast_node = (struct lox_ir_data_cast_node *) definition->value;
+    return (struct lox_ir_data_phi_node *) cast_node->to_cast;
+}

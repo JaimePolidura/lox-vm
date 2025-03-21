@@ -45,7 +45,7 @@ void perform_escape_analysis(struct lox_ir * lox_ir) {
             lox_ir->first_block,
             &escape_analysis->ea_allocator.lox_allocator,
             escape_analysis,
-            LOX_IR_BLOCK_OPT_REPEATED,
+            LOX_IR_BLOCK_OPT_NOT_REPEATED,
             &perform_escape_analysis_block
     );
 
@@ -380,19 +380,27 @@ static struct lox_ir_data_node * get_instance_data_node(struct lox_ir_data_node 
 }
 
 static bool does_ssa_name_escapes(struct ea * ea, struct ssa_name name) {
-    bool escapes = false;
-
     if (contains_u64_hash_table(&ea->instance_by_ssa_name, name.u16)) {
         struct lox_ir_data_node * instance = (struct lox_ir_data_node *) get_u64_hash_table(
                 &ea->instance_by_ssa_name, name.u16);
-        escapes = is_marked_as_escaped_lox_ir_data_node(instance);
+        return is_marked_as_escaped_lox_ir_data_node(instance);
     } else {
-        //Given a0 where it holds a struct which doest escape and a1 where it holds a number: a2 = phi(a0, a1)
-        //Without this code, does_ssa_name_escapes on a2 will return false
-        escapes = true;
-    }
+        struct lox_ir_control_node * definition = get_u64_hash_table(
+                &ea->lox_ir->definitions_by_ssa_name, name.u16);
 
-    return escapes;
+        if (!is_define_phi_lox_ir_control(definition)) {
+            //Given a0 where it holds a struct which doest escape and a1 where it holds a number: a2 = phi(a0, a1)
+            return true;
+        }
+
+        FOR_EACH_SSA_NAME_IN_PHI_NODE(get_defined_phi_lox_ir_control(definition), phi_ssa_name) {
+            if(does_ssa_name_escapes(ea, phi_ssa_name)){
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
 
 //Set operatinos includes: set_struct_field, set_struct_instance

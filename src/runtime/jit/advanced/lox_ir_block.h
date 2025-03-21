@@ -74,8 +74,10 @@ struct u64_set get_successors_lox_ir_block(struct lox_ir_block*, struct lox_allo
 
 typedef bool (*lox_ir_block_consumer_t)(struct lox_ir_block *, void *);
 enum {
-    LOX_IR_BLOCK_OPT_NOT_REPEATED = 1 << 0, //A block can be iterated multiple ways, if many paths leads to that block
-    LOX_IR_BLOCK_OPT_REPEATED = 1 << 1, //A block can be called only once
+    //A block can be iterated multiple ways, if many paths leads to that block
+    LOX_IR_BLOCK_OPT_NOT_REPEATED = 1 << 0,
+    //A block can be called only once and it will be only called when its predecessors have been scanned
+    LOX_IR_BLOCK_OPT_REPEATED = 1 << 1,
 };
 //If the callback returns false, the next blocks from the current block won't be scanned.
 void for_each_lox_ir_block(struct lox_ir_block*,struct lox_allocator*,void*,long,lox_ir_block_consumer_t);

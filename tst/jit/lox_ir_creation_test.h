@@ -27,10 +27,15 @@ TEST(lox_ir_lowerer_ptr) {
             "}"
             ""
             "fun function() {"
-            "   var point = Point{1, 2};"
-            "   print point.x;"
-            "   point.y = 3;"
-            "   return point.x + point.y;"
+            "   var arr = [1, 2, 3];"
+            "   transform(arr[0]);"
+            "   arr = [1, 2, 2];"
+            "   if(len(arr) > 10) {"
+            "       var t = p[0];"
+            "   } else {"
+            "       arr = [1, 2];"
+            "   }"
+            "   print arr[2];"
             "}"
     );
     run(compilation);
@@ -45,7 +50,7 @@ TEST(lox_ir_lowerer_ptr) {
     visualize_lox_ir(
             package,
             function,
-            LOWERING_LOX_IR_VISUALIZATION,
+            CAST_INSERTION_PHASE_LOX_IR_VISUALIZATION,
             DISPLAY_TYPE_INFO_OPT | DISPLAY_ESCAPE_INFO_OPT,
             LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"

@@ -64,6 +64,7 @@ void mark_as_escaped_lox_ir_control(struct lox_ir_control_node *node);
 bool is_marked_as_escaped_lox_ir_control(struct lox_ir_control_node *node);
 bool is_lowered_type_lox_ir_control(struct lox_ir_control_node *node);
 bool is_define_phi_lox_ir_control(struct lox_ir_control_node *node);
+struct lox_ir_data_phi_node * get_defined_phi_lox_ir_control(struct lox_ir_control_node*);
 
 //OP_SET_LOCAL
 struct lox_ir_control_set_local_node {
