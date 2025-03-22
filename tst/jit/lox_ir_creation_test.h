@@ -18,26 +18,18 @@ static void run(struct compilation_result);
 
 TEST(lox_ir_lowerer_ptr) {
     struct compilation_result compilation = compile_standalone(
-            "struct Point {"
-            "   x;"
-            "   y;"
-            "}"
-            ""
-            "fun transform(p) {"
-            "}"
-            ""
-            "fun function() {"
-            "   var arr = [1, 2, 3];"
-            "   transform(arr[0]);"
-            "   arr = [1, 2, 2];"
-            "   if(len(arr) > 10) {"
-            "       var t = p[0];"
+            "fun function(a) {"
+            "   var b = 12;"
+            "   var c = 13;"
+            "   if(a > b) {"
+            "       c = a;"
             "   } else {"
-            "       arr = [1, 2];"
+            "       c = b;"
             "   }"
-            "   print arr[2];"
+            "   return c + 1;"
             "}"
     );
+
     run(compilation);
 
     struct package * package = compilation.compiled_package;

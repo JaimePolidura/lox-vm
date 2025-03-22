@@ -380,6 +380,11 @@ static struct lox_ir_data_node * get_instance_data_node(struct lox_ir_data_node 
 }
 
 static bool does_ssa_name_escapes(struct ea * ea, struct ssa_name name) {
+    // Function argument
+    if (name.value.version == 0) {
+        return true;
+    }
+
     if (contains_u64_hash_table(&ea->instance_by_ssa_name, name.u16)) {
         struct lox_ir_data_node * instance = (struct lox_ir_data_node *) get_u64_hash_table(
                 &ea->instance_by_ssa_name, name.u16);
