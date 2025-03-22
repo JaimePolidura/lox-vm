@@ -764,7 +764,7 @@ static char * ll_operand_to_string(struct lox_ir_ll_operand operand) {
             if (operand.memory_address.offset != 0) {
                 char * address_string = ll_operand_to_string(V_REG_TO_OPERAND(operand.memory_address.address));
                 char * sign_offset = operand.memory_address.offset > 0 ? "+" : "-";
-                return dynamic_format_string("[%s %s %llu]", address_string, sign_offset, operand.memory_address.offset);
+                return dynamic_format_string("[%s %s %i]", address_string, sign_offset, abs(operand.memory_address.offset));
             } else {
                 char * address_string = ll_operand_to_string(V_REG_TO_OPERAND(operand.memory_address.address));
                 return dynamic_format_string("[%s]", address_string);
@@ -773,10 +773,11 @@ static char * ll_operand_to_string(struct lox_ir_ll_operand operand) {
         case LOX_IR_LL_OPERAND_STACK_SLOT: {
             char * stack_slot_string = dynamic_format_string("StackSlot(%i)", operand.stack_slot.slot_index);
 
-            if(operand.stack_slot.offset > 0) {
-                return dynamic_format_string("[%s %llu]", stack_slot_string, operand.memory_address.offset);
+            if (operand.stack_slot.offset > 0) {
+                char * offset_sign = operand.stack_slot.offset > 0 ? "+" : "-";
+                return dynamic_format_string("[%s %s %i]", stack_slot_string, offset_sign, abs(operand.stack_slot.offset));
             } else {
-                return stack_slot_string;
+                return dynamic_format_string("[%s]", stack_slot_string);
             }
         }
     }
@@ -793,6 +794,7 @@ static char * register_size_to_string(uint64_t reg_size) {
         return " BYTE";
     } else {
         //TODO Panic
+        return "";
     }
 }
 
@@ -804,6 +806,9 @@ static char * ll_unary_operator_to_string(unary_operator_type_ll_lox_ir operator
         case UNARY_LL_LOX_IR_I64_TO_F64_CAST: return "int2fp";
         case UNARY_LL_LOX_IR_INC: return "inc";
         case UNARY_LL_LOX_IR_DEC: return "dec";
+        case UNARY_LL_LOX_IR_FLAGS_EQ_TO_NATIVE_BOOL: return "isEq";
+        case UNARY_LL_LOX_IR_FLAGS_LESS_TO_NATIVE_BOOL: return "isLess";
+        case UNARY_LL_LOX_IR_FLAGS_GREATER_TO_NATIVE_BOOL: return "isGreater";
         default: //TODO Panic
     }
 }

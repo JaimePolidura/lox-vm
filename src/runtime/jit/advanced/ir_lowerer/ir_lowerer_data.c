@@ -54,7 +54,6 @@ static bool is_binary_inc(struct lox_ir_data_binary_node *);
 static bool is_binary_dec(struct lox_ir_data_binary_node *);
 static void emit_native_to_lox(struct lllil_control*,struct lox_ir_ll_operand,lox_ir_type_t,lox_ir_type_t);
 static void emit_lox_to_native(struct lllil_control*,struct lox_ir_ll_operand,lox_ir_type_t,lox_ir_type_t);
-static struct lox_ir_ll_operand emit_operand_to_register(struct lllil_control*,struct lox_ir_ll_operand,bool);
 static struct lox_ir_ll_operand copy_into_new_register(struct lllil_control*, struct lox_ir_ll_operand);
 static struct lox_ir_ll_operand lowerer_lox_ir_data_lox_function_call(struct lllil_control*,struct lox_ir_data_function_call_node*,struct v_register*);
 static struct lox_ir_ll_operand lowerer_lox_ir_data_native_function_call(struct lllil_control*,struct lox_ir_data_function_call_node*,struct v_register*);
@@ -148,13 +147,13 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_binary(
             return emit_binary_op(control, BINARY_LL_LOX_IR_RIGHT_SHIFT, left, right, result);
         case OP_GREATER:
             emit_comparation_ll_lox_ir(control, COMPARATION_LL_LOX_IR_GREATER, left, right);
-            return FLAGS_OPERAND();
+            return FLAGS_OPERAND(OP_GREATER);
         case OP_LESS:
             emit_comparation_ll_lox_ir(control, COMPARATION_LL_LOX_IR_LESS, left, right);
-            return FLAGS_OPERAND();
+            return FLAGS_OPERAND(OP_LESS);
         case OP_EQUAL:
             emit_comparation_ll_lox_ir(control, COMPARATION_LL_LOX_IR_EQ, left, right);
-            return FLAGS_OPERAND();
+            return FLAGS_OPERAND(OP_EQUAL);
         default:
             //TODO Panic
     }
@@ -397,7 +396,7 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_element_does_not_e
         struct lox_ir_data_get_array_element_node * node,
         struct v_register * result
 ) {
-    struct lox_ir_ll_operand instance = lower_lox_ir_data(lllil, &node->data, node->index, result);
+    struct lox_ir_ll_operand instance = lower_lox_ir_data(lllil, &node->data, node->instance, result);
     struct lox_ir_ll_operand index = lower_lox_ir_data(lllil, &node->data, node->index, NULL);
 
     if (node->requires_range_check) {
@@ -1192,29 +1191,6 @@ static bool is_binary_dec(struct lox_ir_data_binary_node * binary) {
            && binary->data.produced_type->type == LOX_IR_TYPE_NATIVE_I64
            && (binary->left->type == LOX_IR_DATA_NODE_CONSTANT || binary->right->type == LOX_IR_DATA_NODE_CONSTANT)
            && (GET_CONST_VALUE_LOX_IR_NODE(binary->left) == 1 || GET_CONST_VALUE_LOX_IR_NODE(binary->right) == 1);
-}
-
-static struct lox_ir_ll_operand emit_operand_to_register(
-        struct lllil_control * lllil,
-        struct lox_ir_ll_operand operand,
-        bool is_fp
-) {
-    switch (operand.type) {
-        case LOX_IR_LL_OPERAND_REGISTER: return operand;
-        case LOX_IR_LL_OPERAND_MEMORY_ADDRESS:
-        case LOX_IR_LL_OPERAND_STACK_SLOT:
-        case LOX_IR_LL_OPERAND_IMMEDIATE: {
-            struct lox_ir_ll_operand v_register = alloc_new_v_register(lllil, is_fp);
-            emit_move_ll_lox_ir(lllil, v_register, operand);
-            return v_register;
-        }
-        case LOX_IR_LL_OPERAND_FLAGS: {
-            struct lox_ir_ll_operand v_register = alloc_new_v_register(lllil, false);
-            emit_unary_ll_lox_ir(lllil, operand, UNARY_LL_LOX_IR_FLAGS_TO_NATIVE_BOOL);
-            return v_register;
-        }
-        default: //TODO Runtiem panic
-    }
 }
 
 static void emit_lox_to_native(

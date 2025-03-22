@@ -200,6 +200,7 @@ struct lox_ir_control_ll_function_call {
     //Only used for debugging purposes
     char * function_name;
     //Pointers to struct lox_ir_ll_operand
+    //Operands allowed: REGISTER, IMMEDIATE, MEMORY_ADDRESS, STACK_SLOT
     struct ptr_arraylist arguments;
     bool has_return_value;
     struct v_register return_value_v_reg;
@@ -207,13 +208,16 @@ struct lox_ir_control_ll_function_call {
 
 struct lox_ir_control_ll_return {
     struct lox_ir_control_node control;
+    //Operands allowed: REGISTER, IMMEDIATE, MEMORY_ADDRESS, STACK_SLOT
     struct lox_ir_ll_operand to_return;
     bool empty_return;
 };
 
 struct lox_ir_control_ll_move {
     struct lox_ir_control_node control;
+    //Operands allowed: REGISTER, IMMEDIATE, MEMORY_ADDRESS, STACK_SLOT
     struct lox_ir_ll_operand from;
+    //Operands allowed: REGISTER, MEMORY_ADDRESS, STACK_SLOT
     struct lox_ir_ll_operand to;
 };
 
@@ -224,11 +228,14 @@ typedef enum {
     UNARY_LL_LOX_IR_I64_TO_F64_CAST,
     UNARY_LL_LOX_IR_INC, //Only works for native i64
     UNARY_LL_LOX_IR_DEC, //Only works for native i64
-    UNARY_LL_LOX_IR_FLAGS_TO_NATIVE_BOOL,
+    UNARY_LL_LOX_IR_FLAGS_EQ_TO_NATIVE_BOOL,
+    UNARY_LL_LOX_IR_FLAGS_LESS_TO_NATIVE_BOOL,
+    UNARY_LL_LOX_IR_FLAGS_GREATER_TO_NATIVE_BOOL
 } unary_operator_type_ll_lox_ir;
 
 struct lox_ir_control_ll_unary {
     struct lox_ir_control_node control;
+    //Operands allowed: REGISTER, IMMEDIATE
     struct lox_ir_ll_operand operand;
     unary_operator_type_ll_lox_ir operator;
 };
@@ -252,15 +259,20 @@ typedef enum {
 
 struct lox_ir_control_ll_binary {
     struct lox_ir_control_node control;
+    //Operands allowed: REGISTER, IMMEDIATE
     struct lox_ir_ll_operand left;
+    //Operands allowed: REGISTER, IMMEDIATE
     struct lox_ir_ll_operand right;
     binary_operator_type_ll_lox_ir operator;
+    //Operands allowed: REGISTER, IMMEDIATE
     struct lox_ir_ll_operand result;
 };
 
 struct lox_ir_control_ll_comparation {
     struct lox_ir_control_node control;
+    //Operands allowed: REGISTER, IMMEDIATE
     struct lox_ir_ll_operand left;
+    //Operands allowed: REGISTER, IMMEDIATE
     struct lox_ir_ll_operand right;
     comparation_operator_type_ll_lox_ir comparation_operator;
 };

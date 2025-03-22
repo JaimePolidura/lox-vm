@@ -14,6 +14,7 @@ extern void guard_array_type_check_jit_runtime(lox_value_t);
 extern void switch_to_interpreter_jit_runime();
 extern void range_check_panic_jit_runime();
 
+
 int get_offset_field_struct_definition_ll_lox_ir(
         struct struct_definition_object * definition,
         char * field_name
@@ -391,19 +392,26 @@ void emit_range_check_ll_lox_ir(
         bool array_instance_escapes
 ) {
     //Firts check: index_to_access < 0
-    emit_comparation_ll_lox_ir(
-            lllil,
-            COMPARATION_LL_LOX_IR_LESS,
-            index_to_access,
-            IMMEDIATE_TO_OPERAND(0)
-    );
-    emit_conditional_function_call_ll_lox_ir(
-            lllil,
-            COMPARATION_LL_LOX_IR_IS_TRUE,
-            &range_check_panic_jit_runime,
-            "range_check_panic_jit_runime",
-            0
-    );
+    if (index_to_access.type != LOX_IR_LL_OPERAND_IMMEDIATE) {
+        emit_comparation_ll_lox_ir(
+                lllil,
+                COMPARATION_LL_LOX_IR_LESS,
+                index_to_access,
+                IMMEDIATE_TO_OPERAND(0)
+        );
+        emit_conditional_function_call_ll_lox_ir(
+                lllil,
+                COMPARATION_LL_LOX_IR_IS_TRUE,
+                &range_check_panic_jit_runime,
+                "range_check_panic_jit_runime",
+                0
+        );
+    }
+    if (index_to_access.type == LOX_IR_LL_OPERAND_IMMEDIATE
+        && index_to_access.immedate < 0) {
+        //TODO Runtime panic
+    }
+
     //Second check index_to_access >= array_size
     struct lox_ir_ll_operand array_size = emit_get_array_length_ll_lox_ir(lllil, instance,
             array_instance_escapes, alloc_v_register_lox_ir(lllil->lllil->lox_ir, false));
@@ -624,21 +632,13 @@ static struct lox_ir_ll_operand emit_get_array_length_ll_lox_ir_escapes(
         struct lox_ir_ll_operand instance, //Expect type NATIVE_ARRAY_INSTANCE
         struct v_register result
 ) {
-    emit_binary_ll_lox_ir(
-            control,
-            BINARY_LL_LOX_IR_ISUB,
-            instance,
-            instance,
-            IMMEDIATE_TO_OPERAND(sizeof(int))
-    );
-
     struct lox_ir_ll_operand array_length_value = V_REG_TO_OPERAND(result);
 
     emit_load_at_offset_ll_lox_ir(
             control,
-            array_length_value,
+            (array_length_value),
             instance,
-            0
+            offsetof(struct lox_arraylist, in_use)
     );
 
     return array_length_value;
@@ -646,24 +646,16 @@ static struct lox_ir_ll_operand emit_get_array_length_ll_lox_ir_escapes(
 
 static struct lox_ir_ll_operand emit_get_array_length_ll_lox_ir_doesnt_escape(
         struct lllil_control * control,
-        struct lox_ir_ll_operand array_instance, //Expect type NATIVE_ARRAY_INSTANCE
+        struct lox_ir_ll_operand instance, //Expect type NATIVE_ARRAY_INSTANCE
         struct v_register result
 ) {
-    emit_binary_ll_lox_ir(
-            control,
-            BINARY_LL_LOX_IR_IADD,
-            array_instance,
-            array_instance,
-            IMMEDIATE_TO_OPERAND(offsetof(struct lox_arraylist, in_use))
-    );
-
     struct lox_ir_ll_operand array_length_value = V_REG_TO_OPERAND(result);
 
     emit_load_at_offset_ll_lox_ir(
             control,
-            (array_length_value),
-            array_instance,
-            0
+            array_length_value,
+            instance,
+            - sizeof(int)
     );
 
     return array_length_value;

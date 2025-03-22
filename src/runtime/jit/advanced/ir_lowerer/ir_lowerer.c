@@ -92,11 +92,11 @@ static struct ptr_arraylist * merge_predecessors_stack_slots_lists(
         if (!a_list_completed && !b_list_completed) {
             uint64_t stack_slot_size_a = (uint64_t) a->values[i];
             uint64_t stack_slot_size_b = (uint64_t) b->values[i];
-            result->values[i] = (void *) MAX(stack_slot_size_a, stack_slot_size_b);
+            append_ptr_arraylist(result, (void *) MAX(stack_slot_size_a, stack_slot_size_b));
         } else if (!a_list_completed && b_list_completed) {
-            result->values[i] = a->values[i];
+            append_ptr_arraylist(result, a->values[i]);
         } else if (a_list_completed && !b_list_completed) {
-            result->values[i] = b->values[i];
+            append_ptr_arraylist(result, b->values[i]);
         }
     }
 
