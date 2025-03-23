@@ -1,5 +1,6 @@
 #pragma once
 
+#include "shared/bytecode/bytecode.h"
 #include "shared.h"
 #include "runtime/jit/advanced/phi_resolution/v_register.h"
 
@@ -35,3 +36,5 @@ struct lox_ir_ll_operand {
         } memory_address;
     };
 };
+
+struct v_register * get_used_v_reg_ll_operand(struct lox_ir_ll_operand *);

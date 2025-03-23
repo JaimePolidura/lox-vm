@@ -90,5 +90,3 @@ struct lox_ir_type * get_type_by_ssa_name_lox_ir(struct lox_ir *lox_ir, struct l
 void put_type_by_ssa_name_lox_ir(struct lox_ir *lox_ir, struct lox_ir_block *block, struct ssa_name ssa_name, struct lox_ir_type *new_type);
 
 struct v_register alloc_v_register_lox_ir(struct lox_ir*, bool);
-void add_v_register_use_lox_ir(struct lox_ir *lox_ir, int, struct lox_ir_control_node*);
-void add_v_register_definition_lox_ir(struct lox_ir *lox_ir, int, struct lox_ir_control_node*);

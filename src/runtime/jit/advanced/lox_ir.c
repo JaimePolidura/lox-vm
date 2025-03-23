@@ -3,6 +3,8 @@
 static struct u64_set get_blocks_to_remove(struct lox_ir_block*);
 static void record_new_node_information_of_block(struct lox_ir*,struct lox_ir_block*,struct lox_ir_control_node*);
 static void record_removed_node_information_of_block(struct lox_ir*,struct lox_ir_block*,struct lox_ir_control_node*);
+static void add_v_register_use_lox_ir(struct lox_ir*,int,struct lox_ir_control_node*);
+static void add_v_register_definition_lox_ir(struct lox_ir*,int,struct lox_ir_control_node*);
 
 void add_last_control_node_block_lox_ir(
         struct lox_ir * lox_ir,
@@ -157,10 +159,20 @@ static void record_new_node_information_of_block(
     }
     free_u64_set(&used_ssa_names);
 
+    struct u64_set used_v_regs = get_used_v_registers_lox_ir_control(new_block_node, NATIVE_LOX_ALLOCATOR());
+    FOR_EACH_U64_SET_VALUE(used_v_regs, used_v_reg) {
+        add_v_register_use_lox_ir(lox_ir, (int) used_v_reg, new_block_node);
+    }
+    free_u64_set(&used_ssa_names);
+
     if (new_block_node->type == LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME) {
         struct lox_ir_control_define_ssa_name_node * define = (struct lox_ir_control_define_ssa_name_node *) new_block_node;
         add_u64_set(&block->defined_ssa_names, define->ssa_name.u16);
         put_u64_hash_table(&lox_ir->definitions_by_ssa_name, define->ssa_name.u16, new_block_node);
+    }
+    if (new_block_node->type == LOX_IR_CONTROL_NODE_SET_V_REGISTER) {
+        struct lox_ir_control_set_v_register_node * set_v_reg = (struct lox_ir_control_set_v_register_node *) new_block_node;
+        add_v_register_definition_lox_ir(lox_ir, set_v_reg->v_register.number, new_block_node);
     }
 }
 
@@ -515,7 +527,7 @@ void add_ssa_name_use_lox_ir(
     add_u64_set(uses, (uint64_t) control_node);
 }
 
-void add_v_register_use_lox_ir(
+static void add_v_register_use_lox_ir(
         struct lox_ir * lox_ir,
         int v_reg,
         struct lox_ir_control_node * control_node
@@ -530,7 +542,7 @@ void add_v_register_use_lox_ir(
     add_u64_set(uses, (uint64_t) control_node);
 }
 
-void add_v_register_definition_lox_ir(
+static void add_v_register_definition_lox_ir(
         struct lox_ir * lox_ir,
         int v_reg,
         struct lox_ir_control_node * control

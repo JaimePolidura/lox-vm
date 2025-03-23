@@ -99,7 +99,6 @@ static void replace_get_ssa_name_with_get_v_reg(struct pr_control * pr_control, 
     get_ssa_name->data.type = LOX_IR_DATA_NODE_GET_V_REGISTER;
     struct lox_ir_data_get_v_register_node * get_v_reg = (struct lox_ir_data_get_v_register_node *) get_ssa_name;
     get_v_reg->v_register = v_reg;
-    add_v_register_use_lox_ir(pr_control->pr->lox_ir, v_reg.number, pr_control->current_control);
 }
 
 static void replace_define_ssa_name_with_set_v_reg(struct pr * pr, struct lox_ir_control_define_ssa_name_node * define_ssa_name) {
@@ -111,8 +110,6 @@ static void replace_define_ssa_name_with_set_v_reg(struct pr * pr, struct lox_ir
     struct lox_ir_control_set_v_register_node * set_v_reg = (struct lox_ir_control_set_v_register_node *) define_ssa_name;
     set_v_reg->v_register = new_v_reg;
     set_v_reg->value = value;
-
-    add_v_register_definition_lox_ir(pr->lox_ir, new_v_reg.number, &set_v_reg->control);
 }
 
 static bool is_define_phi_node(struct lox_ir_control_node * control_node) {
