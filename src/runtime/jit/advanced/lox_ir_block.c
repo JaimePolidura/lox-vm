@@ -248,3 +248,18 @@ struct u64_set get_successors_lox_ir_block(struct lox_ir_block * block, struct l
 
     return children;
 }
+
+int get_index_control_lox_ir_block(
+        struct lox_ir_block * block,
+        struct lox_ir_control_node * target
+) {
+    int current_index = 0;
+
+    for (struct lox_ir_control_node * current = block->first;;target = target->next, current_index++) {
+        if (current == target) {
+            return current_index;
+        }
+    }
+
+    return -1;
+}

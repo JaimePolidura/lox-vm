@@ -37,15 +37,15 @@ struct lox_ir {
     //Set of pointers to blocks which contains a return/ret control node
     //This set is only modified at the lox_ir creation process
     struct u64_set exit_blocks;
-    //Set of pointers to blocks which contains a loop control node
-    //This set is only modified at the lox_ir creation process
-    struct u64_set loop_blocks;
 
     int last_v_reg_allocated;
-    //key: v register number, value: u64_set of pointers to control_nodes
+    //key: v register number, value: pointer to u64_set of pointers to control_nodes
     struct u64_hash_table definitions_by_v_reg;
-    //key: v register number, value: u64_set of pointers control_nodes
+    //key: v register number, value: pointer to u64_set of pointers control_nodes
     struct u64_hash_table node_uses_by_v_reg;
+
+    //Might be used in some optizations phases
+    void * extra;
 };
 
 struct lox_ir * alloc_lox_ir(struct lox_allocator*,struct function_object*,struct package*);
@@ -70,7 +70,7 @@ void remove_only_block_lox_ir(struct lox_ir*, struct lox_ir_block*);
 //Removes a true/false branch/block and the subsequent children of the branch/block to remove (subgraph)
 struct branch_removed {
     struct u64_set ssa_name_definitions_removed;
-    struct u64_set blocksremoved;
+    struct u64_set blocks_removed;
 };
 struct branch_removed remove_block_branch_lox_ir(struct lox_ir*, struct lox_ir_block*, bool, struct lox_allocator*);
 //a dominates b

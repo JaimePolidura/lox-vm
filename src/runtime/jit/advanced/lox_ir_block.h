@@ -71,6 +71,7 @@ struct lox_ir_block_loop_info * get_loop_info_lox_ir_block(struct lox_ir_block *
 void reset_loop_info(struct lox_ir_block*);
 //Returns set of pointers to struct lox_ir_block*
 struct u64_set get_successors_lox_ir_block(struct lox_ir_block*, struct lox_allocator*);
+int get_index_control_lox_ir_block(struct lox_ir_block *, struct lox_ir_control_node *);
 
 typedef bool (*lox_ir_block_consumer_t)(struct lox_ir_block *, void *);
 enum {

@@ -157,6 +157,9 @@ struct u64_set get_used_v_registers_lox_ir_control(struct lox_ir_control_node *c
         case LOX_IR_CONTROL_NODE_LL_MOVE: {
             struct lox_ir_control_ll_move * move = (struct lox_ir_control_ll_move *) control_node;
             MAYBE_ADD_OPERAND_TO_USED_V_REGS(&used_v_regs, &move->from)
+            if (move->to.type != LOX_IR_LL_OPERAND_REGISTER) {
+                MAYBE_ADD_OPERAND_TO_USED_V_REGS(&used_v_regs, &move->to)
+            }
             break;
         }
         case LOX_IR_CONTROL_NODE_LL_BINARY: {

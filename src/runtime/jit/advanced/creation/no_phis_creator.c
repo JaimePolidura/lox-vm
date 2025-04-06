@@ -604,7 +604,6 @@ static void loop(struct no_phis_inserter * inserter, struct pending_evaluate * t
     clear_u8_set(&inserter->current_block_local_usage.used);
     add_last_control_node_block_lox_ir(inserter->lox_ir, to_evalute->block, &loop_jump_node->control);
     put_u64_hash_table(&inserter->control_nodes_by_bytecode, (uint64_t) to_evalute->pending_bytecode, loop_jump_node);
-    add_u64_set(&inserter->lox_ir->loop_blocks, (uint64_t) to_evalute->block);
 }
 
 static void jump(struct no_phis_inserter * insterter, struct pending_evaluate * to_evalute) {

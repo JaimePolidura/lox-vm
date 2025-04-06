@@ -133,7 +133,6 @@ static void record_removed_node_information_of_block(
         struct lox_ir_control_node * removed_node
 ) {
     remove_u64_set(&lox_ir->exit_blocks, (uint64_t) removed_node);
-    remove_u64_set(&lox_ir->loop_blocks, (uint64_t) removed_node);
 
     struct u64_set used_ssa_names = get_used_ssa_names_lox_ir_control(removed_node, NATIVE_LOX_ALLOCATOR());
     FOR_EACH_U64_SET_VALUE(used_ssa_names, uint64_t, used_ssa_name_u64) {
