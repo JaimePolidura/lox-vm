@@ -18,8 +18,8 @@ void * peek_n_stack_list(struct stack_list * list, int n) {
 }
 
 void push_set_stack_list(struct stack_list * stack, struct u64_set values) {
-    FOR_EACH_U64_SET_VALUE(values, value) {
-        push_stack_list(stack, (void *) value);
+    FOR_EACH_U64_SET_VALUE(values, void *, value) {
+        push_stack_list(stack, value);
     }
 }
 

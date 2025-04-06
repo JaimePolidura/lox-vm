@@ -14,6 +14,7 @@
 #include "runtime/jit/advanced/phi_resolution/v_register.h"
 #include "runtime/jit/advanced/lox_ir_guard.h"
 #include "runtime/jit/advanced/lox_ir_type.h"
+#include "runtime/jit/advanced/ssa_name.h"
 #include "runtime/profiler/profile_data.h"
 
 typedef enum {
@@ -194,20 +195,6 @@ struct lox_ir_data_initialize_array_node {
     bool empty_initialization;
     struct lox_ir_data_node ** elememnts;
     bool escapes;
-};
-
-//These nodes will be only used when inserting phi functions in the graph ir creation process
-#define CREATE_SSA_NAME(local_number, version) (struct ssa_name) {.value = {local_number, version}}
-#define CREATE_SSA_NAME_FROM_U64(u64_value) (struct ssa_name) {.u16 = (uint16_t) u64_value}
-
-struct ssa_name {
-    union {
-        struct {
-            uint8_t local_number;
-            uint8_t version;
-        } value;
-        uint16_t u16;
-    };
 };
 
 #define FOR_EACH_SSA_NAME_IN_PHI_NODE(phi_node, current_name) \

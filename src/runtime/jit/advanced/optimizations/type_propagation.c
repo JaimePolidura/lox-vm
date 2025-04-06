@@ -562,8 +562,7 @@ static void push_pending_evaluate(
 static struct u64_hash_table * get_merged_type_map_block(struct tp * tp, struct lox_ir_block * next_block) {
     struct u64_hash_table * merged = get_type_by_ssa_name_by_block(tp, next_block);
 
-    FOR_EACH_U64_SET_VALUE(next_block->predecesors, predecesor_u64_ptr) {
-        struct lox_ir_block * predecesor = (struct lox_ir_block *) predecesor_u64_ptr;
+    FOR_EACH_U64_SET_VALUE(next_block->predecesors, struct lox_ir_block *, predecesor) {
         struct u64_hash_table * predecesor_type_by_ssa_name = get_type_by_ssa_name_by_block(tp, predecesor);
         struct u64_hash_table_iterator predecesor_type_by_ssa_name_it;
         init_u64_hash_table_iterator(&predecesor_type_by_ssa_name_it, *predecesor_type_by_ssa_name);

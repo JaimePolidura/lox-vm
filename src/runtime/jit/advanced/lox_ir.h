@@ -4,6 +4,7 @@
 #include "runtime/jit/advanced/creation/phi_inserter.h"
 #include "runtime/jit/jit_compilation_result.h"
 #include "runtime/jit/advanced/lox_ir_block.h"
+#include "runtime/jit/advanced/ssa_name.h"
 
 #include "compiler/bytecode/bytecode_list.h"
 
@@ -33,6 +34,12 @@ struct lox_ir {
     struct u64_hash_table type_by_ssa_name_by_block;
     //Key: ssa_name, value: boolean that indicates is the ssa name definitino is cyclical
     struct u64_hash_table cyclic_ssa_name_definitions;
+    //Set of pointers to blocks which contains a return/ret control node
+    //This set is only modified at the lox_ir creation process
+    struct u64_set exit_blocks;
+    //Set of pointers to blocks which contains a loop control node
+    //This set is only modified at the lox_ir creation process
+    struct u64_set loop_blocks;
 
     int last_v_reg_allocated;
     //key: v register number, value: u64_set of pointers to control_nodes
@@ -63,7 +70,7 @@ void remove_only_block_lox_ir(struct lox_ir*, struct lox_ir_block*);
 //Removes a true/false branch/block and the subsequent children of the branch/block to remove (subgraph)
 struct branch_removed {
     struct u64_set ssa_name_definitions_removed;
-    struct u64_set blocks_removed;
+    struct u64_set blocksremoved;
 };
 struct branch_removed remove_block_branch_lox_ir(struct lox_ir*, struct lox_ir_block*, bool, struct lox_allocator*);
 //a dominates b

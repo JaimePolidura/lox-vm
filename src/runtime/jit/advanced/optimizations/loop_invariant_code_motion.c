@@ -123,7 +123,7 @@ static bool is_data_node_loop_invariant(
 
     bool all_loop_invariant = true;
 
-    FOR_EACH_U64_SET_VALUE(used_ssa_names, used_ssa_name_u64) {
+    FOR_EACH_U64_SET_VALUE(used_ssa_names, uint64_t, used_ssa_name_u64) {
         struct ssa_name used_ssa_name = CREATE_SSA_NAME_FROM_U64(used_ssa_name_u64);
 
         if(contains_u8_set(&loop_info->modified_local_numbers, used_ssa_name.value.local_number)){
@@ -179,8 +179,7 @@ static struct lox_ir_block * get_block_to_move_invariant(struct licm * licm, str
     clear_u64_set(&loop_condition_block->predecesors);
     add_u64_set(&loop_condition_block->predecesors, (uint64_t) new_block);
 
-    FOR_EACH_U64_SET_VALUE(new_block->predecesors, predecessor_new_block_u64_ptr) {
-        struct lox_ir_block * predecessor_new_block = (struct lox_ir_block *) predecessor_new_block_u64_ptr;
+    FOR_EACH_U64_SET_VALUE(new_block->predecesors, struct lox_ir_block *, predecessor_new_block) {
         predecessor_new_block->type_next = TYPE_NEXT_LOX_IR_BLOCK_SEQ;
         predecessor_new_block->next_as.next = new_block;
     }

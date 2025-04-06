@@ -136,8 +136,7 @@ static void perform_cast_insertion_data(
 ) {
     bool first_iteration = parent_node == NULL;
 
-    FOR_EACH_U64_SET_VALUE(get_children_lox_ir_data_node(child_node, &ci->ci_allocator.lox_allocator), children_field_ptr_u64) {
-        void ** children_field_ptr = (void **) children_field_ptr_u64;
+    FOR_EACH_U64_SET_VALUE(get_children_lox_ir_data_node(child_node, &ci->ci_allocator.lox_allocator), void **, children_field_ptr) {
         struct lox_ir_data_node * child = *((struct lox_ir_data_node **) children_field_ptr);
 
         perform_cast_insertion_data(ci, block, control, child, child_node, (void **) children_field_ptr,
@@ -797,8 +796,7 @@ static bool control_requires_lox_input(struct ci * ci, struct lox_ir_control_nod
 
             bool some_use_requires_lox_type_as_input = false;
 
-            FOR_EACH_U64_SET_VALUE(*uses_ssa_name, node_uses_ssa_name_ptr_u64) {
-                struct lox_ir_control_node * node_uses_ssa_name = (struct lox_ir_control_node *) node_uses_ssa_name_ptr_u64;
+            FOR_EACH_U64_SET_VALUE(*uses_ssa_name, struct lox_ir_control_node *, node_uses_ssa_name) {
 
                 if (((node_uses_ssa_name->type == LOX_IR_CONTROL_NODE_SET_ARRAY_ELEMENT && is_marked_as_escaped_lox_ir_control(node_uses_ssa_name)) ||
                    (node_uses_ssa_name->type == LOX_IR_CONTROL_NODE_SET_STRUCT_FIELD && is_marked_as_escaped_lox_ir_control(node_uses_ssa_name)) ||
@@ -821,7 +819,7 @@ static bool can_process(struct ci * ci, struct lox_ir_block * block) {
     }
 
     bool can_process = true;
-    FOR_EACH_U64_SET_VALUE(block->predecesors, current_predecessor) {
+    FOR_EACH_U64_SET_VALUE(block->predecesors, uint64_t, current_predecessor) {
         if(!contains_u64_set(&ci->processed_blocks, current_predecessor)){
             can_process = false;
             break;

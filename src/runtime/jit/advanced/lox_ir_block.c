@@ -105,8 +105,7 @@ bool is_emtpy_lox_ir_block(struct lox_ir_block * block) {
 void replace_block_lox_ir_block(struct lox_ir_block * old_block, struct lox_ir_block * new_block) {
     reset_loop_info(new_block);
 
-    FOR_EACH_U64_SET_VALUE(old_block->predecesors, predecesor_u64_ptr) {
-        struct lox_ir_block * predecesor_node = (void *) predecesor_u64_ptr;
+    FOR_EACH_U64_SET_VALUE(old_block->predecesors, struct lox_ir_block *, predecesor_node) {
         switch (predecesor_node->type_next) {
             case TYPE_NEXT_LOX_IR_BLOCK_LOOP: {
                 if (predecesor_node->next_as.loop == old_block) {

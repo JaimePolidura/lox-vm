@@ -128,7 +128,7 @@ bool get_used_locals_consumer(struct lox_ir_data_node * _, void ** __, struct lo
         add_u8_set(used_locals_set, get_local->local_number);
     } else if(current_node->type == LOX_IR_DATA_NODE_PHI){
         struct lox_ir_data_phi_node * phi = (struct lox_ir_data_phi_node *) current_node;
-        FOR_EACH_U64_SET_VALUE(phi->ssa_versions, phi_version) {
+        FOR_EACH_U64_SET_VALUE(phi->ssa_versions, uint64_t, phi_version) {
             add_u8_set(used_locals_set, phi_version);
         }
     }
@@ -332,8 +332,7 @@ static bool for_each_lox_ir_data_node_recursive(
     }
 
     struct u64_set children_ptr_set = get_children_lox_ir_data_node(current_node, NATIVE_LOX_ALLOCATOR());
-    FOR_EACH_U64_SET_VALUE(children_ptr_set, children_ptr_u64) {
-        struct lox_ir_data_node ** children_ptr = (struct lox_ir_data_node **) children_ptr_u64;
+    FOR_EACH_U64_SET_VALUE(children_ptr_set, struct lox_ir_data_node **, children_ptr) {
         for_each_lox_ir_data_node_recursive(current_node, (void **) children_ptr, *children_ptr, extra, options,
                                             consumer);
     }
@@ -559,12 +558,10 @@ static struct u64_set flat_out_binary_operand_nodes(struct lox_ir_data_node * no
 }
 
 static bool check_equivalence_flatted_out(struct u64_set left, struct u64_set right, struct lox_allocator * allocator) {
-    FOR_EACH_U64_SET_VALUE(left, current_left_data_node_u64_ptr) {
-        struct lox_ir_data_node * current_left_data_node = (struct lox_ir_data_node *) current_left_data_node_u64_ptr;
+    FOR_EACH_U64_SET_VALUE(left, struct lox_ir_data_node *, current_left_data_node) {
         bool some_match_in_right_found = false;
 
-        FOR_EACH_U64_SET_VALUE(right, current_right_data_node_u64_ptr) {
-            struct lox_ir_data_node * current_right_data_node = (struct lox_ir_data_node *) current_left_data_node_u64_ptr;
+        FOR_EACH_U64_SET_VALUE(right, struct lox_ir_data_node *, current_right_data_node) {
             if(is_eq_lox_ir_data_node(current_left_data_node, current_right_data_node, allocator)){
                 some_match_in_right_found = true;
                 break;

@@ -221,7 +221,7 @@ static void propagate_extracted_phi(
         struct lox_ir_block * current_block = dequeue_queue_list(&pending);
         bool can_extracted_phi_be_propagated = true;
 
-        FOR_EACH_U64_SET_VALUE(current_block->predecesors, current_predecesor) {
+        FOR_EACH_U64_SET_VALUE(current_block->predecesors, uint64_t, current_predecesor) {
             if(!contains_u64_set(&expeced_predecessors, current_predecesor)){
                 can_extracted_phi_be_propagated = false;
                 break;
@@ -262,7 +262,7 @@ static bool fill_uses_by_node_hashtable_block(struct lox_ir_block * block, void 
     for(struct lox_ir_control_node * current = block->first;; current = current->next){
         struct u64_set used_ssa_names = get_used_ssa_names_lox_ir_control(current, NATIVE_LOX_ALLOCATOR());
 
-        FOR_EACH_U64_SET_VALUE(used_ssa_names, current_used_ssa_name_in_control_node_u64) {
+        FOR_EACH_U64_SET_VALUE(used_ssa_names, uint64_t, current_used_ssa_name_in_control_node_u64) {
             struct ssa_name current_used_ssa_name_in_control_node = CREATE_SSA_NAME_FROM_U64(current_used_ssa_name_in_control_node_u64);
 
             add_ssa_name_use(uses_by_ssa_node, current_used_ssa_name_in_control_node, current);

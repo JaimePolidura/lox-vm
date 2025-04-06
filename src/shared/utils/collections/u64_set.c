@@ -44,13 +44,13 @@ struct u64_set clone_u64_set(struct u64_set * to_clone, struct lox_allocator * a
 }
 
 void difference_u64_set(struct u64_set * a, struct u64_set b) {
-    FOR_EACH_U64_SET_VALUE(b, curent_b_value) {
+    FOR_EACH_U64_SET_VALUE(b, uint64_t, curent_b_value) {
         remove_u64_set(a, curent_b_value);
     }
 }
 
 bool is_subset_u64_set(struct u64_set a, struct u64_set b) {
-    FOR_EACH_U64_SET_VALUE(b, current_b_value) {
+    FOR_EACH_U64_SET_VALUE(b, uint64_t, current_b_value) {
         if (!contains_u64_set(&a, current_b_value)) {
             return false;
         }
@@ -76,7 +76,7 @@ void remove_u64_set(struct u64_set * set, uint64_t value) {
 }
 
 void intersection_u64_set(struct u64_set * a, struct u64_set b) {
-    FOR_EACH_U64_SET_VALUE(*a, current_a_value) {
+    FOR_EACH_U64_SET_VALUE(*a, uint64_t, current_a_value) {
         if(!contains_u64_set(&b, current_a_value)){
             remove_u64_set(a, current_a_value);
         }

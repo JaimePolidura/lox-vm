@@ -132,8 +132,11 @@ static void record_removed_node_information_of_block(
         struct lox_ir_block * block,
         struct lox_ir_control_node * removed_node
 ) {
+    remove_u64_set(&lox_ir->exit_blocks, (uint64_t) removed_node);
+    remove_u64_set(&lox_ir->loop_blocks, (uint64_t) removed_node);
+
     struct u64_set used_ssa_names = get_used_ssa_names_lox_ir_control(removed_node, NATIVE_LOX_ALLOCATOR());
-    FOR_EACH_U64_SET_VALUE(used_ssa_names, used_ssa_name_u64) {
+    FOR_EACH_U64_SET_VALUE(used_ssa_names, uint64_t, used_ssa_name_u64) {
         struct ssa_name used_ssa_name = CREATE_SSA_NAME_FROM_U64(used_ssa_name_u64);
         remove_ssa_name_use_lox_ir(lox_ir, used_ssa_name, removed_node);
     }
@@ -153,15 +156,15 @@ static void record_new_node_information_of_block(
         struct lox_ir_control_node * new_block_node
 ) {
     struct u64_set used_ssa_names = get_used_ssa_names_lox_ir_control(new_block_node, NATIVE_LOX_ALLOCATOR());
-    FOR_EACH_U64_SET_VALUE(used_ssa_names, used_ssa_name_u64) {
+    FOR_EACH_U64_SET_VALUE(used_ssa_names, uint64_t, used_ssa_name_u64) {
         struct ssa_name used_ssa_name = CREATE_SSA_NAME_FROM_U64(used_ssa_name_u64);
         add_ssa_name_use_lox_ir(lox_ir, used_ssa_name, new_block_node);
     }
     free_u64_set(&used_ssa_names);
 
     struct u64_set used_v_regs = get_used_v_registers_lox_ir_control(new_block_node, NATIVE_LOX_ALLOCATOR());
-    FOR_EACH_U64_SET_VALUE(used_v_regs, used_v_reg) {
-        add_v_register_use_lox_ir(lox_ir, (int) used_v_reg, new_block_node);
+    FOR_EACH_U64_SET_VALUE(used_v_regs, int, used_v_reg) {
+        add_v_register_use_lox_ir(lox_ir, used_v_reg, new_block_node);
     }
     free_u64_set(&used_ssa_names);
 
@@ -228,12 +231,8 @@ void remove_only_block_lox_ir(struct lox_ir * lox_ir, struct lox_ir_block * bloc
         //TODO Runtime error
     }
 
-    FOR_EACH_U64_SET_VALUE(predeccessors, predeccessor_ptr_u64) {
-        struct lox_ir_block * predeccessor = (struct lox_ir_block *) predeccessor_ptr_u64;
-
-        FOR_EACH_U64_SET_VALUE(successors, successor_ptr_u64) {
-            struct lox_ir_block * successor = (struct lox_ir_block *) successor_ptr_u64;
-
+    FOR_EACH_U64_SET_VALUE(predeccessors, struct lox_ir_block *, predeccessor) {
+        FOR_EACH_U64_SET_VALUE(successors, struct lox_ir_block *, successor) {
             //TODO Duplicated code
             if (predeccessor->type_next == TYPE_NEXT_LOX_IR_BLOCK_BRANCH) {
                 if(predeccessor->next_as.branch.true_branch == block){
@@ -369,8 +368,7 @@ struct u64_set get_all_block_paths_to_block_set_lox_ir(
     while (!is_empty_stack_list(&pending)) {
         struct lox_ir_block * current_block = pop_stack_list(&pending);
 
-        FOR_EACH_U64_SET_VALUE(get_successors_lox_ir_block(current_block, allocator), successor_ptr_u64) {
-            struct lox_ir_block * successor = (struct lox_ir_block *) successor_ptr_u64;
+        FOR_EACH_U64_SET_VALUE(get_successors_lox_ir_block(current_block, allocator), struct lox_ir_block *, successor) {
             if (successor != target_block) {
                 add_u64_set(&block_paths, (uint64_t) successor);
                 push_stack_list(&pending, successor);
@@ -408,11 +406,9 @@ void insert_block_before_lox_ir(
 
     //Now we will "install" new_block to be the predecessors of the passed arg "successor"
     add_u64_set(&successor->predecesors, (uint64_t) new_block);
-    FOR_EACH_U64_SET_VALUE(predecessors, predeccessor_ptr_u64) {
-        struct lox_ir_block * current_predecessor = (struct lox_ir_block *) predeccessor_ptr_u64;
 
+    FOR_EACH_U64_SET_VALUE(predecessors, struct lox_ir_block *, current_predecessor) {
         add_u64_set(&new_block->predecesors, (uint64_t) current_predecessor);
-
         remove_u64_set(&successor->predecesors, (uint64_t) current_predecessor);
 
         if (current_predecessor->type_next == TYPE_NEXT_LOX_IR_BLOCK_BRANCH) {
@@ -445,8 +441,7 @@ struct u64_set get_block_dominator_set_lox_ir(struct lox_ir * lox_ir, struct lox
     } else {
         int current_index = 0;
 
-        FOR_EACH_U64_SET_VALUE(block->predecesors, predecesor_block_ptr) {
-            struct lox_ir_block * predecessor = (struct lox_ir_block *) predecesor_block_ptr;
+        FOR_EACH_U64_SET_VALUE(block->predecesors, struct lox_ir_block *, predecessor) {
             struct u64_set dominator_set_predecessor = get_block_dominator_set_lox_ir(lox_ir, predecessor, allocator);
 
             if ((current_index++) == 0) {
@@ -462,7 +457,7 @@ struct u64_set get_block_dominator_set_lox_ir(struct lox_ir * lox_ir, struct lox
 }
 
 void remove_names_references_lox_ir(struct lox_ir * lox_ir, struct u64_set removed_ssa_names) {
-    FOR_EACH_U64_SET_VALUE(removed_ssa_names, removed_ssa_name_u64) {
+    FOR_EACH_U64_SET_VALUE(removed_ssa_names, uint64_t, removed_ssa_name_u64) {
         struct ssa_name removed_ssa_name = CREATE_SSA_NAME_FROM_U64(removed_ssa_name_u64);
         remove_name_references_lox_ir(lox_ir, removed_ssa_name);
     }
@@ -642,7 +637,7 @@ static bool calculate_is_cyclic_definition(struct lox_ir * lox_ir, struct ssa_na
         struct u64_set used_ssa_names = get_used_ssa_names_lox_ir_data_node(define_ssa_name->value,
                 NATIVE_LOX_ALLOCATOR());
 
-        FOR_EACH_U64_SET_VALUE(used_ssa_names, used_ssa_name_u16) {
+        FOR_EACH_U64_SET_VALUE(used_ssa_names, uint64_t, used_ssa_name_u16) {
             struct ssa_name used_ssa_name = CREATE_SSA_NAME_FROM_U64(used_ssa_name_u16);
 
             if (used_ssa_name_u16 == target.u16) {
@@ -682,7 +677,10 @@ struct lox_ir * alloc_lox_ir(struct lox_allocator * allocator, struct function_o
     init_u64_hash_table(&lox_ir->node_uses_by_ssa_name, LOX_IR_ALLOCATOR(lox_ir));
     init_u64_hash_table(&lox_ir->definitions_by_v_reg, LOX_IR_ALLOCATOR(lox_ir));
     init_u64_hash_table(&lox_ir->node_uses_by_v_reg, LOX_IR_ALLOCATOR(lox_ir));
+    init_u64_set(&lox_ir->exit_blocks, LOX_IR_ALLOCATOR(lox_ir));
     init_u8_hash_table(&lox_ir->max_version_allocated_per_local);
+
+
     lox_ir->last_v_reg_allocated = 0;
     lox_ir->function = function;
     lox_ir->package = package;

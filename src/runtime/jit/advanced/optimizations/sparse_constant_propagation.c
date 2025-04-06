@@ -136,14 +136,13 @@ static void remove_death_branch(struct scp * scp, struct lox_ir_control_node * b
     struct branch_removed branch_removed = remove_block_branch_lox_ir(scp->lox_ir, branch_node->block, remove_true_branch,
             GET_SCP_ALLOCATOR(scp));
 
-    FOR_EACH_U64_SET_VALUE(branch_removed.ssa_name_definitions_removed, removed_ssa_definition_u64) {
+    FOR_EACH_U64_SET_VALUE(branch_removed.ssa_name_definitions_removed, uint64_t, removed_ssa_definition_u64) {
         struct ssa_name removed_ssa_definition = CREATE_SSA_NAME_FROM_U64(removed_ssa_definition_u64);
         struct u64_set * removed_ssa_name_node_uses = get_u64_hash_table(&scp->lox_ir->node_uses_by_ssa_name, removed_ssa_definition.u16);
 
-        FOR_EACH_U64_SET_VALUE(*removed_ssa_name_node_uses, node_uses_removed_ssa_name_ptr) {
+        FOR_EACH_U64_SET_VALUE(*removed_ssa_name_node_uses, struct lox_ir_control_define_ssa_name_node *, node_uses_ssa_name) {
             //Every control_node_to_lower that uses the removed ssa_node in an extern control_node_to_lower will use it to define another jit name, with a phi function:
             //a2 = phi(a0, a1)
-            struct lox_ir_control_define_ssa_name_node * node_uses_ssa_name = (void *) node_uses_removed_ssa_name_ptr;
             if(!contains_u64_set(&branch_removed.blocks_removed, (uint64_t) node_uses_ssa_name->control.block)){
                 struct lox_ir_data_phi_node * phi_node = (struct lox_ir_data_phi_node *) node_uses_ssa_name->value;
                 //Remove jit name usage from phi control_node_to_lower
@@ -252,7 +251,7 @@ struct constant_rewrite * rewrite_constant_expressions_propagation_data_node(
                 case SEMILATTICE_CONSTANT: {
                     struct u64_set new_possible_values;
                     init_u64_set(&new_possible_values, GET_SCP_ALLOCATOR(scp));
-                    FOR_EACH_U64_SET_VALUE(unary_operand_node->semilattice->values, current_operand) {
+                    FOR_EACH_U64_SET_VALUE(unary_operand_node->semilattice->values, uint64_t, current_operand) {
                         lox_value_t current_result = calculate_unary_lox(current_operand, unary_node->operator);
                         add_u64_set(&new_possible_values, current_result);
                     }

@@ -59,10 +59,9 @@ static void merge_predecessors_stack_slots(
 ) {
     struct ptr_arraylist * merged_stack_slots = NULL;
 
-    FOR_EACH_U64_SET_VALUE(block->predecesors, current_predecessor_u64_ptr) {
-        struct lox_ir_block * current_predecessor = (struct lox_ir_block *) current_predecessor_u64_ptr;
+    FOR_EACH_U64_SET_VALUE(block->predecesors, struct lox_ir_block *, current_predecessor) {
         struct ptr_arraylist * current_predecessor_stack_slots = get_u64_hash_table(&lllil->stack_slots_by_block,
-                current_predecessor_u64_ptr);
+                (uint64_t) current_predecessor);
 
         if (current_predecessor_stack_slots != NULL && merged_stack_slots == NULL) {
             merged_stack_slots = current_predecessor_stack_slots;
@@ -107,7 +106,7 @@ static bool all_predecessors_have_been_scanned(
         struct lllil * lllil,
         struct lox_ir_block * block
 ) {
-    FOR_EACH_U64_SET_VALUE(block->predecesors, current_predecessor_u64_ptr) {
+    FOR_EACH_U64_SET_VALUE(block->predecesors, uint64_t, current_predecessor_u64_ptr) {
         if (!contains_u64_set(&lllil->processed_blocks, current_predecessor_u64_ptr)) {
             return false;
         }

@@ -145,7 +145,7 @@ static struct v_register get_v_reg_by_ssa_name(struct pr * pr, struct ssa_name s
     }
 
     uint64_t v_reg_as_number = (uint64_t) get_u64_hash_table(&pr->v_register_by_local_number, ssa_name.value.local_number);
-    struct v_register v_register = CREATE_V_REG_BY_NUMBER(v_reg_as_number);
+    struct v_register v_register = CREATE_V_REG_BY_NUMBER(v_reg_as_number, ssa_name);
     v_register.is_float_register = is_float;
     return v_register;
 }

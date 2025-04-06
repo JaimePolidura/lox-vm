@@ -91,8 +91,8 @@ static void perform_escape_analysis_control(struct ea * ea, struct lox_ir_contro
 
     bool escapes = false;
     struct u64_set children = get_children_lox_ir_control(control_node);
-    FOR_EACH_U64_SET_VALUE(children, child_parent_field_ptr_u64) {
-        struct lox_ir_data_node * child = * ((struct lox_ir_data_node **) child_parent_field_ptr_u64);
+    FOR_EACH_U64_SET_VALUE(children, struct lox_ir_data_node **, child_parent_field_ptr_u64) {
+        struct lox_ir_data_node * child = *child_parent_field_ptr_u64;
         escapes |= perform_escape_analysis_data(ea, control_node, child);
     }
 
@@ -125,8 +125,8 @@ static bool perform_escape_analysis_data(
         case LOX_IR_DATA_NODE_CAST:
         case LOX_IR_DATA_NODE_BINARY: {
             bool escapes = false;
-            FOR_EACH_U64_SET_VALUE(get_children_lox_ir_data_node(data_node, &ea->ea_allocator.lox_allocator), child_ptr_u64) {
-                struct lox_ir_data_node * child = *((struct lox_ir_data_node **) child_ptr_u64);
+            FOR_EACH_U64_SET_VALUE(get_children_lox_ir_data_node(data_node, &ea->ea_allocator.lox_allocator), struct lox_ir_data_node **, child_ptr_u64) {
+                struct lox_ir_data_node * child = *child_ptr_u64;
                 escapes |= perform_escape_analysis_data(ea, control_node, child);
             }
 
@@ -244,8 +244,8 @@ static void mark_as_escaped_instance_used_in_data_node(struct ea * ea, struct lo
         case LOX_IR_DATA_NODE_GUARD:
         case LOX_IR_DATA_NODE_CALL: {
             struct u64_set children = get_children_lox_ir_data_node(data_node, &ea->ea_allocator.lox_allocator);
-            FOR_EACH_U64_SET_VALUE(children, child_parent_ptr) {
-                struct lox_ir_data_node * child = *((struct lox_ir_data_node **) child_parent_ptr);
+            FOR_EACH_U64_SET_VALUE(children, struct lox_ir_data_node **, child_parent_ptr) {
+                struct lox_ir_data_node * child = *child_parent_ptr;
                 mark_as_escaped_instance_used_in_data_node(ea, child);
             }
             break;
@@ -290,7 +290,7 @@ static void propagate_ssa_name_as_escaped(struct ea * ea, struct ssa_name name_t
 
         struct u64_set * dependents_ssa_names = get_u64_hash_table(&ea->dependents_ssa_names_definitions, name_to_propagate.u16);
         if(dependents_ssa_names != NULL){
-            FOR_EACH_U64_SET_VALUE(*dependents_ssa_names, dependent_ssa_name_u16) {
+            FOR_EACH_U64_SET_VALUE(*dependents_ssa_names, uint64_t, dependent_ssa_name_u16) {
                 struct ssa_name dependent_ssa_name = CREATE_SSA_NAME_FROM_U64(dependent_ssa_name_u16);
                 propagate_ssa_name_as_escaped(ea, dependent_ssa_name);
             }

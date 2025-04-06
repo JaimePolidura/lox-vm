@@ -87,7 +87,7 @@ static void remove_unused_definition(struct cp * cp, struct lox_ir_control_defin
 
     struct u64_set used_ssa_names_in_definition = get_used_ssa_names_lox_ir_data_node(definition_to_remove->value,
             &cp->cp_allocator.lox_allocator);
-    FOR_EACH_U64_SET_VALUE(used_ssa_names_in_definition, used_ssa_name_in_definition_u64) {
+    FOR_EACH_U64_SET_VALUE(used_ssa_names_in_definition, uint64_t, used_ssa_name_in_definition_u64) {
         struct ssa_name name = CREATE_SSA_NAME_FROM_U64(used_ssa_name_in_definition_u64);
 
         remove_u64_set(
@@ -143,7 +143,7 @@ static void replace_redudant_copy_ssa_name(
     struct u64_set copy_src_control_used_ssa_names = get_used_ssa_names_lox_ir_data_node(
             copy_src_control->value, NATIVE_LOX_ALLOCATOR()
     );
-    FOR_EACH_U64_SET_VALUE(copy_src_control_used_ssa_names, copy_src_control_used_ssa_name_u64) {
+    FOR_EACH_U64_SET_VALUE(copy_src_control_used_ssa_names, uint64_t, copy_src_control_used_ssa_name_u64) {
         struct ssa_name copy_src_control_used_ssa_name = CREATE_SSA_NAME_FROM_U64(copy_src_control_used_ssa_name_u64);
         add_ssa_name_use_lox_ir(cp->lox_ir, copy_src_control_used_ssa_name, copy_dst);
     }

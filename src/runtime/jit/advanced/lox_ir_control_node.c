@@ -27,8 +27,7 @@ bool for_each_data_node_in_lox_ir_control(
     struct u64_set children = get_children_lox_ir_control(control_node);
     bool all_nodes_returned_keep_scanning = true;
     
-    FOR_EACH_U64_SET_VALUE(children, child_parent_field_ptr_u64) {
-        struct lox_ir_data_node ** child_parent_field_ptr = (struct lox_ir_data_node **) child_parent_field_ptr_u64;
+    FOR_EACH_U64_SET_VALUE(children, struct lox_ir_data_node **, child_parent_field_ptr) {
         struct lox_ir_data_node * child = *child_parent_field_ptr;
 
         all_nodes_returned_keep_scanning &= for_each_lox_ir_data_node(child, (void **) child_parent_field_ptr, extra,
