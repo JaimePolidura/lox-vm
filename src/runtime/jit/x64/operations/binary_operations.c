@@ -168,7 +168,7 @@ static void set_al_with_cmp_result(struct jit_compiler * jit_compiler, bytecode_
         case OP_EQUAL: emit_sete_al(&jit_compiler->native_compiled_code); break;
         case OP_GREATER: emit_setg_al(&jit_compiler->native_compiled_code); break;
         case OP_LESS: emit_setl_al(&jit_compiler->native_compiled_code); break;
-        default: //TODO Panic
+        default:
     }
 }
 

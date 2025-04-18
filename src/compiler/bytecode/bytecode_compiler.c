@@ -317,7 +317,7 @@ static void struct_declaration(struct bytecode_compiler * compiler, bool is_publ
              strlen(struct_definition->name->chars), struct_definition);
 
     if(is_public) {
-        int variable_identifier_constant = add_constant_to_chunk(current_chunk(compiler), TO_LOX_VALUE_OBJECT(struct_definition->name));
+        uint8_t variable_identifier_constant = add_constant_to_chunk(current_chunk(compiler), TO_LOX_VALUE_OBJECT(struct_definition->name));
         emit_constant(compiler, TO_LOX_VALUE_OBJECT(struct_definition));
         define_global_variable(compiler, variable_identifier_constant);
 
@@ -450,7 +450,7 @@ static struct function_object * function(struct bytecode_compiler * compiler, bo
 
     put_hash_table(&compiler->defined_functions, function->name, TO_LOX_VALUE_OBJECT(function));
 
-    int function_constant_offset = add_constant_to_chunk(current_chunk(compiler), TO_LOX_VALUE_OBJECT(function));
+    uint8_t function_constant_offset = add_constant_to_chunk(current_chunk(compiler), TO_LOX_VALUE_OBJECT(function));
     emit_bytecodes(compiler, OP_CONSTANT, function_constant_offset);
 
     return function;
@@ -813,7 +813,7 @@ static void struct_initialization(struct bytecode_compiler * compiler, struct pa
         report_error(compiler, struct_name, "Struct initialization immediate of args doest match with struct_definition");
     }
 
-    int struct_definition_constant = add_constant_to_chunk(current_chunk(compiler), TO_LOX_VALUE_OBJECT(struct_definition));
+    uint8_t struct_definition_constant = add_constant_to_chunk(current_chunk(compiler), TO_LOX_VALUE_OBJECT(struct_definition));
 
     emit_bytecodes(compiler, OP_INITIALIZE_STRUCT, struct_definition_constant);
 }
@@ -1035,15 +1035,13 @@ static bool is_const_variable(struct bytecode_compiler * compiler, struct token 
 }
 
 static void emit_package_constant(struct bytecode_compiler * compiler, lox_value_t value) {
-    //TODO Perform content overflow check
-    int constant_offset = add_constant_to_chunk(current_chunk(compiler), value);
+    uint8_t constant_offset = add_constant_to_chunk(current_chunk(compiler), value);
     write_chunk(current_chunk(compiler), OP_PACKAGE_CONST);
     write_chunk(current_chunk(compiler), constant_offset);
 }
 
 static void emit_constant(struct bytecode_compiler * compiler, lox_value_t value) {
-    //TODO Perform content overflow check
-    int constant_offset = add_constant_to_chunk(current_chunk(compiler), value);
+    uint8_t constant_offset = add_constant_to_chunk(current_chunk(compiler), value);
     write_chunk(current_chunk(compiler), OP_CONSTANT);
     write_chunk(current_chunk(compiler), constant_offset);
 }
@@ -1308,7 +1306,6 @@ static uint8_t add_string_constant(struct bytecode_compiler * compiler, struct t
     char * variable_name = string_token.start;
     int variable_name_length = string_token.length;
 
-    //TODO Reuse constant offsets
     struct string_pool_add_result result_add = add_to_global_string_pool(variable_name, variable_name_length, false);
 
     return add_constant_to_chunk(current_chunk(compiler), TO_LOX_VALUE_OBJECT(result_add.string_object));

@@ -13,6 +13,7 @@
 #include "shared/types/function_object.h"
 #include "shared/types/package_object.h"
 #include "shared/utils/memory/arena.h"
+#include "shared/utils/assert.h"
 #include "shared/package.h"
 
 #define LOX_IR_ALLOCATOR(lox_ir) (&(lox_ir)->nodes_allocator_arena->lox_allocator)

@@ -188,6 +188,9 @@ char * to_string_lox_ir_type(lox_ir_type_t type) {
             return "Lox Array";
         case LOX_IR_TYPE_LOX_STRUCT_INSTANCE:
             return "Lox StructInstance";
+        default:
+            lox_assert_failed("lox_ir_type.c::to_string_lox_ir_type", "Unknown lox ir type %i when casting it to string",
+                              type);
     }
 }
 
@@ -211,8 +214,10 @@ struct lox_ir_type * native_to_lox_lox_ir_type(struct lox_ir_type * native_type,
             struct_instance->value.struct_instance = native_type->value.struct_instance;
             return struct_instance;
         }
+        default:
+            lox_assert_failed("lox_ir_type.c::native_to_lox_lox_ir_type", "Illegal native lox ir type %i when casting it lox type",
+                              native_type->type);
     }
-    //TODO Runtime panic
 }
 
 struct lox_ir_type * lox_to_native_lox_ir_type(struct lox_ir_type * lox_type, struct lox_allocator * allocator) {
@@ -235,8 +240,10 @@ struct lox_ir_type * lox_to_native_lox_ir_type(struct lox_ir_type * lox_type, st
             struct_instance->value.struct_instance = lox_type->value.struct_instance;
             return struct_instance;
         }
+        default:
+            lox_assert_failed("lox_ir_type.c::lox_to_native_lox_ir_type", "Illegal lox ir type %i when casting it native lox ir type",
+                              lox_type->type);
     }
-    //TODO Runtime panic
 }
 
 bool is_lox_lox_ir_type(lox_ir_type_t type) {
@@ -283,6 +290,9 @@ lox_ir_type_t binary_to_lox_ir_type(bytecode_t operator, lox_ir_type_t left, lox
                 return LOX_IR_TYPE_LOX_I64;
             }
         }
+        default:
+            lox_assert_failed("lox_ir_type.c::binary_to_lox_ir_type", "Illegal binary operator %i",
+                              operator);
     }
 }
 
@@ -316,6 +326,9 @@ bool is_format_equivalent_lox_ir_type(lox_ir_type_t left, lox_ir_type_t right) {
         case LOX_IR_TYPE_LOX_NIL: return right == LOX_IR_TYPE_NATIVE_NIL;
         case LOX_IR_TYPE_LOX_ARRAY: return right == LOX_IR_TYPE_NATIVE_ARRAY;
         case LOX_IR_TYPE_LOX_STRUCT_INSTANCE: return right == LOX_IR_TYPE_NATIVE_STRUCT_INSTANCE;
+        default:
+            lox_assert_failed("lox_ir_type.c::is_format_equivalent_lox_ir_type", "Unknown lox ir type %i",
+                              left);
     }
 }
 
@@ -354,7 +367,7 @@ uint64_t value_lox_to_native_lox_ir_type(lox_value_t lox_value) {
     } else if(IS_NUMBER(lox_value)) {
         return (uint64_t) AS_NUMBER(lox_value);
     } else {
-        //TODO Runtime panic
+        lox_assert_failed("lox_ir_type.c::value_lox_to_native_lox_ir_type", "Unknown lox value type %i", lox_value);
     }
 }
 
@@ -379,7 +392,9 @@ lox_value_t value_native_to_lox_ir_type(uint64_t native_value, lox_ir_type_t exp
         case LOX_IR_TYPE_LOX_STRUCT_INSTANCE: {
             return native_value;
         }
-        default: //TODO Runtime panic
+        default:
+            lox_assert_failed("lox_ir_type.c::value_native_to_lox_ir_type", "Illegal expected lox type %i",
+                              expected_lox_type);
     }
 }
 
@@ -394,5 +409,8 @@ static uint64_t lox_object_to_native_type(struct object * object) {
         case OBJ_PACKAGE: {
             return (uint64_t) object;
         }
+        default:
+            lox_assert_failed("lox_ir_type.c::lox_object_to_native_type", "Unknown lox object type %i",
+                              object->type);
     }
 }

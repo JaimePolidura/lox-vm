@@ -19,6 +19,7 @@
 #include "shared/types/array_object.h"
 #include "shared/types/string_object.h"
 #include "shared/utils/strings/substring.h"
+#include "shared/utils/assert.h"
 #include "shared/utils/utils.h"
 #include "shared/package.h"
 #include "shared.h"

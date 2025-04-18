@@ -155,7 +155,8 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_binary(
             emit_comparation_ll_lox_ir(control, COMPARATION_LL_LOX_IR_EQ, left, right);
             return FLAGS_OPERAND(OP_EQUAL);
         default:
-            //TODO Panic
+            lox_assert_failed("ir_lowerer_data.c::lowerer_lox_ir_data_binary", "Illegal binary data node type %i",
+                              binary->operator);
     }
 }
 
@@ -166,9 +167,8 @@ static struct lox_ir_ll_operand emit_lox_generic_binary(
         struct lox_ir_ll_operand right,
         struct v_register * result
 ) {
-    if(operator != OP_ADD){
-        //TODO Panic
-    }
+    lox_assert(operator == OP_ADD, "ir_lowerer_data.c::emit_lox_generic_binary",
+               "Expect OP_ADD when emitting generic binary operations. Current binary operator: %i", operator);
 
     struct v_register return_value = result != NULL ?
             *result : alloc_v_register_lox_ir(control->lllil->lox_ir, false);
@@ -1209,9 +1209,8 @@ static void emit_lox_to_native(
         return;
     }
 
-    if(!is_format_equivalent_lox_ir_type(actual_type, desired_type)){
-        //TODO Runtime panic
-    }
+    lox_assert(is_format_equivalent_lox_ir_type(actual_type, desired_type), "ir_lowerer_data.c::emit_lox_to_native",
+               "Cannot cast lox to native when two formats are not the same");
 
     switch (actual_type) {
         case LOX_IR_TYPE_LOX_ANY: emit_lox_any_to_native_cast(lllil, to_cast); break;
@@ -1220,7 +1219,9 @@ static void emit_lox_to_native(
         case LOX_IR_TYPE_LOX_STRING: emit_lox_string_to_native(lllil, to_cast); break;
         case LOX_IR_TYPE_LOX_ARRAY: emit_lox_array_to_native(lllil, to_cast); break;
         case LOX_IR_TYPE_LOX_STRUCT_INSTANCE: emit_lox_struct_instance_to_native(lllil, to_cast); break;
-        default: //TODO Runtime panic
+        default:
+            lox_assert_failed("ir_lowerer_data.c::emit_lox_to_native",
+                              "Expect actual type to be of lox type. Actual type: %i", actual_type);
     }
 }
 
@@ -1231,7 +1232,6 @@ static void emit_native_to_lox(
         lox_ir_type_t desired_type
 ) {
     switch (actual_type) {
-        case LOX_IR_TYPE_NATIVE_NIL: break; //TODO runtime panic
         case LOX_IR_TYPE_F64: {
             //TODO Extract to method
             if (actual_type == LOX_IR_TYPE_NATIVE_I64 && desired_type == LOX_IR_TYPE_LOX_I64) {
@@ -1247,6 +1247,9 @@ static void emit_native_to_lox(
         case LOX_IR_TYPE_NATIVE_I64: emit_native_i64_to_lox_number(lllil, to_cast); break;
         case LOX_IR_TYPE_NATIVE_STRING: emit_native_string_to_lox(lllil, to_cast); break;
         case LOX_IR_TYPE_NATIVE_ARRAY: emit_native_array_to_lox(lllil, to_cast); break;
+        default:
+            lox_assert_failed("ir_lowerer_data.c::emit_lox_to_native",
+                              "Expect actual type to be of native type. Actual type: %i", actual_type);
     }
 }
 

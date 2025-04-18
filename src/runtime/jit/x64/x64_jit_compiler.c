@@ -287,7 +287,6 @@ static void return_jit(struct jit_compiler * jit_compiler, bool * finish_compila
 
     record_compiled_bytecode(jit_compiler, instruction_index, OP_RETURN_LENGTH);
 
-    //TODO REMOVE
     *finish_compilation_flag = true;
 }
 

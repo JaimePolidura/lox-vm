@@ -891,9 +891,8 @@ static struct instruction_profile_data get_instruction_profile_data(
 }
 
 static struct object * get_function(struct no_phis_inserter * inserter, struct lox_ir_data_node * function_data_node) {
-    if(function_data_node->type != LOX_IR_DATA_NODE_GET_GLOBAL){
-        return NULL; //TODO Error
-    }
+    lox_assert(function_data_node->type == LOX_IR_DATA_NODE_GET_GLOBAL, "no_phis_creator.c::get_function",
+               "Invalid bytecode %i, only functions can be accessed with GET_GLOBAL");
 
     struct lox_ir_data_get_global_node * get_global = (struct lox_ir_data_get_global_node *) function_data_node;
     lox_value_t function_lox_value = get_hash_table(&get_global->package->global_variables, get_global->name);

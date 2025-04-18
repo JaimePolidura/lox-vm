@@ -43,7 +43,7 @@ struct bytecode_instruction_data bytecode_instructions_data[] = {
         [OP_CONSTANT] =  {.constant = true, .size = OP_CONSTANT_LENGTH, .n_pops = 0, .n_push = 1},
         [OP_PACKAGE_CONST] = {.constant = false, .size = OP_PACKAGE_CONST_LENGTH, .n_pops = 0, .n_push = 1},
         [OP_JUMP_IF_FALSE] = {.constant = false, .size = OP_JUMP_IF_FALSE_LENGTH, .n_pops = 0, .n_push = 0},
-        [OP_CALL] = {.constant = false, .size = OP_CALL_LENGTH, .n_pops = N_VARIABLE_INSTRUCTION_N_POPS, .n_push = 1}, //TODO
+        [OP_CALL] = {.constant = false, .size = OP_CALL_LENGTH, .n_pops = N_VARIABLE_INSTRUCTION_N_POPS, .n_push = 1},
         [OP_INITIALIZE_ARRAY] = {.constant = false, .size = OP_INITIALIZE_ARRAY_LENGTH, .n_pops = N_VARIABLE_INSTRUCTION_N_POPS, .n_push = 1},
         [OP_GET_ARRAY_ELEMENT] = {.constant = false, .size = OP_GET_ARRAY_ELEMENT_LENGTH, .n_pops = 1, .n_push = 1},
         [OP_SET_ARRAY_ELEMENT] = {.constant = false, .size = OP_SET_ARRAY_ELEMENT_LENGTH, .n_pops = 2, .n_push = 0},

@@ -19,7 +19,6 @@
 #define IS_CLEARED_FORWARDING_PTR(object_ptr) (((uint64_t) (object_ptr)->gc_info) << 3 == 0)
 
 int get_n_bytes_allocated_object(struct object * object);
-//TODO Replace with struct heap_object *
 //This method updates the inner pointers of an object to the new data copied in the new space.
 //This is used when a struct_instance or array_object is moved to another space.
 //For example the array's entries pointer in array_object->values is allocated after the object in contiguos memory space.

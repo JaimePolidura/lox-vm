@@ -6,6 +6,7 @@
 #include "shared/utils/collections/u8_set.h"
 #include "shared/types/struct_definition_object.h"
 #include "shared/types/array_object.h"
+#include "shared/utils/assert.h"
 #include "shared.h"
 
 #define CREATE_LOX_IR_TYPE(type_arg, allocator) (create_lox_ir_type((type_arg), (allocator)))

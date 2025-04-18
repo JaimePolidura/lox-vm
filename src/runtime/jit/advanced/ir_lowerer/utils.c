@@ -110,7 +110,9 @@ struct lox_ir_ll_operand emit_guard_ll_lox_ir(
         case LOX_IR_GUARD_STRUCT_DEFINITION_TYPE_CHECK: {
             emit_guard_struct_definition_type_check(lllil, guard_input, guard);
             break;
-        };
+        }
+        default:
+            lox_assert_failed("utils.c::emit_guard_ll_lox_ir", "Unknown guard type %i", guard.value_to_compare.type);
     }
 
     return guard_input;
@@ -222,9 +224,8 @@ static void emit_guard_type_check(
             break;
         }
         case LOX_IR_TYPE_LOX_ANY: break;
-        default: {
-            //TODO Panic
-        }
+        default:
+            lox_assert_failed("utils.c::emit_guard_type_check", "Unknown lox type %i", guard.value_to_compare.type);
     }
 }
 
@@ -407,10 +408,9 @@ void emit_range_check_ll_lox_ir(
                 0
         );
     }
-    if (index_to_access.type == LOX_IR_LL_OPERAND_IMMEDIATE
-        && index_to_access.immedate < 0) {
-        //TODO Runtime panic
-    }
+
+    lox_assert(index_to_access.type != LOX_IR_LL_OPERAND_IMMEDIATE || index_to_access.immedate >= 0,
+               "utils.c::emit_range_check_ll_lox_ir", "Index cannot be negative");
 
     //Second check index_to_access >= array_size
     struct lox_ir_ll_operand array_size = emit_get_array_length_ll_lox_ir(lllil, instance,
@@ -426,7 +426,9 @@ void emit_range_check_ll_lox_ir(
             COMPARATION_LL_LOX_IR_IS_TRUE,
             &range_check_panic_jit_runime,
             "range_check_panic_jit_runime",
-            0
+            2,
+            index_to_access,
+            array_size
     );
 }
 
@@ -547,7 +549,7 @@ void emit_function_call_with_return_value_manual_args_ll_lox_ir(
 ) {
     struct lox_allocator * allocator = &lllil->lllil->lox_ir->nodes_allocator_arena->lox_allocator;
 
-    struct lox_ir_control_ll_function_call * func_call = ALLOC_LOX_IR_CONTROL( //TODO
+    struct lox_ir_control_ll_function_call * func_call = ALLOC_LOX_IR_CONTROL(
             LOX_IR_CONTROL_NODE_LL_FUNCTION_CALL, struct lox_ir_control_ll_function_call, NULL, allocator
     );
     func_call->function_call_address = function_address;
@@ -590,7 +592,7 @@ void emit_function_call_manual_args_ll_lox_ir(
 ) {
     struct lox_allocator * allocator = &lllil->lllil->lox_ir->nodes_allocator_arena->lox_allocator;
 
-    struct lox_ir_control_ll_function_call * func_call = ALLOC_LOX_IR_CONTROL( //TODO
+    struct lox_ir_control_ll_function_call * func_call = ALLOC_LOX_IR_CONTROL(
             LOX_IR_CONTROL_NODE_LL_FUNCTION_CALL, struct lox_ir_control_ll_function_call, NULL, allocator
     );
     func_call->function_call_address = function_address;

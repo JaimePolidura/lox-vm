@@ -793,7 +793,8 @@ static char * register_size_to_string(uint64_t reg_size) {
     } else if(reg_size == 8) {
         return " BYTE";
     } else {
-        //TODO Panic
+        lox_assert_failed("lox_ir_graphviz_visualizer.c::register_size_to_string",
+                          "Illegal vregister size %i", reg_size);
         return "";
     }
 }
@@ -809,7 +810,9 @@ static char * ll_unary_operator_to_string(unary_operator_type_ll_lox_ir operator
         case UNARY_LL_LOX_IR_FLAGS_EQ_TO_NATIVE_BOOL: return "isEq";
         case UNARY_LL_LOX_IR_FLAGS_LESS_TO_NATIVE_BOOL: return "isLess";
         case UNARY_LL_LOX_IR_FLAGS_GREATER_TO_NATIVE_BOOL: return "isGreater";
-        default: //TODO Panic
+        default:
+            lox_assert_failed("lox_ir_graphviz_visualizer.c::ll_comparation_type_to_string",
+                              "Illegal unary operator lox ir type to be casted to string %i", operator_type);
     }
 }
 
@@ -823,7 +826,9 @@ static char * ll_comparation_type_to_string(comparation_operator_type_ll_lox_ir 
         case COMPARATION_LL_LOX_IR_LESS_EQ: return "<=";
         case COMPARATION_LL_LOX_IR_IS_TRUE: return "is true";
         case COMPARATION_LL_LOX_IR_IS_FALSE: return "is false";
-        default: return NULL; //TODO Panic
+        default:
+            lox_assert_failed("lox_ir_graphviz_visualizer.c::ll_comparation_type_to_string",
+                              "Illegal comparation lox ir type to be casted to string %i", comparation_type);
     }
 }
 

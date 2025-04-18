@@ -469,7 +469,7 @@ static void get_array_element(struct call_frame * call_frame) {
     uint64_t array_index = pop_and_check_number();
 
     if (array_index >= array->values.in_use) {
-        runtime_panic("Index out of bounds");
+        runtime_panic("Index %i out of bounds when array size is %i", array, array->values.in_use);
     }
 
     push_stack_vm(array->values.values[array_index]);

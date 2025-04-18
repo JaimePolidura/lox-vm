@@ -25,7 +25,7 @@ static inline struct call_frame * get_current_frame() {
 }
 
 static void print_frame_stack_trace() {
-    if(self_thread != NULL){
+    if (self_thread != NULL) {
         for (int i = self_thread->frames_in_use - 1; i >= 0; i--) {
             struct call_frame * frame = &self_thread->frames[i];
             struct function_object * function = frame->function;

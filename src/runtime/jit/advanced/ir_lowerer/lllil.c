@@ -111,7 +111,8 @@ void adjust_node_inputs_to_req_operand_type_ll_lox_ir(struct lllil_control * lll
             make_operand_type_adjustment(lllil, control, &ret->to_return, REQUIRED_INPUT_OPERAND_TYPE_ALL);
             break;
         }
-        default: break;
+        default:
+            lox_assert_failed("lllil.c::adjust_node_inputs_to_req_operand_type_ll_lox_ir", "Unknown control lox type %i", control->type);
     }
 }
 
@@ -125,6 +126,8 @@ static void make_operand_type_adjustment(
         case REQUIRED_INPUT_OPERAND_TYPE_ALL: make_operand_type_adjustment_all(lllil, control_node, operand); break;
         case REQUIRED_INPUT_OPERAND_TYPE_VALUE: make_operand_type_adjustment_value(lllil, control_node, operand); break;
         case REQUIRED_INPUT_OPERAND_TYPE_MEMORY: make_operand_type_adjustment_memory(lllil, control_node, operand); break;
+        default:
+            lox_assert_failed("lllil.c::make_operand_type_adjustment", "Unknown required input operand type %i", operand->type);
     }
 }
 
@@ -144,7 +147,7 @@ static void make_operand_type_adjustment_all(
         case LOX_IR_LL_OPERAND_STACK_SLOT:
             break;
         default:
-            //Runtime error
+            lox_assert_failed("lllil.c::make_operand_type_adjustment_all", "Unknown operand type %i", operand->type);
     }
 }
 
@@ -160,7 +163,7 @@ static void make_operand_type_adjustment_value(
         case LOX_IR_LL_OPERAND_IMMEDIATE:
             break;
         default:
-            //TODO Runtime error
+            lox_assert_failed("lllil.c::make_operand_type_adjustment_value", "Unknown operand type %i", operand->type);
     }
 }
 
@@ -178,7 +181,7 @@ static void make_operand_type_adjustment_memory(
         case LOX_IR_LL_OPERAND_IMMEDIATE: adjust_immediate_to_register_operand(lllil, operand, control); break;
             break;
         default:
-            //Runtime error
+            lox_assert_failed("lllil.c::make_operand_type_adjustment_memory", "Unknown operand type %i", operand->type);
     }
 }
 

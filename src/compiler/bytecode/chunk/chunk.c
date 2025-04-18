@@ -10,7 +10,9 @@ struct chunk * alloc_chunk() {
     return allocated_chunk;
 }
 
-int add_constant_to_chunk(struct chunk * chunk_to_write, lox_value_t constant) {
+uint8_t add_constant_to_chunk(struct chunk * chunk_to_write, lox_value_t constant) {
+    lox_assert(chunk_to_write->constants.in_use < UINT8_MAX, "chunk.c::add_constant_to_chunk",
+               "Max constants %i exceeded", UINT8_MAX);
     append_lox_arraylist(&chunk_to_write->constants, constant);
     return chunk_to_write->constants.in_use - 1;
 }

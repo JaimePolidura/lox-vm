@@ -318,7 +318,8 @@ static lox_ir_type_t calculate_expected_type_binary_to_produce(
     } else if (contains_binary_operands_types(operand_types, LOX_IR_TYPE_F64, LOX_IR_TYPE_LOX_ANY)) {
         return LOX_IR_TYPE_F64;
     } else {
-        //TODO Runtime error
+        lox_assert_failed("cast_insertion.c::calculate_expected_type_binary_to_produce",
+                          "Cannot match binary left & right types to calculate the expected type");
     }
 }
 
@@ -691,7 +692,9 @@ static struct lox_ir_block * get_block_same_nested_loop_body(
     if (start->nested_loop_body == target_loop_body) {
         return start;
     }
-    //TODO Asssert that start->nested_loop_body > target_loop_body
+
+    lox_assert(start->nested_loop_body > target_loop_body, "cast_insertion.c::get_block_same_nested_loop_body",
+               "Cannto get block outside nested target loop body");
 
     struct lox_ir_block * current = start;
 
@@ -810,6 +813,8 @@ static bool control_requires_lox_input(struct ci * ci, struct lox_ir_control_nod
 
             return some_use_requires_lox_type_as_input;
         }
+        default:
+            lox_assert_failed("cast_insertion.c::control_requires_lox_input", "Unknown control node %i", control->type);
     }
 }
 
