@@ -1,7 +1,5 @@
 #include "lox_ir_graphviz_visualizer.h"
 
-extern void runtime_panic(char * format, ...);
-
 struct edge_graph_generated {
     //We use a union so that we can store this struct in blocks_edges_generated as u64 easily
     union {
@@ -90,6 +88,9 @@ static struct block_graph_generated generate_blocks_graph(struct lox_ir_visualiz
         }
         case TYPE_NEXT_LOX_IR_BLOCK_NONE:
             break;
+        default:
+            lox_assert_failed("lox_ir_graphviz_visualizer.c::generate_blocks_graph", "Uknown block next type %i",
+                              first_block->type_next);
     }
 
     return first_block_graph_data;
@@ -348,6 +349,9 @@ static int generate_control_node_graph(struct lox_ir_visualizer * visualizer, st
             char * node_desc = dynamic_format_string("Move %s, %s", to, from);
             add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
         }
+        default:
+            lox_assert_failed("lox_ir_graphviz_visualizer.c::generate_control_node_graph", "Uknown control node type %i",
+                              node->type);
     }
 
     return self_control_node_id;
@@ -538,6 +542,9 @@ static int generate_data_node_graph(struct lox_ir_visualizer * visualizer, struc
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             break;
         }
+        default:
+            lox_assert_failed("lox_ir_graphviz_visualizer.c::generate_data_node_graph", "Uknown data node type %i",
+                              node->type);
     }
 
     return self_data_node_id;
@@ -650,7 +657,9 @@ static char * binary_operator_to_string(bytecode_t bytecode) {
         case OP_SUB: return "-";
         case OP_MUL: return "*";
         case OP_DIV: return "/";
-        default: exit(-1);
+        default:
+            lox_assert_failed("lox_ir_graphviz_visualizer.c::binary_operator_to_string", "Uknown binary operator type %i",
+                              bytecode);
     }
 }
 
@@ -686,6 +695,9 @@ static char * guard_node_to_string(struct lox_ir_guard guard) {
             guard_desc = dynamic_format_string("StructDefinitionCheck %s", definition != NULL ? definition->name->chars : "Any definition");
             break;
         }
+        default:
+            lox_assert_failed("lox_ir_graphviz_visualizer.c::guard_node_to_string", "Uknown guard type %i",
+                              guard.type);
     }
 
     char * guard_fail_action_type = guard.action_on_guard_failed == LOX_IR_GUARD_FAIL_ACTION_TYPE_SWITCH_TO_INTERPRETER ?
@@ -780,6 +792,9 @@ static char * ll_operand_to_string(struct lox_ir_ll_operand operand) {
                 return dynamic_format_string("[%s]", stack_slot_string);
             }
         }
+        default:
+            lox_assert_failed("lox_ir_graphviz_visualizer.c::ll_operand_to_string", "Uknown operand type %i",
+                              operand.type);
     }
 }
 
@@ -848,5 +863,8 @@ static char * ll_binary_operator_to_string(binary_operator_type_ll_lox_ir binary
         case BINARY_LL_LOX_IR_FMUL: return "fmul";
         case BINARY_LL_LOX_IR_IDIV: return "idiv";
         case BINARY_LL_LOX_IR_FDIV: return "fdiv";
+        default:
+            lox_assert_failed("lox_ir_graphviz_visualizer.c::ll_binary_operator_to_string", "Uknown binary ll operator type %i",
+                              binary_operator);
     }
 }

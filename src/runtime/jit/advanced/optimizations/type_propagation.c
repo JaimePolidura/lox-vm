@@ -37,8 +37,6 @@ static struct lox_ir_type * merge_block_types(struct tp*, struct lox_ir_type*, s
 static struct lox_ir_data_node * create_guard_get_struct_field(struct tp*, struct lox_ir_data_node*, struct type_profile_data);
 static void set_produced_type(struct tp*, struct lox_ir_data_node*, struct lox_ir_type*);
 
-extern void runtime_panic(char * format, ...);
-
 void perform_type_propagation(struct lox_ir * lox_ir) {
     struct tp * tp = alloc_type_propagation(lox_ir);
     struct u64_hash_table * type_by_ssa_name = LOX_MALLOC(LOX_IR_ALLOCATOR(lox_ir), sizeof(struct u64_hash_table));
@@ -99,6 +97,9 @@ void perform_type_propagation(struct lox_ir * lox_ir) {
                 }
                 break;
             }
+            default:
+                lox_assert_failed("type_propagation.c::perform_type_propagation", "Unknown block next type %i",
+                                  to_evalute->block->type_next);
         }
     }
 
@@ -141,6 +142,9 @@ static void perform_type_propagation_control(struct pending_evaluate * to_evalut
     } else if (control_node->type == LOX_IR_CONTORL_NODE_SET_GLOBAL) {
         struct lox_ir_control_set_global_node * set_global = (struct lox_ir_control_set_global_node *) control_node;
         clear_type(set_global->value_node->produced_type);
+    } else {
+        lox_assert_failed("type_propagation.c::perform_type_propagation_control", "Unknown control node type %i",
+                          to_evalute->block->type_next);
     }
 }
 
@@ -400,10 +404,9 @@ static struct lox_ir_type * get_type_data_node_recursive(
 
             return phi_type_result;
         }
-
-        case LOX_IR_DATA_NODE_GET_LOCAL: {
-            runtime_panic("Illegal code path");
-        }
+        default:
+            lox_assert_failed("type_propagation.c::get_type_data_node_recursive", "Unknown data node type %i",
+                              node->type);
     }
 }
 
@@ -489,7 +492,6 @@ static void add_argument_types(struct tp * tp, struct u64_hash_table * type_by_s
         struct ssa_name function_arg_ssa_name = CREATE_SSA_NAME(i, 0);
         struct lox_ir_type * function_arg_type = NULL;
 
-        //TODO Array
         if (function_arg_profiled_type == PROFILE_DATA_TYPE_STRUCT_INSTANCE && !function_arg_profile_data.invalid_struct_definition) {
             function_arg_type = CREATE_STRUCT_LOX_IR_TYPE(function_arg_profile_data.struct_definition,
                                                           LOX_IR_ALLOCATOR(tp->lox_ir));

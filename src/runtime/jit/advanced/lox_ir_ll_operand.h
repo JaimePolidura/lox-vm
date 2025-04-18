@@ -1,8 +1,10 @@
 #pragma once
 
-#include "shared/bytecode/bytecode.h"
-#include "shared.h"
 #include "runtime/jit/advanced/phi_resolution/v_register.h"
+
+#include "shared/bytecode/bytecode.h"
+#include "shared/utils/assert.h"
+#include "shared.h"
 
 #define ADDRESS_TO_OPERAND(address_f, offset_f) ((struct lox_ir_ll_operand) {.type = LOX_IR_LL_OPERAND_MEMORY_ADDRESS, .memory_address = {.address = (address_f), .offset = (offset_f)}})
 

@@ -167,6 +167,9 @@ void visualize_lox_ir(
             generate_graph_visualization_lox_ir(&graphviz_visualizer, lox_ir->first_block);
             break;
         }
+        default:
+            lox_assert_failed("lox_ir_visualizer.c.c::visualize_lox_ir", "Uknown lox ir graph visualization phase %i",
+                              phase);
     }
 }
 

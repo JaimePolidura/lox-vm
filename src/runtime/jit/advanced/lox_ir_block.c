@@ -95,6 +95,8 @@ type_next_lox_ir_block_t get_type_next_lox_ir_block(struct lox_ir_control_node *
         case LOX_IR_CONTROL_NODE_CONDITIONAL_JUMP: {
             return TYPE_NEXT_LOX_IR_BLOCK_BRANCH;
         }
+        default:
+            lox_assert_failed("lox_ir_block.c::get_type_next_lox_ir_block", "Uknown control node type %i", node->type);
     }
 }
 
@@ -130,6 +132,8 @@ void replace_block_lox_ir_block(struct lox_ir_block * old_block, struct lox_ir_b
             }
             case TYPE_NEXT_LOX_IR_BLOCK_NONE:
                 break;
+            default:
+                lox_assert_failed("lox_ir_block.c::replace_block_lox_ir_block", "Uknown block next type %i", predecesor_node->type_next);
         }
     }
 }

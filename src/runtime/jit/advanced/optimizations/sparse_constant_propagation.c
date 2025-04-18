@@ -29,7 +29,6 @@ struct constant_rewrite {
 };
 
 extern lox_value_t addition_lox(lox_value_t a, lox_value_t b);
-extern void runtime_panic(char * format, ...);
 
 #define GET_SCP_ALLOCATOR(scp) &(scp)->scp_allocator.lox_allocator
 
@@ -207,7 +206,8 @@ static struct semilattice_value * get_semilattice_propagation_from_data(
         }
         case LOX_IR_DATA_NODE_GET_LOCAL:
         default:
-            runtime_panic("Unhandled jit data control_node_to_lower type %i in get_semilattice_initialization_from_data() in scp.c", current_node->type);
+            lox_assert_failed("sparse_constant_propagation.c::get_semilattice_propagation_from_data",
+                              "Unknown data node %i", current_node->type);
     }
 }
 
@@ -261,6 +261,9 @@ struct constant_rewrite * rewrite_constant_expressions_propagation_data_node(
                     return alloc_constant_rewrite(scp, current_node, alloc_bottom_semilatttice(scp));
                 case SEMILATTICE_TOP:
                     return alloc_constant_rewrite(scp, current_node, alloc_top_semilatttice(scp));
+                default:
+                    lox_assert_failed("sparse_constant_propagation.c::rewrite_constant_expressions_propagation_data_node",
+                                      "Unknown semilattice %i", unary_operand_node->semilattice->type);
             }
 
             break;
@@ -296,9 +299,9 @@ struct constant_rewrite * rewrite_constant_expressions_propagation_data_node(
             struct semilattice_value * semilattice_phi = get_semilattice_phi(scp, phi_node);
             return alloc_constant_rewrite(scp, current_node, semilattice_phi);
         }
-        case LOX_IR_DATA_NODE_GET_LOCAL: {
-            runtime_panic("Illegal get local control_node_to_lower in sparse constant scp jit optimization");
-        }
+        default:
+            lox_assert_failed("sparse_constant_propagation.c::rewrite_constant_expressions_propagation_data_node",
+                              "Unknown data node %i", current_node->type);
     }
 
     return NULL;
@@ -332,8 +335,6 @@ struct constant_rewrite * rewrite_constant_expressions_initialization_data_node(
                 struct semilattice_value * result = join_semilattice(scp, left->semilattice, right->semilattice, binary_node->operator);
                 return alloc_constant_rewrite(scp, current_node, result);
             }
-
-            runtime_panic("Illegal code path in rewrite_constant_expressions_initialization_data_node");
         }
         case LOX_IR_DATA_NODE_UNARY: {
             struct lox_ir_data_unary_node * unary_node = (struct lox_ir_data_unary_node *) current_node;
@@ -352,6 +353,9 @@ struct constant_rewrite * rewrite_constant_expressions_initialization_data_node(
                 case SEMILATTICE_TOP: {
                     return alloc_constant_rewrite(scp, current_node, alloc_top_semilatttice(scp));
                 }
+                default:
+                    lox_assert_failed("sparse_constant_propagation.c::rewrite_constant_expressions_initialization_data_node",
+                                      "Unknown semilattice type %i", unary_operand_node->semilattice->type);
             }
         }
         case LOX_IR_DATA_NODE_GET_SSA_NAME:
@@ -371,9 +375,9 @@ struct constant_rewrite * rewrite_constant_expressions_initialization_data_node(
         case LOX_IR_DATA_NODE_GUARD: {
             return alloc_constant_rewrite(scp, current_node, alloc_bottom_semilatttice(scp));
         }
-        case LOX_IR_DATA_NODE_GET_LOCAL: {
-            runtime_panic("Illegal get local control_node_to_lower in sparse constant scp jit optimization");
-        }
+        default:
+            lox_assert_failed("sparse_constant_propagation.c::rewrite_constant_expressions_initialization_data_node",
+                              "Unknown data node %i", current_node->type);
     }
 
     return NULL;
@@ -419,7 +423,8 @@ static struct semilattice_value * get_semilattice_initialization_from_data(struc
         }
         case LOX_IR_DATA_NODE_GET_LOCAL:
         default:
-            runtime_panic("Unhandled jit data control_node_to_lower type %i in get_semilattice_initialization_from_data() in scp.c", current_data_node->type);
+            lox_assert_failed("sparse_constant_propagation.c::get_semilattice_initialization_from_data",
+                              "Unknown data node type %i", current_data_node->type);
     }
 }
 
@@ -479,7 +484,8 @@ static lox_value_t calculate_unary_lox(lox_value_t operand_value, lox_ir_unary_o
             return TO_LOX_VALUE_BOOL(!AS_BOOL(operand_value));
         }
         default:
-            runtime_panic("Unhandled unary comparation_operator type %i in calculate_unary() in scp.c", operator);
+            lox_assert_failed("sparse_constant_propagation.c::calculate_unary_lox",
+                              "Unknown unary operator type %i", operator);
     }
 }
 
@@ -511,7 +517,9 @@ static lox_value_t calculate_binary_lox(lox_value_t left, lox_value_t right, byt
         case OP_LESS: return TO_LOX_VALUE_BOOL(AS_NUMBER(left) < AS_NUMBER(right));
         case OP_EQUAL: return TO_LOX_VALUE_BOOL(left == right);
         case OP_ADD: return addition_lox(left, right);
-        default: runtime_panic("Unhandled binary comparation_operator %i in calculate_binary_lox() in scp.c", operator);
+        default:
+            lox_assert_failed("sparse_constant_propagation.c::calculate_binary_lox",
+                              "Unknown binary operator type %i", operator);
     }
 }
 

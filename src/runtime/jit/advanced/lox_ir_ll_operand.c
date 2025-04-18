@@ -13,6 +13,7 @@ struct v_register * get_used_v_reg_ll_operand(struct lox_ir_ll_operand * operand
         case LOX_IR_LL_OPERAND_FLAGS:
             return NULL;
         default:
-            //TODO Runtime panic
+            lox_assert_failed("lox_ir_ll_operand.c::get_used_v_reg_ll_operand", "Uknown operand type %i",
+                              operand->type);
     }
 }

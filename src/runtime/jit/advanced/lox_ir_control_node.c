@@ -105,6 +105,8 @@ struct u64_set get_children_lox_ir_control(struct lox_ir_control_node * control_
         case LOX_IR_CONTROL_NODE_EXIT_MONITOR:
         case LOX_IR_CONTROL_NODE_LOOP_JUMP:
             break;
+        default:
+            lox_assert_failed("lox_ir_control_node.c.c::get_children_lox_ir_control", "Uknown control node type %i", control_node->type);
     }
 
     return children;
@@ -194,6 +196,8 @@ struct u64_set get_used_v_registers_lox_ir_control(struct lox_ir_control_node *c
             struct lox_ir_control_ll_cond_function_call * cond_call = (struct lox_ir_control_ll_cond_function_call *) control_node;
             used_v_regs = get_used_v_registers_lox_ir_control(&cond_call->call->control, allocator);
         }
+        default:
+            break;
     }
 
     return used_v_regs;
@@ -227,6 +231,8 @@ void mark_as_escaped_lox_ir_control(struct lox_ir_control_node * node) {
             set_array_element->escapes = true;
             break;
         }
+        default:
+            break;
     }
 }
 

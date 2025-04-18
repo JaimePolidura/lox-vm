@@ -1,6 +1,5 @@
 #include "lox_ir_data_node.h"
 
-extern void runtime_panic(char * format, ...);
 static bool uses_same_binary_operation(struct lox_ir_data_node *, bytecode_t);
 static struct u64_set flat_out_binary_operand_nodes(struct lox_ir_data_node *node, struct lox_allocator *);
 static bool check_equivalence_flatted_out(struct u64_set, struct u64_set, struct lox_allocator *);
@@ -52,6 +51,9 @@ bool is_terminator_lox_ir_data_node(struct lox_ir_data_node * node) {
         case LOX_IR_DATA_NODE_GET_ARRAY_LENGTH:
         case LOX_IR_DATA_NODE_CAST:
             return false;
+        default:
+            lox_assert_failed("lox_ir_data_node.c::is_terminator_lox_ir_data_node", "Uknown data node %i",
+                              node->type);
     }
 }
 
@@ -486,7 +488,8 @@ uint64_t hash_lox_ir_data_node(struct lox_ir_data_node * node) {
             return mix_hash_not_commutative(hash, hash_lox_ir_data_node(cast->to_cast));
         }
         default:
-            runtime_panic("Illegal code path in hash_expression(struct lox_ir_data_node *)");
+            lox_assert_failed("lox_ir_data_node.c::hash_lox_ir_data_node", "Uknown data node %i",
+                              node->type);
     }
 }
 
@@ -610,6 +613,9 @@ struct lox_ir_data_guard_node * create_guard_lox_ir_data_node(
             produced_type->value.array->type = CREATE_LOX_IR_TYPE(guard.value_to_compare.type, allocator);
             break;
         }
+        default:
+            lox_assert_failed("lox_ir_data_node.c::create_guard_lox_ir_data_node", "Uknown guard type %i",
+                              guard.type);
     }
 
     guard_node->data.produced_type = produced_type;
@@ -713,6 +719,9 @@ struct u64_set get_children_lox_ir_data_node(struct lox_ir_data_node * node, str
         case LOX_IR_DATA_NODE_GET_GLOBAL: {
             break;
         }
+        default:
+            lox_assert_failed("lox_ir_data_node.c::get_children_lox_ir_data_node", "Uknown data node type %i",
+                              node->type);
     }
 
     return children;
@@ -786,5 +795,7 @@ void mark_as_escaped_lox_ir_data_node(struct lox_ir_data_node * data_node) {
             init_array->escapes = true;
             break;
         }
+        default:
+            break;
     }
 }

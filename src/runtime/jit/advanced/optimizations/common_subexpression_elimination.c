@@ -161,6 +161,9 @@ void perform_cse_control_node(
         case LOX_IR_CONTORL_NODE_SET_LOCAL:
         case LOX_IR_CONTROL_NODE_LOOP_JUMP:
             break;
+        default:
+            lox_assert_failed("common_subexpression_elimination.c::perform_cse_control_node", "Uknown control node %i",
+                              control_node->type);
     }
 }
 

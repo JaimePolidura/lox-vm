@@ -220,19 +220,15 @@ void remove_only_block_lox_ir(struct lox_ir * lox_ir, struct lox_ir_block * bloc
     struct u64_set successors = get_successors_lox_ir_block(block, NATIVE_LOX_ALLOCATOR());
     struct u64_set predeccessors = block->predecesors;
 
-    if(size_u64_set(successors) >= 1 && lox_ir->first_block == block){
-        //TODO Runtime error
-    }
-    if (size_u64_set(predeccessors) >= 1 && size_u64_set(successors) >= 1) {
-        //TODO Runtime error
-    }
-    if (size_u64_set(successors) == 0) {
-        //TODO Runtime error
-    }
+    lox_assert_false(size_u64_set(successors) >= 1 && lox_ir->first_block == block, "lox_ir.c::remove_only_block_lox_ir",
+                     "Cannot remove block when successors >= 1 and the first node on the IR is the node to be removed");
+    lox_assert_false(size_u64_set(predeccessors) >= 1 && size_u64_set(successors) >= 1, "lox_ir.c::remove_only_block_lox_ir",
+                     "Cannot remove block when successors >= 1 and successors >= 1");
+    lox_assert_false(size_u64_set(successors) == 0, "lox_ir.c::remove_only_block_lox_ir",
+                     "Cannot remove block when successors == 0");
 
     FOR_EACH_U64_SET_VALUE(predeccessors, struct lox_ir_block *, predeccessor) {
         FOR_EACH_U64_SET_VALUE(successors, struct lox_ir_block *, successor) {
-            //TODO Duplicated code
             if (predeccessor->type_next == TYPE_NEXT_LOX_IR_BLOCK_BRANCH) {
                 if(predeccessor->next_as.branch.true_branch == block){
                     predeccessor->next_as.branch.true_branch = successor;
@@ -397,7 +393,6 @@ void insert_block_before_lox_ir(
     new_block->loop_info = NULL;
     new_block->predecesors = clone_u64_set(&predecessors, predecessors.inner_hash_table.allocator);
 
-    //TODO Fix bad code
     if (new_block->type_next != TYPE_NEXT_LOX_IR_BLOCK_BRANCH) {
         new_block->type_next = successor != NULL ? TYPE_NEXT_LOX_IR_BLOCK_SEQ : TYPE_NEXT_LOX_IR_BLOCK_NONE;
         new_block->next_as.next = successor;

@@ -215,6 +215,9 @@ static bool perform_escape_analysis_data(
             struct lox_ir_data_get_ssa_name_node * get = (struct lox_ir_data_get_ssa_name_node *) data_node;
             return does_ssa_name_escapes(ea, get->ssa_name);
         }
+        default:
+            lox_assert_failed("escape_analysis.c::perform_escape_analysis_data",
+                              "Uknown data node %i", data_node->type);
     }
 }
 
@@ -270,6 +273,9 @@ static void mark_as_escaped_instance_used_in_data_node(struct ea * ea, struct lo
         case LOX_IR_DATA_NODE_CAST:
         case LOX_IR_DATA_NODE_GET_LOCAL:
             break;
+        default:
+            lox_assert_failed("escape_analysis.c::mark_as_escaped_instance_used_in_data_node",
+                              "Uknown data node %i", data_node->type);
     }
 }
 
@@ -356,6 +362,9 @@ static bool control_node_escapes_inputs(struct ea * ea, struct lox_ir_control_no
         case LOX_IR_CONTROL_NODE_GUARD:
         case LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME:
             return false;
+        default:
+            lox_assert_failed("escape_analysis.c::does_data_node_make_control_to_escape",
+                              "Uknown control node %i", control_node->type);
     }
 }
 
@@ -518,5 +527,8 @@ static bool does_data_node_make_control_to_escape(struct ea * ea, struct lox_ir_
         case LOX_IR_DATA_NODE_PHI: {
             return false;
         }
+        default:
+            lox_assert_failed("escape_analysis.c::does_data_node_make_control_to_escape",
+                              "Uknown data node %i", data_node->type);
     }
 }

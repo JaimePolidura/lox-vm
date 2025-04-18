@@ -8,6 +8,15 @@ void lox_assert_failed(char * method_location, char * error_message, ...) {
     perform_assert_failed(method_location, error_message, args);
 }
 
+void lox_assert_false(bool condition_to_be_false, char * method_location,  char * error_message, ...) {
+    if (condition_to_be_false) {
+        va_list args;
+        va_start(args, error_message);
+        perform_assert_failed(method_location, error_message, args);
+    }
+}
+
+
 void lox_assert(bool condition_to_be_true, char * method_location,  char * error_message, ...) {
     if (!condition_to_be_true) {
         va_list args;

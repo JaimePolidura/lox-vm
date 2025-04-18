@@ -173,7 +173,6 @@ static bool replace_redudant_copy_data_node(
     return true;
 }
 
-//TODO Extract to common funcionality
 static void remove_redundant_cast(struct lox_ir_data_cast_node * cast_node, void ** parent_ptr) {
     struct lox_ir_data_constant_node * to_cast_const = (struct lox_ir_data_constant_node *) cast_node->to_cast;
 

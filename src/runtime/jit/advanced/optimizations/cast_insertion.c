@@ -266,6 +266,9 @@ static lox_ir_type_t calculate_expected_type_child_to_produce(
         case LOX_IR_DATA_NODE_CAST: {
             return parent->produced_type->type;
         }
+        default:
+            lox_assert_failed("cast_insertion.c::calculate_expected_type_child_to_produce", "Uknown data node %i",
+                              parent->type);
     }
 }
 
@@ -335,6 +338,9 @@ static lox_ir_type_t calculate_expected_type_unary_to_produce(
                    LOX_IR_TYPE_F64 :
                    LOX_IR_TYPE_NATIVE_I64;
         }
+        default:
+            lox_assert_failed("cast_insertion.c::calculate_expected_type_unary_to_produce", "Uknown unary operator %i",
+                              unary->operand);
     }
 }
 
