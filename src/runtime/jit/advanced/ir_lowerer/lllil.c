@@ -1,6 +1,7 @@
 #include "lllil.h"
 
 static void adjust_node_inputs_to_req_operand_type_ll_lox_ir(struct lllil_control*, struct lox_ir_control_node*);
+static struct lox_ir_ll_operand alloc_new_v_register(struct lllil_control * lllil, bool is_float);
 
 struct lllil * alloc_low_level_lox_ir_lowerer(struct lox_ir * lox_ir) {
     struct lllil * lllil = NATIVE_LOX_MALLOC(sizeof(struct lllil));
@@ -10,7 +11,7 @@ struct lllil * alloc_low_level_lox_ir_lowerer(struct lox_ir * lox_ir) {
     lllil->lllil_allocator = to_lox_allocator_arena(arena);
     init_u64_hash_table(&lllil->stack_slots_by_block, &lllil->lllil_allocator.lox_allocator);
     init_u64_set(&lllil->processed_blocks, &lllil->lllil_allocator.lox_allocator);
-    lllil->last_phi_resolution_v_reg_allocated = lox_ir->last_v_reg_allocated;
+    lllil->last_phi_resolution_v_reg_allocated = lox_ir->function->n_locals;
 
     return lllil;
 }
@@ -194,7 +195,7 @@ static void adjust_flags_to_register_operand(
             struct lox_ir_control_ll_unary, NULL, LOX_IR_ALLOCATOR(lllil->lllil->lox_ir));
     unary->operator = operand->flags_operator != OP_EQUAL ? (operand->flags_operator == OP_GREATER
             ? UNARY_LL_LOX_IR_FLAGS_GREATER_TO_NATIVE_BOOL : UNARY_LL_LOX_IR_FLAGS_LESS_TO_NATIVE_BOOL) : UNARY_LL_LOX_IR_FLAGS_EQ_TO_NATIVE_BOOL;
-    unary->operand = V_REG_TO_OPERAND(alloc_v_register_lox_ir(lllil->lllil->lox_ir, false));
+    unary->operand = alloc_new_v_register(lllil, false);
     add_before_control_node_block_lox_ir(lllil->lllil->lox_ir, control->block, control, &unary->control);
 
     *operand = unary->operand;
@@ -208,7 +209,7 @@ static void adjust_memory_address_to_register_operand(
     struct lox_ir_control_ll_move * move = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_LL_MOVE,
             struct lox_ir_control_ll_move, NULL, LOX_IR_ALLOCATOR(lllil->lllil->lox_ir));
     move->from = *operand;
-    move->to = V_REG_TO_OPERAND(alloc_v_register_lox_ir(lllil->lllil->lox_ir, false));
+    move->to = alloc_new_v_register(lllil, false);
     add_before_control_node_block_lox_ir(lllil->lllil->lox_ir, control->block, control, &move->control);
 
     //Update with new operand
@@ -221,11 +222,17 @@ static void adjust_immediate_to_register_operand(
         struct lox_ir_control_node * control
 ) {
     struct lox_ir_control_ll_move * move = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_LL_MOVE,
-                                                                struct lox_ir_control_ll_move, NULL, LOX_IR_ALLOCATOR(lllil->lllil->lox_ir));
+            struct lox_ir_control_ll_move, NULL, LOX_IR_ALLOCATOR(lllil->lllil->lox_ir));
     move->from = *operand;
-    move->to = V_REG_TO_OPERAND(alloc_v_register_lox_ir(lllil->lllil->lox_ir, false));
+    move->to = alloc_new_v_register(lllil, false);
     add_before_control_node_block_lox_ir(lllil->lllil->lox_ir, control->block, control, &move->control);
 
     //Update with new operand
     *operand = move->to;
+}
+
+static struct lox_ir_ll_operand alloc_new_v_register(struct lllil_control * lllil, bool is_float) {
+    struct ssa_name ssa_name = alloc_ssa_name_lox_ir(lllil->lllil->lox_ir, 1, "temp",
+            lllil->control_node_to_lower->block, NULL);
+    return V_REG_TO_OPERAND(CREATE_V_REG(ssa_name, is_float));
 }

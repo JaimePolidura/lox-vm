@@ -95,15 +95,16 @@ struct u64_set get_children_lox_ir_control(struct lox_ir_control_node * control_
             add_u64_set(&children, (uint64_t) &define_ssa_name->value);
             break;
         }
-        case LOX_IR_CONTROL_NODE_SET_V_REGISTER:  {
-            struct lox_ir_control_set_v_register_node * set_v_reg = (struct lox_ir_control_set_v_register_node *) control_node;
-            add_u64_set(&children, (uint64_t) &set_v_reg->value);
-            break;
-        }
-
         case LOX_IR_CONTROL_NODE_ENTER_MONITOR:
         case LOX_IR_CONTROL_NODE_EXIT_MONITOR:
         case LOX_IR_CONTROL_NODE_LOOP_JUMP:
+        case LOX_IR_CONTROL_NODE_LL_MOVE:
+        case LOX_IR_CONTROL_NODE_LL_BINARY:
+        case LOX_IR_CONTROL_NODE_LL_COMPARATION:
+        case LOX_IR_CONTROL_NODE_LL_UNARY:
+        case LOX_IR_CONTROL_NODE_LL_RETURN:
+        case LOX_IR_CONTROL_NODE_LL_FUNCTION_CALL:
+        case LOX_IR_CONTROL_NODE_LL_COND_FUNCTION_CALL:
             break;
         default:
             lox_assert_failed("lox_ir_control_node.c.c::get_children_lox_ir_control", "Uknown control node type %i", control_node->type);
@@ -142,65 +143,6 @@ struct u64_set get_used_ssa_names_lox_ir_control(struct lox_ir_control_node * co
     );
 
     return used_ssa_names;
-}
-
-#define MAYBE_ADD_OPERAND_TO_USED_V_REGS(used_v_regs, operand) { \
-    struct v_register * v_reg = get_used_v_reg_ll_operand(operand); \
-    if (v_reg != NULL) { \
-        add_u64_set(used_v_regs, v_reg->number); \
-    }   \
-}
-
-struct u64_set get_used_v_registers_lox_ir_control(struct lox_ir_control_node *control_node, struct lox_allocator *allocator) {
-    struct u64_set used_v_regs;
-    init_u64_set(&used_v_regs, allocator);
-
-    switch (control_node->type) {
-        case LOX_IR_CONTROL_NODE_LL_MOVE: {
-            struct lox_ir_control_ll_move * move = (struct lox_ir_control_ll_move *) control_node;
-            MAYBE_ADD_OPERAND_TO_USED_V_REGS(&used_v_regs, &move->from)
-            if (move->to.type != LOX_IR_LL_OPERAND_REGISTER) {
-                MAYBE_ADD_OPERAND_TO_USED_V_REGS(&used_v_regs, &move->to)
-            }
-            break;
-        }
-        case LOX_IR_CONTROL_NODE_LL_BINARY: {
-            struct lox_ir_control_ll_binary * binary = (struct lox_ir_control_ll_binary *) control_node;
-            MAYBE_ADD_OPERAND_TO_USED_V_REGS(&used_v_regs, &binary->left)
-            MAYBE_ADD_OPERAND_TO_USED_V_REGS(&used_v_regs, &binary->right)
-            break;
-        }
-        case LOX_IR_CONTROL_NODE_LL_COMPARATION: {
-            struct lox_ir_control_ll_comparation * comparation = (struct lox_ir_control_ll_comparation *) control_node;
-            MAYBE_ADD_OPERAND_TO_USED_V_REGS(&used_v_regs, &comparation->right)
-            MAYBE_ADD_OPERAND_TO_USED_V_REGS(&used_v_regs, &comparation->left)
-            break;
-        }
-        case LOX_IR_CONTROL_NODE_LL_UNARY: {
-            struct lox_ir_control_ll_unary * unary = (struct lox_ir_control_ll_unary *) control_node;
-            MAYBE_ADD_OPERAND_TO_USED_V_REGS(&used_v_regs, &unary->operand)
-            break;
-        }
-        case LOX_IR_CONTROL_NODE_LL_RETURN: {
-            struct lox_ir_control_ll_return * ret = (struct lox_ir_control_ll_return *) control_node;
-            MAYBE_ADD_OPERAND_TO_USED_V_REGS(&used_v_regs, &ret->to_return)
-            break;
-        }
-        case LOX_IR_CONTROL_NODE_LL_FUNCTION_CALL: {
-            struct lox_ir_control_ll_function_call * call = (struct lox_ir_control_ll_function_call *) control_node;
-            for (int i = 0; i < call->arguments.in_use; i++) {
-                MAYBE_ADD_OPERAND_TO_USED_V_REGS(&used_v_regs, call->arguments.values[i])
-            }
-        };
-        case LOX_IR_CONTROL_NODE_LL_COND_FUNCTION_CALL: {
-            struct lox_ir_control_ll_cond_function_call * cond_call = (struct lox_ir_control_ll_cond_function_call *) control_node;
-            used_v_regs = get_used_v_registers_lox_ir_control(&cond_call->call->control, allocator);
-        }
-        default:
-            break;
-    }
-
-    return used_v_regs;
 }
 
 bool is_marked_as_escaped_lox_ir_control(struct lox_ir_control_node * node) {

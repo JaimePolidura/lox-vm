@@ -38,7 +38,6 @@ bool is_terminator_lox_ir_data_node(struct lox_ir_data_node * node) {
         case LOX_IR_DATA_NODE_GET_GLOBAL:
         case LOX_IR_DATA_NODE_CONSTANT:
         case LOX_IR_DATA_NODE_GET_SSA_NAME:
-        case LOX_IR_DATA_NODE_GET_V_REGISTER:
             return true;
         case LOX_IR_DATA_NODE_GUARD:
         case LOX_IR_DATA_NODE_CALL:
@@ -55,35 +54,6 @@ bool is_terminator_lox_ir_data_node(struct lox_ir_data_node * node) {
             lox_assert_failed("lox_ir_data_node.c::is_terminator_lox_ir_data_node", "Uknown data node %i",
                               node->type);
     }
-}
-
-bool get_used_v_registers_ox_ir_data_node_consumer(
-        struct lox_ir_data_node * _,
-        void ** __,
-        struct lox_ir_data_node * data_node,
-        void * extra
-) {
-    struct u64_set * used_v_registers = extra;
-    if(data_node->type == LOX_IR_DATA_NODE_GET_V_REGISTER){
-        struct lox_ir_data_get_v_register_node * get_v_reg = (struct lox_ir_data_get_v_register_node *) data_node;
-        add_u64_set(used_v_registers, get_v_reg->v_register.number);
-    }
-    return true;
-}
-
-struct u64_set get_used_v_registers_lox_ir_data_node(struct lox_ir_data_node * data_node, struct lox_allocator * allocator) {
-    struct u64_set used_v_registers;
-    init_u64_set(&used_v_registers, allocator);
-
-    for_each_lox_ir_data_node(
-            data_node,
-            NULL,
-            &used_v_registers,
-            LOX_IR_DATA_NODE_OPT_POST_ORDER,
-            get_used_v_registers_ox_ir_data_node_consumer
-    );
-
-    return used_v_registers;
 }
 
 bool get_used_ssa_names_lox_ir_data_node_consumer(
@@ -160,12 +130,6 @@ bool is_eq_lox_ir_data_node(struct lox_ir_data_node * a, struct lox_ir_data_node
 
     //At this point a & b have the same type.
     switch (a->type) {
-        case LOX_IR_DATA_NODE_GET_V_REGISTER: {
-            struct lox_ir_data_get_v_register_node * get_v_reg_a = (struct lox_ir_data_get_v_register_node *) a;
-            struct lox_ir_data_get_v_register_node * get_v_reg_b = (struct lox_ir_data_get_v_register_node *) b;
-            return get_v_reg_a->v_register.number == get_v_reg_b->v_register.number &&
-                    get_v_reg_a->v_register.is_float_register == get_v_reg_b->v_register.is_float_register;
-        }
         case LOX_IR_DATA_NODE_GUARD: {
             struct lox_ir_data_guard_node * a_guard = (struct lox_ir_data_guard_node *) a;
             struct lox_ir_data_guard_node * b_guard = (struct lox_ir_data_guard_node *) b;
@@ -394,10 +358,6 @@ uint64_t mix_hash_commutative(uint64_t a, uint64_t b) {
 
 uint64_t hash_lox_ir_data_node(struct lox_ir_data_node * node) {
     switch (node->type) {
-        case LOX_IR_DATA_NODE_GET_V_REGISTER: {
-            struct lox_ir_data_get_v_register_node * get_v_reg = (struct lox_ir_data_get_v_register_node *) node;
-            return mix_hash_not_commutative(get_v_reg->v_register.number, (uint64_t) get_v_reg->v_register.is_float_register);
-        }
         case LOX_IR_DATA_NODE_GUARD: {
             struct lox_ir_data_guard_node * guard = (struct lox_ir_data_guard_node *) node;
             return hash_lox_ir_data_node(guard->guard.value);
@@ -715,7 +675,6 @@ struct u64_set get_children_lox_ir_data_node(struct lox_ir_data_node * node, str
         case LOX_IR_DATA_NODE_CONSTANT:
         case LOX_IR_DATA_NODE_PHI:
         case LOX_IR_DATA_NODE_GET_SSA_NAME:
-        case LOX_IR_DATA_NODE_GET_V_REGISTER:
         case LOX_IR_DATA_NODE_GET_GLOBAL: {
             break;
         }

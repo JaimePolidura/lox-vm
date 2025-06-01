@@ -39,12 +39,6 @@ struct lox_ir {
     //This set is only modified at the lox_ir creation process
     struct u64_set exit_blocks;
 
-    int last_v_reg_allocated;
-    //key: v register number, value: pointer to u64_set of pointers to control_nodes
-    struct u64_hash_table definitions_by_v_reg;
-    //key: v register number, value: pointer to u64_set of pointers control_nodes
-    struct u64_hash_table node_uses_by_v_reg;
-
     //Might be used in some optizations phases
     void * extra;
 };
@@ -96,5 +90,3 @@ void on_ssa_name_def_moved_lox_ir(struct lox_ir *, struct ssa_name);
 
 struct lox_ir_type * get_type_by_ssa_name_lox_ir(struct lox_ir *lox_ir, struct lox_ir_block *block, struct ssa_name ssa_name);
 void put_type_by_ssa_name_lox_ir(struct lox_ir *lox_ir, struct lox_ir_block *block, struct ssa_name ssa_name, struct lox_ir_type *new_type);
-
-struct v_register alloc_v_register_lox_ir(struct lox_ir*, bool);

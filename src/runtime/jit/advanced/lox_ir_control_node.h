@@ -23,8 +23,6 @@ typedef enum {
     //Only used when inserting phi functions in the graph ir creation process
     //It will replace all the nodes with type LOX_IR_CONTORL_NODE_SET_LOCAL in the phi insertion proceess
     LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME,
-    //Intrudcued by phi resolution phase, this is not used in optimizations
-    LOX_IR_CONTROL_NODE_SET_V_REGISTER,
     //Introduced by ir_lowerer
     LOX_IR_CONTROL_NODE_LL_MOVE,
     LOX_IR_CONTROL_NODE_LL_BINARY,
@@ -65,16 +63,14 @@ bool is_marked_as_escaped_lox_ir_control(struct lox_ir_control_node *node);
 bool is_lowered_type_lox_ir_control(struct lox_ir_control_node *node);
 bool is_define_phi_lox_ir_control(struct lox_ir_control_node *node);
 struct lox_ir_data_phi_node * get_defined_phi_lox_ir_control(struct lox_ir_control_node*);
-struct u64_set get_used_v_registers_lox_ir_control(struct lox_ir_control_node *control_node, struct lox_allocator *allocator);
 
 //OP_SET_LOCAL
+//Note that struct lox_ir_control_set_local_node should have the same size as lox_ir_control_define_ssa_name_node, so that
+//they can be replaced easily
 struct lox_ir_control_set_local_node {
     struct lox_ir_control_node control;
     uint32_t local_number; //Same size as ssa_name
     struct lox_ir_data_node * new_local_value;
-    //Padding to make define_ssa_name and set_local_node have the same memory size, so that it can be replaced without creating a new node
-    // in phi_inserter.h
-    uint8_t padding[8];
 };
 
 struct lox_ir_control_data_node {
@@ -149,30 +145,18 @@ struct lox_ir_control_conditional_jump_node {
     struct lox_ir_data_node * condition;
 };
 
-//This control_node_to_lower will be only used when inserting phi functions in the graph ir creation process
-//Will replace OP_SET_LOCAL
-//The memory outlay of lox_ir_control_define_ssa_name_node and lox_ir_control_set_local_node is the same. We create two
-//different struct definitions to note, the differences between the two process in the jit ir graph creation.
-//And the same memory outlay so we can replace the control_node_to_lower in the graph easily, by just changing the control_node_to_lower type
+//Note that struct lox_ir_control_set_local_node should have the same size as lox_ir_control_define_ssa_name_node, so that
+//they can be replaced easily
 struct lox_ir_control_define_ssa_name_node {
     struct lox_ir_control_node control;
 
     struct lox_ir_data_node * value;
     struct ssa_name ssa_name;
-    //Padding to make define_ssa_name and set_v_reg have the same memory size, so that it can be replaced without creating a new node
-    // in phi_resolver.h
-    uint8_t padding[8];
 };
 
 struct lox_ir_control_guard_node {
     struct lox_ir_control_node control;
     struct lox_ir_guard guard;
-};
-
-struct lox_ir_control_set_v_register_node {
-    struct lox_ir_control_node control;
-    struct lox_ir_data_node * value;
-    struct v_register v_register;
 };
 
 //These nodes are introdued by ir_lowerer after optimizations have been done

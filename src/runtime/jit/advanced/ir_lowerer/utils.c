@@ -9,11 +9,11 @@ static void emit_guard_i64_type_check(struct lllil_control*,struct lox_ir_ll_ope
 static void emit_guard_bool_type_check(struct lllil_control*,struct lox_ir_ll_operand);
 static void emit_guard_nil_type_check(struct lllil_control*,struct lox_ir_ll_operand);
 static void emit_guard_object_type_check(struct lllil_control*,struct lox_ir_ll_operand);
+static struct v_register alloc_new_v_register(struct lllil_control *, bool);
 
 extern void guard_array_type_check_jit_runtime(lox_value_t);
 extern void switch_to_interpreter_jit_runime();
 extern void range_check_panic_jit_runime();
-
 
 int get_offset_field_struct_definition_ll_lox_ir(
         struct struct_definition_object * definition,
@@ -36,7 +36,7 @@ struct lox_ir_ll_operand emit_lox_object_ptr_to_native_ll_lox_ir(
         struct lllil_control * lllil,
         struct lox_ir_ll_operand input //Expect v register
 ) {
-    struct v_register or_fsb_qfn_reg = alloc_v_register_lox_ir(lllil->lllil->lox_ir, false);
+    struct v_register or_fsb_qfn_reg = alloc_new_v_register(lllil, false);
 
     emit_move_ll_lox_ir(
             lllil,
@@ -132,7 +132,7 @@ static void emit_guard_struct_definition_type_check(
 
     struct lox_ir_ll_operand native_object_ptr = emit_lox_object_ptr_to_native_ll_lox_ir(control, guard_input);
 
-    struct v_register object_type_v_reg = alloc_v_register_lox_ir(control->lllil->lox_ir, false);
+    struct v_register object_type_v_reg = alloc_new_v_register(control, false);
     object_type_v_reg.register_bit_size = 32;
 
     //Check that the object type is a struct instance
@@ -156,7 +156,7 @@ static void emit_guard_struct_definition_type_check(
     );
 
     //Check that the struct instance has the expected struct definition
-    struct v_register actual_struct_definition_v_reg = alloc_v_register_lox_ir(control->lllil->lox_ir, false);
+    struct v_register actual_struct_definition_v_reg = alloc_new_v_register(control, false);
     struct struct_definition_object * expected_struct_definition = guard.value_to_compare.struct_definition;
     emit_move_ll_lox_ir(
             control,
@@ -234,7 +234,7 @@ static void emit_guard_object_type_check(
         struct lllil_control * control,
         struct lox_ir_ll_operand guard_input
 ) {
-    struct lox_ir_ll_operand result = V_REG_TO_OPERAND(alloc_v_register_lox_ir(control->lllil->lox_ir, false));
+    struct lox_ir_ll_operand result = V_REG_TO_OPERAND(alloc_new_v_register(control, false));
 
     emit_binary_ll_lox_ir(
             control,
@@ -286,7 +286,7 @@ static void emit_guard_bool_type_check(
         struct lllil_control * control,
         struct lox_ir_ll_operand guard_input
 ) {
-    struct lox_ir_ll_operand result = V_REG_TO_OPERAND(alloc_v_register_lox_ir(control->lllil->lox_ir, false));
+    struct lox_ir_ll_operand result = V_REG_TO_OPERAND(alloc_new_v_register(control, false));
 
     emit_binary_ll_lox_ir(
             control,
@@ -321,8 +321,8 @@ static void emit_guard_i64_type_check(
 
     //Now we need to make sure that the number has no decimals.
     //To do that we will cast the number to integer, and we will cast it back to f64 and compare if there was a chnage.
-    struct lox_ir_ll_operand a = V_REG_TO_OPERAND(alloc_v_register_lox_ir(control->lllil->lox_ir, false));
-    struct lox_ir_ll_operand b = V_REG_TO_OPERAND(alloc_v_register_lox_ir(control->lllil->lox_ir, false));
+    struct lox_ir_ll_operand a = V_REG_TO_OPERAND(alloc_new_v_register(control, false));
+    struct lox_ir_ll_operand b = V_REG_TO_OPERAND(alloc_new_v_register(control, false));
 
     emit_move_ll_lox_ir(control, a, guard_input);
     emit_unary_ll_lox_ir(control, a, UNARY_LL_LOX_IR_F64_TO_I64_CAST);
@@ -414,7 +414,7 @@ void emit_range_check_ll_lox_ir(
 
     //Second check index_to_access >= array_size
     struct lox_ir_ll_operand array_size = emit_get_array_length_ll_lox_ir(lllil, instance,
-            array_instance_escapes, alloc_v_register_lox_ir(lllil->lllil->lox_ir, false));
+            array_instance_escapes, alloc_new_v_register(lllil, false));
     emit_comparation_ll_lox_ir(
             lllil,
             COMPARATION_LL_LOX_IR_GREATER_EQ,
@@ -437,7 +437,7 @@ static void emit_guard_f64_type_check(
         struct lllil_control * control,
         struct lox_ir_ll_operand guard_input
 ) {
-    struct v_register result = alloc_v_register_lox_ir(control->lllil->lox_ir, false);
+    struct v_register result = alloc_new_v_register(control, false);
 
     emit_binary_ll_lox_ir(
             control,
@@ -661,4 +661,10 @@ static struct lox_ir_ll_operand emit_get_array_length_ll_lox_ir_doesnt_escape(
     );
 
     return array_length_value;
+}
+
+static struct v_register alloc_new_v_register(struct lllil_control * lllil, bool is_float) {
+    struct ssa_name ssa_name = alloc_ssa_name_lox_ir(lllil->lllil->lox_ir, 1, "temp",
+                                                     lllil->control_node_to_lower->block, NULL);
+    return CREATE_V_REG(ssa_name, is_float);
 }

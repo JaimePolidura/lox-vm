@@ -174,6 +174,8 @@ static void record_new_node_information_of_block(
     }
     if (new_block_node->type == LOX_IR_CONTROL_NODE_SET_V_REGISTER) {
         struct lox_ir_control_set_v_register_node * set_v_reg = (struct lox_ir_control_set_v_register_node *) new_block_node;
+        add_u64_set(&block->defined_ssa_names, set_v_reg-> ssa_name.u16);
+        put_u64_hash_table(&lox_ir->definitions_by_ssa_name, define->ssa_name.u16, new_block_node);
         add_v_register_definition_lox_ir(lox_ir, set_v_reg->v_register.number, new_block_node);
     }
 }
@@ -531,21 +533,6 @@ static void add_v_register_use_lox_ir(
     add_u64_set(uses, (uint64_t) control_node);
 }
 
-static void add_v_register_definition_lox_ir(
-        struct lox_ir * lox_ir,
-        int v_reg,
-        struct lox_ir_control_node * control
-) {
-    if(!contains_u64_hash_table(&lox_ir->definitions_by_v_reg, v_reg)){
-        struct u64_set * uses = LOX_MALLOC(LOX_IR_ALLOCATOR(lox_ir), sizeof(struct u64_set));
-        init_u64_set(uses, LOX_IR_ALLOCATOR(lox_ir));
-        put_u64_hash_table(&lox_ir->definitions_by_v_reg, v_reg, uses);
-    }
-
-    struct u64_set * uses = get_u64_hash_table(&lox_ir->definitions_by_v_reg, v_reg);
-    add_u64_set(uses, (uint64_t) control);
-}
-
 struct lox_ir_type * get_type_by_ssa_name_lox_ir(
         struct lox_ir * lox_ir,
         struct lox_ir_block * block,
@@ -585,14 +572,6 @@ void put_type_by_ssa_name_lox_ir(
             put_u64_hash_table(current_types_by_ssa_name, ssa_name.u16, new_type);
         }
     }
-}
-
-struct v_register alloc_v_register_lox_ir(struct lox_ir * lox_ir, bool is_float_register) {
-    return ((struct v_register) {
-        .number = lox_ir->last_v_reg_allocated++,
-        .is_float_register = is_float_register,
-        .register_bit_size = 64,
-    });
 }
 
 static bool calculate_is_cyclic_definition(struct lox_ir * lox_ir, struct ssa_name target, struct ssa_name start);
@@ -669,13 +648,9 @@ struct lox_ir * alloc_lox_ir(struct lox_allocator * allocator, struct function_o
     init_u64_hash_table(&lox_ir->type_by_ssa_name_by_block, LOX_IR_ALLOCATOR(lox_ir));
     init_u64_hash_table(&lox_ir->definitions_by_ssa_name, LOX_IR_ALLOCATOR(lox_ir));
     init_u64_hash_table(&lox_ir->node_uses_by_ssa_name, LOX_IR_ALLOCATOR(lox_ir));
-    init_u64_hash_table(&lox_ir->definitions_by_v_reg, LOX_IR_ALLOCATOR(lox_ir));
-    init_u64_hash_table(&lox_ir->node_uses_by_v_reg, LOX_IR_ALLOCATOR(lox_ir));
     init_u64_set(&lox_ir->exit_blocks, LOX_IR_ALLOCATOR(lox_ir));
     init_u8_hash_table(&lox_ir->max_version_allocated_per_local);
 
-
-    lox_ir->last_v_reg_allocated = 0;
     lox_ir->function = function;
     lox_ir->package = package;
     lox_ir->first_block = NULL;

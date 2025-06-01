@@ -246,5 +246,5 @@ void lower_lox_ir_control_set_v_reg(struct lllil_control * lllil) {
 
 static bool is_redundant_register_move(struct lox_ir_ll_operand operand, struct lox_ir_control_set_v_register_node * set_v_reg) {
     return operand.type == LOX_IR_LL_OPERAND_REGISTER
-        && operand.v_register.number == set_v_reg->v_register.number;
+        && operand.v_register.ssa_name.u16 == set_v_reg->v_register.ssa_name.u16;
 }

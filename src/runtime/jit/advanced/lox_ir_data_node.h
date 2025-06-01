@@ -35,8 +35,6 @@ typedef enum {
     LOX_IR_DATA_NODE_PHI,
     LOX_IR_DATA_NODE_GET_SSA_NAME,
     LOX_IR_DATA_NODE_CAST,
-    //Intrudcued by phi resolution phase, this is not used in optimizations
-    LOX_IR_DATA_NODE_GET_V_REGISTER,
 } lox_ir_data_node_type;
 
 #define ALLOC_LOX_IR_DATA(type, struct_type, bytecode, allocator) (struct_type *) allocate_lox_ir_data_node(type, sizeof(struct_type), bytecode, allocator)
@@ -81,7 +79,6 @@ uint64_t hash_lox_ir_data_node(struct lox_ir_data_node*);
 //Example: (a + b) == (b + a) Or ((a + b) + c) == (b + (a + c))
 bool is_eq_lox_ir_data_node(struct lox_ir_data_node*, struct lox_ir_data_node*, struct lox_allocator*);
 struct u64_set get_used_ssa_names_lox_ir_data_node(struct lox_ir_data_node*, struct lox_allocator*);
-struct u64_set get_used_v_registers_lox_ir_data_node(struct lox_ir_data_node*, struct lox_allocator*);
 //A terminator control is a control that has no children
 bool is_terminator_lox_ir_data_node(struct lox_ir_data_node*);
 //Returns set of pointers to the fields of parent that contains the children pointer. Type: struct lox_ir_data_node **
@@ -93,11 +90,11 @@ bool is_marked_as_escaped_lox_ir_data_node(struct lox_ir_data_node*);
 void mark_as_escaped_lox_ir_data_node(struct lox_ir_data_node*);
 
 //OP_GET_LOCAL
+//Note that the size of lox_ir_data_get_ssa_name_node shoud be the same as lox_ir_data_get_local_node so that they
+//can be replaced easily
 struct lox_ir_data_get_local_node {
     struct lox_ir_data_node data;
     int local_number;
-    //Same size as get_v_register so that it can be replaced easily in the graph ir
-    uint8_t padding[8];
 };
 
 //OP_CALL
@@ -218,11 +215,11 @@ struct lox_ir_data_phi_node {
 };
 
 //Will replace OP_GET_LOCAL, when a variable
+//Note that the size of lox_ir_data_get_ssa_name_node shoud be the same as lox_ir_data_get_local_node so that they
+//can be replaced easily
 struct lox_ir_data_get_ssa_name_node {
     struct lox_ir_data_node data;
     struct ssa_name ssa_name;
-    //Same size as get_v_register so that it can be replaced easily in the graph ir
-    uint8_t padding[8];
 };
 
 struct lox_ir_data_guard_node {
@@ -237,11 +234,6 @@ struct lox_ir_data_guard_node * create_from_profile_lox_ir_data_guard_node(struc
 struct lox_ir_data_cast_node {
     struct lox_ir_data_node data;
     struct lox_ir_data_node * to_cast;
-};
-
-struct lox_ir_data_get_v_register_node {
-    struct lox_ir_data_node data;
-    struct v_register v_register;
 };
 
 struct lox_ir_data_load_node_node {

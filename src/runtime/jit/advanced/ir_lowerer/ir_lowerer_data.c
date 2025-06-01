@@ -171,7 +171,7 @@ static struct lox_ir_ll_operand emit_lox_generic_binary(
                "Expect OP_ADD when emitting generic binary operations. Current binary operator: %i", operator);
 
     struct v_register return_value = result != NULL ?
-            *result : alloc_v_register_lox_ir(control->lllil->lox_ir, false);
+            *result : alloc_new_v_register(control, NULL).v_register;
 
     emit_function_call_with_return_value_ll_lox_ir(
             control,
@@ -372,7 +372,7 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_length(
     struct lox_ir_ll_operand array_instance = lower_lox_ir_data(control, data_node, get_length->instance, expected_result);
 
     struct v_register result = expected_result != NULL ?
-            *expected_result : alloc_v_register_lox_ir(control->lllil->lox_ir, false);
+            *expected_result : alloc_new_v_register(control, false).v_register;
 
     return emit_get_array_length_ll_lox_ir(control, array_instance, get_length->escapes, result);
 }
@@ -681,7 +681,7 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field_doest_not_e
     int field_offset = get_offset_field_struct_definition_ll_lox_ir(definition, get_struct_field->field_name->chars);
 
     struct lox_ir_ll_operand get_struct_field_reg_result = result != NULL ?
-            V_REG_TO_OPERAND(*result) : V_REG_TO_OPERAND(alloc_v_register_lox_ir(lllil->lllil->lox_ir, is_field_fp));
+            V_REG_TO_OPERAND(*result) : alloc_new_v_register(lllil, is_field_fp);
 
     emit_load_at_offset_ll_lox_ir(
             lllil,
@@ -703,7 +703,7 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field_escapes(
 
     bool is_field_fp = is_struct_field_fp(get_struct_field->instance, get_struct_field->field_name->chars);
     struct lox_ir_ll_operand get_struct_field_reg_result = result != NULL ?
-            V_REG_TO_OPERAND(result) : V_REG_TO_OPERAND(alloc_v_register_lox_ir(lllil->lllil->lox_ir, is_field_fp));
+            V_REG_TO_OPERAND(*result) : alloc_new_v_register(lllil, is_field_fp);
 
     emit_function_call_with_return_value_ll_lox_ir(
             lllil,
@@ -850,7 +850,7 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_global(
 ) {
     struct lox_ir_data_get_global_node * get_global = (struct lox_ir_data_get_global_node *) data_node;
     struct v_register global_v_register = result != NULL ?
-            *result : alloc_v_register_lox_ir(lllil->lllil->lox_ir, false);
+            *result : alloc_new_v_register(lllil, false).v_register;
 
     emit_function_call_with_return_value_ll_lox_ir(
             lllil,
@@ -968,10 +968,6 @@ static struct lox_ir_ll_operand emit_negate_native(
     }
 
     return unary_operand;
-}
-
-static struct lox_ir_ll_operand alloc_new_v_register(struct lllil_control * lllil, bool is_float) {
-    return V_REG_TO_OPERAND(alloc_v_register_lox_ir(lllil->lllil->lox_ir, is_float));
 }
 
 static struct lox_ir_ll_operand emit_lox_any_to_native_cast(
@@ -1254,8 +1250,7 @@ static void emit_native_to_lox(
 }
 
 //Given: cast(a) + a Without this check, when lowering lox ir the cast(a) node will override the vregister "a" with
-//the cast value of a so when we use "a" again, it will contain the casted value which we might not want, for example
-//in this case in the right operand of the add
+//the casted value of "a". For example in the given code, the right operand of the add will contain the unwanted casted value
 static bool parent_will_have_unwanted_side_effect(
         struct lllil_control * lllil,
         struct lox_ir_ll_operand parent_input,
@@ -1264,7 +1259,7 @@ static bool parent_will_have_unwanted_side_effect(
     return parent != NULL
         && (parent->type == LOX_IR_DATA_NODE_CAST || parent->type == LOX_IR_DATA_NODE_UNARY)
         && parent_input.type == LOX_IR_LL_OPERAND_REGISTER
-        && parent_input.v_register.number < lllil->lllil->last_phi_resolution_v_reg_allocated;
+        && parent_input.v_register.ssa_name.value.local_number < lllil->lllil->last_phi_resolution_v_reg_allocated;
 }
 
 static struct lox_ir_ll_operand copy_into_new_register(struct lllil_control * lllil, struct lox_ir_ll_operand src) {
@@ -1275,4 +1270,10 @@ static struct lox_ir_ll_operand copy_into_new_register(struct lllil_control * ll
     struct lox_ir_ll_operand dst = alloc_new_v_register(lllil, src.v_register.is_float_register);
     emit_move_ll_lox_ir(lllil, dst, src);
     return dst;
+}
+
+static struct lox_ir_ll_operand alloc_new_v_register(struct lllil_control * lllil, bool is_float) {
+    struct ssa_name ssa_name = alloc_ssa_name_lox_ir(lllil->lllil->lox_ir, 1, "temp",
+            lllil->control_node_to_lower->block, NULL);
+    return V_REG_TO_OPERAND(CREATE_V_REG(ssa_name, is_float));
 }
