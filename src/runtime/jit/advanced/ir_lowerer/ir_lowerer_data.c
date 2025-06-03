@@ -1,7 +1,7 @@
 #include "ir_lowerer_data.h"
 
 typedef struct lox_ir_ll_operand(* lowerer_lox_ir_data_t)(struct lllil_control*, struct lox_ir_data_node*, struct v_register*);
-static struct lox_ir_ll_operand lowerer_lox_ir_data_get_v_register(struct lllil_control*, struct lox_ir_data_node*, struct v_register*);
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_ssa_name(struct lllil_control*, struct lox_ir_data_node*, struct v_register*);
 static struct lox_ir_ll_operand lowerer_lox_ir_data_get_global(struct lllil_control*, struct lox_ir_data_node*, struct v_register*);
 static struct lox_ir_ll_operand lowerer_lox_ir_data_constant(struct lllil_control*, struct lox_ir_data_node*, struct v_register*);
 static struct lox_ir_ll_operand lowerer_lox_ir_data_unary(struct lllil_control*, struct lox_ir_data_node*, struct v_register*);
@@ -14,6 +14,7 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_array_length(struct llli
 static struct lox_ir_ll_operand lowerer_lox_ir_data_guard(struct lllil_control*, struct lox_ir_data_node*, struct v_register*);
 static struct lox_ir_ll_operand lowerer_lox_ir_data_binary(struct lllil_control*, struct lox_ir_data_node*, struct v_register*);
 static struct lox_ir_ll_operand lowerer_lox_ir_data_call(struct lllil_control*, struct lox_ir_data_node*, struct v_register*);
+static struct lox_ir_ll_operand lowerer_lox_ir_phi(struct lllil_control*, struct lox_ir_data_node*, struct v_register*);
 
 static struct lox_ir_ll_operand emit_not_lox(struct lllil_control*, struct lox_ir_ll_operand);
 static struct lox_ir_ll_operand emit_not_native(struct lllil_control*, struct lox_ir_ll_operand);
@@ -76,7 +77,7 @@ lowerer_lox_ir_data_t lowerer_lox_ir_by_data_node[] = {
         [LOX_IR_DATA_NODE_INITIALIZE_ARRAY] = lowerer_lox_ir_data_initialize_array,
         [LOX_IR_DATA_NODE_GET_STRUCT_FIELD] = lowerer_lox_ir_data_get_struct_field,
         [LOX_IR_DATA_NODE_GET_ARRAY_LENGTH] = lowerer_lox_ir_data_get_array_length,
-        [LOX_IR_DATA_NODE_GET_V_REGISTER] = lowerer_lox_ir_data_get_v_register,
+        [LOX_IR_DATA_NODE_GET_SSA_NAME] = lowerer_lox_ir_data_get_ssa_name,
         [LOX_IR_DATA_NODE_GET_GLOBAL] = lowerer_lox_ir_data_get_global,
         [LOX_IR_DATA_NODE_CONSTANT] = lowerer_lox_ir_data_constant,
         [LOX_IR_DATA_NODE_BINARY] = lowerer_lox_ir_data_binary,
@@ -84,10 +85,9 @@ lowerer_lox_ir_data_t lowerer_lox_ir_by_data_node[] = {
         [LOX_IR_DATA_NODE_GUARD] = lowerer_lox_ir_data_guard,
         [LOX_IR_DATA_NODE_CAST] = lowerer_lox_ir_data_cast,
         [LOX_IR_DATA_NODE_CALL] = lowerer_lox_ir_data_call,
+        [LOX_IR_DATA_NODE_PHI] = lowerer_lox_ir_phi,
 
-        [LOX_IR_DATA_NODE_GET_SSA_NAME] = NULL,
         [LOX_IR_DATA_NODE_GET_LOCAL] = NULL,
-        [LOX_IR_DATA_NODE_PHI] = NULL,
 };
 
 struct lox_ir_ll_operand lower_lox_ir_data(
@@ -655,7 +655,7 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_struct_field(
         struct lox_ir_data_node * data_node,
         struct v_register * result
 ) {
-    struct lox_ir_data_get_struct_field_node  * get_struct_field = (struct lox_ir_data_get_struct_field_node *) data_node;
+    struct lox_ir_data_get_struct_field_node * get_struct_field = (struct lox_ir_data_get_struct_field_node *) data_node;
 
     if(!get_struct_field->escapes) {
         return lowerer_lox_ir_data_get_struct_field_doest_not_escape(lllil, get_struct_field, result);
@@ -730,6 +730,15 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_call(
     } else {
         return lowerer_lox_ir_data_lox_function_call(lllil, call, result);
     }
+}
+
+static struct lox_ir_ll_operand lowerer_lox_ir_phi(
+        struct lllil_control * lllil,
+        struct lox_ir_data_node * data_node,
+        struct v_register * result
+) {
+    struct lox_ir_data_phi_node * phi_node = (struct lox_ir_data_phi_node *) data_node;
+    return PHI_V_REGISTER_OPERAND(*result, phi_node->ssa_versions);
 }
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_native_function_call(
@@ -865,19 +874,19 @@ static struct lox_ir_ll_operand lowerer_lox_ir_data_get_global(
     return V_REG_TO_OPERAND(global_v_register);
 }
 
-static struct lox_ir_ll_operand lowerer_lox_ir_data_get_v_register(
-        struct lllil_control * lllil,
+static struct lox_ir_ll_operand lowerer_lox_ir_data_get_ssa_name(
+        struct lllil_control * _,
         struct lox_ir_data_node * node,
-        struct v_register * _
+        struct v_register * __
 ) {
-    struct lox_ir_data_get_v_register_node * get_v_reg = (struct lox_ir_data_get_v_register_node *) node;
-    return V_REG_TO_OPERAND(get_v_reg->v_register);
+    struct lox_ir_data_get_ssa_name_node * get_v_reg = (struct lox_ir_data_get_ssa_name_node *) node;
+    return V_REG_TO_OPERAND(CREATE_V_REG(get_v_reg->ssa_name, false));
 }
 
 static struct lox_ir_ll_operand lowerer_lox_ir_data_constant(
-        struct lllil_control * lllil,
+        struct lllil_control * _,
         struct lox_ir_data_node * node,
-        struct v_register * result
+        struct v_register * __
 ) {
     struct lox_ir_data_constant_node * const_node = (struct lox_ir_data_constant_node *) node;
     return IMMEDIATE_TO_OPERAND(const_node->value);

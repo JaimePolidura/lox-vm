@@ -12,9 +12,9 @@ void lower_lox_ir_control_set_array_element(struct lllil_control*);
 void lower_lox_ir_control_loop(struct lllil_control*);
 void lower_lox_ir_control_conditional_jump(struct lllil_control*);
 void lower_lox_ir_control_guard(struct lllil_control*);
-void lower_lox_ir_control_set_v_reg(struct lllil_control*);
+void lower_lox_ir_control_define_ssa_name(struct lllil_control*);
 
-static bool is_redundant_register_move(struct lox_ir_ll_operand, struct lox_ir_control_set_v_register_node*);
+static bool is_redundant_register_move(struct lox_ir_ll_operand, struct lox_ir_control_define_ssa_name_node*);
 
 extern void enter_monitor(struct monitor * monitor);
 extern void exit_monitor(struct monitor * monitor);
@@ -37,10 +37,9 @@ lowerer_lox_ir_control_t lowerer_lox_ir_by_control_node[] = {
         [LOX_IR_CONTROL_NODE_LOOP_JUMP] = lower_lox_ir_control_loop,
         [LOX_IR_CONTROL_NODE_CONDITIONAL_JUMP] = lower_lox_ir_control_conditional_jump,
         [LOX_IR_CONTROL_NODE_GUARD] = lower_lox_ir_control_guard,
-        [LOX_IR_CONTROL_NODE_SET_V_REGISTER] = lower_lox_ir_control_set_v_reg,
+        [LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME] = lower_lox_ir_control_define_ssa_name,
 
         [LOX_IR_CONTORL_NODE_SET_LOCAL] = NULL,
-        [LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME] = NULL,
         [LOX_IR_CONTROL_NODE_LL_MOVE] = NULL,
         [LOX_IR_CONTROL_NODE_LL_BINARY] = NULL,
         [LOX_IR_CONTROL_NODE_LL_UNARY] = NULL,
@@ -228,23 +227,24 @@ void lower_lox_ir_control_guard(struct lllil_control * lllil) {
     emit_guard_ll_lox_ir(lllil, guard_input, guard);
 }
 
-void lower_lox_ir_control_set_v_reg(struct lllil_control * lllil) {
+void lower_lox_ir_control_define_ssa_name(struct lllil_control * lllil) {
     struct lox_ir_control_node * control = lllil->control_node_to_lower;
-    struct lox_ir_control_set_v_register_node * set_v_reg = (struct lox_ir_control_set_v_register_node *) control;
+    struct lox_ir_control_define_ssa_name_node * define_ssa_name = (struct lox_ir_control_define_ssa_name_node *) control;
 
-    struct lox_ir_ll_operand new_value = lower_lox_ir_data(lllil, NULL, set_v_reg->value, &set_v_reg->v_register);
+    struct v_register result = CREATE_V_REG(define_ssa_name->ssa_name, false);
+    struct lox_ir_ll_operand new_value = lower_lox_ir_data(lllil, NULL, define_ssa_name->value, &result);
 
-    if (!is_redundant_register_move(new_value, set_v_reg)) {
+    if (!is_redundant_register_move(new_value, define_ssa_name)) {
         struct lox_ir_control_ll_move * move = ALLOC_LOX_IR_CONTROL(LOX_IR_CONTROL_NODE_LL_MOVE,
                 struct lox_ir_control_ll_move, control->block, LOX_IR_ALLOCATOR(lllil->lllil->lox_ir));
-        move->to = V_REG_TO_OPERAND(set_v_reg->v_register);
+        move->to = V_REG_TO_OPERAND(CREATE_V_REG(define_ssa_name->ssa_name, false));
         move->from = new_value;
 
         add_lowered_node_lllil_control(lllil, &move->control);
     }
 }
 
-static bool is_redundant_register_move(struct lox_ir_ll_operand operand, struct lox_ir_control_set_v_register_node * set_v_reg) {
+static bool is_redundant_register_move(struct lox_ir_ll_operand operand, struct lox_ir_control_define_ssa_name_node * define_ssa_name) {
     return operand.type == LOX_IR_LL_OPERAND_REGISTER
-        && operand.v_register.ssa_name.u16 == set_v_reg->v_register.ssa_name.u16;
+        && operand.v_register.ssa_name.u16 == define_ssa_name->ssa_name.u16;
 }
