@@ -2,6 +2,7 @@
 
 #include "runtime/jit/advanced/phi_resolution/v_register.h"
 
+#include "shared/utils/collections/u64_set.h"
 #include "shared/bytecode/bytecode.h"
 #include "shared/utils/assert.h"
 #include "shared.h"

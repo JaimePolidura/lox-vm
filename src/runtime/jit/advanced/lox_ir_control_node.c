@@ -189,10 +189,14 @@ bool is_lowered_type_lox_ir_control(struct lox_ir_control_node *node) {
 }
 
 bool is_define_phi_lox_ir_control(struct lox_ir_control_node * node) {
-    return node->type == LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME
-        && (GET_DEFINED_SSA_NAME_VALUE(node)->type == LOX_IR_DATA_NODE_PHI
-            || (GET_DEFINED_SSA_NAME_VALUE(node)->type == LOX_IR_DATA_NODE_CAST
-                && ((struct lox_ir_data_cast_node *) GET_DEFINED_SSA_NAME_VALUE(node))->to_cast->type == LOX_IR_DATA_NODE_PHI));
+    bool is_define_phi_case_1 = node->type == LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME &&
+            (GET_DEFINED_SSA_NAME_VALUE(node)->type == LOX_IR_DATA_NODE_PHI
+                || GET_DEFINED_SSA_NAME_VALUE(node)->type == LOX_IR_DATA_NODE_CAST);
+
+    bool is_define_phi_case_2 = node->type == LOX_IR_CONTROL_NODE_LL_MOVE &&
+            ((struct lox_ir_control_ll_move *) node)->from.type == LOX_IR_LL_OPERAND_PHI_V_REGISTER;
+
+    return is_define_phi_case_1 || is_define_phi_case_2;
 }
 
 struct lox_ir_data_phi_node * get_defined_phi_lox_ir_control(struct lox_ir_control_node * node) {
@@ -204,4 +208,35 @@ struct lox_ir_data_phi_node * get_defined_phi_lox_ir_control(struct lox_ir_contr
 
     struct lox_ir_data_cast_node * cast_node = (struct lox_ir_data_cast_node *) definition->value;
     return (struct lox_ir_data_phi_node *) cast_node->to_cast;
+}
+
+struct u64_set get_names_defined_phi_lox_ir_control(
+        struct lox_ir_control_node * node,
+        struct lox_allocator * allocator
+) {
+    lox_assert(node->type == LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME || node->type == LOX_IR_CONTROL_NODE_LL_MOVE,
+               "lox_ir_control_node::get_names_defined_phi_lox_ir_control", "Types can only be move or define");
+
+    struct u64_set ssa_names;
+    init_u64_set(&ssa_names, allocator);
+
+    if (node->type == LOX_IR_CONTROL_NODE_LL_MOVE) {
+        struct lox_ir_control_ll_move * move = (struct lox_ir_control_ll_move *) node;
+        FOR_EACH_U64_SET_VALUE(move->to.phi_v_register.versions, uint64_t, version) {
+            struct ssa_name ssa_name = CREATE_SSA_NAME(move->to.phi_v_register.v_register.ssa_name.value.local_number, version);
+            add_u64_set(&ssa_names, ssa_name.u16);
+        }
+
+    } else {
+        struct lox_ir_control_define_ssa_name_node * define = (struct lox_ir_control_define_ssa_name_node *) node;
+        struct lox_ir_data_phi_node * phi = (struct lox_ir_data_phi_node *) (define->value->type != LOX_IR_DATA_NODE_PHI ?
+            ((struct lox_ir_data_cast_node *) GET_DEFINED_SSA_NAME_VALUE(node))->to_cast :
+            define->value);
+
+        FOR_EACH_SSA_NAME_IN_PHI_NODE(phi, ssa_name) {
+            add_u64_set(&ssa_names, ssa_name.u16);
+        }
+    }
+
+    return ssa_names;
 }

@@ -146,16 +146,6 @@ static int generate_control_node_graph(struct lox_ir_visualizer * visualizer, st
     int self_control_node_id = visualizer->next_control_node_id++;
 
     switch (node->type) {
-        case LOX_IR_CONTROL_NODE_SET_V_REGISTER: {
-            struct lox_ir_control_set_v_register_node * set_v_reg = (struct lox_ir_control_set_v_register_node *) node;
-            char * node_desc = dynamic_format_string("Set VRegister %i", set_v_reg->v_register.number);
-            add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
-            if(!IS_FLAG_SET(visualizer->graphviz_options, NOT_DISPLAY_DATA_NODES_GRAPHVIZ_OPT)) {
-                int data_node_id = generate_data_node_graph(visualizer, set_v_reg->value);
-                link_control_data_node_graphviz_file(visualizer, self_control_node_id, data_node_id);
-            }
-            break;
-        }
         case LOX_IR_CONTROL_NODE_GUARD: {
             struct lox_ir_control_guard_node * guard = (struct lox_ir_control_guard_node *) node;
             add_guard_control_node_graphviz_file(visualizer, guard, self_control_node_id);
@@ -534,14 +524,6 @@ static int generate_data_node_graph(struct lox_ir_visualizer * visualizer, struc
             add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
             break;
         }
-        case LOX_IR_DATA_NODE_GET_V_REGISTER: {
-            struct lox_ir_data_get_v_register_node * get_v_reg = (struct lox_ir_data_get_v_register_node *) node;
-            char * node_desc = dynamic_format_string("GetVRegister %i", get_v_reg->v_register.number);
-            node_desc = maybe_add_type_info_data_node(visualizer, node, node_desc);
-
-            add_data_node_graphviz_file(visualizer, node_desc, self_data_node_id);
-            break;
-        }
         default:
             lox_assert_failed("lox_ir_graphviz_visualizer.c::generate_data_node_graph", "Uknown data node type %i",
                               node->type);
@@ -770,7 +752,26 @@ static char * ll_operand_to_string(struct lox_ir_ll_operand operand) {
         case LOX_IR_LL_OPERAND_REGISTER: {
             char * reg_size_string = register_size_to_string(operand.v_register.register_bit_size);
             char * fp_reg_string = operand.v_register.is_float_register ? "#" : "";
-            return dynamic_format_string("v%s%i%s", fp_reg_string, operand.v_register.number, reg_size_string);
+            return dynamic_format_string("v%s(%i, %i)%s", fp_reg_string, operand.v_register.ssa_name.value.local_number,
+                                         operand.v_register.ssa_name.value.version, reg_size_string);
+        }
+        case LOX_IR_LL_OPERAND_PHI_V_REGISTER: {
+            struct string_builder node_desc_string_builder;
+            init_string_builder(&node_desc_string_builder, NATIVE_LOX_ALLOCATOR());
+            append_string_builder(&node_desc_string_builder, "Phi ");
+            append_string_builder(&node_desc_string_builder, dynamic_format_string("%i",
+                                                                                   operand.phi_v_register.v_register.ssa_name.value.local_number));
+            append_string_builder(&node_desc_string_builder, "(");
+            FOR_EACH_U64_SET_VALUE(operand.phi_v_register.versions, uint64_t, current_version) {
+                char * to_append = dynamic_format_string("%i", current_version);
+                append_string_builder(&node_desc_string_builder, to_append);
+                append_string_builder(&node_desc_string_builder, ", ");
+            }
+
+            //Remove the last: ", "
+            remove_last_string_builder(&node_desc_string_builder);
+            append_string_builder(&node_desc_string_builder, ")");
+            return to_string_string_builder(&node_desc_string_builder, NATIVE_LOX_ALLOCATOR());
         }
         case LOX_IR_LL_OPERAND_MEMORY_ADDRESS: {
             if (operand.memory_address.offset != 0) {

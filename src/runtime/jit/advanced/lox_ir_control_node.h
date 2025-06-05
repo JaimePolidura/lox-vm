@@ -63,6 +63,7 @@ bool is_marked_as_escaped_lox_ir_control(struct lox_ir_control_node *node);
 bool is_lowered_type_lox_ir_control(struct lox_ir_control_node *node);
 bool is_define_phi_lox_ir_control(struct lox_ir_control_node *node);
 struct lox_ir_data_phi_node * get_defined_phi_lox_ir_control(struct lox_ir_control_node*);
+struct u64_set get_names_defined_phi_lox_ir_control(struct lox_ir_control_node *node, struct lox_allocator*);
 
 //OP_SET_LOCAL
 //Note that struct lox_ir_control_set_local_node should have the same size as lox_ir_control_define_ssa_name_node, so that
