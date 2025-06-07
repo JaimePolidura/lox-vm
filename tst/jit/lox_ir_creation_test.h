@@ -18,24 +18,18 @@ static void run(struct compilation_result);
 
 TEST(lox_ir_lowerer_ptr) {
     struct compilation_result compilation = compile_standalone(
-            "struct Point {"
-            "   x;"
-            "   y;"
-            "}"
-            ""
-            "fun transform(p) {"
-            "}"
-            ""
-            "fun function() {"
-            "   var p = nil;"
-            "   if (p == nil) {"
-            "       p = Point{1, 3};"
+            "fun function(a) {"
+            "   var b = 12;"
+            "   var c = 13;"
+            "   if(a > b) {"
+            "       c = a;"
             "   } else {"
-            "       p = transform(1);"
+            "       c = b;"
             "   }"
-            "   print p.x;"
+            "   return c + 1;"
             "}"
     );
+
 
     run(compilation);
 
@@ -74,7 +68,7 @@ TEST(lox_ir_creation_pr) {
     visualize_lox_ir(
             package,
             function,
-            PHI_RESOLUTION_PHASE_LOX_IR_VISUALIZATION,
+            ALL_PHASE_LOX_IR_VISUALIZATION,
             DEFAULT_GRAPHVIZ_OPT | DISPLAY_TYPE_INFO_OPT | DISPLAY_ESCAPE_INFO_OPT,
             LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"

@@ -211,8 +211,12 @@ void remove_only_block_lox_ir(struct lox_ir * lox_ir, struct lox_ir_block * bloc
 
     lox_assert_false(size_u64_set(successors) >= 1 && lox_ir->first_block == block, "lox_ir.c::remove_only_block_lox_ir",
                      "Cannot remove block when successors >= 1 and the first node on the IR is the node to be removed");
-    lox_assert_false(size_u64_set(predeccessors) >= 1 && size_u64_set(successors) >= 1, "lox_ir.c::remove_only_block_lox_ir",
-                     "Cannot remove block when successors >= 1 and successors >= 1");
+    lox_assert_false(size_u64_set(predeccessors) > 1 && size_u64_set(successors) > 1, "lox_ir.c::remove_only_block_lox_ir",
+                     "Cannot remove block when predeccessors > 1 and successors > 1");
+    lox_assert_false(size_u64_set(predeccessors) == 1 && size_u64_set(successors) > 1, "lox_ir.c::remove_only_block_lox_ir",
+                     "Cannot remove block when predeccessors == 1 and successors > 1");
+    lox_assert_false(size_u64_set(predeccessors) > 1 && size_u64_set(successors) == 1, "lox_ir.c::remove_only_block_lox_ir",
+                     "Cannot remove block when predeccessors > 1 and successors == 1");
     lox_assert_false(size_u64_set(successors) == 0, "lox_ir.c::remove_only_block_lox_ir",
                      "Cannot remove block when successors == 0");
 

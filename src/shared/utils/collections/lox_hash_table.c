@@ -165,15 +165,13 @@ bool put_hash_table(struct lox_hash_table * table, struct string_object * key, l
 
 static void adjust_hash_table_capacity(struct lox_hash_table * table, int new_capacity) {
     struct hash_table_entry * new_entries = LOX_MALLOC(table->allocator, sizeof(struct hash_table_entry) * new_capacity);
-
-    for (int i = 0; i < new_capacity; i++) {
-        new_entries[i].key = NULL;
-    }
+    struct hash_table_entry * old_entries = table->entries;
+    memset(new_entries, 0, new_capacity * sizeof(struct hash_table_entry));
 
     table->size = 0;
 
     for (int i = 0; i < table->capacity; i++) {
-        struct hash_table_entry * entry = &table->entries[i];
+        struct hash_table_entry * entry = &old_entries[i];
         if (entry->key != NULL) {
             struct hash_table_entry * dest = find_entry(new_entries, new_capacity, entry->key);
             dest->key = entry->key;
@@ -182,9 +180,10 @@ static void adjust_hash_table_capacity(struct lox_hash_table * table, int new_ca
         }
     }
 
-    LOX_FREE(table->allocator, table->entries);
-    table->entries = new_entries;
     table->capacity = new_capacity;
+    table->entries = new_entries;
+
+    LOX_FREE(table->allocator, old_entries);
 }
 
 void for_each_value_hash_table(struct lox_hash_table * table, void * extra, lox_hashtable_consumer_t consumer) {

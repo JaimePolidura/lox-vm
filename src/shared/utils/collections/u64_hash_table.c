@@ -1,5 +1,7 @@
 #include "u64_hash_table.h"
 
+#define TABLE_MAX_LOAD 0.75
+
 static struct u64_hash_table_entry * find_u64_hash_table_entry(struct u64_hash_table_entry * entries, int capacity, uint64_t key);
 static void grow_u64_hash_table(struct u64_hash_table *);
 extern void runtime_panic(char * format, ...);
@@ -31,7 +33,7 @@ void * get_u64_hash_table(struct u64_hash_table * hash_hable, uint64_t key) {
 }
 
 bool put_u64_hash_table(struct u64_hash_table * hash_hable, uint64_t key, void * value) {
-    if (hash_hable->size + 1 >= hash_hable->capacity) {
+    if (hash_hable->size + 1 >= hash_hable->capacity * TABLE_MAX_LOAD) {
         grow_u64_hash_table(hash_hable);
     }
 

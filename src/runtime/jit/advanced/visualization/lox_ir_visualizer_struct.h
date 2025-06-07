@@ -23,8 +23,7 @@ typedef enum {
     COPY_PROPAGATION_PHASE_LOX_IR_VISUALIZATION = 1 << 10,
 
     //Machine code generation
-    PHI_RESOLUTION_PHASE_LOX_IR_VISUALIZATION = 1 << 11,
-    LOWERING_LOX_IR_VISUALIZATION = 1 << 12,
+    LOWERING_LOX_IR_VISUALIZATION = 1 << 11,
 
     ALL_PHASE_LOX_IR_VISUALIZATION = 1 << 63,
 } phase_lox_ir_lox_ir_visualizer_t;

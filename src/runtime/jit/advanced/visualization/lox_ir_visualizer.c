@@ -118,19 +118,6 @@ void visualize_lox_ir(
             generate_graph_visualization_lox_ir(&graphviz_visualizer, lox_ir->first_block);
             break;
         }
-        case PHI_RESOLUTION_PHASE_LOX_IR_VISUALIZATION: {
-            struct lox_ir * lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
-                    &node_allocator.lox_allocator), graphviz_visualizer.options);
-            graphviz_visualizer.lox_ir = lox_ir;
-            perform_type_propagation(lox_ir);
-            perform_escape_analysis(lox_ir);
-            perform_cast_insertion(lox_ir);
-            perform_copy_propagation(lox_ir);
-            resolve_phi(lox_ir);
-
-            generate_graph_visualization_lox_ir(&graphviz_visualizer, lox_ir->first_block);
-            break;
-        }
         case LOWERING_LOX_IR_VISUALIZATION: {
             struct lox_ir * lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
                     &node_allocator.lox_allocator), graphviz_visualizer.options);
@@ -139,7 +126,6 @@ void visualize_lox_ir(
             perform_escape_analysis(lox_ir);
             perform_cast_insertion(lox_ir);
             perform_copy_propagation(lox_ir);
-            resolve_phi(lox_ir);
             lower_lox_ir(lox_ir);
 
             graphviz_visualizer.lox_ir = lox_ir;
@@ -159,7 +145,6 @@ void visualize_lox_ir(
             perform_common_subexpression_elimination(lox_ir);
             perform_copy_propagation(lox_ir);
             //Code emition
-            resolve_phi(lox_ir);
             lower_lox_ir(lox_ir);
 
             graphviz_visualizer.lox_ir = lox_ir;

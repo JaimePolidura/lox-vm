@@ -98,8 +98,7 @@ void perform_type_propagation(struct lox_ir * lox_ir) {
                 break;
             }
             default:
-                lox_assert_failed("type_propagation.c::perform_type_propagation", "Unknown block next type %i",
-                                  to_evalute->block->type_next);
+                break;
         }
     }
 
@@ -142,9 +141,6 @@ static void perform_type_propagation_control(struct pending_evaluate * to_evalut
     } else if (control_node->type == LOX_IR_CONTORL_NODE_SET_GLOBAL) {
         struct lox_ir_control_set_global_node * set_global = (struct lox_ir_control_set_global_node *) control_node;
         clear_type(set_global->value_node->produced_type);
-    } else {
-        lox_assert_failed("type_propagation.c::perform_type_propagation_control", "Unknown control node type %i",
-                          to_evalute->block->type_next);
     }
 }
 
