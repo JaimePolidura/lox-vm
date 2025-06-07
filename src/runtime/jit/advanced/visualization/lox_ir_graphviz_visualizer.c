@@ -338,6 +338,7 @@ static int generate_control_node_graph(struct lox_ir_visualizer * visualizer, st
 
             char * node_desc = dynamic_format_string("Move %s, %s", to, from);
             add_control_node_graphviz_file(visualizer, node_desc, self_control_node_id);
+            break;
         }
         default:
             lox_assert_failed("lox_ir_graphviz_visualizer.c::generate_control_node_graph", "Uknown control node type %i",

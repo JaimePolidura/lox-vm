@@ -146,6 +146,7 @@ static void make_operand_type_adjustment_all(
         case LOX_IR_LL_OPERAND_IMMEDIATE:
         case LOX_IR_LL_OPERAND_MEMORY_ADDRESS:
         case LOX_IR_LL_OPERAND_STACK_SLOT:
+        case LOX_IR_LL_OPERAND_PHI_V_REGISTER:
             break;
         default:
             lox_assert_failed("lllil.c::make_operand_type_adjustment_all", "Unknown operand type %i", operand->type);
