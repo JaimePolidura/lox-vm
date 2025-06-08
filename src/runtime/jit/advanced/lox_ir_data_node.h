@@ -88,6 +88,8 @@ void const_to_lox_lox_ir_data_node(struct lox_ir_data_constant_node *, lox_ir_ty
 bool is_marked_as_escaped_lox_ir_data_node(struct lox_ir_data_node*);
 //Sets escapes boolean field in certain type of lox ir nodes to true
 void mark_as_escaped_lox_ir_data_node(struct lox_ir_data_node*);
+//Should only be call by lox_ir.c
+void replace_ssa_name_lox_ir_data(struct lox_ir_data_node **node, struct ssa_name old, struct ssa_name new);
 
 //OP_GET_LOCAL
 //Note that the size of lox_ir_data_get_ssa_name_node shoud be the same as lox_ir_data_get_local_node so that they
@@ -206,6 +208,7 @@ struct lox_ir_data_initialize_array_node {
             CREATE_SSA_NAME((phi_node)->local_number, next_u64_set_iterator(&iterator##current_name)) : \
             CREATE_SSA_NAME_FROM_U64(0))
 
+//Should be larger in memory than get_ssa_name node
 struct lox_ir_data_phi_node {
     struct lox_ir_data_node data;
     uint8_t local_number;
@@ -217,6 +220,7 @@ struct lox_ir_data_phi_node {
 //Will replace OP_GET_LOCAL, when a variable
 //Note that the size of lox_ir_data_get_ssa_name_node shoud be the same as lox_ir_data_get_local_node so that they
 //can be replaced easily
+//Should be smaller in memory than phi node
 struct lox_ir_data_get_ssa_name_node {
     struct lox_ir_data_node data;
     struct ssa_name ssa_name;
@@ -234,10 +238,4 @@ struct lox_ir_data_guard_node * create_from_profile_lox_ir_data_guard_node(struc
 struct lox_ir_data_cast_node {
     struct lox_ir_data_node data;
     struct lox_ir_data_node * to_cast;
-};
-
-struct lox_ir_data_load_node_node {
-    struct lox_ir_data_node data;
-    struct lox_ir_data_node * pointer;
-    uint16_t offset;
 };

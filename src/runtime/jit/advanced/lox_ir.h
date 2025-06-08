@@ -52,6 +52,7 @@ void add_before_control_node_block_lox_ir(struct lox_ir*,struct lox_ir_block*,st
 //If after is NULL, the node will be added as the first node in the block
 void add_after_control_node_block_lox_ir(struct lox_ir*,struct lox_ir_block*,struct lox_ir_control_node*,struct lox_ir_control_node*);
 void replace_control_node_block_lox_ir(struct lox_ir*,struct lox_ir_block*,struct lox_ir_control_node*, struct lox_ir_control_node*);
+void replace_ssa_name_lox_ir(struct lox_ir*, struct ssa_name old, struct ssa_name new);
 
 //Removes control node from block. If the control node to remove is the only one in the block, the block will get removed
 //from the lox ir graph

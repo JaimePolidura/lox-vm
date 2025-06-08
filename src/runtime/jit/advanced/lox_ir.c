@@ -633,3 +633,17 @@ struct lox_ir * alloc_lox_ir(struct lox_allocator * allocator, struct function_o
 
     return lox_ir;
 }
+
+void replace_ssa_name_lox_ir(struct lox_ir * lox_ir, struct ssa_name old, struct ssa_name new) {
+    //Remove definition old
+    struct lox_ir_control_node * definition_old_ssa_name = get_u64_hash_table(&lox_ir->definitions_by_ssa_name, old.u16);
+    if (definition_old_ssa_name != NULL) {
+        remove_block_control_node_lox_ir(lox_ir, definition_old_ssa_name->block, definition_old_ssa_name);
+    }
+
+    //Replace uses with new ssa name
+    struct u64_set * uses_old_ssa_name = get_u64_hash_table(&lox_ir->node_uses_by_ssa_name, old.u16);
+    FOR_EACH_U64_SET_VALUE(*uses_old_ssa_name, struct lox_ir_control_node *, use_node_old_ssa_name) {
+        use_node_old_ssa_name.
+    }
+}

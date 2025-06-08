@@ -240,3 +240,130 @@ struct u64_set get_names_defined_phi_lox_ir_control(
 
     return ssa_names;
 }
+
+static void get_used_ll_operands_func_call_lox_ir_control(
+        struct u64_set * used_ll_operands,
+        struct lox_ir_control_ll_function_call * call
+) {
+    for (int i = 0; i < call->arguments.in_use; i++) {
+        add_u64_set(used_ll_operands, (uint64_t) call->arguments.values[i]);
+    }
+    if (call->has_return_value) {
+        add_u64_set(used_ll_operands, (uint64_t) &call->return_value_v_reg);
+    }
+}
+
+struct u64_set get_used_ll_operands_lox_ir_control(struct lox_ir_control_node * control_node, struct lox_allocator * allocator) {
+    struct u64_set used_ll_operands;
+    init_u64_set(&used_ll_operands, allocator);
+
+    switch (control_node->type) {
+        case LOX_IR_CONTROL_NODE_LL_MOVE: {
+            struct lox_ir_control_ll_move * move = (struct lox_ir_control_ll_move *) control_node;
+            add_u64_set(&used_ll_operands, (uint64_t) &move->to);
+            add_u64_set(&used_ll_operands, (uint64_t) &move->from);
+            break;
+        }
+        case LOX_IR_CONTROL_NODE_LL_BINARY: {
+            struct lox_ir_control_ll_binary * binary = (struct lox_ir_control_ll_binary *) control_node;
+            add_u64_set(&used_ll_operands, (uint64_t) &binary->left);
+            add_u64_set(&used_ll_operands, (uint64_t) &binary->right);
+            add_u64_set(&used_ll_operands, (uint64_t) &binary->result);
+            break;
+        }
+        case LOX_IR_CONTROL_NODE_LL_COMPARATION: {
+            struct lox_ir_control_ll_comparation * cmp = (struct lox_ir_control_ll_comparation *) control_node;
+            add_u64_set(&used_ll_operands, (uint64_t) &cmp->left);
+            add_u64_set(&used_ll_operands, (uint64_t) &cmp->right);
+            break;
+        }
+        case LOX_IR_CONTROL_NODE_LL_UNARY: {
+            struct lox_ir_control_ll_unary * unary = (struct lox_ir_control_ll_unary *) control_node;
+            add_u64_set(&used_ll_operands, (uint64_t) &unary->operand);
+            break;
+        }
+        case LOX_IR_CONTROL_NODE_LL_RETURN: {
+            struct lox_ir_control_return_node * ret = (struct lox_ir_control_return_node *) control_node;
+            if (!ret->empty_return) {
+                add_u64_set(&used_ll_operands, (uint64_t) &ret->control);
+            }
+            break;
+        }
+        case LOX_IR_CONTROL_NODE_LL_FUNCTION_CALL: {
+            struct lox_ir_control_ll_function_call * call = (struct lox_ir_control_ll_function_call *) control_node;
+            get_used_ll_operands_func_call_lox_ir_control(&used_ll_operands, call);
+            break;
+        }
+        case LOX_IR_CONTROL_NODE_LL_COND_FUNCTION_CALL: {
+            struct lox_ir_control_ll_cond_function_call * cond_call = (struct lox_ir_control_ll_cond_function_call *) control_node;
+            get_used_ll_operands_func_call_lox_ir_control(&used_ll_operands, cond_call->call);
+            break;
+        }
+    }
+
+    return used_ll_operands;
+}
+
+static void replace_v_reg_ssa_node(
+        struct lox_ir_control_node * node,
+        struct ssa_name old,
+        struct ssa_name new
+) {
+    struct u64_set used_operands = get_used_ll_operands_lox_ir_control(node, NATIVE_LOX_ALLOCATOR());
+
+    FOR_EACH_U64_SET_VALUE(used_operands, struct lox_ir_ll_operand *, operand_used) {
+        switch (operand_used->type) {
+            case LOX_IR_LL_OPERAND_REGISTER: {
+                if (operand_used->v_register.ssa_name.u16 == old.u16) {
+                    operand_used->v_register.ssa_name = new;
+                }
+                break;
+            }
+            case LOX_IR_LL_OPERAND_PHI_V_REGISTER: {
+                if (operand_used->phi_v_register.v_register.ssa_name.value.local_number == old.value.local_number
+                    && contains_u64_set(&operand_used->phi_v_register.versions, old.value.version)) {
+
+                    remove_u64_set(&operand_used->phi_v_register.versions, old.value.version);
+                    add_u64_set(&operand_used->phi_v_register.versions, new.value.version);
+                }
+                //If phi has only one version, we should replace it with LOX_IR_LL_OPERAND_PHI_V_REGISTER operand type
+                if (size_u64_set(operand_used->phi_v_register.versions) == 1) {
+                    operand_used->type = LOX_IR_LL_OPERAND_PHI_V_REGISTER;
+                    struct v_register v_register = operand_used->phi_v_register.v_register;
+                    v_register.ssa_name.value.version = new.value.version;
+                    operand_used->v_register = v_register;
+                }
+                break;
+            }
+            case LOX_IR_LL_OPERAND_MEMORY_ADDRESS: {
+                if (operand_used->memory_address.address.ssa_name.u16 == old.u16) {
+                    operand_used->memory_address.address.ssa_name = new;
+                }
+                break;
+            }
+            default:
+                break;
+        }
+    }
+
+    free_u64_set(&used_operands);
+}
+
+void replace_ssa_name_lox_ir_control(
+        struct lox_ir_control_node * node,
+        struct ssa_name old,
+        struct ssa_name new
+) {
+    //Replace data node ssa names
+    FOR_EACH_U64_SET_VALUE(get_children_lox_ir_control(node), struct lox_ir_data_node **,child) {
+        replace_ssa_name_lox_ir_data(child, old, new);
+    }
+
+    if (node->type == LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME) {
+        if (GET_DEFINED_SSA_NAME(node).u16 == old.u16) {
+            ((struct lox_ir_control_define_ssa_name_node *) node)->ssa_name = new;
+        }
+    } else if (is_lowered_type_lox_ir_control(node)) {
+        replace_v_reg_ssa_node(node, old, new);
+    }
+}

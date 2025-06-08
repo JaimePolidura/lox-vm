@@ -64,6 +64,10 @@ bool is_lowered_type_lox_ir_control(struct lox_ir_control_node *node);
 bool is_define_phi_lox_ir_control(struct lox_ir_control_node *node);
 struct lox_ir_data_phi_node * get_defined_phi_lox_ir_control(struct lox_ir_control_node*);
 struct u64_set get_names_defined_phi_lox_ir_control(struct lox_ir_control_node *node, struct lox_allocator*);
+//This method is expected to be called ony from lox.ir.c
+void replace_ssa_name_lox_ir_control(struct lox_ir_control_node *node, struct ssa_name old, struct ssa_name new);
+//Returns set of pointers to fields of struct ll_operand
+struct u64_set get_used_ll_operands_lox_ir_control(struct lox_ir_control_node*, struct lox_allocator*);
 
 //OP_SET_LOCAL
 //Note that struct lox_ir_control_set_local_node should have the same size as lox_ir_control_define_ssa_name_node, so that
@@ -189,7 +193,8 @@ struct lox_ir_control_ll_function_call {
     //Operands allowed: REGISTER, IMMEDIATE, MEMORY_ADDRESS, STACK_SLOT
     struct ptr_arraylist arguments;
     bool has_return_value;
-    struct v_register return_value_v_reg;
+    //Is v regsiter type operand
+    struct lox_ir_ll_operand return_value_v_reg;
 };
 
 struct lox_ir_control_ll_return {

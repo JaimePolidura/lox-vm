@@ -758,3 +758,68 @@ void mark_as_escaped_lox_ir_data_node(struct lox_ir_data_node * data_node) {
             break;
     }
 }
+
+struct replace_ssa_name_lox_ir_data_struct {
+    struct ssa_name old;
+    struct ssa_name new;
+};
+
+bool replace_ssa_name_lox_ir_data_consumer (
+        struct lox_ir_data_node * _,
+        void ** __,
+        struct lox_ir_data_node * node,
+        void * extra
+) {
+    struct replace_ssa_name_lox_ir_data_struct * consumer_struct = extra;
+
+    switch (node->type) {
+        case LOX_IR_DATA_NODE_GET_SSA_NAME: {
+            struct lox_ir_data_get_ssa_name_node * get_ssa_name = (struct lox_ir_data_get_ssa_name_node *) node;
+            if (get_ssa_name->ssa_name.u16 == consumer_struct->old.u16) {
+                get_ssa_name->ssa_name = consumer_struct->new;
+            }
+            break;
+        }
+        case LOX_IR_DATA_NODE_PHI: {
+            struct lox_ir_data_phi_node * phi = (struct lox_ir_data_phi_node *) node;
+
+            if (phi->local_number == consumer_struct->new.value.local_number) {
+                remove_u64_set(&phi->ssa_versions, consumer_struct->old.value.version);
+                add_u64_set(&phi->ssa_versions, consumer_struct->new.value.version);
+            }
+
+            //If phi has only one version, we should replace it with GET_SSA_NAME name
+            if (size_u64_set(phi->ssa_versions) == 1) {
+                //Ugly trick
+                struct lox_ir_data_get_ssa_name_node * get_ssa_node = (struct lox_ir_data_get_ssa_name_node *) node;
+                get_ssa_node->data.type = LOX_IR_DATA_NODE_GET_SSA_NAME;
+                get_ssa_node->ssa_name = CREATE_SSA_NAME(
+                        phi->local_number,
+                        get_first_value_u64_set(phi->ssa_versions)
+                );
+            }
+            break;
+        }
+    }
+
+    return true;
+}
+
+void replace_ssa_name_lox_ir_data(
+        struct lox_ir_data_node ** node,
+        struct ssa_name old,
+        struct ssa_name new
+) {
+    struct replace_ssa_name_lox_ir_data_struct consumer_struct = (struct replace_ssa_name_lox_ir_data_struct) {
+        .old = old,
+        .new = new,
+    };
+
+    for_each_lox_ir_data_node(
+            *node,
+            node,
+            &consumer_struct,
+            LOX_IR_DATA_NODE_OPT_ANY_ORDER,
+            replace_ssa_name_lox_ir_data_consumer
+    );
+}

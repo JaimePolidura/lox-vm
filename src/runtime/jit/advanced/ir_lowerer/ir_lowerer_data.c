@@ -314,7 +314,7 @@ static struct lox_ir_ll_operand emit_binary_add(
         emit_string_concat(control, result, left, right, left_type, right_type, type_to_produce);
     } else if (is_fp) {
         emit_binary_ll_lox_ir(control, BINARY_LL_LOX_IR_FADD, result, left, right);
-    } else if (is_i64 && is_binary_inc(binary)){
+    } else if (is_i64 && is_binary_inc(binary)) {
         emit_unary_ll_lox_ir(control, left.type == LOX_IR_LL_OPERAND_IMMEDIATE ? right : left, UNARY_LL_LOX_IR_INC);
     } else if (is_i64) {
         emit_binary_ll_lox_ir(control, BINARY_LL_LOX_IR_IADD, result, left, right);
