@@ -42,6 +42,7 @@ void * allocate_lox_ir_control(lox_ir_control_node_type type, size_t size_bytes,
 #define GET_CONDITION_CONDITIONAL_JUMP_LOX_IR_NODE(node) (((struct lox_ir_control_conditional_jump_node *) (node))->condition)
 #define GET_DEFINED_SSA_NAME(node) (((struct lox_ir_control_define_ssa_name_node *) (node))->ssa_name)
 #define GET_DEFINED_SSA_NAME_VALUE(node) (((struct lox_ir_control_define_ssa_name_node *) (node))->value)
+#define GET_LL_UNARY_OPERAND(node) (((struct lox_ir_control_ll_unary *) (node))->operand)
 
 struct lox_ir_control_node {
     lox_ir_control_node_type type;
@@ -68,6 +69,7 @@ struct u64_set get_names_defined_phi_lox_ir_control(struct lox_ir_control_node *
 void replace_ssa_name_lox_ir_control(struct lox_ir_control_node *node, struct ssa_name old, struct ssa_name new);
 //Returns set of pointers to fields of struct ll_operand
 struct u64_set get_used_ll_operands_lox_ir_control(struct lox_ir_control_node*, struct lox_allocator*);
+struct ssa_name * get_defined_ssa_name_lox_ir_control(struct lox_ir_control_node*);
 
 //OP_SET_LOCAL
 //Note that struct lox_ir_control_set_local_node should have the same size as lox_ir_control_define_ssa_name_node, so that

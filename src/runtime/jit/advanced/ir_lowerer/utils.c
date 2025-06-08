@@ -557,7 +557,7 @@ void emit_function_call_with_return_value_manual_args_ll_lox_ir(
     resize_ptr_arraylist(&func_call->arguments, n_args);
     func_call->has_return_value = true;
     func_call->function_name = function_name;
-    func_call->return_value_v_reg = return_value_v_reg;
+    func_call->return_value_v_reg = V_REG_TO_OPERAND(return_value_v_reg);
 
     for (int i = 0; i < n_args; i++) {
         struct lox_ir_ll_operand argument = arguments[i];

@@ -70,6 +70,7 @@ static bool optimize_phi_functions_consumer(
 
     if (current_node->type == LOX_IR_DATA_NODE_PHI) {
         struct lox_ir_data_phi_node * phi_node = (struct lox_ir_data_phi_node *) current_node;
+
         if (size_u64_set(phi_node->ssa_versions) == 1) {
             remove_innecesary_phi_function(for_each_node_consumer_struct, phi_node, parent_child_ptr);
         } else if(size_u64_set(phi_node->ssa_versions) > 1) {
@@ -264,7 +265,6 @@ static bool fill_uses_by_node_hashtable_block(struct lox_ir_block * block, void 
 
         FOR_EACH_U64_SET_VALUE(used_ssa_names, uint64_t, current_used_ssa_name_in_control_node_u64) {
             struct ssa_name current_used_ssa_name_in_control_node = CREATE_SSA_NAME_FROM_U64(current_used_ssa_name_in_control_node_u64);
-
             add_ssa_name_use(uses_by_ssa_node, current_used_ssa_name_in_control_node, current);
         }
 

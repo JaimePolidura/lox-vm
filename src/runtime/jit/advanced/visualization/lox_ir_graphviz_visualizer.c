@@ -736,7 +736,7 @@ static char * ll_func_call_to_string(
     append_string_builder(&function_call_string_builder, ")");
 
     if (func_call->has_return_value) {
-        char * return_reg = ll_operand_to_string(V_REG_TO_OPERAND(func_call->return_value_v_reg));
+        char * return_reg = ll_operand_to_string(func_call->return_value_v_reg);
         append_first_string_builder(&function_call_string_builder, dynamic_format_string("%s = ", return_reg));
     }
 

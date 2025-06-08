@@ -68,7 +68,7 @@ bool get_used_ssa_names_lox_ir_data_node_consumer(
         struct lox_ir_data_get_ssa_name_node * get_ssa_name = (struct lox_ir_data_get_ssa_name_node *) data_node;
         add_u64_set(used_ssa_names, get_ssa_name->ssa_name.u16);
     }
-    if(data_node->type == LOX_IR_DATA_NODE_PHI){
+    if (data_node->type == LOX_IR_DATA_NODE_PHI) {
         FOR_EACH_SSA_NAME_IN_PHI_NODE((struct lox_ir_data_phi_node *) data_node, current_phi_ssa_name) {
             add_u64_set(used_ssa_names, current_phi_ssa_name.u16);
         }

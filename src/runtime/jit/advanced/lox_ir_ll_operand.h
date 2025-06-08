@@ -46,4 +46,4 @@ struct lox_ir_ll_operand {
     };
 };
 
-struct v_register * get_used_v_reg_ll_operand(struct lox_ir_ll_operand *);
+struct u64_set get_used_v_reg_ssa_name_ll_operand(struct lox_ir_ll_operand, struct lox_allocator *);

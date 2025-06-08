@@ -142,6 +142,12 @@ struct u64_set get_used_ssa_names_lox_ir_control(struct lox_ir_control_node * co
             &get_used_ssa_names_lox_ir_control_consumer
     );
 
+    struct u64_set operands = get_used_ll_operands_lox_ir_control(control_node, allocator);
+    FOR_EACH_U64_SET_VALUE(operands, struct lox_ir_ll_operand *, operand) {
+        struct u64_set ssa_names_used_in_operand = get_used_v_reg_ssa_name_ll_operand(*operand, allocator);
+        union_u64_set(&used_ssa_names, ssa_names_used_in_operand);
+    }
+
     return used_ssa_names;
 }
 
@@ -283,9 +289,9 @@ struct u64_set get_used_ll_operands_lox_ir_control(struct lox_ir_control_node * 
             break;
         }
         case LOX_IR_CONTROL_NODE_LL_RETURN: {
-            struct lox_ir_control_return_node * ret = (struct lox_ir_control_return_node *) control_node;
+            struct lox_ir_control_ll_return * ret = (struct lox_ir_control_ll_return *) control_node;
             if (!ret->empty_return) {
-                add_u64_set(&used_ll_operands, (uint64_t) &ret->control);
+                add_u64_set(&used_ll_operands, (uint64_t) &ret->to_return);
             }
             break;
         }
@@ -359,11 +365,23 @@ void replace_ssa_name_lox_ir_control(
         replace_ssa_name_lox_ir_data(child, old, new);
     }
 
-    if (node->type == LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME) {
-        if (GET_DEFINED_SSA_NAME(node).u16 == old.u16) {
-            ((struct lox_ir_control_define_ssa_name_node *) node)->ssa_name = new;
-        }
+    if (node->type == LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME && GET_DEFINED_SSA_NAME(node).u16 == old.u16) {
+        ((struct lox_ir_control_define_ssa_name_node *) node)->ssa_name = new;
     } else if (is_lowered_type_lox_ir_control(node)) {
         replace_v_reg_ssa_node(node, old, new);
     }
+}
+
+struct ssa_name * get_defined_ssa_name_lox_ir_control(struct lox_ir_control_node * control_node) {
+    if (control_node->type == LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME) {
+        return &GET_DEFINED_SSA_NAME(control_node);
+    }
+    if (control_node->type == LOX_IR_CONTROL_NODE_LL_MOVE) {
+        struct lox_ir_control_ll_move * move = (struct lox_ir_control_ll_move *) control_node;
+        if (move->to.type == LOX_IR_LL_OPERAND_REGISTER) {
+            return &move->to.v_register.ssa_name;
+        }
+    }
+
+    return NULL;
 }

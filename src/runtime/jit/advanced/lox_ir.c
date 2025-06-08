@@ -131,7 +131,9 @@ static void record_removed_node_information_of_block(
         struct lox_ir_block * block,
         struct lox_ir_control_node * removed_node
 ) {
-    remove_u64_set(&lox_ir->exit_blocks, (uint64_t) removed_node);
+    if (removed_node->type == LOX_IR_CONTROL_NODE_LL_RETURN || removed_node->type == LOX_IR_CONTROL_NODE_RETURN) {
+        remove_u64_set(&lox_ir->exit_blocks, (uint64_t) block);
+    }
 
     struct u64_set used_ssa_names = get_used_ssa_names_lox_ir_control(removed_node, NATIVE_LOX_ALLOCATOR());
     FOR_EACH_U64_SET_VALUE(used_ssa_names, uint64_t, used_ssa_name_u64) {
@@ -140,11 +142,11 @@ static void record_removed_node_information_of_block(
     }
     free_u64_set(&used_ssa_names);
 
-    if (removed_node->type == LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME) {
-        struct lox_ir_control_define_ssa_name_node * define = (struct lox_ir_control_define_ssa_name_node *) removed_node;
-        remove_u64_set(&block->defined_ssa_names, define->ssa_name.u16);
-        remove_u64_hash_table(&lox_ir->cyclic_ssa_name_definitions, define->ssa_name.u16);
-        remove_u64_hash_table(&lox_ir->node_uses_by_ssa_name, define->ssa_name.u16);
+    struct ssa_name * defined_ssa_name = get_defined_ssa_name_lox_ir_control(removed_node);
+    if (defined_ssa_name != NULL) {
+        remove_u64_set(&block->defined_ssa_names, defined_ssa_name->u16);
+        remove_u64_hash_table(&lox_ir->cyclic_ssa_name_definitions, defined_ssa_name->u16);
+        remove_u64_hash_table(&lox_ir->node_uses_by_ssa_name, defined_ssa_name->u16);
     }
 }
 
@@ -153,6 +155,10 @@ static void record_new_node_information_of_block(
         struct lox_ir_block * block,
         struct lox_ir_control_node * new_block_node
 ) {
+    if (new_block_node->type == LOX_IR_CONTROL_NODE_LL_RETURN || new_block_node->type == LOX_IR_CONTROL_NODE_RETURN) {
+        remove_u64_set(&lox_ir->exit_blocks, (uint64_t) block);
+    }
+
     struct u64_set used_ssa_names = get_used_ssa_names_lox_ir_control(new_block_node, NATIVE_LOX_ALLOCATOR());
     FOR_EACH_U64_SET_VALUE(used_ssa_names, uint64_t, used_ssa_name_u64) {
         struct ssa_name used_ssa_name = CREATE_SSA_NAME_FROM_U64(used_ssa_name_u64);
@@ -160,10 +166,10 @@ static void record_new_node_information_of_block(
     }
     free_u64_set(&used_ssa_names);
 
-    if (new_block_node->type == LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME) {
-        struct lox_ir_control_define_ssa_name_node * define = (struct lox_ir_control_define_ssa_name_node *) new_block_node;
-        add_u64_set(&block->defined_ssa_names, define->ssa_name.u16);
-        put_u64_hash_table(&lox_ir->definitions_by_ssa_name, define->ssa_name.u16, new_block_node);
+    struct ssa_name * defined_ssa_name = get_defined_ssa_name_lox_ir_control(new_block_node);
+    if (defined_ssa_name != NULL) {
+        add_u64_set(&block->defined_ssa_names, defined_ssa_name->u16);
+        put_u64_hash_table(&lox_ir->definitions_by_ssa_name, defined_ssa_name->u16, new_block_node);
     }
 }
 
@@ -172,13 +178,26 @@ void remove_block_control_node_lox_ir(
         struct lox_ir_block * lox_ir_block,
         struct lox_ir_control_node * node_to_remove
 ) {
-    record_removed_node_information_of_block(lox_ir, lox_ir_block, node_to_remove);
+    remove_block_control_node_with_options_lox_ir(lox_ir, lox_ir_block, node_to_remove, LOX_IR_REMOVE_CONTROL_NODE_OPT_DEFAULT);
+}
+
+void remove_block_control_node_with_options_lox_ir(
+        struct lox_ir * lox_ir,
+        struct lox_ir_block * lox_ir_block,
+        struct lox_ir_control_node * node_to_remove,
+        long options
+) {
     reset_loop_info(lox_ir_block);
+    if (IS_FLAG_SET(options, LOX_IR_REMOVE_CONTROL_NODE_OPT_RECORD_REMOVED_NODE_INFORMATION)) {
+        record_removed_node_information_of_block(lox_ir, lox_ir_block, node_to_remove);
+    }
 
     //The block has only 1 control control_node_to_lower
-    if(lox_ir_block->first == lox_ir_block->last){
+    if (lox_ir_block->first == lox_ir_block->last) {
         lox_ir_block->first = lox_ir_block->last = NULL;
-        remove_only_block_lox_ir(lox_ir, lox_ir_block);
+        if (IS_FLAG_SET(options, LOX_IR_REMOVE_CONTROL_NODE_OPT_REMOVE_BLOCK_FROM_IR_IF_EMTPY)) {
+            remove_only_block_lox_ir(lox_ir, lox_ir_block);
+        }
         return;
     }
     //We are removing the first control_node_to_lower
@@ -210,7 +229,7 @@ void remove_only_block_lox_ir(struct lox_ir * lox_ir, struct lox_ir_block * bloc
     struct u64_set predeccessors = block->predecesors;
 
     lox_assert_false(size_u64_set(successors) >= 1 && lox_ir->first_block == block, "lox_ir.c::remove_only_block_lox_ir",
-                     "Cannot remove block when successors >= 1 and the first node on the IR is the node to be removed");
+                     "Cannot remove block when successors >= 1 and the first node of the IR is the node to be removed");
     lox_assert_false(size_u64_set(predeccessors) > 1 && size_u64_set(successors) > 1, "lox_ir.c::remove_only_block_lox_ir",
                      "Cannot remove block when predeccessors > 1 and successors > 1");
     lox_assert_false(size_u64_set(predeccessors) == 1 && size_u64_set(successors) > 1, "lox_ir.c::remove_only_block_lox_ir",
@@ -635,15 +654,19 @@ struct lox_ir * alloc_lox_ir(struct lox_allocator * allocator, struct function_o
 }
 
 void replace_ssa_name_lox_ir(struct lox_ir * lox_ir, struct ssa_name old, struct ssa_name new) {
+    //Replace uses with new ssa name
+    struct u64_set * uses_old_ssa_name = get_u64_hash_table(&lox_ir->node_uses_by_ssa_name, old.u16);
+    FOR_EACH_U64_SET_VALUE(*uses_old_ssa_name, struct lox_ir_control_node *, use_node_old_ssa_name) {
+        record_removed_node_information_of_block(lox_ir, use_node_old_ssa_name->block, use_node_old_ssa_name);
+        replace_ssa_name_lox_ir_control(use_node_old_ssa_name, old, new);
+        record_new_node_information_of_block(lox_ir, use_node_old_ssa_name->block, use_node_old_ssa_name);
+    }
+
     //Remove definition old
     struct lox_ir_control_node * definition_old_ssa_name = get_u64_hash_table(&lox_ir->definitions_by_ssa_name, old.u16);
     if (definition_old_ssa_name != NULL) {
         remove_block_control_node_lox_ir(lox_ir, definition_old_ssa_name->block, definition_old_ssa_name);
     }
 
-    //Replace uses with new ssa name
-    struct u64_set * uses_old_ssa_name = get_u64_hash_table(&lox_ir->node_uses_by_ssa_name, old.u16);
-    FOR_EACH_U64_SET_VALUE(*uses_old_ssa_name, struct lox_ir_control_node *, use_node_old_ssa_name) {
-        use_node_old_ssa_name.
-    }
+    remove_u64_hash_table(&lox_ir->node_uses_by_ssa_name, old.u16);
 }

@@ -31,7 +31,7 @@ struct lox_ir {
     //Function of the lox_ir
     struct function_object * function;
     struct package * package;
-    //Set by type_propagation Key: block pointer, value: Hashtable of key ssa_name, value: lox_ir_type *.
+    //Set & used by type_propagation. Key: block pointer, value: Hashtable of key ssa_name, value: lox_ir_type *.
     struct u64_hash_table type_by_ssa_name_by_block;
     //Key: ssa_name, value: boolean that indicates is the ssa name definitino is cyclical
     struct u64_hash_table cyclic_ssa_name_definitions;
@@ -56,7 +56,17 @@ void replace_ssa_name_lox_ir(struct lox_ir*, struct ssa_name old, struct ssa_nam
 
 //Removes control node from block. If the control node to remove is the only one in the block, the block will get removed
 //from the lox ir graph
-void remove_block_control_node_lox_ir(struct lox_ir*, struct lox_ir_block*, struct lox_ir_control_node*);
+void remove_block_control_node_lox_ir(struct lox_ir*,struct lox_ir_block*,struct lox_ir_control_node*);
+enum {
+    LOX_IR_REMOVE_CONTROL_NODE_OPT_REMOVE_BLOCK_FROM_IR_IF_EMTPY = 1 << 0,
+    LOX_IR_REMOVE_CONTROL_NODE_OPT_LEAVE_BLOCK_FROM_LOX_IR_EMTPY = 1 << 2,
+    LOX_IR_REMOVE_CONTROL_NODE_OPT_RECORD_REMOVED_NODE_INFORMATION = 1 << 3,
+    LOX_IR_REMOVE_CONTROL_NODE_OPT_DONT_RECORD_REMOVED_NODE_INFORMATION = 1 << 4,
+
+    LOX_IR_REMOVE_CONTROL_NODE_OPT_DEFAULT = LOX_IR_REMOVE_CONTROL_NODE_OPT_REMOVE_BLOCK_FROM_IR_IF_EMTPY
+            | LOX_IR_REMOVE_CONTROL_NODE_OPT_RECORD_REMOVED_NODE_INFORMATION,
+};
+void remove_block_control_node_with_options_lox_ir(struct lox_ir*,struct lox_ir_block*,struct lox_ir_control_node*,long);
 //Removes block from lox ir graph. Expect:
 // - the block to be removed is not the last one in the lox ir
 // - if the set size of successors size is more than 1, the set size of predecessors is 1 and vice versa, both sets size

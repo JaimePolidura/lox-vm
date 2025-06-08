@@ -46,8 +46,10 @@ bool lower_lox_ir_block(struct lox_ir_block * block, void * extra) {
 
         lllil_control.control_node_to_lower = current;
 
+        remove_block_control_node_with_options_lox_ir(lllil->lox_ir, block, current,
+                LOX_IR_REMOVE_CONTROL_NODE_OPT_LEAVE_BLOCK_FROM_LOX_IR_EMTPY
+                    | LOX_IR_REMOVE_CONTROL_NODE_OPT_DONT_RECORD_REMOVED_NODE_INFORMATION);
         lower_lox_ir_control(&lllil_control);
-        remove_block_control_node_lox_ir(lllil->lox_ir, block, current);
     }
 
     return true;

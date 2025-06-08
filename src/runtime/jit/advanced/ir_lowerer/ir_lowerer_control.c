@@ -15,6 +15,7 @@ void lower_lox_ir_control_guard(struct lllil_control*);
 void lower_lox_ir_control_define_ssa_name(struct lllil_control*);
 
 static bool is_redundant_register_move(struct lox_ir_ll_operand, struct lox_ir_control_define_ssa_name_node*);
+static bool lowered_node_modifies_diferent_register_than_lowered_node_result(struct lllil_control*,struct lox_ir_ll_operand);
 
 extern void enter_monitor(struct monitor * monitor);
 extern void exit_monitor(struct monitor * monitor);
@@ -230,7 +231,6 @@ void lower_lox_ir_control_guard(struct lllil_control * lllil) {
 void lower_lox_ir_control_define_ssa_name(struct lllil_control * lllil) {
     struct lox_ir_control_node * control = lllil->control_node_to_lower;
     struct lox_ir_control_define_ssa_name_node * define_ssa_name = (struct lox_ir_control_define_ssa_name_node *) control;
-
     struct v_register result = CREATE_V_REG(define_ssa_name->ssa_name, false);
     struct lox_ir_ll_operand new_value = lower_lox_ir_data(lllil, NULL, define_ssa_name->value, &result);
 
@@ -241,10 +241,33 @@ void lower_lox_ir_control_define_ssa_name(struct lllil_control * lllil) {
         move->from = new_value;
 
         add_lowered_node_lllil_control(lllil, &move->control);
+
+    } else if (is_redundant_register_move(new_value, define_ssa_name) &&
+            lowered_node_modifies_diferent_register_than_lowered_node_result(lllil, new_value)) {
+        //This is the case when we modify one register by a unary operation, but we remove the definition, this can happen
+        //in this case: i1 = i0 + 1
+        replace_ssa_name_lox_ir(lllil->lllil->lox_ir, define_ssa_name->ssa_name,
+                                GET_LL_UNARY_OPERAND(lllil->last_node_lowered).v_register.ssa_name);
     }
 }
 
-static bool is_redundant_register_move(struct lox_ir_ll_operand operand, struct lox_ir_control_define_ssa_name_node * define_ssa_name) {
+static bool lowered_node_modifies_diferent_register_than_lowered_node_result(
+        struct lllil_control * lllil_control,
+        struct lox_ir_ll_operand lowered_node_result
+) {
+    struct lox_ir_control_node * lowered_node = lllil_control->last_node_lowered;
+    struct lox_ir_control_ll_unary * unary = lowered_node;
+    return lowered_node->type == LOX_IR_CONTROL_NODE_LL_UNARY
+        && lowered_node_result.type == LOX_IR_LL_OPERAND_REGISTER
+        && GET_LL_UNARY_OPERAND(lowered_node).type == LOX_IR_LL_OPERAND_REGISTER
+        && GET_LL_UNARY_OPERAND(lowered_node).v_register.ssa_name.u16 != lowered_node_result.v_register.ssa_name.u16;
+}
+
+static bool lowered_unary_node(struct lllil_control * lllil_control) {
+    return lllil_control->last_node_lowered->type == LOX_IR_CONTROL_NODE_LL_UNARY;
+}
+
+static bool is_redundant_register_move(struct lox_ir_ll_operand operand, struct lox_ir_control_define_ssa_name_node * define) {
     return operand.type == LOX_IR_LL_OPERAND_REGISTER
-        && operand.v_register.ssa_name.u16 == define_ssa_name->ssa_name.u16;
+        && operand.v_register.ssa_name.u16 == define->ssa_name.u16;
 }
