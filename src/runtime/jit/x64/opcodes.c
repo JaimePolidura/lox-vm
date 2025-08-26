@@ -489,7 +489,6 @@ static uint16_t emit_register_immediate_add(struct u8_arraylist * array, struct 
         append_u8_arraylist(array, b.as.immediate);
     }
 
-
     return index;
 }
 

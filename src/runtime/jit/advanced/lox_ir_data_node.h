@@ -45,12 +45,12 @@ typedef enum {
 struct lox_ir_data_node {
     struct bytecode_list * original_bytecode;
     //The type produced by this data control
-    //This is added in type_propagation optimization process
+    //This is added in a type_propagation optimization process
     struct lox_ir_type * produced_type;
     lox_ir_data_node_type type;
 };
 
-//Start control_node_to_lower is inclusive. The iteration order will be post order
+//Start control_node_to_lower is inclusive. The iteration order will be post-order
 void * allocate_lox_ir_data_node(lox_ir_data_node_type type, size_t struct_size_bytes, struct bytecode_list *, struct lox_allocator *);
 void free_lox_ir_data_node(struct lox_ir_data_node *node_to_free);
 

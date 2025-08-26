@@ -7,6 +7,8 @@ struct lra {
     struct arena_lox_allocator lra_allocator;
 };
 
+#define ARGUMENT_PASSED_NAME_DEFINITION ((void *) 0x01)
+
 static struct lra * alloc_live_range_analysis(struct lox_ir * lox_ir);
 static void free_live_range_analysis(struct lra * lra);
 static struct liverange * create_live_range(struct ssa_name, struct lox_ir_control_node*, struct lox_ir_control_ll_move*);
@@ -14,6 +16,7 @@ static bool perform_live_range_analysis_block(struct lox_ir_block * block, void 
 static void save_liverange(struct lra *, struct liverange *);
 static void add_used_phi_ssa_names_to_pending_definitions_to_scan(struct lra*,struct lox_ir_control_node*,
         struct lox_ir_control_ll_move*,struct stack_list*);
+static struct stack_list init_definitions_pending_scan_stack(struct lra*, uint16_t);
 
 void perform_live_range_analysis(struct lox_ir * lox_ir) {
     struct lra * lra = alloc_live_range_analysis(lox_ir);
@@ -39,16 +42,15 @@ static bool perform_live_range_analysis_block(struct lox_ir_block * block, void 
 
         FOR_EACH_U64_SET_VALUE(used_v_regs_ssa, uint16_t, v_reg_ssa_name_u16) {
             struct ssa_name used_ssa_name = CREATE_SSA_NAME_FROM_U64(v_reg_ssa_name_u16);
-            struct u64_set * v_reg_definitions = get_u64_hash_table(&lra->lox_ir->definitions_by_ssa_name, v_reg_ssa_name_u16);
-
-            struct stack_list definitions_pending_scan;
-            init_stack_list(&definitions_pending_scan, &lra->lra_allocator.lox_allocator);
-            push_set_stack_list(&definitions_pending_scan, *v_reg_definitions);
+            struct stack_list definitions_pending_scan = init_definitions_pending_scan_stack(lra, v_reg_ssa_name_u16);
 
             while (!is_empty_stack_list(&definitions_pending_scan)) {
                 struct lox_ir_control_ll_move * definition = pop_stack_list(&definitions_pending_scan);
 
-                if (is_define_phi_lox_ir_control(&definition->control)) {
+                if (definition == ARGUMENT_PASSED_NAME_DEFINITION) {
+                    struct liverange * live_range = create_live_range(used_ssa_name, control, definition);
+                    save_liverange(lra, live_range);
+                } else if (is_define_phi_lox_ir_control(&definition->control)) {
                     add_used_phi_ssa_names_to_pending_definitions_to_scan(lra, control, definition, &definitions_pending_scan);
                 } else {
                     struct liverange * live_range = create_live_range(used_ssa_name, control, definition);
@@ -59,6 +61,20 @@ static bool perform_live_range_analysis_block(struct lox_ir_block * block, void 
     }
 }
 
+static struct stack_list init_definitions_pending_scan_stack(struct lra * lra, uint16_t name_u16) {
+    struct u64_set * v_reg_definitions = get_u64_hash_table(&lra->lox_ir->definitions_by_ssa_name, name_u16);
+    struct stack_list definitions_pending_scan;
+    init_stack_list(&definitions_pending_scan, &lra->lra_allocator.lox_allocator);
+
+    if (v_reg_definitions != NULL) {
+        push_set_stack_list(&definitions_pending_scan, *v_reg_definitions);
+    } else {
+        push_stack_list(&definitions_pending_scan, ARGUMENT_PASSED_NAME_DEFINITION);
+    }
+
+    return definitions_pending_scan;
+}
+
 static void add_used_phi_ssa_names_to_pending_definitions_to_scan(
         struct lra * lra,
         struct lox_ir_control_node * use,
@@ -66,7 +82,7 @@ static void add_used_phi_ssa_names_to_pending_definitions_to_scan(
         struct stack_list * pending_definitions_to_scan
 ) {
     struct u64_set used_ssa_names_in_phi = get_names_defined_phi_lox_ir_control(phi_definition,
-                                                                                &lra->lra_allocator.lox_allocator);
+            &lra->lra_allocator.lox_allocator);
 
     FOR_EACH_U64_SET_VALUE(used_ssa_names_in_phi, uint16_t, used_ssa_name_in_phi_u16) {
         struct ssa_name used_ssa_name_in_phi = CREATE_SSA_NAME_FROM_U64(used_ssa_name_in_phi_u16);
@@ -89,22 +105,24 @@ static void save_liverange(struct lra * lra, struct liverange * liverange) {
 static struct liverange * create_live_range(
         struct ssa_name v_reg_ssa_name,
         struct lox_ir_control_node * use,
-        //Can be NULL
         struct lox_ir_control_ll_move * definition
 ) {
-    struct lox_ir_block * definition_block = definition->control.block;
-    int definition_block_index = get_index_control_lox_ir_block(definition_block, (struct lox_ir_control_node *) definition);
     int use_block_index = get_index_control_lox_ir_block(use->block, use);
 
     struct liverange * liverange = NULL;
 
-    if (definition != NULL) {
+    if (definition != ARGUMENT_PASSED_NAME_DEFINITION) {
+        struct lox_ir_block * definition_block = definition->control.block;
+        int definition_block_index = get_index_control_lox_ir_block(definition_block,
+            (struct lox_ir_control_node *) definition);
         liverange->from_control_node_index = definition_block_index;
         liverange->from_block = definition_block;
         liverange->from_control_node = definition;
+        liverange->from_function_argument = false;
     } else {
         liverange->from_block = NULL;
         liverange->from_control_node = NULL;
+        liverange->from_function_argument = true;
     }
 
     liverange->to_control_node_index = use_block_index;

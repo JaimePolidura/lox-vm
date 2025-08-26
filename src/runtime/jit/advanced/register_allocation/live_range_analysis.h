@@ -10,6 +10,7 @@ struct liverange {
     struct lox_ir_block * from_block;
     struct lox_ir_control_ll_move * from_control_node;
     int from_control_node_index;
+    bool from_function_argument;
 
     struct lox_ir_block * to_block;
     struct lox_ir_control_node * to_control_node;
