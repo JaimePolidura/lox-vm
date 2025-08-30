@@ -373,6 +373,9 @@ void replace_ssa_name_lox_ir_control(
 }
 
 struct ssa_name * get_defined_ssa_name_lox_ir_control(struct lox_ir_control_node * control_node) {
+    if (control_node == NULL) {
+       return NULL;
+    }
     if (control_node->type == LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME) {
         return &GET_DEFINED_SSA_NAME(control_node);
     }
