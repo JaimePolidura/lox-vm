@@ -50,7 +50,7 @@ struct string_object * get_key_by_hash(struct lox_hash_table * table, uint32_t k
 }
 
 bool contains_hash_table(struct lox_hash_table * table, struct string_object * key){
-    return get_hash_table(table, key) != NULL;
+    return get_hash_table(table, key) != NIL_VALUE;
 }
 
 lox_value_t get_hash_table(struct lox_hash_table * table, struct string_object * key){
