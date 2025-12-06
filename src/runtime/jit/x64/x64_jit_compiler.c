@@ -100,8 +100,7 @@ static void single_operation(struct jit_compiler * jit_compiler, int instruction
 static uint16_t find_native_index_by_compiled_bytecode(struct jit_compiler *, uint16_t bytecode_index);
 static uint16_t load_arguments(struct jit_compiler * jit_compiler, int n_arguments);
 static bool does_single_bytecode_instruction(bytecode_t opcode);
-static void wrapper_write_struct_field_barrier(struct object *, lox_value_t);
-static void wrapper_write_array_element_barrier(struct object *, lox_value_t);
+static void wrapper_write_barrier(struct object *, lox_value_t);
 
 struct jit_compilation_result jit_compile_arch(struct function_object * function) {
     struct jit_compiler jit_compiler = init_jit_compiler(function);
@@ -376,12 +375,12 @@ static void set_array_element(struct jit_compiler * jit_compiler) {
 
     uint16_t instruction_index_cast = cast_lox_object_to_ptr(jit_compiler, element_addr_reg);
 
-    if (get_barriers_gc_alg().write_array_element != NULL) {
+    if (get_barriers_gc_alg().write_barrier != NULL) {
         call_external_c_function(
                 jit_compiler,
                 MODE_JIT,
                 SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
-                FUNCTION_TO_OPERAND(wrapper_write_array_element_barrier),
+                FUNCTION_TO_OPERAND(wrapper_write_barrier),
                 2,
                 REGISTER_TO_OPERAND(element_addr_reg),
                 REGISTER_TO_OPERAND(new_element_reg)
@@ -499,12 +498,12 @@ static void set_struct_field(struct jit_compiler * jit_compiler) {
 
     uint16_t first_instruction_index = cast_lox_object_to_ptr(jit_compiler, struct_addr_reg);
 
-    if (get_barriers_gc_alg().write_struct_field != NULL) {
+    if (get_barriers_gc_alg().write_barrier != NULL) {
         call_external_c_function(
                 jit_compiler,
                 MODE_JIT,
                 SWITCH_BACK_TO_PREV_MODE_AFTER_CALL,
-                FUNCTION_TO_OPERAND(wrapper_write_struct_field_barrier),
+                FUNCTION_TO_OPERAND(wrapper_write_barrier),
                 2,
                 REGISTER_TO_OPERAND(struct_addr_reg),
                 new_value_pop_result.operand
@@ -1180,14 +1179,8 @@ static bool does_single_bytecode_instruction(bytecode_t opcode) {
     }
 }
 
-static void wrapper_write_array_element_barrier (struct object * array_object, lox_value_t value) {
+static void wrapper_write_barrier(struct object * array_object, lox_value_t value) {
     if (IS_OBJECT(value)) {
-        get_barriers_gc_alg().write_array_element((struct array_object *) array_object, AS_OBJECT(value));
-    }
-}
-
-static void wrapper_write_struct_field_barrier (struct object * struct_object, lox_value_t value) {
-    if (IS_OBJECT(value)) {
-        get_barriers_gc_alg().write_struct_field((struct struct_instance_object *) struct_object, AS_OBJECT(value));
+        get_barriers_gc_alg().write_barrier(array_object, AS_OBJECT(value));
     }
 }

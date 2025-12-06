@@ -14,21 +14,21 @@
 #include "u8_set_test.h"
 #include "u8_hash_table.h"
 
-//#define RUN_U64_HASH_TABLE_TEST
-//#define RUN_MARK_BITMAP_TEST
-//#define RUN_HASH_TABLE_TEST
-//#define RUN_VM_INLINE_TEST
-//#define RUN_COMPILER_TEST
-//#define RUN_U8_HASH_TABLE
-//#define RUN_PACKAGE_TEST
-//#define RUN_VM_JIT_TEST
-//#define RUN_U8_SET_TEST
-//#define RUN_UTILS_TEST
-//#define RUN_STACK_TEST
-//#define RUN_TRIE_TEST
-#define RUN_LOX_IR_CREATION_TEST
-//#define lox_ir_block_dominates
-//#define RUN_VM_TEST
+#define RUN_U64_HASH_TABLE_TEST
+#define RUN_MARK_BITMAP_TEST
+#define RUN_HASH_TABLE_TEST
+#define RUN_VM_INLINE_TEST
+#define RUN_COMPILER_TEST
+#define RUN_U8_HASH_TABLE
+#define RUN_PACKAGE_TEST
+#define RUN_VM_JIT_TEST
+#define RUN_U8_SET_TEST
+#define RUN_UTILS_TEST
+#define RUN_STACK_TEST
+#define RUN_TRIE_TEST
+//#define RUN_LOX_IR_CREATION_TEST
+#define RUN_LOX_IR_NODES_TEST
+#define RUN_VM_TEST
 
 extern struct trie_list * compiled_packages;
 extern const char * compiling_base_dir;
@@ -54,18 +54,17 @@ int main() {
 #endif
 #ifdef RUN_LOX_IR_CREATION_TEST
     lox_ir_lowerer_ptr_outer();
-//    lox_ir_creation_pr_outer();
-//    lox_ir_creation_ea_outer();
-//    lox_ir_creation_ta_outer();
-//    lox_ir_creation_cp_outer();
-//    lox_ir_creation_pg_outer();
-//    lox_ir_creation_licm_outer();
-//    lox_ir_creation_sr_outer();
-//    lox_ir_creation_cse_outer();
-//    lox_ir_creation_nested_loop_outer();
-//    lox_ir_creation_scp_outer();
-//    lox_ir_creation_phis_inserter_and_optimizer_outer();
-//    lox_ir_creation_no_phis_outer();
+    lox_ir_creation_pr_outer();
+    lox_ir_creation_ea_outer();
+    lox_ir_creation_ta_outer();
+    lox_ir_creation_cp_outer();
+    lox_ir_creation_pg_outer();
+    lox_ir_creation_licm_outer();
+    lox_ir_creation_sr_outer();
+    lox_ir_creation_cse_outer();
+    lox_ir_creation_nested_loop_outer();
+    lox_ir_creation_scp_outer();
+    lox_ir_creation_phis_inserter_and_optimizer_outer();
 #endif
 #ifdef RUN_MARK_BITMAP_TEST
     multiple_mark_bitmap_test_outer();
