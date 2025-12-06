@@ -29,12 +29,10 @@ void * alloc_gc_vm_info_alg(); //The returned value_node is stored in vm.h value
 //May fail if there is a garbage colection going on or other thread concurretly tries to start a gc
 struct gc_result try_start_gc_alg(lox_value_t * args);
 
-typedef void (*write_struct_field_barrier_t)(struct struct_instance_object *, struct object *);
-typedef void (*write_array_element_barrier_t)(struct array_object *, struct object *);
+typedef void (*write_barrier_t)(struct object*, struct object*);
 
 struct gc_barriers {
-    write_array_element_barrier_t write_array_element;
-    write_struct_field_barrier_t write_struct_field;
+    write_barrier_t write_barrier;
 };
 
 struct gc_barriers get_barriers_gc_alg();

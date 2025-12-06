@@ -6,8 +6,7 @@ extern __thread struct vm_thread * self_thread;
 extern struct config config;
 extern struct vm current_vm;
 extern void start_minor_generational_gc(bool start_major);
-extern void write_struct_field_barrier_generational_gc(struct struct_instance_object *, struct object *);
-extern void write_array_element_barrier_generational_gc(struct array_object *, struct object *);
+extern void write_barrier_generational_gc(struct object * object_dst, struct object * src);
 extern void on_gc_finished_vm(struct gc_result result);
 
 static struct object * try_alloc_object(size_t size);
@@ -21,8 +20,7 @@ static void generational_gc_lox_free(struct lox_allocator *, void *);
 
 struct gc_barriers get_barriers_gc_alg() {
     return (struct gc_barriers) {
-        .write_array_element = write_array_element_barrier_generational_gc,
-        .write_struct_field = write_struct_field_barrier_generational_gc
+        .write_barrier = write_barrier_generational_gc
     };
 }
 
