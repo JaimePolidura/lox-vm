@@ -30,9 +30,11 @@ void * alloc_gc_vm_info_alg(); //The returned value_node is stored in vm.h value
 struct gc_result try_start_gc_alg(lox_value_t * args);
 
 typedef void (*write_barrier_t)(struct object*, struct object*);
+typedef void (*read_barrier_t)(struct object **);
 
 struct gc_barriers {
     write_barrier_t write_barrier;
+    read_barrier_t read_barier;
 };
 
 struct gc_barriers get_barriers_gc_alg();

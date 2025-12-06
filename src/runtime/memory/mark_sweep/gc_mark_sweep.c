@@ -43,8 +43,8 @@ void signal_threads_gc_finished_alg();
 
 struct gc_barriers get_barriers_gc_alg() {
     return (struct gc_barriers) {
-        .write_array_element = NULL,
-        .write_struct_field = NULL,
+        .write_barrier = NULL,
+        .read_barier = NULL
     };
 }
 
@@ -60,7 +60,7 @@ void add_object_to_heap_gc_alg(struct object * object) {
 
     if (gc_thread_info->bytes_allocated >= gc_thread_info->next_gc) {
         size_t before_gc_heap_size = gc_thread_info->bytes_allocated;
-        try_start_gc_alg(0, NULL);
+        try_start_gc_alg(NULL);
         size_t after_gc_heap_size = gc_thread_info->bytes_allocated;
 
         gc_thread_info->next_gc = gc_thread_info->bytes_allocated * HEAP_GROW_AFTER_GC_FACTOR;
@@ -70,7 +70,7 @@ void add_object_to_heap_gc_alg(struct object * object) {
     }
 }
 
-struct gc_result try_start_gc_alg(int n_args, lox_value_t * args) {
+struct gc_result try_start_gc_alg(lox_value_t * _) {
     struct mark_sweep_thread_info * gc_thread_info = self_thread->gc_info;
     struct mark_sweep_global_info * gc_global_info = current_vm.gc;
     struct gc_result gc_result;
@@ -402,14 +402,14 @@ struct struct_instance_object * alloc_struct_instance_gc_alg(struct struct_defin
 }
 
 struct string_object * alloc_string_gc_alg(char * chars, int length) {
-    struct string_object * chars = NATIVE_LOX_MALLOC(sizeof(struct string_object));
-    init_object(&chars->object, OBJ_STRING);
-    chars->length = length;
-    chars->hash = hash_string(chars, length);
-    chars->chars = NATIVE_LOX_MALLOC(sizeof(char) * length + 1);
-    memcpy(chars->chars, chars, length);
-    chars->chars[length] = '\0';
-    add_object_to_heap_gc_alg(&chars->object);
+    struct string_object * string_object = NATIVE_LOX_MALLOC(sizeof(struct string_object));
+    init_object(&string_object->object, OBJ_STRING);
+    string_object->length = length;
+    string_object->hash = hash_string(chars, length);
+    string_object->chars = NATIVE_LOX_MALLOC(sizeof(char) * length + 1);
+    memcpy(string_object->chars, chars, length);
+    string_object->chars[length] = '\0';
+    add_object_to_heap_gc_alg(&string_object->object);
     return chars;
 }
 
