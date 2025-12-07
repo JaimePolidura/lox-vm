@@ -292,7 +292,13 @@ static void define_global(struct call_frame * current_callframe) {
 
 static void get_global(struct call_frame * current_frame) {
     struct string_object * variable_name = AS_STRING_OBJECT(READ_CONSTANT(current_frame));
-    push_stack_vm(get_hash_table(&self_thread->current_package->global_variables, variable_name));
+    lox_value_t global_value = get_hash_table(&self_thread->current_package->global_variables, variable_name);
+
+    if (get_barriers_gc_alg().get_global_read_barrier != NULL && IS_OBJECT(global_value)) {
+        get_barriers_gc_alg().get_global_read_barrier(variable_name, global_value);
+    }
+
+    push_stack_vm(global_value);
 }
 
 static void set_global(struct call_frame * current_frame) {
@@ -313,6 +319,11 @@ static void set_local(struct call_frame * current_frame) {
 static void get_local(struct call_frame * current_frame) {
     uint8_t slot = READ_BYTECODE(current_frame);
     lox_value_t value = current_frame->slots[slot];
+    
+    if (get_barriers_gc_alg().get_local_read_barrier != NULL && IS_OBJECT(value)) {
+        get_barriers_gc_alg().get_local_read_barrier(slot, value);
+    }
+
     push_stack_vm(value);
 }
 
@@ -468,11 +479,17 @@ static void get_array_element(struct call_frame * call_frame) {
     struct array_object * array = (struct array_object *) pop_and_check_object(OBJ_ARRAY);
     uint64_t array_index = pop_and_check_number();
 
-    if (array_index >= array->values.in_use) {
+    if (array_index < 0 || array_index >= array->values.in_use) {
         runtime_panic("Index %i out of bounds when array size is %i", array, array->values.in_use);
     }
 
-    push_stack_vm(array->values.values[array_index]);
+    lox_value_t array_element_value = array->values.values[array_index];
+
+    if (get_barriers_gc_alg().get_array_element_read_barier != NULL && IS_OBJECT(array_element_value)) {
+        get_barriers_gc_alg().get_array_element_read_barier(array, array_index, array_element_value);
+    }
+
+    push_stack_vm(array_element_value);
 }
 
 static void set_array_element(struct call_frame * call_frame) {
@@ -509,7 +526,13 @@ static void get_struct_field(struct call_frame * call_frame) {
     struct struct_instance_object * instance = (struct struct_instance_object *) pop_and_check_object(OBJ_STRUCT_INSTANCE);
     struct string_object * field_name = (struct string_object *) AS_OBJECT(READ_CONSTANT(call_frame));
 
-    push_stack_vm(get_hash_table(&instance->fields, field_name));
+    lox_value_t field_value = get_hash_table(&instance->fields, field_name);
+
+    if (get_barriers_gc_alg().get_struct_field_read_barier != NULL && IS_OBJECT(field_value)) {
+        get_barriers_gc_alg().get_struct_field_read_barier(instance, field_name, AS_OBJECT(field_value));
+    }
+
+    push_stack_vm(field_value);
 }
 
 static void set_struct_field(struct call_frame * call_frame) {

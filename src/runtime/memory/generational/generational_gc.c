@@ -20,7 +20,12 @@ static void generational_gc_lox_free(struct lox_allocator *, void *);
 
 struct gc_barriers get_barriers_gc_alg() {
     return (struct gc_barriers) {
-        .write_barrier = write_barrier_generational_gc
+        .write_barrier = write_barrier_generational_gc,
+
+        .get_array_element_read_barier = NULL,
+        .get_struct_field_read_barier = NULL,
+        .get_global_read_barrier = NULL,
+        .get_local_read_barrier = NULL,
     };
 }
 
