@@ -388,3 +388,4 @@ struct ssa_name * get_defined_ssa_name_lox_ir_control(struct lox_ir_control_node
 
     return NULL;
 }
+

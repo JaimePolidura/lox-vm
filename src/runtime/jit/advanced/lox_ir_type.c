@@ -414,3 +414,17 @@ static uint64_t lox_object_to_native_type(struct object * object) {
                               object->type);
     }
 }
+
+bool is_object_lox_ir_type(lox_ir_type_t type) {
+    switch (type) {
+        case LOX_IR_TYPE_NATIVE_ARRAY:
+        case LOX_IR_TYPE_NATIVE_STRUCT_INSTANCE:
+        case LOX_IR_TYPE_NATIVE_STRING:
+        case LOX_IR_TYPE_LOX_STRING:
+        case LOX_IR_TYPE_LOX_ARRAY:
+        case LOX_IR_TYPE_LOX_STRUCT_INSTANCE:
+            return true;
+        default:
+            return false;
+    }
+}

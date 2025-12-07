@@ -21,7 +21,7 @@
 //Dont change order
 typedef enum {
     LOX_IR_TYPE_F64, //Floating numbers have the same binary representation in lox & native format
-    LOX_IR_TYPE_UNKNOWN,
+    LOX_IR_TYPE_UNKNOWN, //This type is only used internally by type_propagation & cast_insetion
 
     LOX_IR_TYPE_NATIVE_I64,
     LOX_IR_TYPE_NATIVE_STRING,
@@ -38,7 +38,7 @@ typedef enum {
     LOX_IR_TYPE_LOX_ARRAY,
     LOX_IR_TYPE_LOX_STRUCT_INSTANCE,
 
-    //It should always be the last element, this is usefule to know how many types there are
+    //It should always be the last element, this is useful to know how many types there are
     LOX_IR_TYPE_LOX_LAST_TYPE
 } lox_ir_type_t;
 
@@ -77,6 +77,7 @@ lox_ir_type_t binary_to_lox_ir_type(bytecode_t operator, lox_ir_type_t left, lox
 lox_ir_type_t profiled_type_to_lox_ir_type(profile_data_type_t profiled_type);
 bool is_lox_lox_ir_type(lox_ir_type_t type);
 bool is_native_lox_ir_type(lox_ir_type_t type);
+bool is_object_lox_ir_type(lox_ir_type_t type);
 lox_ir_type_t lox_type_to_native_lox_ir_type(lox_ir_type_t lox_type);
 lox_ir_type_t native_type_to_lox_ir_type(lox_ir_type_t native_type);
 char * to_string_lox_ir_type(lox_ir_type_t type);

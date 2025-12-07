@@ -71,6 +71,12 @@ void replace_ssa_name_lox_ir_control(struct lox_ir_control_node *node, struct ss
 struct u64_set get_used_ll_operands_lox_ir_control(struct lox_ir_control_node*, struct lox_allocator*);
 struct ssa_name * get_defined_ssa_name_lox_ir_control(struct lox_ir_control_node*);
 
+struct lox_ir_gc_write_barrier {
+    bool requires_write_gc_barrier;
+    bool requires_lox_any_type_check;
+    bool requires_native_to_lox_pointer_cast;
+};
+
 //OP_SET_LOCAL
 //Note that struct lox_ir_control_set_local_node should have the same size as lox_ir_control_define_ssa_name_node, so that
 //they can be replaced easily
@@ -128,6 +134,7 @@ struct lox_ir_control_set_struct_field_node {
     struct lox_ir_data_node * new_field_value;
     struct lox_ir_data_node * instance;
     bool escapes;
+    struct lox_ir_gc_write_barrier gc_write_barrier;
 };
 
 struct lox_ir_control_set_array_element_node {
@@ -139,6 +146,7 @@ struct lox_ir_control_set_array_element_node {
     struct lox_ir_data_node * new_element_value;
     bool escapes;
     bool requires_range_check;
+    struct lox_ir_gc_write_barrier gc_write_barrier;
 };
 
 //OP_LOOP
