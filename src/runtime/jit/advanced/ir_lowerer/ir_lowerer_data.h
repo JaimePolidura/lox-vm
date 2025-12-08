@@ -15,3 +15,11 @@ struct lox_ir_ll_operand lower_lox_ir_data(
         //If NULL, lower_lox_ir_data() will store the result in a new register
         struct v_register * result
 );
+
+//TODO Move to utils.h
+void emit_native_to_lox(
+        struct lllil_control * lllil,
+        struct lox_ir_ll_operand to_cast,
+        lox_ir_type_t actual_type,
+        lox_ir_type_t desired_type
+);

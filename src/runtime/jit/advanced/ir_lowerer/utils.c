@@ -611,6 +611,19 @@ void emit_function_call_manual_args_ll_lox_ir(
     add_lowered_node_lllil_control(lllil, &func_call->control);
 }
 
+struct lox_ir_ll_operand emit_copy_ll_lox_ir(
+        struct lllil_control * lllil,
+        struct lox_ir_ll_operand src
+) {
+    if (src.type != LOX_IR_LL_OPERAND_REGISTER) {
+        return src;
+    }
+
+    struct lox_ir_ll_operand dst = V_REG_TO_OPERAND(alloc_new_v_register(lllil, src.v_register.is_float_register));
+    emit_move_ll_lox_ir(lllil, dst, src);
+    return dst;
+}
+
 static struct lox_ir_ll_operand emit_get_array_length_ll_lox_ir_doesnt_escape(struct lllil_control*,
         struct lox_ir_ll_operand, struct v_register);
 static struct lox_ir_ll_operand emit_get_array_length_ll_lox_ir_escapes(struct lllil_control*,

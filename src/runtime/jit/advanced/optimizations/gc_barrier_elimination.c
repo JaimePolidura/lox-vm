@@ -54,13 +54,12 @@ static void perform_gc_barrier_elimination_control(struct gcbe * gcbe, struct lo
 static void optimize_write_barrier(struct lox_ir_control_node * control) {
     struct lox_ir_gc_write_barrier * wb = get_gc_write_barrier(control);
     lox_ir_type_t input_type = get_input_type(control);
+
     if (!is_marked_as_escaped_lox_ir_control(control) || !is_object_lox_ir_type(input_type)) {
         wb->requires_write_gc_barrier = false;
-    } else if (input_type == LOX_IR_TYPE_LOX_ANY) {
-        wb->requires_lox_any_type_check = true;
-    } else if (is_native_lox_ir_type(input_type)) {
-        wb->requires_native_to_lox_pointer_cast = true;
     }
+
+    wb->object_src_type = input_type;
 }
 
 static struct gcbe * alloc_gc_barrier_elimination(struct lox_ir * lox_ir) {

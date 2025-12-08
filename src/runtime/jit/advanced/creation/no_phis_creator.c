@@ -544,9 +544,8 @@ static void set_struct_field(
 
     set_struct_field->field_name = AS_STRING_OBJECT(READ_CONSTANT(inserter->lox_ir->function, to_evalute->pending_bytecode));
     set_struct_field->gc_write_barrier = (struct lox_ir_gc_write_barrier) {
-        .requires_native_to_lox_pointer_cast = false,
         .requires_write_gc_barrier = true,
-        .requires_lox_any_type_check = true,
+        .object_src_type = LOX_IR_TYPE_UNKNOWN
     };
     set_struct_field->new_field_value = field_value;
     set_struct_field->instance = instance;
@@ -569,9 +568,8 @@ static void set_array_element(struct no_phis_inserter * inserter, struct pending
     set_arrary_element_node->new_element_value = new_element;
     set_arrary_element_node->array = instance;
     set_arrary_element_node->gc_write_barrier = (struct lox_ir_gc_write_barrier) {
-        .requires_native_to_lox_pointer_cast = false,
         .requires_write_gc_barrier = true,
-        .requires_lox_any_type_check = true
+        .object_src_type = LOX_IR_TYPE_UNKNOWN
     };
 
     map_data_nodes_bytecodes_to_control(&inserter->control_nodes_by_bytecode, instance, &set_arrary_element_node->control);

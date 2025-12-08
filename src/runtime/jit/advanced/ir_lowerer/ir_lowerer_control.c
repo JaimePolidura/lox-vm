@@ -16,6 +16,9 @@ void lower_lox_ir_control_define_ssa_name(struct lllil_control*);
 
 static bool is_redundant_register_move(struct lox_ir_ll_operand, struct lox_ir_control_define_ssa_name_node*);
 static bool lowered_node_modifies_diferent_register_than_lowered_node_result(struct lllil_control*,struct lox_ir_ll_operand);
+static void emit_write_barrier(struct lllil_control*,struct lox_ir_gc_write_barrier,struct lox_ir_ll_operand,struct lox_ir_ll_operand);
+static void emit_write_barrier_calling_native_gc_alg_function(struct lllil_control*,struct lox_ir_ll_operand,struct lox_ir_ll_operand);
+static void wrapper_gc_alg_write_barrier_function(struct object *,lox_value_t);
 
 extern void enter_monitor(struct monitor * monitor);
 extern void exit_monitor(struct monitor * monitor);
@@ -157,9 +160,9 @@ void lower_lox_ir_control_set_struct_field(struct lllil_control * lllil) {
 
 static void set_struct_field_escapes(struct lllil_control * lllil, struct lox_ir_control_set_struct_field_node * set_struct_field) {
     struct lox_ir_block * block = set_struct_field->control.block;
+    struct lox_ir_gc_write_barrier write_barrier = set_struct_field->gc_write_barrier;
 
     struct lox_ir_ll_operand instance = lower_lox_ir_data(lllil, NULL, set_struct_field->instance, NULL);
-
     struct lox_ir_ll_operand new_instance_value = lower_lox_ir_data(lllil, NULL, set_struct_field->new_field_value, NULL);
 
     emit_function_call_ll_lox_ir(
@@ -171,6 +174,10 @@ static void set_struct_field_escapes(struct lllil_control * lllil, struct lox_ir
             IMMEDIATE_TO_OPERAND((uint64_t) &set_struct_field->field_name),
             new_instance_value
     );
+
+    if (write_barrier.requires_write_gc_barrier) {
+        emit_write_barrier(lllil, write_barrier, instance, new_instance_value);
+    }
 }
 
 static void set_struct_field_doesnt_escape(struct lllil_control * lllil, struct lox_ir_control_set_struct_field_node * set_struct_field) {
@@ -189,6 +196,7 @@ static void set_struct_field_doesnt_escape(struct lllil_control * lllil, struct 
 void lower_lox_ir_control_set_array_element(struct lllil_control * lllil) {
     struct lox_ir_control_node * control = lllil->control_node_to_lower;
     struct lox_ir_control_set_array_element_node * set_array_element = (struct lox_ir_control_set_array_element_node *) control;
+    struct lox_ir_gc_write_barrier write_barrier = set_array_element->gc_write_barrier;
     struct lox_ir_ll_operand array_instance = lower_lox_ir_data(lllil, NULL, set_array_element->array, NULL);
     struct lox_ir_ll_operand index = lower_lox_ir_data(lllil, NULL, set_array_element->index, NULL);
     struct lox_ir_ll_operand new_value = lower_lox_ir_data(lllil, NULL, set_array_element->new_element_value, NULL);
@@ -207,6 +215,10 @@ void lower_lox_ir_control_set_array_element(struct lllil_control * lllil) {
         emit_store_at_offset_ll_lox_ir(lllil, array_instance, 0, new_value);
     } else {
         emit_store_at_offset_ll_lox_ir(lllil, array_instance, index.immedate * 8, new_value);
+    }
+
+    if (write_barrier.requires_write_gc_barrier) {
+        emit_write_barrier(lllil, write_barrier, array_instance, new_value);
     }
 }
 
@@ -270,4 +282,51 @@ static bool lowered_unary_node(struct lllil_control * lllil_control) {
 static bool is_redundant_register_move(struct lox_ir_ll_operand operand, struct lox_ir_control_define_ssa_name_node * define) {
     return operand.type == LOX_IR_LL_OPERAND_REGISTER
         && operand.v_register.ssa_name.u16 == define->ssa_name.u16;
+}
+
+static void emit_write_barrier(
+        struct lllil_control * lllil,
+        struct lox_ir_gc_write_barrier wb,
+        struct lox_ir_ll_operand object_dst,
+        struct lox_ir_ll_operand object_src
+) {
+    if (get_barriers_gc_alg().write_barrier == NULL) {
+        return;
+    }
+    //Slow path
+    if (wb.object_src_type == LOX_IR_TYPE_LOX_ANY) {
+        emit_write_barrier_calling_native_gc_alg_function(lllil, object_dst, object_src);
+        return;
+    }
+
+    if (is_native_lox_ir_type(wb.object_src_type)) {
+        object_src = emit_copy_ll_lox_ir(lllil, object_src);
+        emit_native_to_lox(lllil, object_src, wb.object_src_type, native_type_to_lox_ir_type(wb.object_src_type));
+    }
+
+    emit_write_barrier_ll_lox_ir_jit_gc_alg(lllil, object_dst, object_src);
+}
+
+static void emit_write_barrier_calling_native_gc_alg_function(
+        struct lllil_control * lllil,
+        struct lox_ir_ll_operand value_holder,
+        struct lox_ir_ll_operand wb_input
+) {
+    emit_function_call_ll_lox_ir(
+            lllil,
+            wrapper_gc_alg_write_barrier_function,
+            "wrapper_gc_alg_write_barrier_function",
+            2,
+            value_holder,
+            wb_input
+    );
+}
+
+static void wrapper_gc_alg_write_barrier_function(
+        struct object * dst,
+        lox_value_t src
+) {
+    if (IS_OBJECT(src)) {
+        get_barriers_gc_alg().write_barrier(dst, AS_OBJECT(src));
+    }
 }

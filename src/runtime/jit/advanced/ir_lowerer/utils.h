@@ -119,3 +119,8 @@ void emit_range_check_ll_lox_ir(
         struct lox_ir_ll_operand index_to_access,
         bool escapes
 );
+
+struct lox_ir_ll_operand emit_copy_ll_lox_ir(
+        struct lllil_control *,
+        struct lox_ir_ll_operand src
+);

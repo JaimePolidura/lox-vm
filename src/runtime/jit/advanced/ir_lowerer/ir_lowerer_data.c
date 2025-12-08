@@ -53,9 +53,7 @@ static struct lox_ir_ll_operand emit_lox_generic_binary(struct lllil_control*, b
 static void emit_string_concat(struct lllil_control*,struct lox_ir_ll_operand,struct lox_ir_ll_operand,struct lox_ir_ll_operand,lox_ir_type_t,lox_ir_type_t,lox_ir_type_t);
 static bool is_binary_inc(struct lox_ir_data_binary_node *);
 static bool is_binary_dec(struct lox_ir_data_binary_node *);
-static void emit_native_to_lox(struct lllil_control*,struct lox_ir_ll_operand,lox_ir_type_t,lox_ir_type_t);
 static void emit_lox_to_native(struct lllil_control*,struct lox_ir_ll_operand,lox_ir_type_t,lox_ir_type_t);
-static struct lox_ir_ll_operand copy_into_new_register(struct lllil_control*, struct lox_ir_ll_operand);
 static struct lox_ir_ll_operand lowerer_lox_ir_data_lox_function_call(struct lllil_control*,struct lox_ir_data_function_call_node*,struct v_register*);
 static struct lox_ir_ll_operand lowerer_lox_ir_data_native_function_call(struct lllil_control*,struct lox_ir_data_function_call_node*,struct v_register*);
 
@@ -105,7 +103,7 @@ struct lox_ir_ll_operand lower_lox_ir_data(
     struct lox_ir_ll_operand operand_result = lowerer_lox_ir_data(lllil_control, data_node, result);
 
     if (parent_will_have_unwanted_side_effect(lllil_control, operand_result, parent_node)) {
-        operand_result = copy_into_new_register(lllil_control, operand_result);
+        operand_result = emit_copy_ll_lox_ir(lllil_control, operand_result);
     }
 
     return operand_result;
@@ -1230,7 +1228,7 @@ static void emit_lox_to_native(
     }
 }
 
-static void emit_native_to_lox(
+void emit_native_to_lox(
         struct lllil_control * lllil,
         struct lox_ir_ll_operand to_cast,
         lox_ir_type_t actual_type,
@@ -1269,16 +1267,6 @@ static bool parent_will_have_unwanted_side_effect(
         && (parent->type == LOX_IR_DATA_NODE_CAST || parent->type == LOX_IR_DATA_NODE_UNARY)
         && parent_input.type == LOX_IR_LL_OPERAND_REGISTER
         && parent_input.v_register.ssa_name.value.local_number < lllil->lllil->last_phi_resolution_v_reg_allocated;
-}
-
-static struct lox_ir_ll_operand copy_into_new_register(struct lllil_control * lllil, struct lox_ir_ll_operand src) {
-    if (src.type != LOX_IR_LL_OPERAND_REGISTER) {
-        return src;
-    }
-
-    struct lox_ir_ll_operand dst = alloc_new_v_register(lllil, src.v_register.is_float_register);
-    emit_move_ll_lox_ir(lllil, dst, src);
-    return dst;
 }
 
 static struct lox_ir_ll_operand alloc_new_v_register(struct lllil_control * lllil, bool is_float) {
