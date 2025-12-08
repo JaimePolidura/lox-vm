@@ -13,8 +13,9 @@ static void free_gc_barrier_elimination(struct gcbe *);
 static bool perform_gc_barrier_elimination_block(struct lox_ir_block*,void*);
 static void perform_gc_barrier_elimination_control(struct gcbe*,struct lox_ir_control_node*);
 static struct lox_ir_gc_write_barrier * get_gc_write_barrier(struct lox_ir_control_node*);
-static bool has_gc_write_barrier(struct lox_ir_control_node*);
+static bool control_node_has_gc_write_barrier(struct lox_ir_control_node *control);
 static lox_ir_type_t get_input_type(struct lox_ir_control_node*);
+static void optimize_write_barrier(struct lox_ir_control_node *);
 
 void perform_gc_barrier_elimination(struct lox_ir * lox_ir) {
     struct gcbe * gcbe = alloc_gc_barrier_elimination(lox_ir);
@@ -45,16 +46,20 @@ static bool perform_gc_barrier_elimination_block(struct lox_ir_block * current_b
 }
 
 static void perform_gc_barrier_elimination_control(struct gcbe * gcbe, struct lox_ir_control_node * control) {
-    if (has_gc_write_barrier(control)) {
-        struct lox_ir_gc_write_barrier * wb = get_gc_write_barrier(control);
-        lox_ir_type_t input_type = get_input_type(control);
-        if (!is_marked_as_escaped_lox_ir_control(control) || !is_object_lox_ir_type(input_type)) {
-            wb->requires_write_gc_barrier = false;
-        } else if (input_type == LOX_IR_TYPE_LOX_ANY) {
-            wb->requires_lox_any_type_check = true;
-        } else if (is_native_lox_ir_type(input_type)) {
-            wb->requires_native_to_lox_pointer_cast = true;
-        }
+    if (control_node_has_gc_write_barrier(control)) {
+        optimize_write_barrier(control);
+    }
+}
+
+static void optimize_write_barrier(struct lox_ir_control_node * control) {
+    struct lox_ir_gc_write_barrier * wb = get_gc_write_barrier(control);
+    lox_ir_type_t input_type = get_input_type(control);
+    if (!is_marked_as_escaped_lox_ir_control(control) || !is_object_lox_ir_type(input_type)) {
+        wb->requires_write_gc_barrier = false;
+    } else if (input_type == LOX_IR_TYPE_LOX_ANY) {
+        wb->requires_lox_any_type_check = true;
+    } else if (is_native_lox_ir_type(input_type)) {
+        wb->requires_native_to_lox_pointer_cast = true;
     }
 }
 
@@ -87,7 +92,7 @@ static lox_ir_type_t get_input_type(struct lox_ir_control_node * control) {
     }
 }
 
-static bool has_gc_write_barrier(struct lox_ir_control_node * control) {
+static bool control_node_has_gc_write_barrier(struct lox_ir_control_node * control) {
     return control->type == LOX_IR_CONTROL_NODE_SET_STRUCT_FIELD
            || control->type == LOX_IR_CONTROL_NODE_SET_ARRAY_ELEMENT;
 }

@@ -4,6 +4,7 @@
 #include "lox_ir_guard.h"
 #include "lox_ir_ll_operand.h"
 #include "runtime/threads/monitor.h"
+#include "lox_ir_gc_barrier.h"
 
 //Control flow nodes used in SSA IR
 
@@ -70,12 +71,6 @@ void replace_ssa_name_lox_ir_control(struct lox_ir_control_node *node, struct ss
 //Returns set of pointers to fields of struct ll_operand
 struct u64_set get_used_ll_operands_lox_ir_control(struct lox_ir_control_node*, struct lox_allocator*);
 struct ssa_name * get_defined_ssa_name_lox_ir_control(struct lox_ir_control_node*);
-
-struct lox_ir_gc_write_barrier {
-    bool requires_write_gc_barrier;
-    bool requires_lox_any_type_check;
-    bool requires_native_to_lox_pointer_cast;
-};
 
 //OP_SET_LOCAL
 //Note that struct lox_ir_control_set_local_node should have the same size as lox_ir_control_define_ssa_name_node, so that

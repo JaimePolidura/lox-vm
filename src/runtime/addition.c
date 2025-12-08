@@ -4,7 +4,7 @@
 #include "runtime/threads/vm_thread.h"
 
 extern __thread struct vm_thread * self_thread;
-
+2
 lox_value_t addition_lox(lox_value_t a, lox_value_t b) {
     if(IS_NUMBER(a) && IS_NUMBER(b)) {
         return TO_LOX_VALUE_NUMBER(a + b);
