@@ -1,7 +1,7 @@
 #include "live_range_analysis.h"
 
 struct lra {
-    struct ptr_arraylist liveranges;
+    struct ptr_arraylist * liveranges;
 
     struct u64_hash_table liveranges_by_from_ssa_name;
 
@@ -18,7 +18,7 @@ static bool perform_live_range_analysis_block(struct lox_ir_block * block, void 
 static void save_liverange(struct lra *, struct liverange *);
 static struct u64_set get_definitions(struct lra *, struct ssa_name name);
 
-void perform_live_range_analysis(struct lox_ir * lox_ir) {
+struct ptr_arraylist * perform_live_range_analysis(struct lox_ir * lox_ir) {
     struct lra * lra = alloc_live_range_analysis(lox_ir);
 
     for_each_lox_ir_block(
@@ -30,6 +30,8 @@ void perform_live_range_analysis(struct lox_ir * lox_ir) {
     );
 
     free_live_range_analysis(lra);
+
+    return lra->liveranges;
 }
 
 static bool perform_live_range_analysis_block(struct lox_ir_block * block, void * extra) {
@@ -82,7 +84,7 @@ static struct u64_set get_definitions(struct lra * lra, struct ssa_name name) {
 }
 
 static void save_liverange(struct lra * lra, struct liverange * liverange) {
-    append_ptr_arraylist(&lra->liveranges, liverange);
+    append_ptr_arraylist(lra->liveranges, liverange);
 }
 
 static struct liverange * create_live_range(

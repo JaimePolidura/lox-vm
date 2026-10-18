@@ -4,7 +4,7 @@
 
 struct liverange {
     //If from_control_node and from_block is NULL, it means from the liverange will go just from the start of IR
-    //For example this could happen when we used function arguments
+    //For example this could happen when function arguments are used
     struct lox_ir_block * from_block;
     struct lox_ir_control_ll_move * from_control_node;
     int from_control_node_index;
@@ -16,4 +16,4 @@ struct liverange {
     int to_control_node_index;
 };
 
-void perform_live_range_analysis(struct lox_ir *);
+struct ptr_arraylist * perform_live_range_analysis(struct lox_ir *);
