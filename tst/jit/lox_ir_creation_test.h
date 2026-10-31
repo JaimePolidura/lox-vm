@@ -19,9 +19,11 @@ static void run(struct compilation_result);
 TEST(lox_ir_lowerer_ptr) {
     struct compilation_result compilation = compile_standalone(
             "fun function() {"
+            "   var b = 0;"
             "   for(var i = 0; i < 10; i = i + 1) {"
-            "       print i;"
+            "       b = i;"
             "   }"
+            "   return b;"
             "}"
     );
 
