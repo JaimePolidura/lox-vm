@@ -17,6 +17,20 @@ void free_ptr_arraylist(struct ptr_arraylist * array) {
     LOX_FREE(array->allocator, array->values);
 }
 
+void remove_ptr_arraylist(struct ptr_arraylist * array, int index) {
+    for (int i = index; i < array->in_use; i++) {
+        int to = i;
+        int from = to + 1;
+        bool can_move_items_back = from < array->in_use;
+
+        if (can_move_items_back) {
+            array->values[to] = array->values[from];
+        }
+    }
+
+    array->in_use--;
+}
+
 uint16_t append_ptr_arraylist(struct ptr_arraylist * array, void * value) {
     if(array->in_use + 1 > array->capacity) {
         const int new_capacity = GROW_CAPACITY(array->capacity);

@@ -10,7 +10,6 @@
 #include "runtime/jit/advanced/optimizations/copy_propagation.h"
 #include "runtime/jit/advanced/optimizations/type_propagation.h"
 #include "runtime/jit/advanced/optimizations/escape_analysis.h"
-#include "runtime/jit/advanced/phi_resolution/phi_resolver.h"
 #include "runtime/jit/advanced/ir_lowerer/ir_lowerer.h"
 
 #include "runtime/jit/advanced/creation/no_phis_creator.h"

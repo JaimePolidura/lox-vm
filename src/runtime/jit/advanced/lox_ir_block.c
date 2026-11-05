@@ -22,22 +22,22 @@ void for_each_lox_ir_block(
         init_u64_set(&visited_blocks, allocator);
     }
 
-    while(!is_empty_stack_list(&pending)){
+    while (!is_empty_stack_list(&pending)) {
         struct lox_ir_block * current_block = pop_stack_list(&pending);
 
-        if(IS_FLAG_SET(options, LOX_IR_BLOCK_OPT_NOT_REPEATED) && contains_u64_set(&visited_blocks, (uint64_t) current_block)){
+        if (IS_FLAG_SET(options, LOX_IR_BLOCK_OPT_NOT_REPEATED) && contains_u64_set(&visited_blocks, (uint64_t) current_block)) {
             continue;
         }
-        if(IS_FLAG_SET(options, LOX_IR_BLOCK_OPT_NOT_REPEATED) && !is_subset_u64_set(visited_blocks, current_block->predecesors)){
+        if (IS_FLAG_SET(options, LOX_IR_BLOCK_OPT_NOT_REPEATED) && !is_subset_u64_set(visited_blocks, current_block->predecesors)) {
             continue;
         }
 
         //Dont continue iterating
         bool continue_scanning_from_this_block = consumer(current_block, extra);
-        if(IS_FLAG_SET(options, LOX_IR_BLOCK_OPT_NOT_REPEATED)){
+        if (IS_FLAG_SET(options, LOX_IR_BLOCK_OPT_NOT_REPEATED)) {
             add_u64_set(&visited_blocks, (uint64_t) current_block);
         }
-        if(!continue_scanning_from_this_block){
+        if (!continue_scanning_from_this_block) {
             continue;
         }
 
@@ -55,7 +55,7 @@ void for_each_lox_ir_block(
     }
 
     free_stack_list(&pending);
-    if(IS_FLAG_SET(options, LOX_IR_BLOCK_OPT_NOT_REPEATED)){
+    if (IS_FLAG_SET(options, LOX_IR_BLOCK_OPT_NOT_REPEATED)) {
         free_u64_set(&visited_blocks);
     }
 }

@@ -3,7 +3,7 @@
 struct lra {
     struct ptr_arraylist * liveranges;
 
-    struct u64_hash_table liveranges_by_from_ssa_name;
+    struct ptr_arraylist_hash_table liveranges_by_ssa_names;
 
     struct lox_ir * lox_ir;
     struct arena_lox_allocator lra_allocator;
@@ -17,6 +17,8 @@ static struct liverange * create_live_range(struct ssa_name, struct lox_ir_contr
 static bool perform_live_range_analysis_block(struct lox_ir_block * block, void * extra);
 static void save_liverange(struct lra *, struct liverange *);
 static struct u64_set get_definitions(struct lra *, struct ssa_name name);
+static bool is_redundant_liverange(struct lra *, struct liverange *);
+static void remove_redundant_liverange(struct lra*, struct liverange*);
 
 struct ptr_arraylist * perform_live_range_analysis(struct lox_ir * lox_ir) {
     struct lra * lra = alloc_live_range_analysis(lox_ir);
@@ -84,7 +86,12 @@ static struct u64_set get_definitions(struct lra * lra, struct ssa_name name) {
 }
 
 static void save_liverange(struct lra * lra, struct liverange * liverange) {
+    if (is_redundant_liverange(lra, liverange)) {
+        remove_redundant_liverange(lra, liverange);
+    }
+
     append_ptr_arraylist(lra->liveranges, liverange);
+    put_ptr_arraylist_hash_table(&lra->liveranges_by_ssa_names, liverange->from_v_reg_ssa_name.u16, liverange);
 }
 
 static struct liverange * create_live_range(
@@ -120,6 +127,37 @@ static struct liverange * create_live_range(
     return liverange;
 }
 
+static bool is_redundant_liverange(struct lra * lra, struct liverange * new_liverange) {
+    struct ptr_arraylist * already_saved_liverangers_for_ssa_name = get_ptr_arraylist_hash_table(
+            &lra->liveranges_by_ssa_names, new_liverange->from_v_reg_ssa_name.u16);
+
+    if (already_saved_liverangers_for_ssa_name == NULL) {
+        return false;
+    }
+
+    for (int i = 0; i < already_saved_liverangers_for_ssa_name->in_use; i++) {
+        struct liverange * other_liverange = already_saved_liverangers_for_ssa_name->values[i];
+        if (other_liverange->to_block == new_liverange->to_block) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static void remove_redundant_liverange(struct lra * lra, struct liverange * new_liverange) {
+    struct ptr_arraylist * already_saved_liverangers_for_ssa_name = get_ptr_arraylist_hash_table(
+        &lra->liveranges_by_ssa_names, new_liverange->from_v_reg_ssa_name.u16);
+
+    for (int i = 0; i < already_saved_liverangers_for_ssa_name->in_use; i++) {
+        struct liverange * other_liverange = already_saved_liverangers_for_ssa_name->values[i];
+        if (other_liverange->to_block == new_liverange->to_block) {
+            remove_ptr_arraylist(already_saved_liverangers_for_ssa_name, i);
+            break;
+        }
+    }
+}
+
 static struct lra * alloc_live_range_analysis(struct lox_ir * lox_ir) {
     struct lra * lra = LOX_MALLOC(NATIVE_LOX_ALLOCATOR(), sizeof(struct lra));
 
@@ -127,6 +165,9 @@ static struct lra * alloc_live_range_analysis(struct lox_ir * lox_ir) {
     init_arena(&arena);
     lra->lox_ir = lox_ir;
     lra->lra_allocator = to_lox_allocator_arena(arena);
+
+    lra->liveranges = alloc_ptr_arraylist(&lox_ir->nodes_allocator_arena->lox_allocator);
+    init_ptr_arraylist_hash_table(&lra->liveranges_by_ssa_names, &lra->lra_allocator.lox_allocator);
 
     return lra;
 }

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "runtime/jit/advanced/phi_resolution/v_register.h"
+#include "ir_lowerer/v_register.h"
 
 #include "shared/utils/collections/u64_set.h"
 #include "shared/bytecode/bytecode.h"

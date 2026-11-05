@@ -11,7 +11,7 @@
 #include "shared/package.h"
 #include "shared.h"
 
-#include "runtime/jit/advanced/phi_resolution/v_register.h"
+#include "ir_lowerer/v_register.h"
 #include "runtime/jit/advanced/lox_ir_gc_barrier.h"
 #include "runtime/jit/advanced/lox_ir_guard.h"
 #include "runtime/jit/advanced/lox_ir_type.h"

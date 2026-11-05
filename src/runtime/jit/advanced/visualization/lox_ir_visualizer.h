@@ -3,7 +3,6 @@
 #include "runtime/jit/advanced/visualization/lox_ir_visualizer_struct.h"
 #include "runtime/jit/advanced/visualization/lox_ir_graphviz_visualizer.h"
 
-#include "runtime/jit/advanced/phi_resolution/phi_resolver.h"
 #include "runtime/jit/advanced/optimizations/loop_invariant_code_motion.h"
 #include "runtime/jit/advanced/optimizations/common_subexpression_elimination.h"
 #include "runtime/jit/advanced/optimizations/sparse_constant_propagation.h"
