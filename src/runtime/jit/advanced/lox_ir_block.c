@@ -1,10 +1,7 @@
 #include "lox_ir_block.h"
 
 static struct lox_ir_block_loop_info * create_loop_info_lox_ir_block(struct lox_ir_block*,struct lox_allocator*);
-static void record_new_node_information_of_block(struct lox_ir_block *, struct lox_ir_control_node *);
 static bool create_loop_info_lox_ir_block_consumer(struct lox_ir_block *current_block, void *extra);
-static struct u64_set get_blocks_to_remove(struct lox_ir_block *);
-
 
 void for_each_lox_ir_block(
         struct lox_ir_block * start_block,
@@ -219,16 +216,6 @@ void reset_loop_info(struct lox_ir_block * block) {
     }
 }
 
-static void record_new_node_information_of_block(
-        struct lox_ir_block * block,
-        struct lox_ir_control_node * new_block_node
-) {
-    if(new_block_node->type == LOX_IR_CONTROL_NODE_DEFINE_SSA_NAME){
-        struct lox_ir_control_define_ssa_name_node * define = (struct lox_ir_control_define_ssa_name_node *) new_block_node;
-        add_u64_set(&block->defined_ssa_names, define->ssa_name.u16);
-    }
-}
-
 void record_removed_node_information_of_block(
         struct lox_ir_block * block,
         struct lox_ir_control_node * new_block_node
@@ -259,11 +246,26 @@ int get_index_control_lox_ir_block(
 ) {
     int current_index = 0;
 
-    for (struct lox_ir_control_node * current = block->first;;target = target->next, current_index++) {
+    for (struct lox_ir_control_node * current = block->first; current!= NULL; target = target->next, current_index++) {
         if (current == target) {
             return current_index;
         }
     }
 
     return -1;
+}
+
+bool is_sequential_lox_ir_block(struct lox_ir_block * from, struct lox_ir_block * to) {
+    if (from == to) {
+        return true;
+    }
+
+    while (from->type_next == TYPE_NEXT_LOX_IR_BLOCK_SEQ || from->type_next == TYPE_NEXT_LOX_IR_BLOCK_LOOP) {
+        from = from->next_as.next;
+        if (from == to) {
+            return true;
+        }
+    }
+
+    return false;
 }

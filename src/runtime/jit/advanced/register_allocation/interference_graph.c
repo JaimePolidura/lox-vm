@@ -1,6 +1,8 @@
 #include "interference_graph.h"
 
 struct igb {
+    struct u64_hash_table nodes_by_ssa_name;
+
     struct lox_ir * lox_ir;
     struct arena_lox_allocator igb_allocator;
 };
@@ -13,7 +15,7 @@ static void free_interference_graph_builder(struct igb*);
 static bool get_live_ssa_names_between_blocks_consumer(struct lox_ir_block*, void*);
 static struct u64_set get_live_ssa_names_inside_block(struct igb*,struct lox_ir_control_node*,struct lox_ir_control_node*);
 
-void build_interference_graph(struct lox_ir * lox_ir, struct ptr_arraylist * liveranges) {
+struct interference_graph build_interference_graph(struct lox_ir * lox_ir, struct ptr_arraylist * liveranges) {
     struct igb * igb = alloc_interference_graph_builder(lox_ir);
 
     for (int i = 0; i < liveranges->in_use; i++) {
@@ -29,14 +31,24 @@ void build_interference_graph(struct lox_ir * lox_ir, struct ptr_arraylist * liv
     }
 
     free_interference_graph_builder(igb);
+
+    return (struct interference_graph) { .nodes = igb->nodes_by_ssa_name };
 }
 
 static void link_interference_graph_nodes(struct interference_graph_node * a, struct interference_graph_node * b) {
-
+    put_u64_hash_table(&a->links, b->ssa_name.u16, b);
+    put_u64_hash_table(&b->links, a->ssa_name.u16, a);
 }
 
 static struct interference_graph_node * create_or_get_node(struct igb * igb, struct ssa_name ssa_name) {
+    if (!contains_u64_hash_table(&igb->nodes_by_ssa_name, ssa_name.u16)) {
+        struct interference_graph_node * node = LOX_MALLOC(&igb->lox_ir->nodes_allocator_arena->lox_allocator, sizeof(struct interference_graph_node));
+        node->ssa_name = ssa_name;
+        init_u64_hash_table(&node->links, &igb->lox_ir->nodes_allocator_arena->lox_allocator);
+        put_u64_hash_table(&igb->nodes_by_ssa_name, ssa_name.u16, node);
+    }
 
+    return get_u64_hash_table(&igb->nodes_by_ssa_name, ssa_name.u16);
 }
 
 struct get_live_ssa_names_between_blocks_struct {
@@ -106,6 +118,8 @@ static struct igb * alloc_interference_graph_builder(struct lox_ir * lox_ir) {
     init_arena(&arena);
     igb->lox_ir = lox_ir;
     igb->igb_allocator = to_lox_allocator_arena(arena);
+
+    init_u64_hash_table(&igb->nodes_by_ssa_name, &lox_ir->nodes_allocator_arena->lox_allocator);
 
     return igb;
 }

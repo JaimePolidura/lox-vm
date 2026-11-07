@@ -13,7 +13,7 @@ struct lra {
 
 static struct lra * alloc_live_range_analysis(struct lox_ir * lox_ir);
 static void free_live_range_analysis(struct lra * lra);
-static struct liverange * create_live_range(struct ssa_name, struct lox_ir_control_node*, struct lox_ir_control_ll_move*);
+static struct liverange * create_live_range(struct lox_ir*, struct ssa_name, struct lox_ir_control_node*, struct lox_ir_control_ll_move*);
 static bool perform_live_range_analysis_block(struct lox_ir_block * block, void * extra);
 static void save_liverange(struct lra *, struct liverange *);
 static struct u64_set get_definitions(struct lra *, struct ssa_name name);
@@ -41,27 +41,29 @@ static bool perform_live_range_analysis_block(struct lox_ir_block * block, void 
 
     int i = 0;
 
-    for (struct lox_ir_control_node * control = block->first;;control = control->next, i++) {
-        struct u64_set used_v_regs_ssa = get_used_ssa_names_lox_ir_control(control, &lra->lra_allocator.lox_allocator);
+    for (struct lox_ir_control_node * current = block->first; current != NULL; current = current->next, i++) {
+        struct u64_set used_v_regs_ssa = get_used_ssa_names_lox_ir_control(current, &lra->lra_allocator.lox_allocator);
 
         FOR_EACH_U64_SET_VALUE(used_v_regs_ssa, uint16_t, v_reg_ssa_name_u16) {
             struct ssa_name used_ssa_name = CREATE_SSA_NAME_FROM_U64(v_reg_ssa_name_u16);
             struct u64_set definitions = get_definitions(lra, used_ssa_name);
 
             FOR_EACH_U64_SET_VALUE(definitions, struct lox_ir_control_node *, definition) {
-                struct liverange * live_range = create_live_range(used_ssa_name, control, definition);
+                struct liverange * live_range = create_live_range(lra->lox_ir, used_ssa_name, current, (struct lox_ir_control_ll_move *) definition);
                 save_liverange(lra, live_range);
             }
         }
     }
+
+    return true;
 }
 
 static struct u64_set get_definitions(struct lra * lra, struct ssa_name name) {
     struct u64_set definitions;
-    init_u64_set(&definitions, &lra->lra_allocator);
+    init_u64_set(&definitions, &lra->lra_allocator.lox_allocator);
 
     struct stack_list pending_ssa_names;
-    init_stack_list(&pending_ssa_names, &lra->lra_allocator);
+    init_stack_list(&pending_ssa_names, &lra->lra_allocator.lox_allocator);
     push_stack_list(&pending_ssa_names, (void *) name.u16);
 
     while (!is_empty_stack_list(&pending_ssa_names)) {
@@ -95,13 +97,14 @@ static void save_liverange(struct lra * lra, struct liverange * liverange) {
 }
 
 static struct liverange * create_live_range(
+        struct lox_ir * lox_ir,
         struct ssa_name v_reg_ssa_name,
         struct lox_ir_control_node * use,
         struct lox_ir_control_ll_move * definition
 ) {
     int use_block_index = get_index_control_lox_ir_block(use->block, use);
 
-    struct liverange * liverange = NULL;
+    struct liverange * liverange = LOX_MALLOC(&lox_ir->nodes_allocator_arena->lox_allocator, sizeof(struct liverange));
 
     if (definition != ARGUMENT_PASSED_NAME_DEFINITION) {
         struct lox_ir_block * definition_block = definition->control.block;
@@ -117,7 +120,7 @@ static struct liverange * create_live_range(
         liverange->from_block = NULL;
         liverange->from_control_node = NULL;
         liverange->from_function_argument = true;
-        liverange->from_v_reg_ssa_name = *get_defined_ssa_name_lox_ir_control(definition);
+        liverange->from_v_reg_ssa_name = *get_defined_ssa_name_lox_ir_control(&definition->control);
     }
     
     liverange->to_control_node_index = use_block_index;
@@ -137,7 +140,7 @@ static bool is_redundant_liverange(struct lra * lra, struct liverange * new_live
 
     for (int i = 0; i < already_saved_liverangers_for_ssa_name->in_use; i++) {
         struct liverange * other_liverange = already_saved_liverangers_for_ssa_name->values[i];
-        if (other_liverange->to_block == new_liverange->to_block) {
+        if (is_sequential_lox_ir_block(other_liverange->from_block, other_liverange->to_block)) {
             return true;
         }
     }
