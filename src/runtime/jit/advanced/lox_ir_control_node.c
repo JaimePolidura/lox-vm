@@ -191,7 +191,8 @@ bool is_lowered_type_lox_ir_control(struct lox_ir_control_node *node) {
         || node->type == LOX_IR_CONTROL_NODE_LL_UNARY
         || node->type == LOX_IR_CONTROL_NODE_LL_RETURN
         || node->type == LOX_IR_CONTROL_NODE_LL_FUNCTION_CALL
-        || node->type == LOX_IR_CONTROL_NODE_LL_COND_FUNCTION_CALL;
+        || node->type == LOX_IR_CONTROL_NODE_LL_COND_FUNCTION_CALL
+        || node->type == LOX_IR_CONTROL_NODE_LOOP_JUMP; // Ignored while lowering lox ir
 }
 
 bool is_define_phi_lox_ir_control(struct lox_ir_control_node * node) {
@@ -228,7 +229,7 @@ struct u64_set get_names_defined_phi_lox_ir_control(
 
     if (node->type == LOX_IR_CONTROL_NODE_LL_MOVE) {
         struct lox_ir_control_ll_move * move = (struct lox_ir_control_ll_move *) node;
-        FOR_EACH_U64_SET_VALUE(move->to.phi_v_register.versions, uint64_t, version) {
+        FOR_EACH_U64_SET_VALUE(move->from.phi_v_register.versions, uint64_t, version) {
             struct ssa_name ssa_name = CREATE_SSA_NAME(move->to.phi_v_register.v_register.ssa_name.value.local_number, version);
             add_u64_set(&ssa_names, ssa_name.u16);
         }
@@ -360,8 +361,8 @@ void replace_ssa_name_lox_ir_control(
         struct ssa_name old,
         struct ssa_name new
 ) {
-    //Replace data node ssa names
-    FOR_EACH_U64_SET_VALUE(get_children_lox_ir_control(node), struct lox_ir_data_node **,child) {
+    // Replace data node ssa names
+    FOR_EACH_U64_SET_VALUE(get_children_lox_ir_control(node), struct lox_ir_data_node **, child) {
         replace_ssa_name_lox_ir_data(child, old, new);
     }
 
@@ -388,4 +389,3 @@ struct ssa_name * get_defined_ssa_name_lox_ir_control(struct lox_ir_control_node
 
     return NULL;
 }
-

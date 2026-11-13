@@ -6,6 +6,7 @@
 
 void init_ptr_arraylist_hash_table(struct ptr_arraylist_hash_table * table, struct lox_allocator * allocator) {
     init_u64_hash_table(&table->hash_table, allocator);
+    table->allocator = allocator;
 }
 
 struct ptr_arraylist_hash_table * alloc_ptr_arraylist_hash_table(struct lox_allocator * allocator) {

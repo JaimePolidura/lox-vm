@@ -26,7 +26,7 @@ struct ptr_arraylist * perform_live_range_analysis(struct lox_ir * lox_ir) {
     for_each_lox_ir_block(
             lox_ir->first_block,
             NATIVE_LOX_ALLOCATOR(),
-            lox_ir,
+            lra,
             LOX_IR_BLOCK_OPT_NOT_REPEATED,
             perform_live_range_analysis_block
     );

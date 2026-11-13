@@ -71,7 +71,6 @@ static void initialization(struct cp * cp) {
 
     while (has_next_u64_hash_table_iterator(ssa_names_iterator)) {
         struct u64_hash_table_entry ssa_name_entry = next_u64_hash_table_iterator(&ssa_names_iterator);
-        struct lox_ir_control_define_ssa_name_node *ssa_name_definition = ssa_name_entry.value;
         struct ssa_name ssa_name = CREATE_SSA_NAME_FROM_U64(ssa_name_entry.key);
         struct u64_set * ssa_name_uses = get_u64_hash_table(&cp->lox_ir->node_uses_by_ssa_name, ssa_name.u16);
 

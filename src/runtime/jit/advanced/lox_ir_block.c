@@ -246,7 +246,7 @@ int get_index_control_lox_ir_block(
 ) {
     int current_index = 0;
 
-    for (struct lox_ir_control_node * current = block->first; current!= NULL; target = target->next, current_index++) {
+    for (struct lox_ir_control_node * current = block->first; current!= NULL; current = current->next, current_index++) {
         if (current == target) {
             return current_index;
         }

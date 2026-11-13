@@ -90,7 +90,7 @@ bool is_marked_as_escaped_lox_ir_data_node(struct lox_ir_data_node*);
 //Sets escapes boolean field in certain type of lox ir nodes to true
 void mark_as_escaped_lox_ir_data_node(struct lox_ir_data_node*);
 //Should only be call by lox_ir.c
-void replace_ssa_name_lox_ir_data(struct lox_ir_data_node **node, struct ssa_name old, struct ssa_name new);
+void replace_ssa_name_lox_ir_data(struct lox_ir_data_node**, struct ssa_name old, struct ssa_name new);
 
 //OP_GET_LOCAL
 //Note that the size of lox_ir_data_get_ssa_name_node shoud be the same as lox_ir_data_get_local_node so that they
@@ -197,6 +197,7 @@ struct lox_ir_data_initialize_array_node {
     bool escapes;
 };
 
+#define GET_PHI_SSA_VERSIONS(phi_node) (((struct lox_ir_data_phi_node *) (phi_node))->ssa_versions)
 #define FOR_EACH_SSA_NAME_IN_PHI_NODE(phi_node, current_name) \
     struct u64_set_iterator iterator##current_name; \
     init_u64_set_iterator(&iterator##current_name, (phi_node)->ssa_versions); \

@@ -766,7 +766,7 @@ struct replace_ssa_name_lox_ir_data_struct {
 
 bool replace_ssa_name_lox_ir_data_consumer (
         struct lox_ir_data_node * _,
-        void ** __,
+        void ** parent,
         struct lox_ir_data_node * node,
         void * extra
 ) {

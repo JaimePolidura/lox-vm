@@ -84,7 +84,6 @@ static struct ptr_arraylist * merge_predecessors_stack_slots_lists(
         struct ptr_arraylist * b
 ) {
     struct ptr_arraylist * result = alloc_ptr_arraylist(&lllil->lllil_allocator.lox_allocator);
-    int current_index = 0;
 
     for (int i = 0; i < MAX(a->in_use, b->in_use); i++) {
         bool a_list_completed = i >= a->in_use;

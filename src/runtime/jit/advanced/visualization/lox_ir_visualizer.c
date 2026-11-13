@@ -4,7 +4,7 @@ extern void runtime_panic(char * format, ...);
 
 static struct lox_ir_visualizer create_graphviz_visualizer(char *, struct arena_lox_allocator *, struct function_object *);
 
-void visualize_lox_ir(
+void visualize(
         struct package * package,
         struct function_object * function,
         phase_lox_ir_lox_ir_visualizer_t phase,
@@ -22,7 +22,7 @@ void visualize_lox_ir(
     switch (phase) {
         case NO_PHIS_PHASE_LOX_IR_VISUALIZATION: {
             struct lox_ir * lox_ir = alloc_lox_ir(NATIVE_LOX_ALLOCATOR(), function, package);
-            create_lox_ir_no_phis(lox_ir, create_bytecode_list(function->chunk, &node_allocator.lox_allocator),options);
+            create_lox_ir_no_phis(lox_ir, create_bytecode_list(function->chunk, &node_allocator.lox_allocator), options);
             generate_graph_visualization_lox_ir(&graphviz_visualizer, lox_ir->first_block);
             break;
         }
@@ -134,6 +134,24 @@ void visualize_lox_ir(
             generate_graph_visualization_lox_ir(&graphviz_visualizer, lox_ir->first_block);
             break;
         }
+        case INTERFERENCE_GRAPH_LOX_IR_VISUALIZATION: {
+            struct lox_ir * lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
+                    &node_allocator.lox_allocator), graphviz_visualizer.options);
+
+            perform_type_propagation(lox_ir);
+            perform_escape_analysis(lox_ir);
+            perform_cast_insertion(lox_ir);
+            perform_copy_propagation(lox_ir);
+            lower_lox_ir(lox_ir);
+
+            struct ptr_arraylist * live_ranges = perform_live_range_analysis(lox_ir);
+            struct interference_graph interference_graph = build_interference_graph(lox_ir, live_ranges);
+
+            graphviz_visualizer.lox_ir = lox_ir;
+            generate_graph_visualization_interference_graph(&graphviz_visualizer, &interference_graph);
+
+            break;
+        }
         case ALL_PHASE_LOX_IR_VISUALIZATION: {
             //IR Creation
             struct lox_ir * lox_ir = create_lox_ir(package, function, create_bytecode_list(function->chunk,
@@ -177,10 +195,13 @@ static struct lox_ir_visualizer create_graphviz_visualizer(
     init_u64_set(&visited_blocks, &arena_lox_allocator->lox_allocator);
     struct u64_set blocks_edges_generated;
     init_u64_set(&blocks_edges_generated, &arena_lox_allocator->lox_allocator);
+    struct u64_set ssa_names_generated;
+    init_u64_set(&ssa_names_generated, &arena_lox_allocator->lox_allocator);
 
     return (struct lox_ir_visualizer) {
             .block_generated_graph_by_block = last_block_control_node_by_block,
             .blocks_edges_generated = blocks_edges_generated,
+            .ssa_names_generated = ssa_names_generated,
             .blocks_graph_generated = visited_blocks,
             .next_control_node_id = 0,
             .next_data_node_id = 0,

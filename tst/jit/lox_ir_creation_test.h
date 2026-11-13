@@ -17,13 +17,20 @@ static bool node_defines_ssa_name(struct lox_ir_control_node *, int version);
 static void run(struct compilation_result);
 
 TEST(lox_ir_lowerer_ptr) {
+    //struct compilation_result compilation = compile_standalone(
+    //        "fun function() {"
+    //        "   var b = 0;"
+    //        "   for(var i = 0; i < 10; i = i + 1) {"
+    //        "       b = i;"
+    //        "   }"
+    //        "   return b;"
+    //        "}"
+    //);
+
     struct compilation_result compilation = compile_standalone(
             "fun function() {"
-            "   var b = 0;"
             "   for(var i = 0; i < 10; i = i + 1) {"
-            "       b = i;"
             "   }"
-            "   return b;"
             "}"
     );
 
@@ -36,7 +43,7 @@ TEST(lox_ir_lowerer_ptr) {
     init_function_profile_data(function);
 
     //Observe the generated graph IR
-    visualize_lox_ir(
+    visualize(
             package,
             function,
             LOWERING_LOX_IR_VISUALIZATION,
@@ -61,10 +68,10 @@ TEST(lox_ir_creation_pr) {
     init_function_profile_data(function);
 
     //Observe the generated graph IR
-    visualize_lox_ir(
+    visualize(
             package,
             function,
-            ALL_PHASE_LOX_IR_VISUALIZATION,
+            LOWERING_LOX_IR_VISUALIZATION,
             DEFAULT_GRAPHVIZ_OPT | DISPLAY_TYPE_INFO_OPT | DISPLAY_ESCAPE_INFO_OPT,
             LOX_IR_CREATION_OPT_DONT_USE_BRANCH_PROFILE,
             "C:\\Users\\jaime\\OneDrive\\Escritorio\\ir.txt"
@@ -117,7 +124,7 @@ TEST(lox_ir_creation_ea) {
     init_function_profile_data(function);
 
     //Observe the generated graph IR
-    visualize_lox_ir(
+    visualize(
             package,
             function,
             ESCAPE_ANALYSIS_PHASE_LOX_IR_VISUALIZATION,
@@ -144,7 +151,7 @@ TEST(lox_ir_creation_ta){
     init_function_profile_data(function);
 
     //Observe the generated graph IR
-    visualize_lox_ir(
+    visualize(
             package,
             function,
             CAST_INSERTION_PHASE_LOX_IR_VISUALIZATION,
@@ -168,7 +175,7 @@ TEST(lox_ir_creation_cp) {
     init_function_profile_data(function);
 
     //Observe the generated graph IR
-    visualize_lox_ir(
+    visualize(
             package,
             function,
             COPY_PROPAGATION_PHASE_LOX_IR_VISUALIZATION,
@@ -190,7 +197,7 @@ TEST(lox_ir_creation_pg) {
     init_function_profile_data(function);
 
     //Observe the generated graph IR
-    visualize_lox_ir(
+    visualize(
             package,
             function,
             ALL_PHASE_LOX_IR_VISUALIZATION,
@@ -225,7 +232,7 @@ TEST(lox_ir_creation_licm) {
     init_function_profile_data(function);
 
     //Observe the generated graph IR
-    visualize_lox_ir(
+    visualize(
             package,
             function,
             NO_PHIS_PHASE_LOX_IR_VISUALIZATION,
@@ -248,7 +255,7 @@ TEST(lox_ir_creation_sr){
     init_function_profile_data(function);
 
     //Observe the generated graph IR
-    visualize_lox_ir(
+    visualize(
             package,
             function,
             STRENGTH_REDUCTION_PHASE_LOX_IR_VISUALIZATION,
@@ -279,7 +286,7 @@ TEST(lox_ir_creation_cse){
     init_function_profile_data(function);
 
     //Observe the generated graph IR
-    visualize_lox_ir(
+    visualize(
             package,
             function,
             COMMON_SUBEXPRESSION_ELIMINATION_PHASE_LOX_IR_VISUALIZATION,
@@ -303,7 +310,7 @@ TEST(lox_ir_creation_nested_loop){
     init_function_profile_data(function);
 
     //Observe the generated graph IR
-    visualize_lox_ir(
+    visualize(
             package,
             function,
             PHIS_INSERTED_PHASE_LOX_IR_VISUALIZATION,
